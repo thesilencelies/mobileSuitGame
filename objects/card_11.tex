@@ -1,6 +1,15 @@
-\begin{tikzpicture}[]
+\begin{tikzpicture}[scale=0.5]
  \draw[line = blue](1.1,1.9) -- (1.05,1.95)
-\node[circle, minimum width = 1cm, fill opacity = 0.3, fill = white!30blue!70, line =white!40blue!60, draw] (1, 2){3};
+\node[circle, minimum width = 1cm, fill opacity = 0.3, fill = white!30blue!70, line = white!40blue!60, draw] (1, 2){}; \node(1,2){3};
+\node[rectangle, minimum width = 1cm, fill opacity = 0.3, fill = white!30yellow!70, line = white!40yellow!60, draw] (1, 2){}; \node(1,2){-3};
 \node[text colour = green]{\Large{B}};
+\node[rectangle, minimum height = 1cm, minimum width =2cm, round corners, fill=white, opacity=0.3](4, 2){};
+\node(-5, 1){\includegraphics{"attackimg.png"}};
+\node( 7 , 2){\includegraphics{"rangeimg.png"}};
+\node(7, 3){18};
+\node[rectangle, minimum height = 1cm, minimum width =2cm, round corners, fill=white, opacity=0.3](4, 5){};
+\node(5, 6){\includegraphics{"blockImg.png"}};
+\node[rectangle, minimum height = 1cm, minimum width =2cm, round corners, fill=white, opacity=0.3](4, 8){};
+\node(5, 8){\includegraphics{"blockImg.png"}};
 \node[rectangle, fill opacity = 0.3, fill = white, draw, text width = 5cm] (1, 20){};
 \end{tikzpicture}
