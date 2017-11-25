@@ -56,7 +56,7 @@ with open(datafile) as csvfile:
             #ranges
             if int(row["HighRange"]) > 0:
                  filetext = filetext + '\\node at ( 7 , 7){\\includegraphics[' + iconwidth + ']{' + rangeImg + '}};\n'
-                 filetext = filetext + '\\node at (7, 8){' + row["HighRange"] + '};\n'
+                 filetext = filetext + '\\node at (5, 7){' + row["HighRange"] + '};\n'
             print("mid")
               #attacks
             if int(row["MidAttack"]) or int(row["MidBlock"]):
@@ -70,8 +70,8 @@ with open(datafile) as csvfile:
                 filetext = filetext + "\\node at (" + str(d + 7) + ', 4){\\includegraphics[' + iconwidth + ']{' + blkImg + '}};\n'
             #ranges
             if int(row["MidRange"]) > 0:
-                 filetext = filetext + '\\node at ( 7 , 4){\\includegraphics[' + iconwidth + ']{' + rangeImg + '}};\n'
-                 filetext = filetext + '\\node at (7, 4){' + row["MidRange"] + '};\n'
+                 filetext = filetext + '\\node at ( 5, 4){\\includegraphics[' + iconwidth + ']{' + rangeImg + '}};\n'
+                 filetext = filetext + '\\node at (5, 4){' + row["MidRange"] + '};\n'
             print("low")
             
               #attacks
@@ -86,8 +86,8 @@ with open(datafile) as csvfile:
                 filetext = filetext + "\\node at (" + str(d + 7) + ', 1){\\includegraphics[width=1cm]{' + blkImg + '}};\n'
             #ranges
             if int(row["LowRange"]) > 0:
-                 filetext = filetext + '\\node at ( 7 , 2){\\includegraphics[' + iconwidth + ']{' + rangeImg + '}};\n'
-                 filetext = filetext + '\\node at (7, 1){' + row["LowRange"] + '};\n'
+                 filetext = filetext + '\\node at ( 5 , 1){\\includegraphics[' + iconwidth + ']{' + rangeImg + '}};\n'
+                 filetext = filetext + '\\node at (5, 1){' + row["LowRange"] + '};\n'
             print("text")
             #cardtext
             filetext = filetext + "\\node[rectangle, fill opacity = 0.3, fill = white, minimum height =1.5cm, rounded corners = 0.3cm, draw, text width = 4cm]  at (3, 1.5){" + row['Text'] +"};\n" 
