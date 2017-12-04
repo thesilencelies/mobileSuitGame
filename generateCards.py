@@ -16,7 +16,7 @@ iconwidth ="width=0.9cm"
 outputfolder='objects/card_'
 with open(datafile) as csvfile:
   with open(outputfolder + "all.tex", "w") as allfile:
-     allfile.write("\\documentclass{article}\n \\usepackage{tikz} \n \\begin{document}\n")
+     allfile.write("\\documentclass[a4paper, landscape]{article}\n \\usepackage[left =2cm, right = 2cm, top = 1.4cm, bottom =1.4cm]{geometry} \n \\usepackage{tikz} \n \\begin{document}\n")
      reader = csv.DictReader(csvfile)
      i = 0
      for row in reader:
@@ -25,9 +25,9 @@ with open(datafile) as csvfile:
             print("starting card " + str(i))
             i = i + 1
             #background image should be loaded here?
-            filetext = "\\begin{tikzpicture}[scale=1, backbox/.style= {rectangle, minimum height = 2.2cm, minimum width =2.2cm, rounded corners = 0.3cm, fill=white, opacity=0.3}]\n "
-            filetext = filetext + "\\node [rectangle, minimum width = 7cm, minimum height = 10cm, fill=black!70!white!30] at (4,5){};\n"
-            filetext = filetext + '\\node at (4,5){\\includegraphics[width=7cm]{' + row["BackgroundImg"] + '}};\n'
+            filetext = "\\begin{tikzpicture}[scale=0.86, backbox/.style= {rectangle, minimum height = 2.2cm, minimum width =2.2cm, rounded corners = 0.3cm, fill=white, opacity=0.5}]\n "
+            filetext = filetext + "\\node [rectangle, minimum width = 6.2cm, minimum height = 8.5cm, fill=black!70!white!30] at (4,5){};\n"
+            filetext = filetext + '\\node at (4,5){\\includegraphics[width=6cm]{' + row["BackgroundImg"] + '}};\n'
             #format the card
             filetext = filetext + "\\node [rectangle, minimum height = 1.2cm,rounded corners = 0.3cm, fill=white, opacity=0.6] at (4, 9.5){\\large{" + row["Name"] + "}};\n"
             #default symbols
@@ -48,30 +48,30 @@ with open(datafile) as csvfile:
                 filetext = filetext + "\\node[backbox] at (6.5, 7.5){};\n"
             aimg = rAtkImg if int(row["HighRange"]) > 0 else mAtkImg
             for d in range(0,int(row["HighAttack"])):
-                filetext = filetext + "\\node at (" + str(-d + 7) + ', 8){\\includegraphics[' + iconwidth + ']{' + aimg + '}};\n'
+                filetext = filetext + "\\node at (" + str(-(d/2) + 7) + ', 8){\\includegraphics[' + iconwidth + ']{' + aimg + '}};\n'
             
             #blocks
             for d in range(0,int(row["HighBlock"])):
-                filetext = filetext + "\\node at (" + str(d + 7) + ', 7){\\includegraphics[' + iconwidth + ']{' + blkImg + '}};\n'
+                filetext = filetext + "\\node at (" + str(-(d/2)  + 7) + ', 7){\\includegraphics[' + iconwidth + ']{' + blkImg + '}};\n'
             #ranges
             if int(row["HighRange"]) > 0:
-                 filetext = filetext + '\\node at ( 7 , 7){\\includegraphics[' + iconwidth + ']{' + rangeImg + '}};\n'
-                 filetext = filetext + '\\node at (5, 7){' + row["HighRange"] + '};\n'
+                 filetext = filetext + '\\node at ( 6 , 6.75){\\includegraphics[' + iconwidth + ']{' + rangeImg + '}};\n'
+                 filetext = filetext + '\\node at (6, 7.25){' + row["HighRange"] + '};\n'
             print("mid")
               #attacks
             if int(row["MidAttack"]) or int(row["MidBlock"]):
                 filetext = filetext + "\\node[backbox] at (6.5, 4.5){};\n"
             aimg = rAtkImg if int(row["MidRange"]) > 0 else mAtkImg
             for d in range(0,int(row["MidAttack"])):
-                filetext = filetext + "\\node at (" + str(-d + 7) + ', 5){\\includegraphics[' + iconwidth + ']{'+ aimg + '}};\n'
+                filetext = filetext + "\\node at (" + str(-(d/2) + 7) + ', 5){\\includegraphics[' + iconwidth + ']{'+ aimg + '}};\n'
             
             #blocks
             for d in range(0,int(row["MidBlock"])):
-                filetext = filetext + "\\node at (" + str(d + 7) + ', 4){\\includegraphics[' + iconwidth + ']{' + blkImg + '}};\n'
+                filetext = filetext + "\\node at (" + str(-(d/2) + 7) + ', 4){\\includegraphics[' + iconwidth + ']{' + blkImg + '}};\n'
             #ranges
             if int(row["MidRange"]) > 0:
-                 filetext = filetext + '\\node at ( 5, 4){\\includegraphics[' + iconwidth + ']{' + rangeImg + '}};\n'
-                 filetext = filetext + '\\node at (5, 4){' + row["MidRange"] + '};\n'
+                 filetext = filetext + '\\node at ( 6, 3.75){\\includegraphics[' + iconwidth + ']{' + rangeImg + '}};\n'
+                 filetext = filetext + '\\node at (6, 4.25){' + row["MidRange"] + '};\n'
             print("low")
             
               #attacks
@@ -79,18 +79,18 @@ with open(datafile) as csvfile:
                 filetext = filetext + "\\node[backbox] at (6.5, 1.5){};\n"
             aimg = rAtkImg if int(row["LowRange"]) > 0 else mAtkImg
             for d in range(0,int(row["LowAttack"])):
-                filetext = filetext + "\\node at (" + str(-d + 7) + ', 2){\\includegraphics[' + iconwidth + ']{' + aimg + '}};\n'
+                filetext = filetext + "\\node at (" + str( -(d/2) + 7) + ', 2){\\includegraphics[' + iconwidth + ']{' + aimg + '}};\n'
             
             #blocks
             for d in range(0,int(row["LowBlock"])):
-                filetext = filetext + "\\node at (" + str(d + 7) + ', 1){\\includegraphics[width=1cm]{' + blkImg + '}};\n'
+                filetext = filetext + "\\node at (" + str( -(d/2) + 7) + ', 1){\\includegraphics[width=1cm]{' + blkImg + '}};\n'
             #ranges
             if int(row["LowRange"]) > 0:
-                 filetext = filetext + '\\node at ( 5 , 1){\\includegraphics[' + iconwidth + ']{' + rangeImg + '}};\n'
-                 filetext = filetext + '\\node at (5, 1){' + row["LowRange"] + '};\n'
+                 filetext = filetext + '\\node at ( 6 , 0.75){\\includegraphics[' + iconwidth + ']{' + rangeImg + '}};\n'
+                 filetext = filetext + '\\node at (6, 1.25){' + row["LowRange"] + '};\n'
             print("text")
             #cardtext
-            filetext = filetext + "\\node[rectangle, fill opacity = 0.3, fill = white, minimum height =1.5cm, rounded corners = 0.3cm, draw, text width = 4cm]  at (3, 1.5){" + row['Text'] +"};\n" 
+            filetext = filetext + "\\node[rectangle, fill = white, minimum height =1.5cm, rounded corners = 0.3cm, draw, text width = 4cm, opacity = 0.8]  at (3, 1.5){" + row['Text'] +"};\n" 
             filetext = filetext + "\\end{tikzpicture}\n"
             ofile.write(filetext)
             allfile.write(filetext)
