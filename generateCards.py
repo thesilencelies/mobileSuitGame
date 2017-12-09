@@ -33,7 +33,7 @@ with open(datafile) as csvfile:
             print("starting card " + str(i))
             i = i + 1
             #background image should be loaded here?
-            filetext = "\\begin{tikzpicture}[scale=0.86, backbox/.style= {rectangle, minimum height = 2.2cm, minimum width =2.2cm, rounded corners = 0.3cm, fill=white, opacity=0.5}]\n "
+            filetext = "\\begin{tikzpicture}[scale=0.86, backbox/.style= {rectangle, minimum height = 2.2cm, minimum width =2.2cm, rounded corners = 0.3cm, fill=white, opacity=0.65}]\n "
             filetext = filetext + "\\node [rectangle, minimum width = 6.2cm, minimum height = 8.5cm, fill=black!70!white!30] at (4,5){};\n"
             filetext = filetext + '\\node at (4,5){\\includegraphics[width=6cm]{' + row["BackgroundImg"] + '}};\n'
             #format the card
@@ -98,7 +98,7 @@ with open(datafile) as csvfile:
                  filetext = filetext + '\\node at (6, 1.25){' + row["LowRange"] + '};\n'
             print("text")
             #cardtext
-            filetext = filetext + "\\node[rectangle, fill = white, minimum height =1.5cm, rounded corners = 0.3cm, draw, text width = 4cm, opacity = 0.8]  at (3, 1.5){" + row['Text'] +"};\n" 
+            filetext = filetext + "\\node[rectangle, fill = white, minimum height =1.5cm, rounded corners = 0.3cm, text width = 3.5cm, opacity = 0.65]  at (3, 1.5){" + row['Text'] +"};\n" 
             filetext = filetext + "\\end{tikzpicture}\n"
             ofile.write(filetext)
             allfile.write(filetext)
