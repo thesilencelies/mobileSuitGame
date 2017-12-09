@@ -2,6 +2,14 @@
 
 import csv
 
+def inchInt(st):
+    try:
+        a= int(st)
+    except ValueError:
+        a= int(st[0:-1])
+    return a
+
+
 datafile = 'data.csv'
 
 mAtkImg = 'attackImg.png'
@@ -46,7 +54,7 @@ with open(datafile) as csvfile:
             #attacks
             if int(row["HighAttack"]) or int(row["HighBlock"]):
                 filetext = filetext + "\\node[backbox] at (6.5, 7.5){};\n"
-            aimg = rAtkImg if int(row["HighRange"]) > 0 else mAtkImg
+            aimg = rAtkImg if inchInt(row["HighRange"]) > 0 else mAtkImg
             for d in range(0,int(row["HighAttack"])):
                 filetext = filetext + "\\node at (" + str(-(d/2) + 7) + ', 8){\\includegraphics[' + iconwidth + ']{' + aimg + '}};\n'
             
@@ -54,14 +62,14 @@ with open(datafile) as csvfile:
             for d in range(0,int(row["HighBlock"])):
                 filetext = filetext + "\\node at (" + str(-(d/2)  + 7) + ', 7){\\includegraphics[' + iconwidth + ']{' + blkImg + '}};\n'
             #ranges
-            if int(row["HighRange"]) > 0:
+            if inchInt(row["HighRange"]) > 0:
                  filetext = filetext + '\\node at ( 6 , 6.75){\\includegraphics[' + iconwidth + ']{' + rangeImg + '}};\n'
                  filetext = filetext + '\\node at (6, 7.25){' + row["HighRange"] + '};\n'
             print("mid")
               #attacks
             if int(row["MidAttack"]) or int(row["MidBlock"]):
                 filetext = filetext + "\\node[backbox] at (6.5, 4.5){};\n"
-            aimg = rAtkImg if int(row["MidRange"]) > 0 else mAtkImg
+            aimg = rAtkImg if inchInt(row["MidRange"]) > 0 else mAtkImg
             for d in range(0,int(row["MidAttack"])):
                 filetext = filetext + "\\node at (" + str(-(d/2) + 7) + ', 5){\\includegraphics[' + iconwidth + ']{'+ aimg + '}};\n'
             
@@ -69,7 +77,7 @@ with open(datafile) as csvfile:
             for d in range(0,int(row["MidBlock"])):
                 filetext = filetext + "\\node at (" + str(-(d/2) + 7) + ', 4){\\includegraphics[' + iconwidth + ']{' + blkImg + '}};\n'
             #ranges
-            if int(row["MidRange"]) > 0:
+            if inchInt(row["MidRange"]) > 0:
                  filetext = filetext + '\\node at ( 6, 3.75){\\includegraphics[' + iconwidth + ']{' + rangeImg + '}};\n'
                  filetext = filetext + '\\node at (6, 4.25){' + row["MidRange"] + '};\n'
             print("low")
@@ -77,15 +85,15 @@ with open(datafile) as csvfile:
               #attacks
             if int(row["LowAttack"]) or int(row["LowBlock"]):
                 filetext = filetext + "\\node[backbox] at (6.5, 1.5){};\n"
-            aimg = rAtkImg if int(row["LowRange"]) > 0 else mAtkImg
-            for d in range(0,int(row["LowAttack"])):
+            aimg = rAtkImg if inchInt(row["LowRange"]) > 0 else mAtkImg
+            for d in range(0,inchInt(row["LowAttack"])):
                 filetext = filetext + "\\node at (" + str( -(d/2) + 7) + ', 2){\\includegraphics[' + iconwidth + ']{' + aimg + '}};\n'
             
             #blocks
             for d in range(0,int(row["LowBlock"])):
                 filetext = filetext + "\\node at (" + str( -(d/2) + 7) + ', 1){\\includegraphics[width=1cm]{' + blkImg + '}};\n'
             #ranges
-            if int(row["LowRange"]) > 0:
+            if inchInt(row["LowRange"]) > 0:
                  filetext = filetext + '\\node at ( 6 , 0.75){\\includegraphics[' + iconwidth + ']{' + rangeImg + '}};\n'
                  filetext = filetext + '\\node at (6, 1.25){' + row["LowRange"] + '};\n'
             print("text")
