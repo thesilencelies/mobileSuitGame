@@ -10,7 +10,8 @@ def inchInt(st):
     return a
 
 
-datafile = 'data.csv'
+spec_move_file = 'special_actions.csv'
+general_move_file = 'default_actions.csv'
 
 mAtkImg = 'attackImg.png'
 rAtkImg = 'rattackImg.png'
@@ -19,19 +20,17 @@ rangeImg = 'rangeImg.png'
 initImg = 'initImg.png'
 mvImg = 'mvimg.png'
 
+frameImgs = ["HekijaFrame.png", "RegingrazeFrame.png", "BarbatosFrame.png", "BaelFrame.png", "KimarisFrame.png", "FlaurosFrame.png"]
+
+frameBackgrounds = ["Hekija.png","ReginGraze.png", "Barbatos.png", "Bael.png", "Flauros.png", "Kimaris.png"]
+
 iconwidth ="width=0.9cm"
 
-outputfolder='objects/card_'
-with open(datafile) as csvfile:
-  with open(outputfolder + "all.tex", "w") as allfile:
-     allfile.write("\\documentclass[a4paper, landscape]{article}\n \\usepackage[left =2cm, right = 2cm, top = 1.4cm, bottom =1.4cm]{geometry} \n \\usepackage{tikz} \n \\begin{document}\n")
-     reader = csv.DictReader(csvfile)
-     i = 0
-     for row in reader:
-         #CONSTRUCT A NEW CARD
-         with open(outputfolder + str(i) + '.tex', 'w') as ofile:
+
+def make_card_from_row(row, i):
+    with open(outputfolder + str(i) + '.tex', 'w') as ofile:
             print("starting card " + str(i))
-            i = i + 1
+            print(row)
             #background image should be loaded here?
             filetext = "\\begin{tikzpicture}[scale=0.86, backbox/.style= {rectangle, minimum height = 2.2cm, minimum width =2.2cm, rounded corners = 0.3cm, fill=white, opacity=0.65}]\n "
             filetext = filetext + "\\node [rectangle, minimum width = 6.2cm, minimum height = 8.5cm, fill=black!70!white!30] at (4,5){};\n"
@@ -101,5 +100,39 @@ with open(datafile) as csvfile:
             filetext = filetext + "\\node[rectangle, fill = white, minimum height =1.5cm, rounded corners = 0.3cm, text width = 3.5cm, opacity = 0.65]  at (3, 1.5){" + row['Text'] +"};\n" 
             filetext = filetext + "\\end{tikzpicture}\n"
             ofile.write(filetext)
-            allfile.write(filetext)
+            return filetext
+         
+
+
+
+
+outputfolder='objects/card_'
+with open(outputfolder + "all.tex", "w") as allfile:
+     allfile.write("\\documentclass[a4paper, landscape]{article}\n \\usepackage[left =2cm, right = 2cm, top = 1.4cm, bottom =1.4cm]{geometry} \n \\usepackage{tikz} \n \\begin{document}\n")
+     
+     with open(spec_move_file, "r") as spcsvfile:
+       reader = csv.DictReader(spcsvfile)
+       i = 0
+       #special moves
+       for row in reader:
+           #CONSTRUCT A NEW CARD
+           allfile.write(make_card_from_row(row, i))
+           
+       with open(general_move_file, "r") as gencsvfile:
+          reader = csv.DictReader(gencsvfile)
+          i = 0
+          #special moves
+          for row in reader:
+              for img in frameBackgrounds:
+                  row["BackgroundImg"] = img
+              #. CONSTRUCT A NEW CARD
+                  allfile.write(make_card_from_row(row, i))
+          #frames
+          for frame in frameImgs:
+             filetext = "\\begin{tikzpicture}[scale=0.86, backbox/.style= {rectangle, minimum height = 2.2cm, minimum width =2.2cm, rounded corners = 0.3cm, fill=white, opacity=0.65}]\n "
+             filetext = filetext + "\\node [rectangle, minimum width = 6.2cm, minimum height = 8.5cm, fill=black!70!white!30] at (4,5){};\n"
+             filetext = filetext + '\\node at (4,5){\\includegraphics[width=6cm]{' + frame + '}};\n'
+             filetext = filetext + "\\end{tikzpicture}\n"
+             allfile.write(filetext)
+             
      allfile.write("\\end{document}\n")
