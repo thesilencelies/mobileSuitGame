@@ -40,7 +40,7 @@ def attack_box(atk, rng, block, pos):
     # blocks
     for d in range(0, block):
         out_text = out_text + "\\node at (" + str(
-            -(d / 2) + 7) + ', ' + str(pos - 0.5) + '{\\includegraphics[' + iconwidth + ']{' + icons_folder + \
+            -(d / 2) + 7) + ', ' + str(pos - 0.5) + '){\\includegraphics[' + iconwidth + ']{' + icons_folder + \
                    blkImg + '}};\n'
     # ranges
     if rng > 0:
@@ -82,6 +82,7 @@ def make_card_from_row(row, i):
 
         # textbox
         if row["Text"]:
+            card_text = card_text + "\\node[rectangle, fill = white, opacity = 0.65, minimum height =1.5cm, rounded corners = 0.3cm, " \
                     + "text width = 3.5cm]  at (3, 1.5){" + row['Text'] +"};\n"
 
         card_text = card_text + "\\end{tikzpicture}\n"
