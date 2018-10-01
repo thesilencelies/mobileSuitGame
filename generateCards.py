@@ -94,45 +94,46 @@ def create_frame_sheet(frame):
     """creates the frames datasheet procedurally from the given data"""
     #load the initial image
     frame_text = "\\begin{tikzpicture}[scale=1, backbox/.style= {rectangle, minimum height = 2.4cm," \
-               + " minimum width =2.8cm, rounded corners = 0.3cm, fill=white, opacity=0.75}]\n "
+               + " minimum width =2.8cm, rounded corners = 0.3cm, fill=white, opacity=0.75}," \
+               + " every text node part/.style={align=center, font = \\Large}]\n "
     frame_text = frame_text + "\\node [rectangle, minimum width = 25.2cm, minimum height = 18.5cm, fill=black!70!white!30] at (0, 0){};\n"
     frame_text = frame_text + '\\node at (0,0){\\includegraphics[height=18.5cm]{' + images_folder + frame["BackgroundImg"] + '}};\n'
 
     #mark the three damage zones
-    frame_text = frame_text + "\\node [rectangle, minimum width = 25.2cm, minimum height = 6cm, fill=red, opacity = 0.2] at (0, 6){};\n"
-    frame_text = frame_text + "\\node [rectangle, minimum width = 25.2cm, minimum height = 6cm, fill=green, opacity = 0.2] at (0, 0){};\n"
-    frame_text = frame_text + "\\node [rectangle, minimum width = 25.2cm, minimum height = 6cm, fill=blue, opacity = 0.2] at (0, -6){};\n"
+    frame_text = frame_text + "\\node [rectangle, minimum width = 25.2cm, minimum height = 6cm, fill=red, opacity = 0.1] at (0, 6){};\n"
+    frame_text = frame_text + "\\node [rectangle, minimum width = 25.2cm, minimum height = 6cm, fill=green, opacity = 0.1] at (0, 0){};\n"
+    frame_text = frame_text + "\\node [rectangle, minimum width = 25.2cm, minimum height = 6cm, fill=blue, opacity = 0.1] at (0, -6){};\n"
 
 
     #generate the body as a graph
-    frame_text = frame_text + "\\node (chest) at (0,0) [backbox] {\\Large{chest \\\\ \\emph{death}}};\n"
-    frame_text = frame_text + "\\node (pelvis) [backbox, below = of chest] {\\Large{pelvis \\\\ \\emph{-1 action}}}\n edge (chest);\n"
-    frame_text = frame_text + "\\node (head) [backbox, above = of chest] {\\Large{head \\\\ \\emph{-3 inititative}}}\n edge (chest);\n"
-    frame_text = frame_text + "\\node (l arm) [backbox, left = of chest] {\\Large{arm \\\\ \\emph{-1 card}}}\n edge (chest);\n"
-    frame_text = frame_text + "\\node (r arm) [backbox, right = of chest] {\\Large{arm \\\\ \\emph{-1 card}}}\n edge (chest);\n"
-    frame_text = frame_text + "\\node (l leg) [backbox, below left = of pelvis] {\\Large{leg \\\\ \\emph{-1 movement}}}\n edge (pelvis);\n"
-    frame_text = frame_text + "\\node (r leg) [backbox, below right = of pelvis] {\\Large{leg \\\\ \\emph{-1 movement}}}\n edge (pelvis);\n"
+    frame_text = frame_text + "\\node (chest) at (0,0) [backbox] {{chest \\\\ \\textit{death}};\n"
+    frame_text = frame_text + "\\node (pelvis) [backbox, below = of chest] {pelvis \\\\ \\textit{-1 action}}\n edge (chest);\n"
+    frame_text = frame_text + "\\node (head) [backbox, above = of chest] {head \\\\ \\textit{-3 inititative}}\n edge (chest);\n"
+    frame_text = frame_text + "\\node (l arm) [backbox, left = of chest] {arm \\\\ \\textit{-1 card}}\n edge (chest);\n"
+    frame_text = frame_text + "\\node (r arm) [backbox, right = of chest] {arm \\\\ \\textit{-1 card}}\n edge (chest);\n"
+    frame_text = frame_text + "\\node (l leg) [backbox, below left = of pelvis] {leg \\\\ \\textit{-1 movement}}\n edge (pelvis);\n"
+    frame_text = frame_text + "\\node (r leg) [backbox, below right = of pelvis] {leg \\\\ \\textit{-1 movement}}\n edge (pelvis);\n"
 
     #armour
     if int(frame["Top armour"]) > 0:
-        frame_text = frame_text + "\\node (top l armour) [backbox, above left = of chest] {\\Large{armour}}\n edge (chest);\n"
+        frame_text = frame_text + "\\node (top l armour) [backbox, above left = of chest] {armour}\n edge (chest);\n"
     if int(frame["Top armour"]) > 1:
-        frame_text = frame_text + "\\node (top r armour) [backbox, above right = of chest] {\\Large{armour}}\n edge (chest);\n"
+        frame_text = frame_text + "\\node (top r armour) [backbox, above right = of chest] {armour}\n edge (chest);\n"
 
     if int(frame["Side armour"]) > 0:
-        frame_text = frame_text + "\\node (mid l armour) [backbox, left = of l arm] {\\Large{armour}}\n edge (l arm);\n"
+        frame_text = frame_text + "\\node (mid l armour) [backbox, left = of l arm] {armour}\n edge (l arm);\n"
     if int(frame["Side armour"]) > 1:
-        frame_text = frame_text + "\\node (mid r armour) [backbox, right = of r arm] {\\Large{armour}}\n edge (r arm);\n"
+        frame_text = frame_text + "\\node (mid r armour) [backbox, right = of r arm] {armour}\n edge (r arm);\n"
 
 
     if int(frame["Low armour"]) > 0:
-        frame_text = frame_text + "\\node (low l armour) [backbox, left = of pelvis] {\\Large{armour}}\n edge (pelvis);\n"
+        frame_text = frame_text + "\\node (low l armour) [backbox, left = of pelvis] {armour}\n edge (pelvis);\n"
     if int(frame["Low armour"]) > 1:
-        frame_text = frame_text + "\\node (low r armour) [backbox, right = of pelvis] {\\Large{armour}}\n edge (pelvis);\n"
+        frame_text = frame_text + "\\node (low r armour) [backbox, right = of pelvis] {armour}\n edge (pelvis);\n"
 
     #boosters
     if int(frame["Boosters"]) > 0:
-        frame_text = frame_text + "\\node (booster) [backbox, above right = of head] {\\Large{boosters \\\\ \\emph{-1 mv}}}\n edge (chest);\n"
+        frame_text = frame_text + "\\node (booster) [backbox, above right = of head] {boosters \\\\ \\textit{-1 mv}}\n edge (chest);\n"
 
     #finish the tikzpicture
     frame_text = frame_text + "\\end{tikzpicture}\n"
