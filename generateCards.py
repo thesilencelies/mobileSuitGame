@@ -20,8 +20,8 @@ images_folder = "pictures/"
 icons_folder = "images/"
 
 
-frameBackgrounds = ["Hekija_1.jpg","ReginGlaze_1.jpg", "Barbatos_1.jpg",
-                    "Bael_1.jpg", "Flauros_1.jpg", "Kimaris_1.jpg", "Julia_1.jpg"]
+frameBackgrounds = ["Hekija_1.jpg","Reginglaze_1.jpg", "Barbatos_1.jpg",
+                    "Bael_1.jpg", "Flauros_1.jpg", "Kimaris_vidar_2.jpg", "Julia_1.jpg"]
 
 iconwidth ="width=0.9cm"
 
@@ -58,7 +58,7 @@ def make_card_from_row(row, i):
 
         card_text = "\\begin{tikzpicture}[scale=0.86, backbox/.style= {rectangle, minimum height = 2.2cm," \
                    + " minimum width =2.2cm, rounded corners = 0.3cm, fill=white, opacity=0.65}]\n "
-        card_text = card_text + "\\node [rectangle, minimum width = 6.2cm, minimum height = 8.5cm, fill=black!70!white!30] at (4,5){};\n"
+        card_text = card_text + "\\node [rectangle, minimum width = 6.2cm, minimum height = 8.5cm, fill=black!90!white!10] at (4,5){};\n"
         card_text = card_text + '\\node at (4,5){\\includegraphics[width=6cm]{' + images_folder + row["BackgroundImg"] + '}};\n'
         # format the card
         card_text = card_text + "\\node [rectangle, minimum height = 1.2cm,rounded corners = 0.3cm, fill=white, opacity=0.6] at (4, 9.5){\\large{" + row["Name"] + "}};\n"
@@ -68,8 +68,8 @@ def make_card_from_row(row, i):
         card_text = card_text + '\\node at (1.5,8){\\includegraphics[' + iconwidth + ']{' + icons_folder + mvImg + '}};\n'
         card_text = card_text + " \\node at (1.5,8){\\Large{\\textbf{" + row['Movement'] +"}}};\n"
 
-        if bool(row["OneUse"]):
-             card_text = card_text + "\\node at (4.5,9)[circle, fill = red]{\\Large{\\textbf{O}}};\n"
+        if int(row["OneUse"]) > 0:
+             card_text = card_text + "\\node at (6,9)[circle, fill = red]{\\large{\\textbf{O}}};\n"
 
         card_text = card_text + attack_box(int(row["HighAttack"]), int(row["HighRange"]), int(row["HighBlock"]), 7.5)
         card_text = card_text + attack_box(int(row["MidAttack"]), int(row["MidRange"]), int(row["MidBlock"]), 4.5)
@@ -87,7 +87,7 @@ def make_card_from_row(row, i):
 
         card_text = card_text + "\\end{tikzpicture}\n"
         ofile.write(card_text)
-        return card_text
+        return card_text + "~"
 
 
 def create_frame_sheet(frame):
@@ -98,9 +98,15 @@ def create_frame_sheet(frame):
     frame_text = frame_text + "\\node [rectangle, minimum width = 25.2cm, minimum height = 18.5cm, fill=black!70!white!30] at (0, 0){};\n"
     frame_text = frame_text + '\\node at (0,0){\\includegraphics[height=18.5cm]{' + images_folder + frame["BackgroundImg"] + '}};\n'
 
+    #mark the three damage zones
+    frame_text = frame_text + "\\node [rectangle, minimum width = 25.2cm, minimum height = 6cm, fill=red, opacity = 0.2] at (0, 6){};\n"
+    frame_text = frame_text + "\\node [rectangle, minimum width = 25.2cm, minimum height = 6cm, fill=green, opacity = 0.2] at (0, 0){};\n"
+    frame_text = frame_text + "\\node [rectangle, minimum width = 25.2cm, minimum height = 6cm, fill=blue, opacity = 0.2] at (0, -6){};\n"
+
+
     #generate the body as a graph
     frame_text = frame_text + "\\node (chest) at (0,0) [backbox] {chest \\\\ death};\n"
-    frame_text = frame_text + "\\node (pelvis) [backbox, below = of chest] {pelvis \\\\ -1 action\n edge (chest);\n"
+    frame_text = frame_text + "\\node (pelvis) [backbox, below = of chest] {pelvis \\\\ -1 action}\n edge (chest);\n"
     frame_text = frame_text + "\\node (head) [backbox, above = of chest] {head \\\\ -3 inititative}\n edge (chest);\n"
     frame_text = frame_text + "\\node (l arm) [backbox, left = of chest] {arm \\\\ -1 card}\n edge (chest);\n"
     frame_text = frame_text + "\\node (r arm) [backbox, right = of chest] {arm \\\\ -1 card}\n edge (chest);\n"
@@ -114,21 +120,15 @@ def create_frame_sheet(frame):
         frame_text = frame_text + "\\node (top r armour) [backbox, above right = of chest] {armour}\n edge (chest);\n"
 
     if int(frame["Side armour"]) > 0:
-        frame_text = frame_text + "\\node (mid l armour) [backbox, above left = of l arm] {armour}\n edge (l arn);\n"
+        frame_text = frame_text + "\\node (mid l armour) [backbox, above left = of l arm] {armour}\n edge (l arm);\n"
     if int(frame["Side armour"]) > 1:
-        frame_text = frame_text + "\\node (mid r armour) [backbox, above right = of r arm] {armour}\n edge (r arn);\n"
+        frame_text = frame_text + "\\node (mid r armour) [backbox, above right = of r arm] {armour}\n edge (r arm);\n"
 
 
     if int(frame["Low armour"]) > 0:
         frame_text = frame_text + "\\node (low l armour) [backbox, left = of pelvis] {armour}\n edge (pelvis);\n"
     if int(frame["Low armour"]) > 1:
         frame_text = frame_text + "\\node (low r armour) [backbox, right = of pelvis] {armour}\n edge (pelvis);\n"
-
-    #mark the three damage zones
-    frame_text = frame_text + "\\node [rectangle, minimum width = 25.2cm, minimum height = 6cm, fill=red, opacity = 0.4] at (0, 6){};\n"
-    frame_text = frame_text + "\\node [rectangle, minimum width = 25.2cm, minimum height = 6cm, fill=green, opacity = 0.4] at (0, 0){};\n"
-    frame_text = frame_text + "\\node [rectangle, minimum width = 25.2cm, minimum height = 6cm, fill=blue, opacity = 0.4] at (0, -6){};\n"
-
 
     #finish the tikzpicture
     frame_text = frame_text + "\\end{tikzpicture}\n"
@@ -142,7 +142,7 @@ if __name__ == "__main__":
 
     with open(outputfolder + "all.tex", "w") as allfile:
         allfile.write("\\documentclass[a4paper, landscape]{article}\n \\usepackage[left =2cm, right = 2cm, " \
-                        + "top = 1.4cm, bottom =1.4cm]{geometry} \n \\usepackage{tikz} \n \\begin{document}\n")
+                        + "top = 1.4cm, bottom =1.4cm]{geometry} \n \\usepackage{tikz} \n \\usetikzlibrary{positioning} \\begin{document}\n")
 
         with open(weapon_actions_file, "r") as spcsvfile:
             reader = csv.DictReader(spcsvfile)
