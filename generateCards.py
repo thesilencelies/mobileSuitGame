@@ -9,16 +9,19 @@ frames_file = 'Gundam Cards - Frames.csv'
 outputfolder='../objects/card_'
 
 
-mAtkImg = 'attackImg.png'
-rAtkImg = 'rattackImg.png'
-blkImg = 'blockImg.png'
-rangeImg = 'rangeImg.png'
-initImg = 'initImg.png'
+mAtkImg = 'Sword.png'
+rAtkImg = 'Bullet.png'
+blkImg = 'Block.png'
+rangeImg = 'rangeimg.png'
+initImg = 'initiative.png'
 mvImg = 'mvimg.png'
 
+images_folder = "pictures/"
+icons_folder = "images/"
 
-frameBackgrounds = ["pictures/Hekija_1.jpg","pictures/ReginGlaze_1.jpg", "pictures/Barbatos_1.jpg",
-                    "pictures/Bael_1.jpg", "pictures/Flauros_1.jpg", "pictures/Kimaris_1.jpg", "pictures/Julia_1.jpg"]
+
+frameBackgrounds = ["Hekija_1.jpg","ReginGlaze_1.jpg", "Barbatos_1.jpg",
+                    "Bael_1.jpg", "Flauros_1.jpg", "Kimaris_1.jpg", "Julia_1.jpg"]
 
 iconwidth ="width=0.9cm"
 
@@ -29,7 +32,7 @@ def attack_box(atk, rng, block, pos):
     if atk or block:
         out_text = out_text + "\\node[backbox] at (6.5, " + str(pos) +"){};\n"
     # what graphic to use
-    aimg = rAtkImg if rng > 0 else mAtkImg
+    aimg = icons_folder + (rAtkImg if rng > 0 else mAtkImg)
     for d in range(0, atk):
         out_text = out_text + "\\node at (" + str(
             -(d / 2) + 7) + ', ' + str(pos + 0.5) + '){\\includegraphics[' + iconwidth + ']{' + aimg + '}};\n'
@@ -37,10 +40,12 @@ def attack_box(atk, rng, block, pos):
     # blocks
     for d in range(0, block):
         out_text = out_text + "\\node at (" + str(
-            -(d / 2) + 7) + ', ' + str(pos - 0.5) + '{\\includegraphics[' + iconwidth + ']{' + blkImg + '}};\n'
+            -(d / 2) + 7) + ', ' + str(pos - 0.5) + '{\\includegraphics[' + iconwidth + ']{' + icons_folder + \
+                   blkImg + '}};\n'
     # ranges
     if rng > 0:
-        out_text = out_text + '\\node at ( 6 , ' + str(pos - 0.75) + '){\\includegraphics[' + iconwidth + ']{' + rangeImg + '}};\n'
+        out_text = out_text + '\\node at ( 6 , ' + str(pos - 0.75) + '){\\includegraphics[' + iconwidth + ']{' + \
+                   icons_folder + rangeImg + '}};\n'
         out_text = out_text + '\\node at (6, ' + str(pos + 0.75) + '){' + str(rng) + '};\n'
 
     return out_text
@@ -54,31 +59,30 @@ def make_card_from_row(row, i):
         card_text = "\\begin{tikzpicture}[scale=0.86, backbox/.style= {rectangle, minimum height = 2.2cm," \
                    + " minimum width =2.2cm, rounded corners = 0.3cm, fill=white, opacity=0.65}]\n "
         card_text = card_text + "\\node [rectangle, minimum width = 6.2cm, minimum height = 8.5cm, fill=black!70!white!30] at (4,5){};\n"
-        card_text = card_text + '\\node at (4,5){\\includegraphics[width=6cm]{' + row["BackgroundImg"] + '}};\n'
+        card_text = card_text + '\\node at (4,5){\\includegraphics[width=6cm]{' + images_folder + row["BackgroundImg"] + '}};\n'
         # format the card
         card_text = card_text + "\\node [rectangle, minimum height = 1.2cm,rounded corners = 0.3cm, fill=white, opacity=0.6] at (4, 9.5){\\large{" + row["Name"] + "}};\n"
         # default symbols
-        card_text = card_text + '\\node at(1.5,9){\\includegraphics[' + iconwidth + ']{' + initImg + '}};\n'
-        card_text = card_text +" \\node at (1.5, 9){\\large{" + row['Initiative'] +"}};\n"
-        card_text = card_text + '\\node at (1.5,8){\\includegraphics[' + iconwidth + ']{' + mvImg + '}};\n'
-        card_text = card_text + " \\node at (1.5,8){\\large{" + row['Movement'] +"}};\n"
+        card_text = card_text + '\\node at(1.5,9){\\includegraphics[' + iconwidth + ']{' + icons_folder + initImg + '}};\n'
+        card_text = card_text +" \\node at (1.5, 9){\\Large{\\textbf{" + row['Initiative'] +"}}};\n"
+        card_text = card_text + '\\node at (1.5,8){\\includegraphics[' + iconwidth + ']{' + icons_folder + mvImg + '}};\n'
+        card_text = card_text + " \\node at (1.5,8){\\Large{\\textbf{" + row['Movement'] +"}}};\n"
 
         if bool(row["OneUse"]):
-             card_text = card_text + "\\node at (4.5,9)[circle, draw, fill = red]{\\LARGE{\\textbf{O}}};\n"
+             card_text = card_text + "\\node at (4.5,9)[circle, fill = red]{\\Large{\\textbf{O}}};\n"
 
         card_text = card_text + attack_box(int(row["HighAttack"]), int(row["HighRange"]), int(row["HighBlock"]), 7.5)
         card_text = card_text + attack_box(int(row["MidAttack"]), int(row["MidRange"]), int(row["MidBlock"]), 4.5)
         card_text = card_text + attack_box(int(row["LowAttack"]), int(row["LowRange"]), int(row["LowBlock"]), 1.5)
 
         #set info
-        card_text = card_text + "\\node[rectangle, fill = white, minimum height =1.5cm, " \
-                + "rounded corners = 0.3cm, text width = 1.6cm, opacity = 0.65]  at (2, 7){ \\small{" \
+        card_text = card_text + "\\node[rectangle, fill = white, opacity = 0.65, minimum height =1.5cm, " \
+                + "rounded corners = 0.3cm, text width = 1.6cm]  at (2, 7){ \\small{" \
                 +  row['Slot type'] + " \\\\ " + row['Slot name'] + " : " + str(row['Slot number']) + "}};\n"
 
         # textbox
         if row["Text"]:
-            card_text = card_text + "\\node[rectangle, fill = white, minimum height =1.5cm, rounded corners = 0.3cm, " \
-                    + "text width = 3.5cm, opacity = 0.65]  at (3, 1.5){" + row['Text'] +"};\n"
+                    + "text width = 3.5cm]  at (3, 1.5){" + row['Text'] +"};\n"
 
         card_text = card_text + "\\end{tikzpicture}\n"
         ofile.write(card_text)
@@ -91,13 +95,33 @@ def create_frame_sheet(frame):
     frame_text = "\\begin{tikzpicture}[scale=1, backbox/.style= {rectangle, minimum height = 2.4cm," \
                + " minimum width =2.8cm, rounded corners = 0.3cm, fill=white, opacity=0.65}]\n "
     frame_text = frame_text + "\\node [rectangle, minimum width = 25.2cm, minimum height = 18.5cm, fill=black!70!white!30] at (0, 0){};\n"
-    frame_text = frame_text + '\\node at (0,0){\\includegraphics[height=18.5cm]{' + frame["BackgroundImg"] + '}};\n'
+    frame_text = frame_text + '\\node at (0,0){\\includegraphics[height=18.5cm]{' + images_folder + frame["BackgroundImg"] + '}};\n'
 
     #generate the body as a graph
     frame_text = frame_text + "\\node (chest) at (0,0) [backbox] {chest \\\\ death};\n"
-    frame_text = frame_text + "\\node (pelvis) [backbox, above = of chest] {chest \\\\ death};\n"
-    #TODO finish this
+    frame_text = frame_text + "\\node (pelvis) [backbox, below = of chest] {pelvis \\\\ -1 action\n edge (chest);\n"
+    frame_text = frame_text + "\\node (head) [backbox, above = of chest] {head \\\\ -3 inititative}\n edge (chest);\n"
+    frame_text = frame_text + "\\node (l arm) [backbox, left = of chest] {arm \\\\ -1 card}\n edge (chest);\n"
+    frame_text = frame_text + "\\node (r arm) [backbox, right = of chest] {arm \\\\ -1 card}\n edge (chest);\n"
+    frame_text = frame_text + "\\node (l leg) [backbox, below left = of pelvis] {leg \\\\ -1 movement}\n edge (pelvis);\n"
+    frame_text = frame_text + "\\node (r leg) [backbox, below right = of pelvis] {leg \\\\ -1 movement}\n edge (pelvis);\n"
 
+    #armour
+    if int(frame["Top armour"]) > 0:
+        frame_text = frame_text + "\\node (top l armour) [backbox, above left = of chest] {armour}\n edge (chest);\n"
+    if int(frame["Top armour"]) > 1:
+        frame_text = frame_text + "\\node (top r armour) [backbox, above right = of chest] {armour}\n edge (chest);\n"
+
+    if int(frame["Side armour"]) > 0:
+        frame_text = frame_text + "\\node (mid l armour) [backbox, above left = of l arm] {armour}\n edge (l arn);\n"
+    if int(frame["Side armour"]) > 1:
+        frame_text = frame_text + "\\node (mid r armour) [backbox, above right = of r arm] {armour}\n edge (r arn);\n"
+
+
+    if int(frame["Low armour"]) > 0:
+        frame_text = frame_text + "\\node (low l armour) [backbox, left = of pelvis] {armour}\n edge (pelvis);\n"
+    if int(frame["Low armour"]) > 1:
+        frame_text = frame_text + "\\node (low r armour) [backbox, right = of pelvis] {armour}\n edge (pelvis);\n"
 
     #mark the three damage zones
     frame_text = frame_text + "\\node [rectangle, minimum width = 25.2cm, minimum height = 6cm, fill=red, opacity = 0.4] at (0, 6){};\n"
@@ -154,7 +178,7 @@ if __name__ == "__main__":
                         for counter in range(0, int(row["Slot number"])):
                             allfile.write(make_card_from_row(row, i))
 
-        with open(general_action_file, "r") as fcsvfile:
+        with open(frames_file, "r") as fcsvfile:
             reader = csv.DictReader(fcsvfile)
             for row in reader:
                 allfile.write("\\newpage \n")
