@@ -12,7 +12,7 @@ Heavy,2,-2,1,0,0,0,0,2,0,0,0,,0,Test.png,basic,,2,0
 Run Sensors,3,-1,1,0,0,0,0,0,0,0,0,If resolved - next turn +1 init +1 card,0,Test.png,basic,,2,0
 Combat Assessment,3,-1,0,1,0,0,0,0,0,0,0,If resolved - next turn +3 cards,0,Test.png,basic,,2,1
 Fakeout,1,0,1,0,1,0,0,0,0,0,0,"When this card resolves, look at the top two cards of your deck, choose one and apply that instead",0,Test.png,basic,,2,0
-Combo Strike,2,*,0,0,0,0,0,0,0,0,0,"When this card is revealed, look at the top 3 cards of the deck, choose two and discard them - this card gains the sum of their movement, blocks and attacks",1,Test.png,basic,,1,1
+Combo Strike,2,*,0,0,0,0,0,0,0,0,0,"\footnotesize{When revealed, choose 2 of the top 3 cards of the deck and discard them - this card gains the sum of their movement, blocks and attacks}",1,Test.png,basic,,1,1
 Parry High,5,-1,1,0,0,0,0,0,0,0,0,"If consumed, deal 1H at melee range immediately",0,Test.png,basic,,2,0
 Parry Mid,5,-1,0,1,0,0,0,0,0,0,0,"If consumed, deal 1M at melee range immediately",0,Test.png,basic,,2,0
 Parry Low,5,-1,0,0,1,0,0,0,0,0,0,"If consumed, deal 1L at melee range immediately",0,Test.png,basic,,2,0
