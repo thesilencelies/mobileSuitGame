@@ -1,0 +1,7 @@
+Name,Initiative,Movement,HighBlock,MidBlock,LowBlock,HighAttack,HighRange,MidAttack,MidRange,LowAttack,LowRange,Text,OneUse,BackgroundImg,Slot type,Slot name,Slot number,Changed
+Drill knee,3,-2,1,0,0,0,0,1,0,0,0,"If this attack is blocked, deal 2L that can’t be blocked",1,Kimaris_vidar_drill_knee.jpg,frame,kimaris,1,0
+Hand blades 1,*,-1,0,0,0,0,0,1,0,0,0,"When placed, put an extra card from your hand down and add this cards value to it",0,Hekija_2.jpg,frame,hekija,2,0
+Hand blades 2,*,-1,0,0,0,0,0,1,0,0,0,"When placed, put an extra card from your hand down and add this cards value to it",0,Hekija_2.jpg,frame,hekija,2,0
+Wing Boost,7,4,1,0,0,0,0,0,0,0,0,,1,Bael_anime_1.jpg,frame,bael,3,0
+Transform,3,-3,0,0,1,0,0,0,0,0,0,"Until the end of your next turn, all ranged attcks get +4 range and +1 dmg, and you get -1 mv",0,Flauros_transform.jpg,frame,flauros,2,1
+Ace Maneuvers," 8,4",0,0,1,0,0,0,0,0,0,0,Resolves twice,1,Julia_1.jpg,frame,julia,1,0

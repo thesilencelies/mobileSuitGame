@@ -95,7 +95,7 @@ def create_frame_sheet(frame):
     #load the initial image
     frame_text = "\\begin{tikzpicture}[scale=1, backbox/.style= {rectangle, minimum height = 2.4cm," \
                + " minimum width =2.8cm, rounded corners = 0.3cm, fill=white, opacity=0.75}," \
-               + " every text node part/.style={align=center, font = \\Large}]\n "
+               + " every text node part/.style={align=center, font = \\Large}, node distance = 1.5cm]\n "
     frame_text = frame_text + "\\node [rectangle, minimum width = 25.2cm, minimum height = 18.5cm, fill=black!70!white!30] at (0, 0){};\n"
     frame_text = frame_text + '\\node at (0,0){\\includegraphics[height=18.5cm]{' + images_folder + frame["BackgroundImg"] + '}};\n'
 
@@ -155,7 +155,7 @@ if __name__ == "__main__":
             # special moves
             for row in reader:
                 i = i + 1
-                if row["Changed"]:
+                if int(row["Changed"]) > 0:
                     # construct a card for every one in the range
                     for counter in range(0, int(row["Slot number"])):
                         allfile.write(make_card_from_row(row, i))
@@ -166,7 +166,7 @@ if __name__ == "__main__":
             # special moves
             for row in reader:
                 i = i + 1
-                if row["Changed"]:
+                if int(row["Changed"]) > 0:
                     # construct a card for every one in the range
                     for counter in range(0, int(row["Slot number"])):
                         allfile.write(make_card_from_row(row, i))
@@ -177,7 +177,7 @@ if __name__ == "__main__":
             # generic moves
             for row in reader:
                 i = i + 1
-                if row["Changed"]:
+                if int(row["Changed"]) > 0:
                     for img in frameBackgrounds:
                         row["BackgroundImg"] = img
                         # construct a card for every one in the range
