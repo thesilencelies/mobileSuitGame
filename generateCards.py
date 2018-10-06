@@ -35,12 +35,12 @@ def attack_box(atk, rng, block, pos):
     aimg = icons_folder + (rAtkImg if rng > 0 else mAtkImg)
     for d in range(0, atk):
         out_text = out_text + "\\node at (" + str(
-            -(d / 2) + 7) + ', ' + str(pos + 0.5) + '){\\includegraphics[' + iconwidth + ']{' + aimg + '}};\n'
+            -(d / 2) + 7.0) + ', ' + str(pos + 0.5) + '){\\includegraphics[' + iconwidth + ']{' + aimg + '}};\n'
 
     # blocks
     for d in range(0, block):
         out_text = out_text + "\\node at (" + str(
-            -(d / 2) + 7) + ', ' + str(pos - 0.5) + '){\\includegraphics[' + iconwidth + ']{' + icons_folder + \
+            -(d / 2) + 7.0) + ', ' + str(pos - 0.5) + '){\\includegraphics[' + iconwidth + ']{' + icons_folder + \
                    blkImg + '}};\n'
     # ranges
     if rng > 0:
@@ -58,7 +58,7 @@ def make_card_from_row(row, i):
 
         card_text = "\\begin{tikzpicture}[scale=0.86, backbox/.style= {rectangle, minimum height = 2.2cm," \
                    + " minimum width =2.2cm, rounded corners = 0.3cm, fill=white, opacity=0.75}]\n "
-        card_text = card_text + "\\node [rectangle, minimum width = 6.2cm, minimum height = 8.5cm, fill=black!97!white!3] at (4,5){};\n"
+        card_text = card_text + "\\node [rectangle, minimum width = 6.2cm, minimum height = 8.5cm, fill=black] at (4,5){};\n"
         card_text = card_text + '\\node at (4,5){\\includegraphics[width=6cm]{' + images_folder + row["BackgroundImg"] + '}};\n'
         # format the card
         card_text = card_text + "\\node [rectangle, minimum height = 1.2cm,rounded corners = 0.3cm, fill=white, opacity=0.6] at (4, 9.5){\\large{" + row["Name"] + "}};\n"
@@ -95,7 +95,7 @@ def create_frame_sheet(frame):
     #load the initial image
     frame_text = "\\begin{tikzpicture}[scale=1, backbox/.style= {rectangle, minimum height = 2.4cm," \
                + " minimum width =2.8cm, rounded corners = 0.3cm, fill=white, opacity=0.75}," \
-               + " every text node part/.style={align=center, font = \\Large}, node distance = 1.5cm]\n "
+               + " every text node part/.style={align=center, font = \\Large}, node distance = 2.5cm]\n "
     frame_text = frame_text + "\\node [rectangle, minimum width = 25.2cm, minimum height = 18.5cm, fill=black!70!white!30] at (0, 0){};\n"
     frame_text = frame_text + '\\node at (0,0){\\includegraphics[height=18.5cm]{' + images_folder + frame["BackgroundImg"] + '}};\n'
 
@@ -106,7 +106,7 @@ def create_frame_sheet(frame):
 
 
     #generate the body as a graph
-    frame_text = frame_text + "\\node (chest) at (0,0) [backbox] {{chest \\\\ \\textit{death}};\n"
+    frame_text = frame_text + "\\node (chest) at (0,1) [backbox] {{chest \\\\ \\textit{death}};\n"
     frame_text = frame_text + "\\node (pelvis) [backbox, below = of chest] {pelvis \\\\ \\textit{-1 action}}\n edge (chest);\n"
     frame_text = frame_text + "\\node (head) [backbox, above = of chest] {head \\\\ \\textit{-3 inititative}}\n edge (chest);\n"
     frame_text = frame_text + "\\node (l arm) [backbox, left = of chest] {arm \\\\ \\textit{-1 card}}\n edge (chest);\n"
@@ -133,7 +133,7 @@ def create_frame_sheet(frame):
 
     #boosters
     if int(frame["Boosters"]) > 0:
-        frame_text = frame_text + "\\node (booster) [backbox, above right = of head] {boosters \\\\ \\textit{-1 mv}}\n edge (chest);\n"
+        frame_text = frame_text + "\\node (booster) at (8,4) [backbox] {boosters \\\\ \\textit{-1 mv}}\n edge (chest);\n"
 
     #finish the tikzpicture
     frame_text = frame_text + "\\end{tikzpicture}\n"
