@@ -6,7 +6,7 @@ weapon_actions_file = 'Gundam Cards - Weapon actions.csv'
 general_action_file = 'Gundam Cards - Default actions.csv'
 frame_actions_file = 'Gundam Cards - Frame actions.csv'
 frames_file = 'Gundam Cards - Frames.csv'
-outputfolder='../objects/card_'
+outputfolder='build/card_'
 
 
 mAtkImg = 'Sword.png'
