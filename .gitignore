@@ -222,6 +222,8 @@ TSWLatexianTemp*
 #imageS
 *.png
 *.jpg
+*.jpeg
+
 
 build
 .idea

@@ -1,21 +1,14 @@
-Name,Initiative,Movement,HighBlock,MidBlock,LowBlock,HighAttack,HighRange,MidAttack,MidRange,LowAttack,LowRange,Text,OneUse,BackgroundImg,Slot type,Slot name,Slot number,Changed
-Dash,7,4,0,0,0,0,0,0,0,0,0,,1,Test.png,basic,,2,0
-Dodge,7,2,0,0,0,0,0,0,0,0,0,"Blocks ranged attacks
-",1,Test.png,basic,,2,0
-Block,6,-1,1,1,1,0,0,0,0,0,0,If consumed get +1 initiative ,0,Test.png,basic,,2,0
-Light High,4,0,1,0,0,1,0,0,0,0,0,,0,Test.png,basic,,2,0
-Light Mid,4,0,0,1,0,0,0,1,0,0,0,,0,Test.png,basic,,2,0
-Light Low,4,0,0,0,1,0,0,0,0,1,0,,0,Test.png,basic,,2,0
-Block Low,6,-1,0,1,1,0,0,0,0,0,0,If consumed get +1 initiative ,0,Test.png,basic,,2,0
-Block High,6,-1,1,1,0,0,0,0,0,0,0,If consumed get +1 initiative ,0,Test.png,basic,,2,0
-Heavy,2,-2,1,0,0,0,0,2,0,0,0,,0,Test.png,basic,,2,0
-Run Sensors,3,-1,1,0,0,0,0,0,0,0,0,If resolved - next turn +1 init +1 card,0,Test.png,basic,,2,0
-Combat Assessment,3,-1,0,1,0,0,0,0,0,0,0,If resolved - next turn +3 cards,0,Test.png,basic,,2,0
-Fakeout,1,0,1,0,1,0,0,0,0,0,0,"When this card resolves, look at the top two cards of your deck, choose one and apply that instead",0,Test.png,basic,,2,0
-Combo Strike,2,*,0,0,0,0,0,0,0,0,0,"\footnotesize{When revealed, choose 2 of the top 3 cards of the deck and discard them - this card gains the sum of their movement, blocks and attacks}",1,Test.png,basic,,1,0
-Parry High,3,-1,1,0,0,0,0,0,0,0,0,"If consumed, deal 1H at melee range immediately",0,Test.png,basic,,2,1
-Parry Mid,3,-1,0,1,0,0,0,0,0,0,0,"If consumed, deal 1M at melee range immediately",0,Test.png,basic,,2,1
-Parry Low,3,-1,0,0,1,0,0,0,0,0,0,"If consumed, deal 1L at melee range immediately",0,Test.png,basic,,2,1
-Feint High,5,-1,0,1,0,1,0,0,0,0,0,"Deals no damage. If blocked, reveal the top card of your deck, do any attacks on that card, then put that card on the bottom.",0,Test.png,basic,,2,1
-Feint Mid,5,-1,0,1,0,0,0,1,0,0,0,"Deals no damage. If blocked, reveal the top card of your deck, do any attacks on that card, then put that card on the bottom.",0,Test.png,basic,,2,1
-Feint Low,5,-1,0,1,0,0,0,0,0,1,0,"Deals no damage. If blocked, reveal the top card of your deck, do any attacks on that card, then put that card on the bottom.",0,Test.png,basic,,2,1
+Name,Initiative,Movement,HighBlock,MidBlock,LowBlock,HighAttack,HighRange,MidAttack,MidRange,LowAttack,LowRange,Text,OneUse,BackgroundImg,Slot type,Slot name,Changed
+Block,6,-1,1,1,1,0,0,0,0,0,0,"If consumed get +1 initiative ",0,Test.png,basic,,1
+Light High,4,0,1,0,0,1,0,0,0,0,0,,0,Test.png,basic,,1
+Light Mid,4,0,0,1,0,0,0,1,0,0,0,,0,Test.png,basic,,1
+Light Low,4,0,0,0,1,0,0,0,0,1,0,,0,Test.png,basic,,1
+Block Low,6,-1,0,1,1,0,0,0,0,0,0,"If consumed get +1 initiative ",0,Test.png,basic,,1
+Block High,6,-1,1,1,0,0,0,0,0,0,0,"If consumed get +1 initiative ",0,Test.png,basic,,1
+Heavy,2,-2,1,0,0,0,0,2,0,0,0,,0,Test.png,basic,,1
+Parry High,3,-1,1,0,0,0,0,0,0,0,0,"If consumed, deal 1H at melee range immediately",0,Test.png,basic,,1
+Parry Mid,3,-1,0,1,0,0,0,0,0,0,0,"If consumed, deal 1M at melee range immediately",0,Test.png,basic,,1
+Parry Low,3,-1,0,0,1,0,0,0,0,0,0,"If consumed, deal 1L at melee range immediately",0,Test.png,basic,,1
+Feint High,5,-1,0,1,0,1,0,0,0,0,0,"Deals no damage. If blocked, reveal the top card of your deck, do any attacks on that card, then put that card on the bottom.",0,Test.png,basic,,1
+Feint Mid,5,-1,0,1,0,0,0,1,0,0,0,"Deals no damage. If blocked, reveal the top card of your deck, do any attacks on that card, then put that card on the bottom.",0,Test.png,basic,,1
+Feint Low,5,-1,0,1,0,0,0,0,0,1,0,"Deals no damage. If blocked, reveal the top card of your deck, do any attacks on that card, then put that card on the bottom.",0,Test.png,basic,,1

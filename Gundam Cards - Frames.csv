@@ -1,8 +1,8 @@
- Name,Weapon slots,Abilities,Top armour,Side armour,Low armour,Boosters,BackgroundImg,Changed
-Reginglaze,3,,2,2,2,1,Reginglaze_1.jpg,1
-Hekija,2," +1 init, +1mv",2,2,2,1,Hekija_1.jpg,1
-Barbatos,3,,2,2,2,1,Barbatos_1.jpg,1
-Bael,2, +1 card,2,2,2,1,Bael_1.jpg,1
-Flaros,3," +2 to ranged weapon range, -1 mv",2,2,2,1,Flauros_1.jpg,1
-Kimaris,2,bonus shield units. ,2,2,2,1,Kimaris_vidar_1.jpg,1
-Julia,2, +2 init,2,2,2,1,Julia_1.jpg,1
+Name,Movement,Weapon Slots,Abilities,Top armour,Side armour,Low armour,Boosters,BackgroundImg,Changed
+Reginglaze,4,3,,2,2,2,1,Reginglaze_1.jpg,1
+Hekija,5,2," +1 init",2,2,2,1,Hekija_1.jpg,1
+Barbatos,4,3,,2,2,2,1,Barbatos_1.jpg,1
+Bael,4,2," +1 card",2,2,2,1,Bael_1.jpg,1
+Flaros,3,3," +2 to ranged weapon range",2,2,2,1,Flauros_1.jpg,1
+Kimaris,5,2,"when you resolve your first action, add one block to it",2,2,2,1,Kimaris_vidar_1.jpg,1
+Julia,4,2," +2 init",2,2,2,1,Julia_1.jpg,1
