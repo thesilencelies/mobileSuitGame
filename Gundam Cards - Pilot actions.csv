@@ -1,0 +1,12 @@
+Name,Initiative,Movement,Text,OneUse,BackgroundImg,Slot type,Slot name,Changed
+Drill knee,3,-2,"If this attack is blocked, deal 2L",1,Kimaris_vidar_drill_knee.jpg,pilot,kimaris,1
+Hand blades 1,*,-1,"When placed, put an extra card from your hand down and add this cards value to it",0,Hekija_2.jpg,pilot,hekija,1
+Hand blades 2,*,-1,"When placed, put an extra card from your hand down and add this cards value to it",0,Hekija_2.jpg,pilot,hekija,1
+Wing Boost,7,4,,1,Bael_anime_1.jpg,pilot,bael,1
+Transform,6,-3,"Until the end of your next turn, all ranged attcks get +4 range and +1 dmg, and you get -1 mv",0,Flauros_transform.jpg,pilot,flauros,1
+Ace Maneuvers," 8,4",0,Resolves twice,1,Julia_1.jpg,pilot,julia,1
+Run Sensors,3,-1,If resolved - next turn +1 init +1 card,0,Julia_1.jpg,pilot,,1
+Combat Assessment,3,-1,If resolved - next turn +3 cards,0,Julia_1.jpg,pilot,,1
+Fakeout,1,0,"When this card resolves, look at the top two cards of your deck, choose one and apply that instead",0,Julia_1.jpg,pilot,,1
+Combo Strike,2,*,"\footnotesize{When revealed, choose 2 of the top 3 cards of the deck and discard them - this card gains the sum of their movement, blocks and attacks}",1,Julia_1.jpg,pilot,,1
+

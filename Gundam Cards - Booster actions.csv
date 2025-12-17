@@ -1,0 +1,4 @@
+Name,Initiative,Movement,HighBlock,MidBlock,LowBlock,HighAttack,HighRange,MidAttack,MidRange,LowAttack,LowRange,Text,OneUse,BackgroundImg,Slot type,Slot name,Changed
+Dash,7,4,0,0,0,0,0,0,0,0,0,,1,Bael.png,booster,,1
+Dodge,7,2,0,0,0,0,0,0,0,0,0,"Blocks ranged attacks
+",1,Hekija.png,booster,,1

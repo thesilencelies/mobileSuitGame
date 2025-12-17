@@ -1,55 +1,55 @@
-Name,Initiative,Movement,HighBlock,MidBlock,LowBlock,HighAttack,HighRange,MidAttack,MidRange,LowAttack,LowRange,Text,OneUse,BackgroundImg,Slot type,Slot name,Slot number,Changed
-Knife low,4,0,0,0,1,0,0,0,0,1,0,You choose which block is consumed if there is a choice,0,Hekija_knife.jpeg,Weapon,Knife,2,0
-Knife mid,4,0,0,1,0,0,0,1,0,0,0,You choose which block is consumed if there is a choice,0,Hekija_knife.jpeg,Weapon,Knife,2,0
-Knife high,4,0,1,0,0,1,0,0,0,0,0,You choose which block is consumed if there is a choice,0,Hekija_knife.jpeg,Weapon,Knife,2,0
-Knife special,4,0,0,1,0,1,0,1,0,0,0,You choose which block is consumed if there is a choice,1,Hekija_knife.jpeg,Weapon,Knife,1,1
-Rifle low,3,-1,0,1,1,0,0,0,0,1,12,,0,Hekija-bayonetrifle.jpg,Weapon,rifle,3,1
-Rifle mid,3,-1,0,1,1,0,0,1,12,0,0,,0,Hekija-bayonetrifle.jpg,Weapon,rifle,3,1
-Rifle high,3,-1,1,1,0,1,12,0,0,0,0,,0,Hekija-bayonetrifle.jpg,Weapon,rifle,3,1
-Twin Rifle 1,3,-2,1,0,0,1,10,1,10,0,0,,0,Flauros_2.jpg,Weapon,rifle - twin,2,1
-Twin Rifle 2,3,-2,0,1,0,1,10,0,0,1,10,,0,Flauros_2.jpg,Weapon,rifle - twin,2,1
-Twin Rifle 3,3,-2,0,0,1,0,0,1,10,1,10,,0,Flauros_2.jpg,Weapon,rifle - twin,2,1
-Sword high,5,0,1,0,0,1,0,0,0,0,0,,0,Barbatos_3.jpg,Weapon,sword,2,0
-Sword mid,5,0,0,1,0,0,0,1,0,0,0,,0,Barbatos_3.jpg,Weapon,sword,2,0
-Sword low,5,0,0,0,1,0,0,0,0,1,0,,0,Barbatos_3.jpg,Weapon,sword,2,0
-Sword heavy,2,-1,0,1,0,2,0,0,0,0,0,,0,Barbatos_3.jpg,Weapon,sword,2,0
-Sword heavy mid,2,-1,0,1,0,0,0,2,0,0,0,,0,Barbatos_3.jpg,Weapon,sword,2,0
-Twin swords 1,5,0,1,1,0,1,0,0,0,0,0,,0,Bael_1.jpg,Weapon,Sword - twin,2,0
-Twin swords 2,5,0,0,1,1,0,0,0,0,1,0,,0,Bael_1.jpg,Weapon,Sword - twin,2,0
-Twin swords heavy 1,2,-1,0,1,0,1,0,1,0,0,0,,0,Bael_1.jpg,Weapon,Sword - twin,2,0
-Twin swords heavy 2,3,-1,1,0,0,0,0,2,0,0,0,,0,Bael_1.jpg,Weapon,Sword - twin,2,0
-Mace,3,-1,1,0,0,0,0,0,0,2,0,Guard break,0,Barbatos_anime.jpg,Weapon,Mace,3,1
-Mace heavy 1,1,-2,0,0,1,0,0,3,0,0,0,Guard break,0,Barbatos_anime.jpg,Weapon,Mace,2,0
-Mace heavy 2,2,-2,1,0,0,3,0,0,0,0,0,Guard break,0,Barbatos_anime.jpg,Weapon,Mace,2,0
-Heavy Cannon 1,1,-3,0,1,0,2,16,0,0,0,0,Guard break,1,Barbatos_gun_anime_2.jpg,Weapon,heavy cannon,2,1
-Heavy Cannon 2,1,-3,0,1,0,0,0,2,16,0,0,Guard break,1,Barbatos_gun_anime_2.jpg,Weapon,heavy cannon,2,1
-Heavy Cannon 3,1,-3,0,1,0,0,0,0,0,2,16,Guard break,1,Barbatos_gun_anime_2.jpg,Weapon,heavy cannon,2,1
-Shield high,6,-1,1,0,0,0,0,0,0,0,0,Isn't consumed,0,Kimaris_vidar_2.jpg,Weapon,shield,2,0
-Shield mid,6,-1,0,1,0,0,0,0,0,0,0,Isn't consumed,0,Kimaris_vidar_2.jpg,Weapon,shield,2,0
-Shield low,6,-1,0,0,1,0,0,0,0,0,0,Isn't consumed,0,Kimaris_vidar_2.jpg,Weapon,shield,2,0
-Piledriver high,3,0,0,1,0,1,0,0,0,0,0,"if it hits, target gets -1 card next turn",0,Reginglaze_2.jpg,Weapon,Piledriver,2,0
-Piledriver mid,3,0,0,1,0,1,0,0,0,0,0,"if it hits, target gets -1 card next turn",0,Reginglaze_2.jpg,Weapon,Piledriver,2,0
-Piledriver low,3,0,0,1,0,1,0,0,0,0,0,"if it hits, target gets -1 card next turn",0,Reginglaze_2.jpg,Weapon,Piledriver,2,0
-Grappling hook 1,2,-1,0,1,0,0,0,0,0,1,8,"If blocked, target gets -3mv next turn",1,Reginglaze_anime_1.jpg,Weapon,Piledriver,2,0
-Grappling hook 2,2,-1,1,0,0,0,0,1,8,0,0,"If blocked, target gets -3mv next turn",1,Reginglaze_anime_1.jpg,Weapon,Piledriver,2,0
-Twin piledrivers special 1,3,-1,0,1,0,1,0,1,0,0,0,"If it hits, target gets -1 card next turn",1,Reginglaze_anime_2.jpg,Weapon,Piledriver - twin,1,0
-Twin piledrivers special 2,3,-1,0,0,1,0,0,1,0,1,0,"If it hits, target gets -1 card next turn",1,Reginglaze_anime_2.jpg,Weapon,Piledriver - twin,1,0
-Twin piledrivers low,3,-1,0,1,1,0,0,0,0,1,0,"If it hits, target gets -1 card next turn",0,Reginglaze_anime_1.jpg,Weapon,Piledriver - twin,1,0
-Twin piledrivers mid,3,-1,0,1,0,0,0,2,0,0,0,"If it hits, target gets -1 card next turn",0,Reginglaze_anime_1.jpg,Weapon,Piledriver - twin,1,0
-Twin piledrivers high,3,-1,1,1,0,1,0,0,0,0,0,"If it hits, target gets -1 card next turn",0,Reginglaze_anime_1.jpg,Weapon,Piledriver - twin,1,0
-Drill lance high,4,0,0,1,0,1,0,0,0,0,0, +1 dmg if moved over 2 towards target,0,Kimaris_anime.jpg,Weapon,Drill lance,2,0
-Drill lance mid,4,1,0,0,0,0,0,1,0,0,0, +1 dmg if moved over 2 towards target,0,Kimaris_anime.jpg,Weapon,Drill lance,2,0
-Drill lance low,4,0,1,0,1,0,0,0,0,1,0, +1 dmg if moved over 2 towards target,0,Kimaris_anime.jpg,Weapon,Drill lance,2,0
-Dainsleif (lance),2,-1,0,1,0,0,0,1,4,0,0,Cannot be blocked,1,Kimaris_vidar_1.jpg,Weapon,Drill lance,2,0
-Rail gun high,1,-3,0,1,0,2,18,0,0,0,0,Guard break,1,Flauros_anime.jpg,Weapon,Rail gun,2,0
-Rail gun mid,1,-3,1,0,0,0,0,2,18,0,0,Guard break,1,Flauros_anime.jpg,Weapon,Rail gun,2,0
-Rail gun low,1,-3,1,0,0,0,0,0,0,2,18,Guard break,1,Flauros_anime.jpg,Weapon,Rail gun,2,0
-Twin Rail Guns 1,1,-3,0,1,0,2,18,1,12,0,0,Guard break,1,Flauros_anime.jpg,Weapon,rail gun - twin,1,1
-Twin Rail Guns 2,1,-3,1,0,0,0,0,2,18,1,12,Guard break,1,Flauros_anime.jpg,Weapon,rail gun - twin,1,1
-Twin Rail Guns 3,1,-3,1,0,0,0,0,1,12,2,18,Guard break,1,Flauros_anime.jpg,Weapon,rail gun - twin,1,1
-Whip sword high,6,0,1,0,0,1,0,0,0,0,0,"If blocked, target gets -1 card next turn. When attack resolves, consume this card.",0,Julia_2.jpg,Weapon,Whip sword,2,0
-Whip sword mid,6,0,0,1,0,1,0,0,0,0,0,"If blocked, target gets -1 card next turn. When attack resolves, consume this card.",0,Julia_2.jpg,Weapon,Whip sword,2,0
-Whip sword low,6,0,0,0,1,1,0,0,0,0,0,"If blocked, target gets -1 card next turn. When attack resolves, consume this card.",0,Julia_2.jpg,Weapon,Whip sword,2,0
-Twin whip swords 1,6,0,1,0,1,1,0,0,0,1,0,"If blocked, target gets -1 card next turn. When attack resolves, consume this card.",1,Julia_2.jpg,Weapon,Whip swords - twin,2,0
-Twin whip swords 2,6,0,1,1,0,1,0,1,0,0,0,"If blocked, target gets -1 card next turn. When attack resolves, consume this card.",1,Julia_2.jpg,Weapon,Whip swords - twin,2,0
-Twin whip swords 3,6,0,0,1,1,0,0,1,0,1,0,"If blocked, target gets -1 card next turn. When attack resolves, consume this card.",1,Julia_2.jpg,Weapon,Whip swords - twin,2,0
+Name,Initiative,Movement,HighBlock,MidBlock,LowBlock,HighAttack,HighRange,MidAttack,MidRange,LowAttack,LowRange,Text,OneUse,BackgroundImg,Slot type,Slot name,Changed
+Knife low,4,0,0,0,1,0,0,0,0,1,0,You choose which block is consumed if there is a choice,0,Hekija_knife.jpeg,Weapon,Knife,1
+Knife mid,4,0,0,1,0,0,0,1,0,0,0,You choose which block is consumed if there is a choice,0,Hekija_knife.jpeg,Weapon,Knife,1
+Knife high,4,0,1,0,0,1,0,0,0,0,0,You choose which block is consumed if there is a choice,0,Hekija_knife.jpeg,Weapon,Knife,1
+Knife special,4,0,0,1,0,1,0,1,0,0,0,You choose which block is consumed if there is a choice,1,Hekija_knife.jpeg,Weapon,Knife,1
+Rifle low,3,-1,0,1,1,0,0,0,0,1,12,,0,Hekija-bayonetrifle.jpg,Weapon,rifle,1
+Rifle mid,3,-1,0,1,1,0,0,1,12,0,0,,0,Hekija-bayonetrifle.jpg,Weapon,rifle,1
+Rifle high,3,-1,1,1,0,1,12,0,0,0,0,,0,Hekija-bayonetrifle.jpg,Weapon,rifle,1
+Twin Rifle 1,3,-2,1,0,0,1,10,1,10,0,0,,0,Flauros_2.jpg,Weapon,rifle - twin,1
+Twin Rifle 2,3,-2,0,1,0,1,10,0,0,1,10,,0,Flauros_2.jpg,Weapon,rifle - twin,1
+Twin Rifle 3,3,-2,0,0,1,0,0,1,10,1,10,,0,Flauros_2.jpg,Weapon,rifle - twin,1
+Sword high,5,0,1,0,0,1,0,0,0,0,0,,0,Barbatos_3.jpg,Weapon,sword,1
+Sword mid,5,0,0,1,0,0,0,1,0,0,0,,0,Barbatos_3.jpg,Weapon,sword,1
+Sword low,5,0,0,0,1,0,0,0,0,1,0,,0,Barbatos_3.jpg,Weapon,sword,1
+Sword heavy,2,-1,0,1,0,2,0,0,0,0,0,,0,Barbatos_3.jpg,Weapon,sword,1
+Sword heavy mid,2,-1,0,1,0,0,0,2,0,0,0,,0,Barbatos_3.jpg,Weapon,sword,1
+Twin swords 1,5,0,1,1,0,1,0,0,0,0,0,,0,Bael_1.jpg,Weapon,Sword - twin,1
+Twin swords 2,5,0,0,1,1,0,0,0,0,1,0,,0,Bael_1.jpg,Weapon,Sword - twin,1
+Twin swords heavy 1,2,-1,0,1,0,1,0,1,0,0,0,,0,Bael_1.jpg,Weapon,Sword - twin,1
+Twin swords heavy 2,3,-1,1,0,0,0,0,2,0,0,0,,0,Bael_1.jpg,Weapon,Sword - twin,1
+Mace,3,-1,1,0,0,0,0,0,0,2,0,Guard break,0,Barbatos_anime.jpg,Weapon,Mace,1
+Mace heavy 1,1,-2,0,0,1,0,0,3,0,0,0,Guard break,0,Barbatos_anime.jpg,Weapon,Mace,1
+Mace heavy 2,2,-2,1,0,0,3,0,0,0,0,0,Guard break,0,Barbatos_anime.jpg,Weapon,Mace,1
+Heavy Cannon 1,1,-3,0,1,0,2,16,0,0,0,0,Guard break,1,Barbatos_gun_anime_2.jpg,Weapon,heavy cannon,1
+Heavy Cannon 2,1,-3,0,1,0,0,0,2,16,0,0,Guard break,1,Barbatos_gun_anime_2.jpg,Weapon,heavy cannon,1
+Heavy Cannon 3,1,-3,0,1,0,0,0,0,0,2,16,Guard break,1,Barbatos_gun_anime_2.jpg,Weapon,heavy cannon,1
+Shield high,6,-1,1,0,0,0,0,0,0,0,0,Isn't consumed,0,Kimaris_vidar_2.jpg,Weapon,shield,1
+Shield mid,6,-1,0,1,0,0,0,0,0,0,0,Isn't consumed,0,Kimaris_vidar_2.jpg,Weapon,shield,1
+Shield low,6,-1,0,0,1,0,0,0,0,0,0,Isn't consumed,0,Kimaris_vidar_2.jpg,Weapon,shield,1
+Piledriver high,3,0,0,1,0,1,0,0,0,0,0,"if it hits, target gets -1 card next turn",0,Reginglaze_2.jpg,Weapon,Piledriver,1
+Piledriver mid,3,0,0,1,0,1,0,0,0,0,0,"if it hits, target gets -1 card next turn",0,Reginglaze_2.jpg,Weapon,Piledriver,1
+Piledriver low,3,0,0,1,0,1,0,0,0,0,0,"if it hits, target gets -1 card next turn",0,Reginglaze_2.jpg,Weapon,Piledriver,1
+Grappling hook 1,2,-1,0,1,0,0,0,0,0,1,8,"If blocked, target gets -3mv next turn",1,Reginglaze_anime_1.jpg,Weapon,Piledriver,1
+Grappling hook 2,2,-1,1,0,0,0,0,1,8,0,0,"If blocked, target gets -3mv next turn",1,Reginglaze_anime_1.jpg,Weapon,Piledriver,1
+Twin piledrivers special 1,3,-1,0,1,0,1,0,1,0,0,0,"If it hits, target gets -1 card next turn",1,Reginglaze_anime_2.jpg,Weapon,Piledriver - twin,1
+Twin piledrivers special 2,3,-1,0,0,1,0,0,1,0,1,0,"If it hits, target gets -1 card next turn",1,Reginglaze_anime_2.jpg,Weapon,Piledriver - twin,1
+Twin piledrivers low,3,-1,0,1,1,0,0,0,0,1,0,"If it hits, target gets -1 card next turn",0,Reginglaze_anime_1.jpg,Weapon,Piledriver - twin,1
+Twin piledrivers mid,3,-1,0,1,0,0,0,2,0,0,0,"If it hits, target gets -1 card next turn",0,Reginglaze_anime_1.jpg,Weapon,Piledriver - twin,1
+Twin piledrivers high,3,-1,1,1,0,1,0,0,0,0,0,"If it hits, target gets -1 card next turn",0,Reginglaze_anime_1.jpg,Weapon,Piledriver - twin,1
+Drill lance high,4,0,0,1,0,1,0,0,0,0,0," +1 dmg if moved over 2 towards target",0,Kimaris_anime.jpg,Weapon,Drill lance,1
+Drill lance mid,4,1,0,0,0,0,0,1,0,0,0," +1 dmg if moved over 2 towards target",0,Kimaris_anime.jpg,Weapon,Drill lance,1
+Drill lance low,4,0,1,0,1,0,0,0,0,1,0," +1 dmg if moved over 2 towards target",0,Kimaris_anime.jpg,Weapon,Drill lance,1
+Dainsleif (lance),2,-1,0,1,0,0,0,1,4,0,0,Cannot be blocked,1,Kimaris_vidar_1.jpg,Weapon,Drill lance,1
+Rail gun high,1,-3,0,1,0,2,18,0,0,0,0,Guard break,1,Flauros_anime.jpg,Weapon,Rail gun,1
+Rail gun mid,1,-3,1,0,0,0,0,2,18,0,0,Guard break,1,Flauros_anime.jpg,Weapon,Rail gun,1
+Rail gun low,1,-3,1,0,0,0,0,0,0,2,18,Guard break,1,Flauros_anime.jpg,Weapon,Rail gun,1
+Twin Rail Guns 1,1,-3,0,1,0,2,18,1,12,0,0,Guard break,1,Flauros_anime.jpg,Weapon,rail gun - twin,1
+Twin Rail Guns 2,1,-3,1,0,0,0,0,2,18,1,12,Guard break,1,Flauros_anime.jpg,Weapon,rail gun - twin,1
+Twin Rail Guns 3,1,-3,1,0,0,0,0,1,12,2,18,Guard break,1,Flauros_anime.jpg,Weapon,rail gun - twin,1
+Whip sword high,6,0,1,0,0,1,0,0,0,0,0,"If blocked, target gets -1 card next turn. When attack resolves, consume this card.",0,Julia_2.jpg,Weapon,Whip sword,1
+Whip sword mid,6,0,0,1,0,1,0,0,0,0,0,"If blocked, target gets -1 card next turn. When attack resolves, consume this card.",0,Julia_2.jpg,Weapon,Whip sword,1
+Whip sword low,6,0,0,0,1,1,0,0,0,0,0,"If blocked, target gets -1 card next turn. When attack resolves, consume this card.",0,Julia_2.jpg,Weapon,Whip sword,1
+Twin whip swords 1,6,0,1,0,1,1,0,0,0,1,0,"If blocked, target gets -1 card next turn. When attack resolves, consume this card.",1,Julia_2.jpg,Weapon,Whip swords - twin,1
+Twin whip swords 2,6,0,1,1,0,1,0,1,0,0,0,"If blocked, target gets -1 card next turn. When attack resolves, consume this card.",1,Julia_2.jpg,Weapon,Whip swords - twin,1
+Twin whip swords 3,6,0,0,1,1,0,0,1,0,1,0,"If blocked, target gets -1 card next turn. When attack resolves, consume this card.",1,Julia_2.jpg,Weapon,Whip swords - twin,1
