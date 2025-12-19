@@ -115,6 +115,9 @@ def make_pilot_from_row(row, i):
         card_text = card_text + '\\node at (1.5,8.5){\\includegraphics[' + iconwidth + ']{' + icons_folder + mvImg + '}};\n'
         card_text = card_text + " \\node at (1.5,8.5){\\Large{\\textbf{" + row['Movement'] +"}}};\n"
 
+        # always high block
+        card_text = card_text + attack_box(0, 0, 1, 7.5)
+
         if int(row["OneUse"]) > 0:
              card_text = card_text + "\\node at (7,9.5)[circle, fill = red]{\\large{\\textbf{O}}};\n"
 
