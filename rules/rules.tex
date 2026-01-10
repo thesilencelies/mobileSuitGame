@@ -1,0 +1,186 @@
+
+\documentclass[a4paper, twocolumn]{article}
+ \usepackage[left =2cm, right = 2cm, top = 1.4cm, bottom =1.4cm]{geometry} 
+ \usepackage{tikz} 
+ \usepackage[export]{adjustbox}
+\usepackage[acronym]{glossaries}
+
+ \usetikzlibrary{positioning}
+\title{Mobile Suit Battles \\ \large{working title} \\ \small{Version 0.3}}
+%\author{Stephen Lilico}
+\date{}
+
+\makeglossaries
+\newglossaryentry{attack}
+{
+  name=attack,
+  description={An attack is where an action that is being resolved that has one or more of the attack symbols
+  resolves against another target, either inflicting damage or consuming a block}
+}
+%need to write a lot more glossary entries
+
+
+\newacronym{ms}{MS}{Mobile Suit}
+
+ 
+ \begin{document}
+% \tikz[remember picture,overlay] \node[opacity=0.3,inner sep=0pt] at (current page.center){\includegraphics[width=\paperwidth,height=\paperheight]{../pictures/background.png}};
+% \clearpage
+\maketitle
+
+
+These rules set out a method of handling movement and combat between Mobile Suits. Win conditions and extra rules can be decided on a per game basis.
+Each player brings the same number of Mobile Suits (henceforth MS), and a 20 card deck for that suit. Deckbuilding rules to be added later (think weapon slots etc) but default decks exist. 
+ With many players teams are recommended over battle royale due to the necessity of focussed attacks to actually kill anything, though the rules support either playstyle.
+
+\section{The battlefield}
+The battle is fought on a hex-tri grid. Each MS has a hexagonal base that will occupy exactly 6 of the triangles on the grid.
+distances are reckoned from the edge of this base, everything is measured in steps of triangles - motion is between the vertexes of the triangles.
+
+
+\subsection{Terrain}
+It is highly recommended to add some terrain to the battlefield. Terrain blocks movement and line of sight. 
+
+\subsection{Line of sight}
+For a MS to be selected as a target of an attack, there must be a direct (i.e. no steps moving back) , unbroken (so it can't pass through terrain or other MS) path of steps less than or equal to the range between the edge of the attacking MS and the target. 
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=6cm]{../pictures/map_example_1.png}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=6cm]{../pictures/map_example_2.png}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=6cm]{../pictures/map_example_3.png}
+\end{figure}
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=6cm]{../pictures/map_example_4.png}
+\end{figure}
+
+
+\subsection{Objectives}
+Optionally, but again recommended, there can be a number of points on the battlefield marked as objectives. Whoever holds the most of these at the end is the winner. (Other mission types are easy to construct as desired)
+
+\section{Setup}
+Each player places their MS at the starting locations, shuffles the decks, and a player receives the priority marker.
+
+\section{Card anatomy}
+
+\begin{figure}[htbp]
+  \centering
+\input{../build/card_23.tex}
+\end{figure}
+
+\begin{tabular}{l p{4cm}}
+Initiative: & marks when the card will resolve. Higher numbers resolve before lower numbers\\
+Movement modifier: &how much to add (or subtract if its negative) to the movement for the action with this card\\
+Attack marks:& how much damage to deal at this location if this attack hits (come in melee and ranged form)\\
+Attack range: &range of ranged attack\\
+Block mark: &region that this card can block for\\
+Ability text: &anything special this card does\\
+Single use mark: &if this red dot is here, the card is set aside and not shuffled back in after use.\\
+\end{tabular}
+
+\section{The turn}
+On each turn of the game there are 3 phases: planning, action and cleanup. 
+
+\subsection{Planning}
+in the planning phase, simultaneously for each MS 5 cards are drawn from it’s deck, and from those 2 are chosen and placed facedown. the rest of the cards are placed on the bottom of the deck.
+each deck has one marked card in it - if that card would be drawn, instead the deck is shuffled.
+
+\subsection{Action}
+At the start of the action phase all the face down cards are turned face up.
+
+Cards are resolved in order of the initiative value, starting with the highest. In the event of a tie, players take it in turns to choose one card at the current intiative to resolve, starting with the player with the priority marker and moving clockwise.
+
+Card resolution consists of 3 steps: effect, movement and attack, resolved in that order
+
+\subsubsection{Effect}
+If the card has a stated effect, that effect is now applied. For some effects this will modify movement or the attack or the other action, other times it just does something.
+
+\subsubsection{Movement}
+The MS can move up to their base movement  plus the movement modifier on the card currently being resolved steps in any direction. 
+
+\subsubsection{Attack}
+If the card has any attack listed, one target MS within any of the ranges may be chosen. They are then the defender for this attack.
+ If the defender has a block on their remaining cards in the same zone as any of the attacks that are in range, they must choose one of those cards to block. The attack fails and that blocking card is discarded (if its initiative hasn't been reached yet it never happens). Otherwise the attack succeeds, and the defender takes one damage per attack mark in the corresponding zone (high/mid/low).
+
+After finishing the attack the card resolution ends, and the card remains on the field to be used to block. (It can be helpful to turn it sideways to indicate that its been resolved)
+
+\subsection{Damage}
+Each MS can endure a number of hits on each zone indicated on the character card (default 4) after which they are destroyed. 
+Destroyed MS are removed from the battlefield and can no longer contribute to the fight. 
+Additionally any MS that has endured 2 or more damage in any location faces the following penalty corresponding to the location: 
+
+\begin{tabular}{c p{4cm}}
+High &
+ -1 initiative (reduce initiative on all actions by 1) \\
+Mid &
+-1 cards (draw one less card to choose actions from) \\
+Low &
+-1 movement (reduce base movement by 1) \\
+\end{tabular}
+
+\subsection{Cleanup}
+All remaining cards on the field are discarded.
+Cards with the single use mark are set aside, while all other cards that were discarded are put to the bottom of their respective decks.
+The priority marker then moves one step anticlockwise. 
+
+
+\section{Deck Construction}
+Each mobile suit must have a deck of exactly 20 cards.
+To construct a deck, you first choose the frame (the model of MS used).
+That frame has a stats card with the following information:
+
+\begin{figure}[htbp]
+  \centering
+\input{../build/card_79.tex}
+\end{figure}
+
+\begin{itemize}
+\item Base movement
+\item Armor values at each location
+\item How many weapon and booster slots you have
+\item Frame ability (if any)
+\end{itemize}
+
+To build the deck, you can have:
+
+\begin{itemize}
+\item Max 4 pilot cards, all from the same pilot, no duplicates
+\item Max X booster cards, where X is the frame's booster count
+\item Your frame can choose up to N weapons. Each weapon is a set of 4 attack cards.
+\item For each weapon slot you can include up to 1 of each card in that weapon.
+\item 1 of each of the generic cards 
+\end{itemize}
+So for example:
+
+\begin{tabular}{l l}
+Frame & reginglaze (3 weapons, 4 boosters) \\
+3 pilot cards & julia 1 2 3 \\
+4 booster cards& \\
+weapon & Whip sword 1 2 3 \\
+weapon & Whip sword twin 1 2 3 4 \\
+weapon & Rifle 1 2 3 4 \\
+2 Generics & block, dodge \\
+\end{tabular}
+
+\section{Ability Keywords}
+
+\begin{tabular}{l p{0.7\linewidth}}
+  guard break & this attack deals damage equal to its damage count minus the number of blocks consumed 
+  by it \\
+\end{tabular}
+
+\section{Glossary}
+
+\printglossary[type=\acronymtype]
+\printglossary
+
+\end{document}

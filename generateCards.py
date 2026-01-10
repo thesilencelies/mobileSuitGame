@@ -61,18 +61,18 @@ def make_card_from_row(row, i):
         # print("starting card " + str(i))
         # print(row)
 
-        card_text = "\\begin{tikzpicture}[scale=0.86, backbox/.style= {rectangle, minimum height = 2.2cm," \
-                   + " minimum width =2.2cm, rounded corners = 0.3cm, fill=white, opacity=0.75}]\n "
+        card_text = "\\begin{tikzpicture}[scale=0.86, backbox/.style= {rectangle, minimum height = 2.0cm," \
+                   + " minimum width =2.0cm, rounded corners = 0.3cm, fill=white, opacity=0.75}]\n "
         card_text = card_text + "\\node [rectangle, minimum width = 6.2cm, minimum height = 8.5cm, fill=black] at (4,5){};\n"
         card_text = card_text + '\\node at (4,5){\\includegraphics[width=6cm, max height = 8.5cm, keepaspectratio]{' + images_folder + row["BackgroundImg"] + '}};\n'
         # format the card
         # name
         card_text = card_text + "\\node [rectangle, minimum width=4cm, minimum height = 1cm,rounded corners = 0.1cm, fill=white, opacity=0.75] at (4, 9.5){\\large{" + row["Name"] + "}};\n"
         # default symbols
-        card_text = card_text + '\\node at(1.5,9.5){\\includegraphics[' + iconwidth + ']{' + icons_folder + initImg + '}};\n'
-        card_text = card_text +" \\node at (1.5, 9.5){\\Large{\\textbf{" + row['Initiative'] +"}}};\n"
-        card_text = card_text + '\\node at (1.5,8.5){\\includegraphics[' + iconwidth + ']{' + icons_folder + mvImg + '}};\n'
-        card_text = card_text + " \\node at (1.5,8.5){\\Large{\\textbf{" + row['Movement'] +"}}};\n"
+        card_text = card_text + '\\node at(1, 9.5){\\includegraphics[' + iconwidth + ']{' + icons_folder + initImg + '}};\n'
+        card_text = card_text +" \\node at (1, 9.5){\\Large{\\textbf{" + row['Initiative'] +"}}};\n"
+        card_text = card_text + '\\node at (1, 8.5){\\includegraphics[' + iconwidth + ']{' + icons_folder + mvImg + '}};\n'
+        card_text = card_text + " \\node at (1, 8.5){\\Large{\\textbf{" + row['Movement'] +"}}};\n"
 
         if int(row["OneUse"]) > 0:
              card_text = card_text + "\\node at (7,9.5)[circle, fill = red]{\\large{\\textbf{O}}};\n"
@@ -92,9 +92,9 @@ def make_card_from_row(row, i):
 
 
         card_text = card_text + "\\end{tikzpicture}\n"
-        ofile.write(header_text)
+        # ofile.write(header_text)
         ofile.write(card_text)
-        ofile.write("\\end{document}\n")
+        # ofile.write("\\end{document}\n")
         return card_text + "~"
     
 def make_pilot_from_row(row, i):
@@ -110,10 +110,10 @@ def make_pilot_from_row(row, i):
         # name
         card_text = card_text + "\\node [rectangle, minimum width=4cm, minimum height = 1cm,rounded corners = 0.1cm, fill=white, opacity=0.6] at (4, 9.5){\\large{" + row["Name"] + "}};\n"
         # default symbols
-        card_text = card_text + '\\node at(1.5,9.5){\\includegraphics[' + iconwidth + ']{' + icons_folder + initImg + '}};\n'
-        card_text = card_text +" \\node at (1.5, 9.5){\\Large{\\textbf{" + row['Initiative'] +"}}};\n"
-        card_text = card_text + '\\node at (1.5,8.5){\\includegraphics[' + iconwidth + ']{' + icons_folder + mvImg + '}};\n'
-        card_text = card_text + " \\node at (1.5,8.5){\\Large{\\textbf{" + row['Movement'] +"}}};\n"
+        card_text = card_text + '\\node at(1, 9.5){\\includegraphics[' + iconwidth + ']{' + icons_folder + initImg + '}};\n'
+        card_text = card_text +" \\node at (1, 9.5){\\Large{\\textbf{" + row['Initiative'] +"}}};\n"
+        card_text = card_text + '\\node at (1, 8.5){\\includegraphics[' + iconwidth + ']{' + icons_folder + mvImg + '}};\n'
+        card_text = card_text + " \\node at (1, 8.5){\\Large{\\textbf{" + row['Movement'] +"}}};\n"
 
         # always high block
         card_text = card_text + attack_box(0, 0, 1, 7.5)
