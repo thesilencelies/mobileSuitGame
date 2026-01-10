@@ -2,3 +2,4 @@ Name,Initiative,Movement,HighBlock,MidBlock,LowBlock,HighAttack,HighRange,MidAtt
 Dash,7,4,0,0,0,0,0,0,0,0,0,,1,Bael.png,booster,,1
 Dodge,7,2,0,0,0,0,0,0,0,0,0,"Blocks ranged attacks
 ",1,Hekija.png,booster,,1
+Ace Maneuvers,"8,4",0,0,0,0,0,0,0,0,0,0,Resolves twice,1,Julia_1.jpg,booster,,1
