@@ -35,7 +35,7 @@ def attack_box(atk, rng, block, pos):
     out_text = ""
     # the attack box at the requested location
     if atk or block:
-        out_text = out_text + "\\node[backbox] at (6.5, " + str(pos) +"){};\n"
+        out_text = out_text + "\\node[backbox] at (6.2, " + str(pos) +"){};\n"
     # what graphic to use
     aimg = icons_folder + (rAtkImg if rng > 0 else mAtkImg)
     for d in range(0, atk):
@@ -67,15 +67,15 @@ def make_card_from_row(row, i):
         card_text = card_text + '\\node at (4,5){\\includegraphics[width=6cm, max height = 8.5cm, keepaspectratio]{' + images_folder + row["BackgroundImg"] + '}};\n'
         # format the card
         # name
-        card_text = card_text + "\\node [rectangle, minimum width=4cm, minimum height = 1cm,rounded corners = 0.1cm, fill=white, opacity=0.75] at (4, 9.5){\\large{" + row["Name"] + "}};\n"
+        card_text = card_text + "\\node [rectangle, minimum width=4cm, minimum height = 0.6cm,rounded corners = 0.1cm, fill=white, opacity=0.75] at (4, 9.2){\\large{" + row["Name"] + "}};\n"
         # default symbols
-        card_text = card_text + '\\node at(1, 9.5){\\includegraphics[' + iconwidth + ']{' + icons_folder + initImg + '}};\n'
-        card_text = card_text +" \\node at (1, 9.5){\\Large{\\textbf{" + row['Initiative'] +"}}};\n"
-        card_text = card_text + '\\node at (1, 8.5){\\includegraphics[' + iconwidth + ']{' + icons_folder + mvImg + '}};\n'
-        card_text = card_text + " \\node at (1, 8.5){\\Large{\\textbf{" + row['Movement'] +"}}};\n"
+        card_text = card_text + '\\node at(1, 9.2){\\includegraphics[' + iconwidth + ']{' + icons_folder + initImg + '}};\n'
+        card_text = card_text +" \\node at (1, 9.2){\\Large{\\textbf{" + row['Initiative'] +"}}};\n"
+        card_text = card_text + '\\node at (1.1, 8.2){\\includegraphics[' + iconwidth + ']{' + icons_folder + mvImg + '}};\n'
+        card_text = card_text + " \\node at (1, 8.2){\\Large{\\textbf{" + row['Movement'] +"}}};\n"
 
         if int(row["OneUse"]) > 0:
-             card_text = card_text + "\\node at (7,9.5)[circle, fill = red]{\\large{\\textbf{O}}};\n"
+             card_text = card_text + "\\node at (7,9.2)[circle, fill = red]{\\large{\\textbf{O}}};\n"
 
         card_text = card_text + attack_box(int(row["HighAttack"]), int(row["HighRange"]), int(row["HighBlock"]), 7.5)
         card_text = card_text + attack_box(int(row["MidAttack"]), int(row["MidRange"]), int(row["MidBlock"]), 5.0)
@@ -87,7 +87,7 @@ def make_card_from_row(row, i):
                     + "text width = 3.5cm]  at (2.75, 3.5){\\small{" + row['Text'] +"}};\n"
         #set info
         card_text = card_text + "\\node[rectangle, fill = white, opacity = 0.75, minimum width=6cm, minimum height =0.8cm, " \
-                + "rounded corners = 0.3cm, text width = 6.1cm]  at (4, 0.5){" \
+                + "rounded corners = 0.3cm, text width = 5.8cm]  at (4, 0.7){" \
                 +  row['Slot type'] + " :  " + row['Slot name'] + "};\n"
 
 
@@ -108,18 +108,18 @@ def make_pilot_from_row(row, i):
         card_text = card_text + '\\node at (4,5){\\includegraphics[width=6cm, max height = 8.5cm, keepaspectratio]{' + images_folder + row["BackgroundImg"] + '}};\n'
         # format the card
         # name
-        card_text = card_text + "\\node [rectangle, minimum width=4cm, minimum height = 1cm,rounded corners = 0.1cm, fill=white, opacity=0.6] at (4, 9.5){\\large{" + row["Name"] + "}};\n"
+        card_text = card_text + "\\node [rectangle, minimum width=4cm, minimum height = 0.6cm,rounded corners = 0.1cm, fill=white, opacity=0.6] at (4, 9.2){\\large{" + row["Name"] + "}};\n"
         # default symbols
-        card_text = card_text + '\\node at(1, 9.5){\\includegraphics[' + iconwidth + ']{' + icons_folder + initImg + '}};\n'
-        card_text = card_text +" \\node at (1, 9.5){\\Large{\\textbf{" + row['Initiative'] +"}}};\n"
-        card_text = card_text + '\\node at (1, 8.5){\\includegraphics[' + iconwidth + ']{' + icons_folder + mvImg + '}};\n'
-        card_text = card_text + " \\node at (1, 8.5){\\Large{\\textbf{" + row['Movement'] +"}}};\n"
+        card_text = card_text + '\\node at(1, 9.2){\\includegraphics[' + iconwidth + ']{' + icons_folder + initImg + '}};\n'
+        card_text = card_text +" \\node at (1, 9.2){\\Large{\\textbf{" + row['Initiative'] +"}}};\n"
+        card_text = card_text + '\\node at (1.1, 8.2){\\includegraphics[' + iconwidth + ']{' + icons_folder + mvImg + '}};\n'
+        card_text = card_text + " \\node at (1, 8.2){\\Large{\\textbf{" + row['Movement'] +"}}};\n"
 
         # always high block
         card_text = card_text + attack_box(0, 0, 1, 7.5)
 
         if int(row["OneUse"]) > 0:
-             card_text = card_text + "\\node at (7,9.5)[circle, fill = red]{\\large{\\textbf{O}}};\n"
+             card_text = card_text + "\\node at (7,9.2)[circle, fill = red]{\\large{\\textbf{O}}};\n"
 
 
         # textbox
@@ -127,7 +127,7 @@ def make_pilot_from_row(row, i):
                     + "text width = 5.4cm]  at (4, 3.5){\\small{" + row['Text'] +"}};\n"
         #set info
         card_text = card_text + "\\node[rectangle, fill = white, opacity = 0.75, minimum width=6cm, minimum height =0.8cm, " \
-                + "rounded corners = 0.3cm, text width = 6.1cm]  at (4, 0.9){" \
+                + "rounded corners = 0.3cm, text width = 5.8cm]  at (4, 0.7){" \
                 +  row['Slot type'] + " : " + row['Slot name'] + "};\n"
 
         card_text = card_text + "\\end{tikzpicture}\n"

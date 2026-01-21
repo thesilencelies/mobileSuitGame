@@ -1,0 +1,31 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "create cards",
+      "command": "pdflatex",
+      "type": "shell",
+      "args": ["card_all.tex"],
+      "options": {
+        "cwd": "${workspaceFolder}/build"
+      },
+      "group": "build"
+    },
+    {
+      "label": "create rules",
+      "command": "pdflatex",
+      "type": "shell",
+      "args": ["rules.tex"],
+      "options": {
+        "cwd": "${workspaceFolder}/rules"
+      },
+      "group": "build"
+    },
+    {
+      "label": "create all",
+      "type": "shell",
+      "command": "echo created",
+      "dependsOn": ["create rules", "create cards"]
+    }
+  ]
+}
