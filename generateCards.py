@@ -30,7 +30,7 @@ frameBackgrounds = ["Hekija_1.jpg","Reginglaze_1.jpg", "Barbatos_1.jpg",
 iconwidth ="width=0.9cm"
 
 header_text = "\\documentclass[a4paper, landscape]{article}\n \\usepackage[left =2cm, right = 2cm, " \
-            + "top = 1.4cm, bottom =1.4cm]{geometry} \n \\usepackage{tikz} \n \\usepackage[export]{adjustbox} \n \\usetikzlibrary{positioning} \\begin{document}\n"
+            + "top = 1.4cm, bottom =1.4cm]{geometry} \n \\usepackage{tikz} \n \\usepackage[export]{adjustbox} \n \\usetikzlibrary{positioning} \n\\begin{document}\n\\noindent\n"
 
 def attack_box(atk, rng, block, pos):
     out_text = ""
@@ -65,7 +65,7 @@ def make_card_from_row(row, i):
         card_text = "\\begin{tikzpicture}[scale=0.86, backbox/.style= {rectangle, minimum height = 2.0cm," \
                    + " minimum width =2.0cm, rounded corners = 0.3cm, fill=white, opacity=0.75}]\n "
         card_text = card_text + "\\node [rectangle, minimum width = 6.2cm, minimum height = 8.5cm, fill=black] at (4,5){};\n"
-        card_text = card_text + '\\node at (4,5){\\includegraphics[width=6cm, max height = 8.5cm, keepaspectratio]{' + images_folder + row["BackgroundImg"] + '}};\n'
+        card_text = card_text + '\\node at (4,5){\\includegraphics[width=6cm, max height = 8.3cm, keepaspectratio]{' + images_folder + row["BackgroundImg"] + '}};\n'
         # format the card
         # name
         card_text = card_text + "\\node [rectangle, minimum width=4cm, minimum height = 0.6cm,rounded corners = 0.1cm, fill=white, opacity=0.75] at (4, 9.2){\\large{" + row["Name"] + "}};\n"
@@ -106,7 +106,7 @@ def make_pilot_from_row(row, i):
         card_text = "\\begin{tikzpicture}[scale=0.86, backbox/.style= {rectangle, minimum height = 2.2cm," \
                    + " minimum width =2.2cm, rounded corners = 0.3cm, fill=white, opacity=0.75}]\n "
         card_text = card_text + "\\node [rectangle, minimum width = 6.2cm, minimum height = 8.5cm, fill=black] at (4,5){};\n"
-        card_text = card_text + '\\node at (4,5){\\includegraphics[width=6cm, max height = 8.5cm, keepaspectratio]{' + images_folder + row["BackgroundImg"] + '}};\n'
+        card_text = card_text + '\\node at (4,5){\\includegraphics[width=6cm, max height = 8.3cm, keepaspectratio]{' + images_folder + row["BackgroundImg"] + '}};\n'
         # format the card
         # name
         card_text = card_text + "\\node [rectangle, minimum width=4cm, minimum height = 0.6cm,rounded corners = 0.1cm, fill=white, opacity=0.6] at (4, 9.2){\\large{" + row["Name"] + "}};\n"
@@ -145,7 +145,7 @@ def create_frame_sheet(frame, i):
         frame_text = "\\begin{tikzpicture}[scale=0.86, backbox/.style= {rectangle, minimum height = 2.2cm," \
                 + " minimum width =2.2cm, rounded corners = 0.3cm, fill=white, opacity=0.75}]\n "
         frame_text = frame_text + "\\node [rectangle, minimum width = 6.2cm, minimum height = 8.5cm, fill=black!70!white!30] at (4,5){};\n"
-        frame_text = frame_text + '\\node at (4,5){\\includegraphics[width=6cm, max height = 8.5cm, keepaspectratio]{' + images_folder + frame["BackgroundImg"] + '}};\n'
+        frame_text = frame_text + '\\node at (4,5){\\includegraphics[width=6cm, max height = 8.3cm, keepaspectratio]{' + images_folder + frame["BackgroundImg"] + '}};\n'
         # name
         frame_text = frame_text + "\\node [rectangle, minimum width=4.3cm, minimum height = 1cm,rounded corners = 0.1cm, fill=white, opacity=0.75] at (3.3, 9){\\large{" + frame["Name"] + "}};\n"
         
