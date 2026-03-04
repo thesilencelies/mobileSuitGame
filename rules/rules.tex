@@ -9,7 +9,7 @@
 
  \usetikzlibrary{positioning}
 
-\title{Mobile Suit Battles \\ \large{working title} \\ \small{Version 0.3}}
+\title{NetFrame \\ \large{working title} \\ \small{Version 0.4}}
 %\author{Stephen Lilico}
 \date{}
 \ULCornerWallPaper{1.0}{../pictures/background.png}
@@ -24,7 +24,6 @@
 %need to write a lot more glossary entries
 
 
-\newacronym{ms}{MS}{Mobile Suit}
 
  
 \begin{document}
@@ -33,18 +32,18 @@
 
 
 These rules set out a method of handling movement and combat between Mobile Suits. Win conditions and extra rules can be decided on a per game basis.
-Each player brings the same number of \acrlong{ms}s (henceforth \acrshort{ms}), and a 20 card deck for that suit. Deckbuilding rules to be added later (think weapon slots etc) but default decks exist. 
+Each player brings the same number of Frames, and a 20 card deck for that suit. Deckbuilding rules to be added later (think weapon slots etc) but default decks exist. 
  With many players teams are recommended over battle royale due to the necessity of focussed attacks to actually kill anything, though the rules support either playstyle.
 
 \section{The battlefield}
-The battle is fought on a hex-tri grid. Each \acrshort{ms} has a hexagonal base that will occupy exactly 6 of the triangles on the grid.
+The battle is fought on a hex-tri grid. Each frame has a hexagonal base that will occupy exactly 6 of the triangles on the grid.
 distances are reckoned from the edge of this base, everything is measured in steps of triangles - motion is between the vertexes of the triangles.
 
 \begin{figure}[htbp]
   \centering
   \textbf{Distances}\par\medskip
   \includegraphics[width=6cm]{../pictures/map_example_1.png}
-  \par \acrshort{ms} A is 3 away from both B and C
+  \par frame A is 3 away from both B and C
 \end{figure}
 
 
@@ -53,20 +52,20 @@ distances are reckoned from the edge of this base, everything is measured in ste
 It is highly recommended to add some terrain to the battlefield. Terrain blocks movement and line of sight. 
 
 \subsection{Line of sight}
-For a \acrshort{ms} to be selected as a target of an attack, there must be a direct (i.e. no steps moving back) , unbroken (so it can't pass through terrain or other \acrshort{ms}) path of steps less than or equal to the range between the edge of the attacking \acrshort{ms} and the target. 
+For a frame to be selected as a target of an attack, there must be a direct (i.e. no steps moving back) , unbroken (so it can't pass through terrain or other frame) path of steps less than or equal to the range between the edge of the attacking frame and the target. 
 
 \begin{figure}[htbp]
   \centering
   \textbf{Line of Sight}\par\medskip
   \includegraphics[width=6cm]{../pictures/map_example_2.png}
 
-  \par\acrshort{ms} A can see B and C but not D\par\medskip
+  \parframe A can see B and C but not D\par\medskip
 
   \includegraphics[width=6cm]{../pictures/map_example_3.png}
-  \par\acrshort{ms} A can see B and D but not C\par\medskip
+  \parframe A can see B and D but not C\par\medskip
 
   \includegraphics[width=6cm]{../pictures/map_example_4.png}
-  \par\acrshort{ms} A can see B, C and D\par\medskip
+  \parframe A can see B, C and D\par\medskip
 \end{figure}
 
 
@@ -74,7 +73,7 @@ For a \acrshort{ms} to be selected as a target of an attack, there must be a dir
 Optionally, but again recommended, there can be a number of points on the battlefield marked as objectives. Whoever holds the most of these at the end is the winner. (Other mission types are easy to construct as desired)
 
 \section{Setup}
-Each player places their \acrshort{ms} at the starting locations, shuffles the decks, and a player receives the priority marker.
+Each player places their frame at the starting locations, shuffles the decks, and a player receives the priority marker.
 
 \section{Card anatomy}
 
@@ -100,7 +99,7 @@ Ability text: &Effects that happen when this card is played or resolved.\\\hline
 On each turn of the game there are 3 phases: planning, action and cleanup. 
 
 \subsection{Planning}
-in the planning phase, simultaneously for each \acrshort{ms} 5 cards are drawn from it’s deck, and from those 2 are chosen and placed facedown. the rest of the cards are placed on the bottom of the deck.
+in the planning phase, simultaneously for each frame 5 cards are drawn from it’s deck, and from those 2 are chosen and placed facedown. the rest of the cards are placed on the bottom of the deck.
 each deck has one marked card in it - if that card would be drawn, instead the deck is shuffled.
 
 \subsection{Action}
@@ -114,18 +113,18 @@ Card resolution consists of 3 steps: effect, movement and attack, resolved in th
 If the card has a stated effect, that effect is now applied. For some effects this will modify movement or the attack or the other action, other times it just does something.
 
 \subsubsection{Movement}
-The \acrshort{ms} can move up to their base movement  plus the movement modifier on the card currently being resolved steps in any direction. 
+The frame can move up to their base movement  plus the movement modifier on the card currently being resolved steps in any direction. 
 
 \subsubsection{Attack}
-If the card has any attack listed, one target \acrshort{ms} within any of the ranges may be chosen. They are then the defender for this attack.
+If the card has any attack listed, one target frame within any of the ranges may be chosen. They are then the defender for this attack.
  If the defender has a block on their remaining cards in the same zone as any of the attacks that are in range, they must choose one of those cards to block. The attack fails and that blocking card is discarded (if its initiative hasn't been reached yet it never happens). Otherwise the attack succeeds, and the defender takes one damage per attack mark in the corresponding zone (high/mid/low).
 
 After finishing the attack the card resolution ends, and the card remains on the field to be used to block. (It can be helpful to turn it sideways to indicate that its been resolved)
 
 \subsection{Damage}
-Each \acrshort{ms} can endure a number of hits on each zone indicated on the character card (default 4) after which they are destroyed. 
-Destroyed \acrshort{ms} are removed from the battlefield and can no longer contribute to the fight. 
-Additionally any \acrshort{ms} that has endured 2 or more damage in any location faces the following penalty corresponding to the location: 
+Each frame can endure a number of hits on each zone indicated on the character card (default 4) after which they are destroyed. 
+Destroyed frame are removed from the battlefield and can no longer contribute to the fight. 
+Additionally any frame that has endured 2 or more damage in any location faces the following penalty corresponding to the location: 
 
 \begin{tabular}{c p{4cm}}
 High &
@@ -144,7 +143,7 @@ The priority marker then moves one step anticlockwise.
 
 \section{Deck Construction}
 Each mobile suit must have a deck of exactly 20 cards.
-To construct a deck, you first choose the frame (the model of \acrshort{ms} used).
+To construct a deck, you first choose the frame (the model of frame used).
 That frame has a stats card with the following information:
 
 \begin{figure}[htbp]
