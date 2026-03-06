@@ -25,10 +25,10 @@ images_folder = "../pictures/"
 icons_folder = "../icons/"
 
 
-frameBackgrounds = ["Hekija_1.jpg","Reginglaze_1.jpg", "Barbatos_1.jpg",
-                    "Bael_1.jpg", "Flauros_1.jpg", "Kimaris_vidar_2.jpg", "Julia_1.jpg"]
+frameBackgrounds = ["Ouwa_frame_1.jpeg","Aegis_frame_1.jpeg", "Guild_frame_1.png",
+                    "Collective_frame_1.jpeg", "CotN_frame_1.jpeg", "Revolution_frame_1.jpeg"]
 
-iconwidth ="width=0.9cm"
+iconwidth = "width=0.9cm"
 
 header_text = "\\documentclass[a4paper, landscape]{article}\n \\usepackage[left =2cm, right = 2cm, " \
             + "top = 1.4cm, bottom =1.4cm]{geometry} \n \\usepackage{tikz} \n \\usepackage[export]{adjustbox}" \
@@ -116,7 +116,8 @@ def make_card_from_row(row, i, card_type):
         #set info
         card_text = card_text + "\\node[rectangle, fill = white, opacity = 0.75, minimum width=6cm, minimum height =0.8cm, " \
                 + "rounded corners = 0.3cm, text width = 5.8cm]  at (4, 0.7){" \
-                + row["Faction"] + " " + getTypeName(card_type) +  " \hfill " + row['Group'] + "};\n"
+                + row["Faction"] + " " + getTypeName(card_type) +  " \hfill " + row['Group'] + "\\\\" + \
+                "\\emph{" + row["Flavor"] + "}};\n"
 
 
         card_text = card_text + "\\end{tikzpicture}\n"
@@ -143,18 +144,20 @@ def create_frame_sheet(frame, i):
         frame_text = frame_text + " \\node at (7,9){\\Large{\\textbf{" + frame['Movement'] +"}}};\n"
         
         # armor
-        frame_text = frame_text + "\\node [rectangle, minimum width=2cm, minimum height = 1cm, fill = red, opacity = 0.75] at (6.5, 7.5){"+ frame["Top armour"]+"};\n"
-        frame_text = frame_text + "\\node [rectangle, minimum width=2cm, minimum height = 1cm, fill = red, opacity = 0.75] at (6.5, 5.5){"+ frame["Side armour"]+"};\n"
-        frame_text = frame_text + "\\node [rectangle, minimum width=2cm, minimum height = 1cm, fill = red, opacity = 0.75] at (6.5, 3.5){"+ frame["Low armour"]+"};\n"
+        frame_text = frame_text + "\\node [rectangle, minimum width=2cm, minimum height = 1cm, fill = red, opacity = 0.75] at (6.5, 7.5){" + frame["Top armour"]+"};\n"
+        frame_text = frame_text + "\\node [rectangle, minimum width=2cm, minimum height = 1cm, fill = red, opacity = 0.75] at (6.5, 5.5){" + frame["Side armour"]+"};\n"
+        frame_text = frame_text + "\\node [rectangle, minimum width=2cm, minimum height = 1cm, fill = red, opacity = 0.75] at (6.5, 3.5){" + frame["Low armour"]+"};\n"
 
         # ability
         frame_text = frame_text + "\\node[rectangle, fill = white, opacity = 0.75, minimum height =1.5cm, rounded corners = 0.3cm, " \
                     + "text width = 3.5cm]  at (3, 3.5){\\small{" + frame['Abilities'] +"}};\n"
 
         # weapons
-        frame_text = frame_text + "\\node [rectangle, rounded corners = 0.3cm, minimum width=5cm, minimum height = 1cm, fill = white,  opacity = 0.75] at (4, 1.2){" + \
+        frame_text = frame_text + "\\node [rectangle, rounded corners = 0.3cm, minimum width=5cm, minimum height = 1cm, fill = white," + \
+                " opacity = 0.75, text width = 5.8cm] at (4, 1.2){" + \
                 '\\includegraphics[' + iconwidth + ']{' + icons_folder + weaponImg + '} \\large{ : ' + str(frame["Weapon Slots"]) +  \
-                '} ~\\includegraphics[' + iconwidth + ']{' + icons_folder + boosterImg + '}\\large{  : ' + str(frame["Boosters"]) + "}};\n"
+                '} ~\\includegraphics[' + iconwidth + ']{' + icons_folder + boosterImg + '}\\large{  : ' + str(frame["Boosters"]) + \
+                 "} \\\\\\emph{" + frame["Flavor"] +  "}};\n"
 
 
         #finish the tikzpicture

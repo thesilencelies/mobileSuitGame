@@ -1,2 +1,2 @@
-Name,Faction,Group,Initiative,Movement,HighBlock,MidBlock,LowBlock,HighAttack,HighRange,MidAttack,MidRange,LowAttack,LowRange,Text,OneUse,BackgroundImg,Changed
-Boost,"","",9,+5,0,0,0,0,0,0,0,0,0,"",1,Boost.jpg,1
+Name,Faction,Group,Initiative,Movement,HighBlock,MidBlock,LowBlock,HighAttack,HighRange,MidAttack,MidRange,LowAttack,LowRange,Text,OneUse,BackgroundImg,Flavor,Changed
+Boost,"","",9,+5,0,0,0,0,0,0,0,0,0,"",1,Boost.jpg,"",1
