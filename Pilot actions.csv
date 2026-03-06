@@ -1,2 +1,2 @@
-Name,Faction,Group,Initiative,Movement,Text,OneUse,BackgroundImg,Changed
-"Relentless Assault","",Bruiser,7,-2,"all other actions this frame takes this turn resolve twice",0,Bruiser_attack.jpg,1
+Name,Faction,Group,Initiative,Movement,Text,OneUse,BackgroundImg,Flavor,Changed
+"Relentless Assault","",Bruiser,6,-3,"all other actions this frame takes this turn resolve twice at -2mv",0,Bruiser_attack.jpg,"You like that? How about this time?",1

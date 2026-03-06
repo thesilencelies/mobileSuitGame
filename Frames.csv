@@ -1,2 +1,2 @@
-Name,Faction,Movement,Weapon Slots,Abilities,Top armour,Side armour,Low armour,Boosters,BackgroundImg,Changed
-"Protector MkIV",Aegis,4,3,"Shield actions don't get discarded", 4,4,4,2,Aegis_Protector.jpg,1
+Name,Faction,Movement,Weapon Slots,Abilities,Top armour,Side armour,Low armour,Boosters,BackgroundImg,Flavor,Changed
+"Protector MkIV",Aegis,4,3,"actions with multiple blocks don't get consumed", 4,4,4,2,Aegis_protector.jpg,"Where it stands, peace stands",1
