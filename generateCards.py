@@ -75,7 +75,7 @@ def make_card_from_row(row, i, card_type):
                    + " minimum width =2.0cm, rounded corners = 0.3cm, fill=white, opacity=0.75}]\n "
         card_text = card_text + "\\node [rectangle, minimum width = 6.2cm, minimum height = 8.5cm, fill=black] at (4,5){};\n"
         card_text = card_text + '\\node at (4,5){\\includegraphics[width=6cm, max height = 8.3cm, keepaspectratio]{' + images_folder + row["BackgroundImg"] + '}};\n'
-        # frame style
+        # frame style - these need designing
         if card_type is CardTypeEnum.BOOSTER:
             # TODO - create booster frame
             pass
@@ -86,11 +86,16 @@ def make_card_from_row(row, i, card_type):
             # TODO - create weapon frame
             pass
         
-        # name
-        card_text = card_text + "\\node [rectangle, minimum width=4cm, minimum height = 0.6cm,rounded corners = 0.1cm, fill=white, opacity=0.75] at (4, 9.2){\\large{" + row["Name"] + "}};\n"
+        # name and faction
+        card_text = card_text + "\\node [rectangle, minimum width=4cm, minimum height = 0.6cm,rounded corners = 0.1cm," +\
+                "fill=white, opacity=0.75] at (4, 9.2){\\large{" + row["Name"]
+        if row["Faction"]:
+            card_text = card_text +  "}\n\\emph{" + row["Faction"]
+        card_text = card_text +  "}};\n"
+
         # default symbols
         card_text = card_text + '\\node at(1, 9.2){\\includegraphics[' + iconwidth + ']{' + icons_folder + initImg + '}};\n'
-        card_text = card_text +" \\node at (1, 9.2){\\Large{\\textbf{" + row['Initiative'] +"}}};\n"
+        card_text = card_text + "\\node at (1, 9.2){\\Large{\\textbf{" + row['Initiative'] +"}}};\n"
         card_text = card_text + '\\node at (1.1, 8.2){\\includegraphics[' + iconwidth + ']{' + icons_folder + mvImg + '}};\n'
         card_text = card_text + " \\node at (1, 8.2){\\Large{\\textbf{" + row['Movement'] +"}}};\n"
 

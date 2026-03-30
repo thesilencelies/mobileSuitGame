@@ -21,7 +21,7 @@
   description={An attack is where an action that is being resolved that has one or more of the attack symbols
   resolves against another target, either inflicting damage or consuming a block}
 }
-%need to write a lot more glossary entries
+%need to write a lot more glossary entries?? or remove it
 
 
 
@@ -32,8 +32,10 @@
 
 
 These rules set out a method of handling movement and combat between Mobile Suits. Win conditions and extra rules can be decided on a per game basis.
-Each player brings the same number of Frames, and a 20 card deck for that suit. Deckbuilding rules to be added later (think weapon slots etc) but default decks exist. 
+Each player brings the same number of Frames, and a 20 card deck for that suit. 
  With many players teams are recommended over battle royale due to the necessity of focussed attacks to actually kill anything, though the rules support either playstyle.
+All frames a player brings should be from the same faction.
+
 
 \section{The battlefield}
 The battle is fought on a hex-tri grid. Each frame has a hexagonal base that will occupy exactly 6 of the triangles on the grid.
@@ -49,7 +51,10 @@ distances are reckoned from the edge of this base, everything is measured in ste
 
 
 \subsection{Terrain}
-It is highly recommended to add some terrain to the battlefield. Terrain blocks movement and line of sight. 
+It is highly recommended to add some terrain to the battlefield. Terrain blocks movement and line of sight. Terrain that can be stood
+upon is classified as being on different levels. Players should quickly agree at the start of the game what level each piece of terrain is,
+but as a quick rule of thumb, moving up one frame's height is roughly one level. The level indicates how much movement it takes to climb onto the terrain.
+
 
 \subsection{Line of sight}
 For a frame to be selected as a target of an attack, there must be a direct (i.e. no steps moving back) , unbroken (so it can't pass through terrain or other frame) path of steps less than or equal to the range between the edge of the attacking frame and the target. 
@@ -68,6 +73,8 @@ For a frame to be selected as a target of an attack, there must be a direct (i.e
   \par frame A can see B, C and D\par\medskip
 \end{figure}
 
+Frames on the edge of their level are visible from other levels, and can see other levels, while frames one or more stepa away from the edge do not have LOS to other levels.
+Terrain that is less than 1 level high will still block line of sight (its assumed that the frames hide).
 
 \subsection{Objectives}
 Optionally, but again recommended, there can be a number of points on the battlefield marked as objectives. Whoever holds the most of these at the end is the winner. (Other mission types are easy to construct as desired)
@@ -99,7 +106,7 @@ Ability text: &Effects that happen when this card is played or resolved.\\\hline
 On each turn of the game there are 3 phases: planning, action and cleanup. 
 
 \subsection{Planning}
-in the planning phase, simultaneously for each frame 5 cards are drawn from it’s deck, and from those 2 are chosen and placed facedown. the rest of the cards are placed on the bottom of the deck.
+in the planning phase, simultaneously for each frame 5 cards are drawn from it's deck, and from those 2 are chosen and placed facedown. The rest of the cards are placed on the bottom of the deck.
 each deck has one marked card in it - if that card would be drawn, instead the deck is shuffled.
 
 \subsection{Action}
@@ -107,13 +114,16 @@ At the start of the action phase all the face down cards are turned face up.
 
 Cards are resolved in order of the initiative value, starting with the highest. In the event of a tie, players take it in turns to choose one card at the current intiative to resolve, starting with the player with the priority marker and moving clockwise.
 
-Card resolution consists of 3 steps: effect, movement and attack, resolved in that order
+Card resolution consists of 3 steps: effect, movement and attack, resolved in that order.
 
 \subsubsection{Effect}
 If the card has a stated effect, that effect is now applied. For some effects this will modify movement or the attack or the other action, other times it just does something.
 
 \subsubsection{Movement}
 The frame can move up to their base movement  plus the movement modifier on the card currently being resolved steps in any direction. 
+
+\subsubsection{Movement between levels}
+It takes 2 movement to move up or down a level, and you cannot stop halfway up. Terrain that is smaller than a level can be traversed at a -1 mv penalty, but cannot be stopped inside.
 
 \subsubsection{Attack}
 If the card has any attack listed, one target frame within any of the ranges may be chosen. They are then the defender for this attack.
@@ -143,7 +153,7 @@ The priority marker then moves one step anticlockwise.
 
 \section{Deck Construction}
 Each mobile suit must have a deck of exactly 20 cards.
-To construct a deck, you first choose the frame (the model of frame used).
+To construct a deck, you first choose the frame.
 That frame has a stats card with the following information:
 
 \begin{figure}[htbp]
@@ -153,6 +163,7 @@ That frame has a stats card with the following information:
 
 \begin{itemize}
 \item Base movement
+\item Faction
 \item Armor values at each location
 \item How many weapon and booster slots you have
 \item Frame ability (if any)
@@ -168,24 +179,36 @@ To build the deck, you can have:
 \item 1 of each of the generic cards 
 \end{itemize}
 
+If any card has a faction logo on it, it can only be in a deck for a frame of that faction.
+
 
 So for example:
 
 \begin{tabular}{l l}
 Frame & Protector Mk IV (3 weapons, 3 boosters) \\
-3 pilot cards & julia 1 2 3 \\
+3 pilot cards & bruiser 1 2 3 \\
 3 booster cards& \\
-weapon & Whip sword 1 2 3 \\
-weapon & Whip sword twin 1 2 3 4 \\
+weapon & Stun batom 1 2 3 \\
+weapon & Shield 1 2 3 4 \\
 weapon & Rifle 1 2 3 4 \\
 2 Generics & block, dodge \\
 \end{tabular}
 
 \section{Ability Keywords}
 
-\begin{tabular}{l p{0.7\linewidth}}
-  guard break & this attack deals damage equal to its damage count minus the number of blocks consumed 
+\begin{tabular}{l p{0.8\linewidth}}
+  guard break & This attack deals damage equal to its damage count minus the number of blocks consumed 
   by it \\
+  committed & this attack is consumed after it resolves \\
+  feint & if this attack is not blocked, it deals no damage \\
+  on strike: (X) & if this attack hits (is not blocked), then X happens \\
+  flying & This frame does not spend movement to cross obstacles or move between floors.
+   Terrain of less than 1 level height does not block LoS to or from this frame. \\
+  shield (X) & When a card with shield (X) resolves, or a frame with shield (X) starts,
+   put X shield counters on the frame card. The next time the frame would take damage,
+    instead remove one shield counter from the frame. \\
+  deathstrike & When this frame would be destroyed, they instead get to play one more turn, 
+  after which they are removed from play \\
 \end{tabular}
 
 \section{Glossary}
