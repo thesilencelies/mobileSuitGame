@@ -50,26 +50,22 @@ damage_type_dict = {
     "cut" : cutAtkImg,
     "pierce" : pierceAtkImg,
     "impact" : bludgeonAtkImg,
-    "projectile" : bulletAtkImg,
-    "" : ""
+    "projectile" : bulletAtkImg
     }
 
 def createMacros():
     with open(cardoutputfolder + 'macros.tex', 'w') as ofile:
-        card_text = "\newcommand{\\cut}{"
-        card_text += '\\includegraphics[' + iconwidth + ']{' + icons_folder + cutAtkImg + '}'
-        card_text += "}\n"
-        card_text = "\newcommand{\\pierce}{"
-        card_text += '\\includegraphics[' + iconwidth + ']{' + icons_folder + pierceAtkImg + '}'
-        card_text += "}\n"
-        card_text = "\newcommand{\\impact}{"
-        card_text += '\\includegraphics[' + iconwidth + ']{' + icons_folder + bludgeonAtkImg + '}'
-        card_text += "}\n"
-        card_text = "\newcommand{\\projectile}{"
-        card_text += '\\includegraphics[' + iconwidth + ']{' + icons_folder + bulletAtkImg + '}'
-        card_text += "}\n"
+        card_text = ""
+
+        for t, img in damage_type_dict.items():
+            card_text += "\n\\newcommand{\\" + t + "}{"
+            card_text += '\\includegraphics[' + iconwidth + ']{' + icons_folder + img + '}'
+            card_text += "}\n\\newcommand{\\small" + t + "}{"
+            card_text += '\\includegraphics[' + inline_iconwidth + ']{' + icons_folder + img + '}'
+            card_text += "}\n"
+
         ofile.write(card_text)
-        return card_text + "~"
+        return card_text
 
 
 def getTypeName(t: CardTypeEnum):
@@ -82,8 +78,6 @@ def attack_box(atk, rng, block, pos, dmg_type):
         out_text = out_text + "\\node[backbox] at (6.2, " + str(pos) +"){};\n"
     # what graphic to use
     aimg = "\\" + dmg_type
-    if atk and not damage_type_dict[dmg_type]:
-        raise "no damge type defined"
 
     for d in range(0, atk):
         out_text = out_text + "\\node at (" + str(
@@ -109,7 +103,8 @@ def make_card_from_row(row, i, card_type):
         card_text = "\\begin{tikzpicture}[scale=0.86, backbox/.style= {rectangle, minimum height = 2.0cm," \
                    + " minimum width =2.0cm, rounded corners = 0.3cm, fill=white, opacity=0.75}]\n "
         card_text = card_text + "\\node [rectangle, minimum width = 6.2cm, minimum height = 8.5cm, fill=black] at (4,5){};\n"
-        card_text = card_text + '\\node at (4,5){\\includegraphics[width=6cm, max height = 8.3cm, keepaspectratio]{' + images_folder + row["BackgroundImg"] + '}};\n'
+        card_text = card_text + '\\node at (4,5){\\includegraphics[width=6cm, max height = 8.3cm,' +\
+              ' keepaspectratio]{' + images_folder + row["BackgroundImg"] + '}};\n'
         # frame style - these need designing
         if card_type is CardTypeEnum.BOOSTER:
             # TODO - create booster frame
