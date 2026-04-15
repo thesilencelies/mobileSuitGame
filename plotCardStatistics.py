@@ -15,3 +15,4 @@ frames_file = 'Frames.csv'
 
 
 # Maybe we want a UI which allows comparing any 2 stats against each other - seems like a good use case for AI
+

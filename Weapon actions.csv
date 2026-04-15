@@ -1,3 +1,15 @@
-Name,Faction,Group,Initiative,Movement,HighBlock,MidBlock,LowBlock,HighAttack,HighRange,MidAttack,MidRange,LowAttack,LowRange,Text,OneUse,BackgroundImg,Flavor,Changed
-Thrust,"",Spear,6,-1,0,1,0,0,0,1,0,0,0,"",0,Spear_1.jpg,"",1
-Jab,"",Spear,7,0,1,0,0,1,0,0,0,0,0,"Committed\emph{(this attack is discarded after resolving)}",0,Spear_1.jpg,"",1
+Name,Faction,Group,Initiative,Movement,HighBlock,MidBlock,LowBlock,HighDType,MidDType,LowDType,HighAttack,HighRange,MidAttack,MidRange,LowAttack,LowRange,Text,OneUse,BackgroundImg,Flavor,Changed
+Thrust,,Spear,6,-1,0,1,0,pierce,pierce,pierce,0,0,1,0,0,0,,0,Spear_1.jpg,,1
+Jab,,Spear,7,0,1,0,0,pierce,pierce,pierce,1,0,0,0,0,0,Committed\emph{(this attack is discarded after resolving)},0,Spear_1.jpg,,1
+Impale,,Spear,4,-2,1,0,0,pierce,pierce,pierce,1,0,1,0,0,0,,0,Spear_1.jpg,,1
+Sweep,,Spear,5,0,0,0,1,pierce,pierce,impact,0,0,0,0,1,0,"On Hit: target gets -1 mv ",0,Spear_1.jpg,,1
+Lunge,,Sword,5,1,0,0,1,cut,cut,cut,0,0,1,0,0,0,,0,Sword_1.jpg,,1
+Feint,,Sword,7,1,0,1,0,cut,cut,cut,1,0,0,0,0,0,Feint\emph{Doesnt deal damage},0,Sword_1.jpg,,1
+Slice,,Sword,4,-2,0,0,1,cut,cut,cut,1,0,1,0,0,0,,0,Sword_1.jpg,,1
+Parry,,Sword,6,0,1,1,0,cut,cut,cut,0,0,0,0,0,0,"If blocks, deals mid \cut",0,Sword_1.jpg,,1
+Bash,,Shield,4,-1,0,1,0,impact,impact,impact,1,0,0,0,0,0,On Hit: target gets -1 card,0,Shield_1.jpg,,1
+Full Guard,,Shield,1,-1,1,1,1,,,,0,0,0,0,0,0,,0,Shield_1.jpg,,1
+Push on,,Shield,7,0,0,1,1,,,,0,0,0,0,0,0,,0,Shield_1.jpg,,1
+Lock down,,Sheild,5,-1,1,1,0,impact,impact,impact,1,0,1,0,0,0,Feint\emph{Doesnt deal damage},0,Shield_1.jpg,,1
+Overcharge,,Stun Baton,3,-1,0,0,1,impact,impact,impact,1,0,1,0,1,0,On Hit: target gets -1 Init,1,Stun_baton_1.jpg,,1
+Shock,,Stun Baton,5,-1,0,1,0,impact,impact,impact,0,0,1,0,0,0,On Hit: target gets -1 Init,0,Stun_baton_1.jpg,,1

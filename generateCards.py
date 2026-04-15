@@ -12,8 +12,11 @@ cardoutputfolder='build/card_'
 frameoutputfolde='build/frame_'
 
 #icon names
-mAtkImg = 'attackImg.png'
-rAtkImg = 'rattackImg.png'
+cutAtkImg = 'attackImg.png'
+bulletAtkImg = 'rattackImg.png'
+bludgeonAtkImg = "hammerAttackImg.png"
+pierceAtkImg = "pierceAttackImg.png"
+
 blkImg = 'blockImg.png'
 rangeImg = 'rangeImg.png'
 initImg = 'initImg.png'
@@ -29,10 +32,13 @@ frameBackgrounds = ["Ouwa_frame_1.jpeg","Aegis_frame_1.jpeg", "Guild_frame_1.png
                     "Collective_frame_1.jpeg", "CotN_frame_1.jpeg", "Revolution_frame_1.jpeg"]
 
 iconwidth = "width=0.9cm"
+inline_iconwidth = "width=0.5cm"
 
 header_text = "\\documentclass[a4paper, landscape]{article}\n \\usepackage[left =2cm, right = 2cm, " \
             + "top = 1.4cm, bottom =1.4cm]{geometry} \n \\usepackage{tikz} \n \\usepackage[export]{adjustbox}" \
-            + "\n \\usetikzlibrary{positioning} \n\\begin{document}\n\\noindent\n"
+            + "\n \\usetikzlibrary{positioning} \n"
+
+begin_doc = "\\begin{document}\n\\noindent\n"
 
 class CardTypeEnum(enum.Enum):
     BASIC = 0
@@ -40,19 +46,48 @@ class CardTypeEnum(enum.Enum):
     PILOT = 2
     BOOSTER = 3
 
+damage_type_dict = {
+    "cut" : cutAtkImg,
+    "pierce" : pierceAtkImg,
+    "impact" : bludgeonAtkImg,
+    "projectile" : bulletAtkImg,
+    "" : ""
+    }
+
+def createMacros():
+    with open(cardoutputfolder + 'macros.tex', 'w') as ofile:
+        card_text = "\newcommand{\\cut}{"
+        card_text += '\\includegraphics[' + iconwidth + ']{' + icons_folder + cutAtkImg + '}'
+        card_text += "}\n"
+        card_text = "\newcommand{\\pierce}{"
+        card_text += '\\includegraphics[' + iconwidth + ']{' + icons_folder + pierceAtkImg + '}'
+        card_text += "}\n"
+        card_text = "\newcommand{\\impact}{"
+        card_text += '\\includegraphics[' + iconwidth + ']{' + icons_folder + bludgeonAtkImg + '}'
+        card_text += "}\n"
+        card_text = "\newcommand{\\projectile}{"
+        card_text += '\\includegraphics[' + iconwidth + ']{' + icons_folder + bulletAtkImg + '}'
+        card_text += "}\n"
+        ofile.write(card_text)
+        return card_text + "~"
+
+
 def getTypeName(t: CardTypeEnum):
     return str(t).split(".")[-1].lower().capitalize()
 
-def attack_box(atk, rng, block, pos):
+def attack_box(atk, rng, block, pos, dmg_type):
     out_text = ""
     # the attack box at the requested location
     if atk or block:
         out_text = out_text + "\\node[backbox] at (6.2, " + str(pos) +"){};\n"
     # what graphic to use
-    aimg = icons_folder + (rAtkImg if rng > 0 else mAtkImg)
+    aimg = "\\" + dmg_type
+    if atk and not damage_type_dict[dmg_type]:
+        raise "no damge type defined"
+
     for d in range(0, atk):
         out_text = out_text + "\\node at (" + str(
-            -(d / 2) + 7.0) + ', ' + str(pos + 0.5) + '){\\includegraphics[' + iconwidth + ']{' + aimg + '}};\n'
+            -(d / 2) + 7.0) + ', ' + str(pos + 0.5) + '){' + aimg + '};\n'
 
     # blocks
     for d in range(0, block):
@@ -102,12 +137,16 @@ def make_card_from_row(row, i, card_type):
         if int(row["OneUse"]) > 0:
              card_text = card_text + "\\node at (7,9.2)[circle, fill = red]{\\large{\\textbf{O}}};\n"
 
-        if card_type is CardTypeEnum.PILOT:
-            card_text = card_text + attack_box(0, 0, 1, 7.5)
-        else:
-            card_text = card_text + attack_box(int(row["HighAttack"]), int(row["HighRange"]), int(row["HighBlock"]), 7.5)
-            card_text = card_text + attack_box(int(row["MidAttack"]), int(row["MidRange"]), int(row["MidBlock"]), 5.0)
-            card_text = card_text + attack_box(int(row["LowAttack"]), int(row["LowRange"]), int(row["LowBlock"]), 2.5)
+        try:
+            if card_type is CardTypeEnum.PILOT:
+                card_text = card_text + attack_box(0, 0, 1, 7.5, "")
+            else:
+                card_text = card_text + attack_box(int(row["HighAttack"]), int(row["HighRange"]), int(row["HighBlock"]), 7.5, row["HighDType"])
+                card_text = card_text + attack_box(int(row["MidAttack"]), int(row["MidRange"]), int(row["MidBlock"]), 5.0, row["MidDType"])
+                card_text = card_text + attack_box(int(row["LowAttack"]), int(row["LowRange"]), int(row["LowBlock"]), 2.5, row["LowDType"])
+        except:
+            print(f"exception for {row['Name']}")
+            return ""
 
         # textbox
         if card_type is CardTypeEnum.PILOT:
@@ -130,7 +169,22 @@ def make_card_from_row(row, i, card_type):
         ofile.write(card_text)
         # ofile.write("\\end{document}\n")
         return card_text + "~"
-    
+
+def draw_armor(armor, position, penalty):
+    # old style
+#    rval = "\\node [rectangle, minimum width=2cm, minimum height = 1cm, fill = red, opacity = 0.75] at (6.5, "  + position + "){" + armor +"};\n"
+    rval = ""
+    # bars
+    horizontal_pos = 7
+    for i in range(armor):
+        rval += "\\node [anchor=east, rectangle, rounded corners = 0.1cm, minimum width=0.9cm, minimum height=0.6cm, draw, fill=red, opacity=0.8, rotate=90] at "+\
+            "(" + str(horizontal_pos) + ", " + str(position) + "){"
+        if i == armor - 1:
+            rval += "\\tiny{" + penalty + "}"
+        rval += "};\n"
+        horizontal_pos -= 0.7
+
+    return rval
 
 def create_frame_sheet(frame, i):
     with open(frameoutputfolde + str(i) + '.tex', 'w') as ofile:
@@ -141,28 +195,29 @@ def create_frame_sheet(frame, i):
         frame_text = frame_text + "\\node [rectangle, minimum width = 6.2cm, minimum height = 8.5cm, fill=black!70!white!30] at (4,5){};\n"
         frame_text = frame_text + '\\node at (4,5){\\includegraphics[width=6cm, max height = 8.3cm, keepaspectratio]{' + images_folder + frame["BackgroundImg"] + '}};\n'
         # name
-        frame_text = frame_text + "\\node [rectangle, minimum width=4.3cm, minimum height = 1cm,rounded corners = 0.1cm, fill=white, opacity=0.75]" +\
-                            "at (3.3, 9){\\large{" + frame["Name"] + "}\n\\emph{" + frame["Faction"] + "}};\n"
+        frame_text = frame_text + "\\node [rectangle, minimum width=4.3cm, minimum height = 1cm,rounded corners = 0.1cm, fill=white, opacity=0.75, text width=4.1cm]" +\
+                            "at (3.3, 9){\\large{" + frame["Name"] + "}\\\\\n\\emph{~" + frame["Faction"] + "}};\n"
         
         # movement
         frame_text = frame_text + '\\node at (7,9){\\includegraphics[' + iconwidth + ']{' + icons_folder + mvImg + '}};\n'
         frame_text = frame_text + " \\node at (7,9){\\Large{\\textbf{" + frame['Movement'] +"}}};\n"
         
         # armor
-        frame_text = frame_text + "\\node [rectangle, minimum width=2cm, minimum height = 1cm, fill = red, opacity = 0.75] at (6.5, 7.5){" + frame["Top armour"]+"};\n"
-        frame_text = frame_text + "\\node [rectangle, minimum width=2cm, minimum height = 1cm, fill = red, opacity = 0.75] at (6.5, 5.5){" + frame["Side armour"]+"};\n"
-        frame_text = frame_text + "\\node [rectangle, minimum width=2cm, minimum height = 1cm, fill = red, opacity = 0.75] at (6.5, 3.5){" + frame["Low armour"]+"};\n"
-
+        frame_text = frame_text + draw_armor(int(frame["Top armour"]), 8.5, "-1Init")
+        frame_text = frame_text + draw_armor(int(frame["Side armour"]), 7, "-1Crd")
+        frame_text = frame_text + draw_armor(int(frame["Low armour"]), 5.5, "-1Mv")
+        
         # ability
         frame_text = frame_text + "\\node[rectangle, fill = white, opacity = 0.75, minimum height =1.5cm, rounded corners = 0.3cm, " \
-                    + "text width = 3.5cm]  at (3, 3.5){\\small{" + frame['Abilities'] +"}};\n"
+                    + "text width = 5cm]  at (4, 3.5){\\small{" + frame['Abilities'] +"}};\n"
 
         # weapons
-        frame_text = frame_text + "\\node [rectangle, rounded corners = 0.3cm, minimum width=5cm, minimum height = 1cm, fill = white," + \
-                " opacity = 0.75, text width = 5.8cm] at (4, 1.2){" + \
-                '\\includegraphics[' + iconwidth + ']{' + icons_folder + weaponImg + '} \\large{ : ' + str(frame["Weapon Slots"]) +  \
-                '} ~\\includegraphics[' + iconwidth + ']{' + icons_folder + boosterImg + '}\\large{  : ' + str(frame["Boosters"]) + \
-                 "} \\\\\\emph{" + frame["Flavor"] +  "}};\n"
+        frame_text = frame_text + "\\node [rectangle, rounded corners = 0.3cm, minimum width=5.5cm, minimum height = 1.8cm, fill = white," + \
+                " opacity = 0.75] at (4, 1.2)(bottom_box){};\n"
+        frame_text = frame_text + "\\node[anchor=north west, text width = 5.2cm] at (bottom_box.north west){" \
+                '\\includegraphics[' + inline_iconwidth + ']{' + icons_folder + weaponImg + '} \\large{ : ' + str(frame["Weapon Slots"]) +  \
+                '} ~\\includegraphics[' + inline_iconwidth + ']{' + icons_folder + boosterImg + '}\\large{  : ' + str(frame["Boosters"]) + \
+                 "} \\\\\\emph{\\small{" + frame["Flavor"] +  "}}};\n"
 
 
         #finish the tikzpicture
@@ -176,6 +231,11 @@ def create_frame_sheet(frame, i):
 if __name__ == "__main__":
     with open(cardoutputfolder + "all.tex", "w") as allfile:
         allfile.write(header_text)
+
+        allfile.write(createMacros())
+
+        allfile.write(begin_doc)
+
         i = 0
         with open(weapon_actions_file, "r") as spcsvfile:
             reader = csv.DictReader(spcsvfile)
