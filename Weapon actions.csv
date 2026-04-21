@@ -15,3 +15,15 @@ Overcharge,,Stun Baton,3,-1,0,0,1,impact,impact,impact,1,0,1,0,1,0,Guard Break\\
 Shock,,Stun Baton,5,0,0,1,0,impact,impact,impact,0,0,1,0,0,0,On Hit: target gets -1 Init,0,Stun_baton_1.jpg,,1
 Zap,,Stun Baton,4,-1,1,0,0,impact,impact,impact,2,0,0,0,0,0,On Hit: target gets -1 Init,0,Stun_baton_1.jpg,,1
 Sweep,,Stun Baton,5,-1,0,1,0,impact,impact,impact,0,0,0,0,0,1,On Hit: target gets -1 Init,0,Stun_baton_1.jpg,,1
+Burst Fire,,Assault Rifle,3,-2,0,1,0,projectile,projectile,projectile,0,0,1,16,1,16,,0,Rifle_1.jpg,,1
+Aimed Fire,,Assault Rifle,2,-2,1,0,0,projectile,projectile,projectile,1,18,0,0,0,0,,0,Rifle_1.jpg,,1
+From the hip,,Assault Rifle,4,-1,0,0,1,projectile,projectile,projectile,0,0,1,12,0,0,,0,Rifle_1.jpg,,1
+Covering Fire,,Assault Rifle,5,-4,0,0,0,projectile,projectile,projectile,1,12,1,12,1,12,Feint\emph{(Doesnt deal damage)},0,Rifle_1.jpg,,1
+Rapid fire,,Stun bow,2,-3,1,0,0,pierce,pierce,pierce,1,10,1,10,0,0,"On Hit: target gets -1 Init, Guard Break",0,Stun_bow_1.jpg,,1
+Arc shot,,Stun bow,2,-3,1,0,0,pierce,pierce,pierce,1,18,0,0,0,0,On Hit: target gets -1 Init,0,Stun_bow_1.jpg,I'll wipe that smile off your face,1
+Straight shot,,Stun bow,4,-1,0,1,0,pierce,pierce,pierce,0,0,1,12,0,0,On Hit: target gets -1 Init,0,Stun_bow_1.jpg,,1
+Low blow,,Stun bow,4,-1,0,0,1,pierce,pierce,pierce,0,0,0,0,1,12,On Hit: target gets -1 Init,0,Stun_bow_1.jpg,,1
+Fullbore,,Cannon,2,-3,1,0,0,projectile,projectile,projectile,,,,,,,,1,Cannon_1.jpg,,1
+Airburst,,Cannon,2,-2,0,1,0,projectile,projectile,projectile,,,,,,,,1,Cannon_1.jpg,,1
+,,Cannon,2,-3,0,1,0,projectile,projectile,projectile,,,,,,,,1,Cannon_1.jpg,,1
+,,Cannon,2,-3,0,1,0,projectile,projectile,projectile,,,,,,,,1,Cannon_1.jpg,,1
