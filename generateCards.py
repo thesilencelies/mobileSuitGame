@@ -310,8 +310,8 @@ STYLE_DICT = {
  
 def hex_center(col: int, row: int, size: float) -> Tuple[float, float]:
     """Return the (x, y) centre of hex (col, row) in cm."""
-    x = size * 3/2 * col
-    y = size * math.sqrt(3) * (row + 0.5 * (col % 2))
+    x = size * 3/2 * col + 3/4
+    y = size* math.sqrt(3) * (row + 0.5 * (col % 2)) + math.sqrt(3) / 2
     return x, y
  
  
@@ -323,36 +323,6 @@ def hex_corners(cx: float, cy: float, size: float):
         for i in range(6)
     ]
  
-
-
-def grid_clip_rect(cols: int, rows: int, size: float) -> Tuple[float, float, float, float]:
-    """
-    Return (x_min, y_min, x_max, y_max) of the clipping rectangle that gives
-    exact, seamless tileability.
-
-    The rectangle dimensions equal the fundamental tiling periods:
-        Tx = 3/2 * size * cols      (horizontal repeat distance)
-        Ty = sqrt(3) * size * rows  (vertical repeat distance)
-
-    Each clip edge is positioned half a hex-cell away from the nearest hex
-    centres, so every boundary hexagon is bisected by the clip and its
-    complement appears in the adjacent tile.
-
-    Geometry (flat-top hexagons)
-    ----------------------------
-    • x: col centres run at 3/2*size*c.  The clip is centred on this sequence:
-          x_min = -3/4*size,  x_max = 3/2*size*(cols-1) + 3/4*size  => width = Tx ✓
-    • y: anchored on even-column rows (no stagger) at sqrt(3)*size*r:
-          y_min = -sqrt(3)/2*size,  y_max = sqrt(3)*size*(rows-1) + sqrt(3)/2*size  => height = Ty ✓
-      Odd columns are staggered up by sqrt(3)/2*size, so their top row sits
-      exactly ON y_max — bisected by the top clip edge as required.
-    """
-    sq3 = math.sqrt(3)
-    x_min = -3/4 * size
-    x_max =  3/2 * size * (cols - 1) + 3/4 * size
-    y_min = -sq3/2 * size
-    y_max =  sq3 * size * (rows - 1) + sq3/2 * size
-    return x_min, y_min, x_max, y_max
 
 # ---------------------------------------------------------------------------
 # LaTeX / TikZ generation
@@ -400,13 +370,14 @@ def create_terrain_card(row, i):
         #load the background image
         terrain_text = "\\begin{tikzpicture}[backbox/.style= {rectangle, minimum height = 8.9cm," \
                 + " minimum width =6.35cm, rounded corners = 0.3cm, fill=white, opacity=0.75}]\n "
-        terrain_text += "\\node [rectangle, minimum width = 6.2cm, minimum height = 8.5cm, fill=black!70!white!30] at (4,5){};\n"
-        terrain_text += '\\node at (4,5){\\includegraphics[width=6cm, max height = 8.3cm, keepaspectratio]{' + terrain_images_folder + row["BackgroundImg"] + '}};\n'
+        terrain_text += "\\node [rectangle, minimum width = 6.5cm, minimum height = 8.9cm, fill=black!70!white!30] at (3.25,4.5){};\n"
+        terrain_text += '\\node at (3.25,4.45){\\includegraphics[width=6.5cm, max height = 8.9cm,' +\
+                'keepaspectratio]{' + terrain_images_folder + row["BackgroundImg"] + '}};\n'
 
         # terrain card size
         cols = 3
         rows = 4
-        hex_size = 1.25 #cm
+        hex_size = 1.35 #cm
 
         # superimpose the grid
         # put height/terrain information in where relevant (borders?)
@@ -424,21 +395,20 @@ def create_terrain_card(row, i):
         inner_body = "\n".join(hex_lines)
 
         # TODO - add this clipping to every card
-        x0, y0, x1, y1 = grid_clip_rect(cols, rows, hex_size)
-        clip_line = f"  \\clip ({x0:.4f},{y0:.4f}) rectangle ({x1:.4f},{y1:.4f});"
+        clip_line = f"  \\clip (0,0) rectangle (8.9, 6.5);"
         terrain_text += "\\begin{scope}\n" + clip_line + "\n" + inner_body + "\n" + "\\end{scope}\n"
         
         # add rules text if extant (probably an objective card)
 
         if row["Rules"]:
             terrain_text += "\\node[rectangle, fill = white, opacity = 0.75, minimum height =1.5cm, rounded corners = 0.3cm, " \
-                    + "text width = 5.4cm]  at (4, 3.5){\\small{" + row['Rules'] +"}};\n"
+                    + "text width = 5.4cm]  at (3.25, 3){\\small{" + row['Rules'] +"}};\n"
 
 
         # add objective information symbols
         if row["Points"]:
-            terrain_text += '\\node at(1, 9.2){\\includegraphics[' + iconwidth + ']{' + icons_folder + pointsImg + '}};\n'
-            terrain_text += "\\node at (1, 9.2){\\Large{\\textbf{" + row['Points'] +"}}};\n"
+            terrain_text += '\\node at(1, 8.2){\\includegraphics[' + iconwidth + ']{' + icons_folder + pointsImg + '}};\n'
+            terrain_text += "\\node at (1, 8.2){\\Large{\\textbf{" + row['Points'] +"}}};\n"
         if row["Tokens"]:
             terrain_text += '\\node at(1, 8.2){\\includegraphics[' + iconwidth + ']{' + icons_folder + tokensImg + '}};\n'
             terrain_text += "\\node at (1, 8.2){\\Large{\\textbf{" + row['Points'] +"}}};\n"

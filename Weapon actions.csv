@@ -23,7 +23,19 @@ Rapid fire,,Stun bow,2,-3,1,0,0,pierce,pierce,pierce,1,10,1,10,0,0,"On Hit: targ
 Arc shot,,Stun bow,2,-3,1,0,0,pierce,pierce,pierce,1,18,0,0,0,0,On Hit: target gets -1 Init,0,Stun_bow_1.jpg,I'll wipe that smile off your face,1
 Straight shot,,Stun bow,4,-1,0,1,0,pierce,pierce,pierce,0,0,1,12,0,0,On Hit: target gets -1 Init,0,Stun_bow_1.jpg,,1
 Low blow,,Stun bow,4,-1,0,0,1,pierce,pierce,pierce,0,0,0,0,1,12,On Hit: target gets -1 Init,0,Stun_bow_1.jpg,,1
-Fullbore,,Cannon,2,-3,1,0,0,projectile,projectile,projectile,,,3,,,,,1,Cannon_1.jpg,,1
-Airburst,,Cannon,2,-2,0,1,0,projectile,projectile,projectile,,,,,,,,1,Cannon_1.jpg,,1
-,,Cannon,2,-3,0,1,0,projectile,projectile,projectile,,,,,,,,1,Cannon_1.jpg,,1
-,,Cannon,2,-3,0,1,0,projectile,projectile,projectile,,,,,,,,1,Cannon_1.jpg,,1
+Fullbore,,Cannon,2,-3,1,0,0,projectile,projectile,projectile,0,0,3,20,0,0,Guard Break,1,Cannon_1.jpg,,1
+Airburst,,Cannon,2,-2,0,1,0,projectile,projectile,projectile,2,20,1,20,0,0,Guard Break,1,Cannon_1.jpg,,1
+Cannon,,Cannon,2,-3,0,1,0,projectile,projectile,projectile,0,0,1,20,2,20,Guard Break,1,Cannon_1.jpg,,1
+Pummel,,Cannon,2,-3,0,1,0,projectile,projectile,projectile,0,0,0,0,3,20,Guard Break,1,Cannon_1.jpg,,1
+Crush,,Halberd,3,-2,0,0,1,impact,impact,impact,3,0,0,0,0,0,,0,Halberd_1.jpg,,1
+Eviscerate,,Halberd,3,-2,1,0,0,cut,cut,cut,0,0,3,0,0,0,,0,Halberd_1.jpg,,1
+Thrust,,Halberd,6,0,0,1,0,pierce,pierce,pierce,1,0,0,0,0,0,,0,Halberd_1.jpg,,1
+Sweep,,Halberd,4,0,0,0,1,cut,cut,cut,0,0,0,0,2,0,,0,Halberd_1.jpg,,1
+Disembowel,,Chainsaw,2,-3,0,1,0,cut,cut,cut,0,0,4,0,0,0,,0,Chainsaw_1.jpg,,1
+Rip,,Chainsaw,2,-3,0,1,0,cut,cut,cut,4,0,0,0,0,0,,0,Chainsaw_1.jpg,,1
+Grind,,Chainsaw,4,-2,0,1,0,cut,cut,cut,1,0,1,0,0,0,,0,Chainsaw_1.jpg,,1
+Tear,,Chainsaw,2,-3,0,1,0,cut,cut,cut,0,0,0,0,4,0,,0,Chainsaw_1.jpg,,1
+Whip,,Chain,4,0,0,0,1,impact,impact,impact,0,0,1,4,0,0,,0,Chain_1.jpg,,1
+Tangle,,Chain,4,-1,0,0,1,impact,impact,impact,0,0,0,0,1,4,On Hit: target gets -1 mv,0,Chain_1.jpg,,1
+Throttle,,Chain,3,-1,1,0,0,impact,impact,impact,1,0,0,0,0,0,On Hit: target gets -2 cards,0,Chain_1.jpg,,1
+Catch,,Chain,5,0,1,1,0,,,,0,0,0,0,0,0,On Block: attacker gets -2 card,0,Chain_1.jpg,,1
