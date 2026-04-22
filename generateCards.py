@@ -2,14 +2,19 @@
 
 import csv
 import enum
+import math
+from typing import Dict, Tuple, Optional, List
 
 weapon_actions_file = 'Weapon actions.csv'
 general_action_file = 'Basic actions.csv'
 pilot_actions_file = 'Pilot actions.csv'
 booster_actions_file = 'Booster actions.csv'
+terrain_file = "Terrain.csv"
 frames_file = 'Frames.csv'
+
 cardoutputfolder='build/card_'
-frameoutputfolde='build/frame_'
+frameoutputfolder='build/frame_'
+terrianoutputfolder='build/terrain_'
 
 #icon names
 cutAtkImg = 'attackImg.png'
@@ -23,8 +28,12 @@ initImg = 'initImg.png'
 mvImg = 'mvimg.png'
 weaponImg = 'weapon.png'
 boosterImg = 'boosterImg.png'
+pointsImg = 'points.png'
+tokensImg = 'token.png'
 
 images_folder = "../pictures/"
+terrain_images_folder = "../terrain/"
+frame_images_folder = "../pictures/"
 icons_folder = "../icons/"
 
 
@@ -36,7 +45,7 @@ inline_iconwidth = "width=0.5cm"
 
 header_text = "\\documentclass[a4paper, landscape]{article}\n \\usepackage[left =2cm, right = 2cm, " \
             + "top = 1.4cm, bottom =1.4cm]{geometry} \n \\usepackage{tikz} \n \\usepackage[export]{adjustbox}" \
-            + "\n \\usetikzlibrary{positioning} \n"
+            + "\n \\usetikzlibrary{positioning} \n \\usetikzlibrary{patterns} \n"
 
 begin_doc = "\\begin{document}\n\\noindent\n"
 
@@ -98,7 +107,7 @@ def attack_box(atk, rng, block, pos, dmg_type):
 
 
 def make_card_from_row(row, i, card_type):
-    with open(cardoutputfolder + str(i) + '.tex', 'w') as ofile:
+    with open(cardoutputfolder + row['Group'] + "_" + str(i) + '.tex', 'w') as ofile:
         # art and card edge
         card_text = "\\begin{tikzpicture}[scale=0.86, backbox/.style= {rectangle, minimum height = 2.0cm," \
                    + " minimum width =2.0cm, rounded corners = 0.3cm, fill=white, opacity=0.75}]\n "
@@ -146,7 +155,7 @@ def make_card_from_row(row, i, card_type):
         # textbox
         if card_type is CardTypeEnum.PILOT:
             card_text = card_text + "\\node[rectangle, fill = white, opacity = 0.75, minimum height =1.5cm, rounded corners = 0.3cm, " \
-                    + "text width = 5.4cm]  at (4, 3.5){\\small{" + row['Text'] +"}g(c};\n"
+                    + "text width = 5.4cm]  at (4, 3.5){\\small{" + row['Text'] +"}};\n"
         else:
             if row["Text"]:
                 card_text = card_text + "\\node[rectangle, fill = white, opacity = 0.75, minimum height =1.5cm, rounded corners = 0.3cm, " \
@@ -182,13 +191,13 @@ def draw_armor(armor, position, penalty):
     return rval
 
 def create_frame_sheet(frame, i):
-    with open(frameoutputfolde + str(i) + '.tex', 'w') as ofile:
-        """creates the frames datasheet procedurally from the given data"""
+    """creates the frames datasheet procedurally from the given data"""
+    with open(frameoutputfolder + str(i) + '.tex', 'w') as ofile:
         #load the initial image
         frame_text = "\\begin{tikzpicture}[scale=0.86, backbox/.style= {rectangle, minimum height = 2.2cm," \
                 + " minimum width =2.2cm, rounded corners = 0.3cm, fill=white, opacity=0.75}]\n "
         frame_text = frame_text + "\\node [rectangle, minimum width = 6.2cm, minimum height = 8.5cm, fill=black!70!white!30] at (4,5){};\n"
-        frame_text = frame_text + '\\node at (4,5){\\includegraphics[width=6cm, max height = 8.3cm, keepaspectratio]{' + images_folder + frame["BackgroundImg"] + '}};\n'
+        frame_text = frame_text + '\\node at (4,5){\\includegraphics[width=6cm, max height = 8.3cm, keepaspectratio]{' + frame_images_folder + frame["BackgroundImg"] + '}};\n'
         # name
         frame_text = frame_text + "\\node [rectangle, minimum width=4.3cm, minimum height = 1cm,rounded corners = 0.1cm, fill=white, opacity=0.75, text width=4.1cm]" +\
                             "at (3.3, 9){\\large{" + frame["Name"] + "}\\\\\n\\emph{~" + frame["Faction"] + "}};\n"
@@ -220,6 +229,226 @@ def create_frame_sheet(frame, i):
 
         ofile.write(frame_text)
         return frame_text + "~"
+
+
+# ---------------------------------------------------------------------------
+# Types
+# ---------------------------------------------------------------------------
+HexStyle = Dict[str, str]
+StyleMap  = Dict[Tuple[int, int], HexStyle]   # (col, row) -> style
+ 
+# ---------------------------------------------------------------------------
+# Defaults
+# ---------------------------------------------------------------------------
+DEFAULT_STYLE: HexStyle = {
+    "color":       "black",
+    "thickness":   "thin",
+    "postaction":  "",
+    "hatch":       "",
+    "hatch_color": "",     # empty = same as color
+    "fill":        "none",
+}
+
+## styles for other options
+ELEVATION_1_STYLE: HexStyle = {
+    "color":       "black",
+    "thickness":   "thin",
+    "postaction":  "",
+    "hatch":       "",
+    "hatch_color": "",     # empty = same as color
+    "fill":        "none",
+}
+
+ELEVATION_2_STYLE: HexStyle = {
+    "color":       "black",
+    "thickness":   "thin",
+    "postaction":  "",
+    "hatch":       "",
+    "hatch_color": "",     # empty = same as color
+    "fill":        "none",
+}
+
+IMPASSIBLE_STYLE: HexStyle = {
+    "color":       "black",
+    "thickness":   "thick",
+    "postaction":  "",
+    "hatch":       "",
+    "hatch_color": "",     # empty = same as color
+    "fill":        "black!60",
+}
+
+OBSTACLE_STYLE: HexStyle = {
+    "color":       "black",
+    "thickness":   "thick",
+    "postaction":  "{draw, line width=0.5cm, black, dash pattern=on 2mm off 4mm, dash phase=1mm}",
+    "hatch":       "crosshatch",
+    "hatch_color": "yellow!70",     
+    "fill":        "none",
+}
+
+OBJECTIVE_STYLE: HexStyle = {
+    "color":       "red",
+    "thickness":   "ultrathick",
+    "postaction":  "",
+    "hatch":       "",
+    "hatch_color": "",     # empty = same as color
+    "fill":        "black!60",
+}
+
+
+STYLE_DICT = {
+    "e1" : ELEVATION_1_STYLE,
+    "e2" : ELEVATION_2_STYLE,
+    "im" : IMPASSIBLE_STYLE,
+    "obs": OBSTACLE_STYLE
+}
+
+
+# ---------------------------------------------------------------------------
+# Geometry helpers  (flat-top hexagons)
+# ---------------------------------------------------------------------------
+ 
+def hex_center(col: int, row: int, size: float) -> Tuple[float, float]:
+    """Return the (x, y) centre of hex (col, row) in cm."""
+    x = size * 3/2 * col
+    y = size * math.sqrt(3) * (row + 0.5 * (col % 2))
+    return x, y
+ 
+ 
+def hex_corners(cx: float, cy: float, size: float):
+    """Return the 6 corner (x, y) pairs of a flat-top hexagon."""
+    return [
+        (cx + size * math.cos(math.radians(60 * i)),
+         cy + size * math.sin(math.radians(60 * i)))
+        for i in range(6)
+    ]
+ 
+
+
+def grid_clip_rect(cols: int, rows: int, size: float) -> Tuple[float, float, float, float]:
+    """
+    Return (x_min, y_min, x_max, y_max) of the clipping rectangle that gives
+    exact, seamless tileability.
+
+    The rectangle dimensions equal the fundamental tiling periods:
+        Tx = 3/2 * size * cols      (horizontal repeat distance)
+        Ty = sqrt(3) * size * rows  (vertical repeat distance)
+
+    Each clip edge is positioned half a hex-cell away from the nearest hex
+    centres, so every boundary hexagon is bisected by the clip and its
+    complement appears in the adjacent tile.
+
+    Geometry (flat-top hexagons)
+    ----------------------------
+    • x: col centres run at 3/2*size*c.  The clip is centred on this sequence:
+          x_min = -3/4*size,  x_max = 3/2*size*(cols-1) + 3/4*size  => width = Tx ✓
+    • y: anchored on even-column rows (no stagger) at sqrt(3)*size*r:
+          y_min = -sqrt(3)/2*size,  y_max = sqrt(3)*size*(rows-1) + sqrt(3)/2*size  => height = Ty ✓
+      Odd columns are staggered up by sqrt(3)/2*size, so their top row sits
+      exactly ON y_max — bisected by the top clip edge as required.
+    """
+    sq3 = math.sqrt(3)
+    x_min = -3/4 * size
+    x_max =  3/2 * size * (cols - 1) + 3/4 * size
+    y_min = -sq3/2 * size
+    y_max =  sq3 * size * (rows - 1) + sq3/2 * size
+    return x_min, y_min, x_max, y_max
+
+# ---------------------------------------------------------------------------
+# LaTeX / TikZ generation
+# ---------------------------------------------------------------------------
+ 
+def _merge(style: HexStyle) -> HexStyle:
+    merged = dict(DEFAULT_STYLE)
+    merged.update({k: v for k, v in style.items() if v != ""})
+    return merged
+ 
+def _coord_str(corners: List[Tuple[float, float]]) -> str:
+    return " -- ".join(f"({x:.4f},{y:.4f})" for x, y in corners) + " -- cycle"
+ 
+
+def _tikz_hex_lines(col: int, row: int, size: float, style: HexStyle) -> List[str]:
+    """Return the TikZ lines that draw one hexagon."""
+    s = _merge(style)
+    cx, cy = hex_center(col, row, size)
+    cs = _coord_str(hex_corners(cx, cy, size))
+
+    draw_opts = [s["thickness"], f"draw={s['color']}"]
+    hatch = s.get("hatch", "")
+    fill  = s.get("fill", "none")
+
+    lines: List[str] = []
+
+    if hatch:
+        if fill != "none":
+            lines.append(f"  \\fill[fill={fill}] {cs};")
+        hatch_color = s.get("hatch_color") or s["color"]
+        lines.append(f"  \\fill[pattern={hatch}, pattern color={hatch_color}] {cs};")
+        fill_for_draw = fill if fill != "none" else "white"
+        draw_opts.append(f"fill={fill_for_draw}")
+    else:
+        draw_opts.append(f"fill={fill}")
+
+    lines.append(f"  \\draw[{', '.join(draw_opts)}] {cs};")
+    return lines
+
+
+
+def create_terrain_card(row, i):
+    """populates the terrain including correct borders"""
+    with open(terrianoutputfolder + str(i) + '.tex', 'w') as ofile:
+        #load the background image
+        terrain_text = "\\begin{tikzpicture}[backbox/.style= {rectangle, minimum height = 8.9cm," \
+                + " minimum width =6.35cm, rounded corners = 0.3cm, fill=white, opacity=0.75}]\n "
+        terrain_text += "\\node [rectangle, minimum width = 6.2cm, minimum height = 8.5cm, fill=black!70!white!30] at (4,5){};\n"
+        terrain_text += '\\node at (4,5){\\includegraphics[width=6cm, max height = 8.3cm, keepaspectratio]{' + terrain_images_folder + row["BackgroundImg"] + '}};\n'
+
+        # terrain card size
+        cols = 3
+        rows = 4
+        hex_size = 1.25 #cm
+
+        # superimpose the grid
+        # put height/terrain information in where relevant (borders?)
+        col_range = range(-1, cols + 1)
+        row_range = range(-1, rows + 1)
+
+        hex_lines: List[str] = []
+        for c in col_range:
+            for r in row_range:
+                style = dict(DEFAULT_STYLE)
+                if 0 <= c < cols and 0 <= r < rows:
+                    style.update(STYLE_DICT.get(row[f"tile_{r}_{c}"], {}))
+                hex_lines.append("\n".join(_tikz_hex_lines(c, r, hex_size, style)))
+
+        inner_body = "\n".join(hex_lines)
+
+        # TODO - add this clipping to every card
+        x0, y0, x1, y1 = grid_clip_rect(cols, rows, hex_size)
+        clip_line = f"  \\clip ({x0:.4f},{y0:.4f}) rectangle ({x1:.4f},{y1:.4f});"
+        terrain_text += "\\begin{scope}\n" + clip_line + "\n" + inner_body + "\n" + "\\end{scope}\n"
+        
+        # add rules text if extant (probably an objective card)
+
+        if row["Rules"]:
+            terrain_text += "\\node[rectangle, fill = white, opacity = 0.75, minimum height =1.5cm, rounded corners = 0.3cm, " \
+                    + "text width = 5.4cm]  at (4, 3.5){\\small{" + row['Rules'] +"}};\n"
+
+
+        # add objective information symbols
+        if row["Points"]:
+            terrain_text += '\\node at(1, 9.2){\\includegraphics[' + iconwidth + ']{' + icons_folder + pointsImg + '}};\n'
+            terrain_text += "\\node at (1, 9.2){\\Large{\\textbf{" + row['Points'] +"}}};\n"
+        if row["Tokens"]:
+            terrain_text += '\\node at(1, 8.2){\\includegraphics[' + iconwidth + ']{' + icons_folder + tokensImg + '}};\n'
+            terrain_text += "\\node at (1, 8.2){\\Large{\\textbf{" + row['Points'] +"}}};\n"
+
+
+        #finish the tikzpicture
+        terrain_text += "\\end{tikzpicture}\n"
+
+        ofile.write(terrain_text)
+        return terrain_text + "~"
 
 
 #the actual run
@@ -269,5 +498,14 @@ if __name__ == "__main__":
                 j = j + 1
                 if int(row["Changed"]) > 0:
                     allfile.write(create_frame_sheet(row, j))
+
+        i = 0
+        with open(terrain_file, "r") as tcsvfile:
+            allfile.write("\\newpage \n")
+            reader = csv.DictReader(tcsvfile)
+            for row in reader:
+                i += 1
+                if int(row["Changed"]) > 0:
+                    allfile.write(create_terrain_card(row, i))
 
         allfile.write("\\end{document}\n")
