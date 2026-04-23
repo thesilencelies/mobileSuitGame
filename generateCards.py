@@ -164,7 +164,7 @@ def make_card_from_row(row, i, card_type):
         #set info
         card_text = card_text + "\\node[rectangle, fill = white, opacity = 0.75, minimum width=6cm, minimum height =0.8cm, " \
                 + "rounded corners = 0.3cm, text width = 5.8cm]  at (4, 0.7){" \
-                + row["Faction"] + " " + getTypeName(card_type) +  " \hfill " + row['Group'] + "\\\\" + \
+                + row["Faction"] + " " + getTypeName(card_type) +  " \\hfill " + row['Group'] + "\\\\" + \
                 "\\emph{" + row["Flavor"] + "}};\n"
 
 
@@ -242,9 +242,7 @@ StyleMap  = Dict[Tuple[int, int], HexStyle]   # (col, row) -> style
 # ---------------------------------------------------------------------------
 DEFAULT_STYLE: HexStyle = {
     "color":       "black",
-    "double":      "white",
     "thickness":   "thin",
-    "double thickness":   "3pt",
     "postaction":  "",
     "hatch":       "",
     "hatch_color": "",     # empty = same as color
@@ -254,9 +252,7 @@ DEFAULT_STYLE: HexStyle = {
 ## styles for other options
 ELEVATION_1_STYLE: HexStyle = {
     "color":       "black",
-    "double":      "white",
     "thickness":   "thin",
-    "double thickness":   "3pt",
     "postaction":  "",
     "hatch":       "",
     "hatch_color": "",     # empty = same as color
@@ -265,9 +261,7 @@ ELEVATION_1_STYLE: HexStyle = {
 
 ELEVATION_2_STYLE: HexStyle = {
     "color":       "black",
-    "double":      "white",
     "thickness":   "thin",
-    "double thickness":   "3pt",
     "postaction":  "",
     "hatch":       "",
     "hatch_color": "",     # empty = same as color
@@ -276,9 +270,7 @@ ELEVATION_2_STYLE: HexStyle = {
 
 IMPASSIBLE_STYLE: HexStyle = {
     "color":       "white",
-    "double":      "black",
     "thickness":   "thick",
-    "double thickness":   "4pt",
     "postaction":  "",
     "hatch":       "",
     "hatch_color": "",     # empty = same as color
@@ -286,11 +278,9 @@ IMPASSIBLE_STYLE: HexStyle = {
 }
 
 OBSTACLE_STYLE: HexStyle = {
-    "color":       "black",
-    "double":      "white",
+    "color":       "yellow",
     "thickness":   "thick",
-    "double thickness":   "4pt",
-    "postaction":  "{draw, line width=0.5cm, black, dash pattern=on 2mm off 4mm, dash phase=1mm}",
+    "postaction":  "postaction={draw, line width=0.8pt, black, dash pattern=on 0.2mm off 0.4mm, dash phase=0mm}",
     "hatch":       "crosshatch",
     "hatch_color": "yellow!70",     
     "fill":        "none",
@@ -298,9 +288,7 @@ OBSTACLE_STYLE: HexStyle = {
 
 OBJECTIVE_STYLE: HexStyle = {
     "color":       "red",
-    "double":      "white",
     "thickness":   "very thick",
-    "double thickness":   "4pt",
     "postaction":  "",
     "hatch":       "",
     "hatch_color": "",     # empty = same as color
@@ -315,6 +303,42 @@ STYLE_DICT = {
     "obs": OBSTACLE_STYLE,
     "obj": OBJECTIVE_STYLE
 }
+
+# ---------------------------------------------------------------------------
+# Line-width conversion
+# ---------------------------------------------------------------------------
+# TikZ standard line widths in pt (from pgfmanual).
+_TIKZ_LW_PT: Dict[str, float] = {
+    "ultra thin":  0.1,
+    "very thin":   0.2,
+    "thin":        0.4,
+    "semithick":   0.6,
+    "thick":       0.8,
+    "very thick":  1.2,
+    "ultra thick": 1.6,
+}
+_PT_TO_CM = 0.03528   # 1 pt = 0.03528 cm
+
+
+def _thickness_to_cm(thickness: str) -> float:
+    """Convert a TikZ thickness keyword or 'Xpt' / 'Xcm' string to cm."""
+    t = thickness.strip().lower()
+    if t in _TIKZ_LW_PT:
+        return _TIKZ_LW_PT[t] * _PT_TO_CM
+    if t.endswith("cm"):
+        return float(t[:-2])
+    if t.endswith("pt"):
+        return float(t[:-2]) * _PT_TO_CM
+    if t.endswith("mm"):
+        return float(t[:-2]) * 0.1
+    # Fallback: treat as pt
+    try:
+        return float(t) * _PT_TO_CM
+    except ValueError:
+        return _TIKZ_LW_PT["thin"] * _PT_TO_CM
+
+
+
 
 
 # # ---------------------------------------------------------------------------
@@ -371,28 +395,39 @@ def hex_corners(cx: float, cy: float, size: float) -> List[Tuple[float, float]]:
     ]
 
 
+def inset_size(size: float, thickness: str) -> float:
+    lw_cm = _thickness_to_cm(thickness)
+    # For a regular hexagon, inset perpendicular to each edge by lw/2.
+    # The circumradius shrinkage needed = (lw/2) / sin(pi/6) = lw/2 / 0.5 = lw.
+    # (pi/6 = 30 deg is the half-angle at each vertex of a regular hexagon.)
+    return size - lw_cm
 
 # ---------------------------------------------------------------------------
 # LaTeX / TikZ generation
 # ---------------------------------------------------------------------------
  
-def _merge(style: HexStyle) -> HexStyle:
-    merged = dict(DEFAULT_STYLE)
-    merged.update({k: v for k, v in style.items() if v != ""})
-    return merged
- 
 def _coord_str(corners: List[Tuple[float, float]]) -> str:
     return " -- ".join(f"({x:.4f},{y:.4f})" for x, y in corners) + " -- cycle"
  
 
-def _tikz_hex_lines(col: int, row: int, size: float, style: HexStyle, offset: Tuple[float,float]) -> List[str]:
-    """Return the TikZ lines that draw one hexagon."""
-    s = _merge(style)
-    cx, cy = hex_center(col, row, size, offset)
-    cs = _coord_str(hex_corners(cx, cy, size))
+def _tikz_hex_lines(col: int, row: int, size: float, s: HexStyle, offset: Tuple[float,float]) -> List[str]:
+    """Return the TikZ lines that draw one hexagon.
 
-    draw_opts = [s["thickness"], f"draw={s['color']}", "fill opacity=0.5", 
-                 f"preaction={{draw={s['double']}, line width={s['double thickness']}}}"]
+    The stroke path uses an inset circumradius so the border is drawn
+    entirely inside the nominal hex boundary -- no bleed into neighbours.
+    The fill/hatch path uses the full nominal size so the interior is
+    completely covered with no visible gap.
+    """
+    cx, cy = hex_center(col, row, size, offset)
+
+    # Full-size path for fill/hatch (covers the whole cell)
+    cs_full  = _coord_str(hex_corners(cx, cy, size))
+    # Inset path for the stroke (border stays inside the cell)
+    r_inset  = inset_size(size, s["thickness"])
+    cs_inset = _coord_str(hex_corners(cx, cy, r_inset))
+
+    draw_opts = [s["thickness"], f"draw={s['color']}", "fill opacity=0.5", s["postaction"]]
+
     hatch = s.get("hatch", "")
     fill  = s.get("fill", "none")
 
@@ -400,17 +435,19 @@ def _tikz_hex_lines(col: int, row: int, size: float, style: HexStyle, offset: Tu
 
     if hatch:
         if fill != "none":
-            lines.append(f"  \\fill[fill={fill}] {cs};")
+            lines.append(f"  \\fill[fill={fill}] {cs_full};")
         hatch_color = s.get("hatch_color") or s["color"]
-        lines.append(f"  \\fill[pattern={hatch}, pattern color={hatch_color}] {cs};")
-        fill_for_draw = fill if fill != "none" else "white"
-        draw_opts.append(f"fill={fill_for_draw}")
+        lines.append(f"  \\fill[pattern={hatch}, pattern color={hatch_color}] {cs_full};")
+        # fill_for_draw = fill if fill != "none" else "white"
+        # draw_opts.append(f"fill={fill_for_draw}")
+        # The draw uses the inset path so the stroke sits inside;
+        # re-apply fill on the inset shape so it covers up to the stroke edge
+        # lines.append(f"  \\fill[fill={fill_for_draw}] {cs_inset};")
     else:
         draw_opts.append(f"fill={fill}")
 
-    lines.append(f"  \\draw[{', '.join(draw_opts)}] {cs};")
+    lines.append(f"  \\draw[{', '.join(draw_opts)}] {cs_inset};")
     return lines
-
 
 
 def create_terrain_card(row, i):
@@ -426,7 +463,7 @@ def create_terrain_card(row, i):
         # terrain card size
         cols = 4
         rows = 5
-        hex_size = 0.86 #cm - radius
+        hex_size = 0.865 #cm - radius
 
         hoffset = 0.2
         voffset = 0.6
@@ -447,7 +484,7 @@ def create_terrain_card(row, i):
         inner_body = "\n".join(hex_lines)
 
         # TODO - add this clipping to every card
-        clip_line = f"  \\clip ({hoffset-0.1},{voffset-0.3}) rectangle (6.2, 8.6);"
+        clip_line = f"  \\clip ({hoffset-0.05},{voffset-0.3}) rectangle (6.2, 8.6);"
         terrain_text += "\\begin{scope}\n" + clip_line + "\n" + inner_body + "\n" + "\\end{scope}\n"
         
         # add rules text if extant (probably an objective card)
