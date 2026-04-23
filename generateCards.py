@@ -251,48 +251,48 @@ DEFAULT_STYLE: HexStyle = {
 
 ## styles for other options
 ELEVATION_1_STYLE: HexStyle = {
-    "color":       "black",
-    "thickness":   "thin",
+    "color":       "black!70",
+    "thickness":   "thick",
     "postaction":  "",
     "hatch":       "",
     "hatch_color": "",     # empty = same as color
-    "fill":        "none",
+    "fill":        "blue!20",
 }
 
 ELEVATION_2_STYLE: HexStyle = {
-    "color":       "black",
-    "thickness":   "thin",
+    "color":       "black!30",
+    "thickness":   "thick",
     "postaction":  "",
     "hatch":       "",
     "hatch_color": "",     # empty = same as color
-    "fill":        "none",
+    "fill":        "green!20",
 }
 
 IMPASSIBLE_STYLE: HexStyle = {
-    "color":       "white",
+    "color":       "yellow",
     "thickness":   "thick",
-    "postaction":  "",
+    "postaction":  "postaction={draw, line width=0.8pt, black, dash pattern=on 0.2mm off 0.2mm, dash phase=0mm}",
     "hatch":       "",
     "hatch_color": "",     # empty = same as color
     "fill":        "black",
 }
 
-OBSTACLE_STYLE: HexStyle = {
-    "color":       "yellow",
+OBJECTIVE_STYLE: HexStyle = {
+    "color":       "green",
     "thickness":   "thick",
-    "postaction":  "postaction={draw, line width=0.8pt, black, dash pattern=on 0.2mm off 0.4mm, dash phase=0mm}",
+    "postaction":  "",
     "hatch":       "crosshatch",
     "hatch_color": "yellow!70",     
     "fill":        "none",
 }
 
-OBJECTIVE_STYLE: HexStyle = {
+OBSTACLE_STYLE: HexStyle = {
     "color":       "red",
     "thickness":   "very thick",
     "postaction":  "",
     "hatch":       "",
     "hatch_color": "",     # empty = same as color
-    "fill":        "black!60",
+    "fill":        "none",
 }
 
 
@@ -336,7 +336,6 @@ def _thickness_to_cm(thickness: str) -> float:
         return float(t) * _PT_TO_CM
     except ValueError:
         return _TIKZ_LW_PT["thin"] * _PT_TO_CM
-
 
 
 
