@@ -37,8 +37,8 @@ frame_images_folder = "../pictures/"
 icons_folder = "../icons/"
 
 
-frameBackgrounds = ["Ouwa_frame_1.jpeg","Aegis_frame_1.jpeg", "Guild_frame_1.png",
-                    "Collective_frame_1.jpeg", "CotN_frame_1.jpeg", "Revolution_frame_1.jpeg"]
+# frameBackgrounds = ["Ouwa_frame_1.jpeg","Aegis_frame_1.jpeg", "Guild_frame_1.png",
+#                     "Collective_frame_1.jpeg", "CotN_frame_1.jpeg", "Revolution_frame_1.jpeg"]
 
 iconwidth = "width=0.9cm"
 inline_iconwidth = "width=0.5cm"
@@ -242,7 +242,9 @@ StyleMap  = Dict[Tuple[int, int], HexStyle]   # (col, row) -> style
 # ---------------------------------------------------------------------------
 DEFAULT_STYLE: HexStyle = {
     "color":       "black",
+    "double":      "white",
     "thickness":   "thin",
+    "double thickness":   "3pt",
     "postaction":  "",
     "hatch":       "",
     "hatch_color": "",     # empty = same as color
@@ -252,7 +254,9 @@ DEFAULT_STYLE: HexStyle = {
 ## styles for other options
 ELEVATION_1_STYLE: HexStyle = {
     "color":       "black",
+    "double":      "white",
     "thickness":   "thin",
+    "double thickness":   "3pt",
     "postaction":  "",
     "hatch":       "",
     "hatch_color": "",     # empty = same as color
@@ -261,7 +265,9 @@ ELEVATION_1_STYLE: HexStyle = {
 
 ELEVATION_2_STYLE: HexStyle = {
     "color":       "black",
+    "double":      "white",
     "thickness":   "thin",
+    "double thickness":   "3pt",
     "postaction":  "",
     "hatch":       "",
     "hatch_color": "",     # empty = same as color
@@ -269,17 +275,21 @@ ELEVATION_2_STYLE: HexStyle = {
 }
 
 IMPASSIBLE_STYLE: HexStyle = {
-    "color":       "black",
+    "color":       "white",
+    "double":      "black",
     "thickness":   "thick",
+    "double thickness":   "4pt",
     "postaction":  "",
     "hatch":       "",
     "hatch_color": "",     # empty = same as color
-    "fill":        "black!60",
+    "fill":        "black",
 }
 
 OBSTACLE_STYLE: HexStyle = {
     "color":       "black",
+    "double":      "white",
     "thickness":   "thick",
+    "double thickness":   "4pt",
     "postaction":  "{draw, line width=0.5cm, black, dash pattern=on 2mm off 4mm, dash phase=1mm}",
     "hatch":       "crosshatch",
     "hatch_color": "yellow!70",     
@@ -288,7 +298,9 @@ OBSTACLE_STYLE: HexStyle = {
 
 OBJECTIVE_STYLE: HexStyle = {
     "color":       "red",
-    "thickness":   "ultrathick",
+    "double":      "white",
+    "thickness":   "very thick",
+    "double thickness":   "4pt",
     "postaction":  "",
     "hatch":       "",
     "hatch_color": "",     # empty = same as color
@@ -300,29 +312,65 @@ STYLE_DICT = {
     "e1" : ELEVATION_1_STYLE,
     "e2" : ELEVATION_2_STYLE,
     "im" : IMPASSIBLE_STYLE,
-    "obs": OBSTACLE_STYLE
+    "obs": OBSTACLE_STYLE,
+    "obj": OBJECTIVE_STYLE
 }
 
 
-# ---------------------------------------------------------------------------
-# Geometry helpers  (flat-top hexagons)
-# ---------------------------------------------------------------------------
+# # ---------------------------------------------------------------------------
+# # Geometry helpers  (flat-top hexagons)
+# # ---------------------------------------------------------------------------
  
-def hex_center(col: int, row: int, size: float) -> Tuple[float, float]:
-    """Return the (x, y) centre of hex (col, row) in cm."""
-    x = size * 3/2 * col + 3/4
-    y = size* math.sqrt(3) * (row + 0.5 * (col % 2)) + math.sqrt(3) / 2
+# def hex_center(col: int, row: int, size: float) -> Tuple[float, float]:
+#     """Return the (x, y) centre of hex (col, row) in cm."""
+#     x = size * 3/2 * col + 3/4
+#     y = size* math.sqrt(3) * (row + 0.5 * (col % 2)) + math.sqrt(3) / 2
+#     return x, y
+ 
+ 
+# def hex_corners(cx: float, cy: float, size: float):
+#     """Return the 6 corner (x, y) pairs of a flat-top hexagon."""
+#     return [
+#         (cx + size * math.cos(math.radians(60 * i)),
+#          cy + size * math.sin(math.radians(60 * i)))
+#         for i in range(6)
+#     ]
+ 
+
+# ---------------------------------------------------------------------------
+# Geometry helpers  (pointy-top / flat-sided hexagons)
+#
+# In this orientation every hexagon has a flat horizontal edge at top and
+# bottom, and pointed vertices on the left and right.
+#
+#   * Rows advance vertically:   y(c,r) = 3/2 * size * r
+#   * Even rows have no x-shift; odd rows shift right by sqrt(3)/2 * size
+#   * Columns advance:           x(c,r) = sqrt(3) * size * (c + 0.5*(r%2))
+#
+# Tiling periods:
+#   Tx = sqrt(3) * size * cols   (horizontal repeat)
+#   Ty = 3/2     * size * rows   (vertical repeat)
+# ---------------------------------------------------------------------------
+
+def hex_center(col: int, row: int, size: float, offset: Tuple[float,float]) -> Tuple[float, float]:
+    """Return the (x, y) centre of hex (col, row) in cm -- pointy-top / flat-sided."""
+    sq3 = math.sqrt(3)
+    x = sq3 * size * (col + 0.5 * (row % 2)) + offset[0]
+    y = size * 3/2 * row + offset[1]
     return x, y
- 
- 
-def hex_corners(cx: float, cy: float, size: float):
-    """Return the 6 corner (x, y) pairs of a flat-top hexagon."""
+
+
+def hex_corners(cx: float, cy: float, size: float) -> List[Tuple[float, float]]:
+    """Return the 6 corner (x, y) pairs of a pointy-top (flat-sided) hexagon.
+
+    Corners start at 30 deg so the top and bottom edges are horizontal."""
     return [
-        (cx + size * math.cos(math.radians(60 * i)),
-         cy + size * math.sin(math.radians(60 * i)))
+        (cx + size * math.cos(math.radians(30 + 60 * i)),
+         cy + size * math.sin(math.radians(30 + 60 * i)))
         for i in range(6)
     ]
- 
+
+
 
 # ---------------------------------------------------------------------------
 # LaTeX / TikZ generation
@@ -337,13 +385,14 @@ def _coord_str(corners: List[Tuple[float, float]]) -> str:
     return " -- ".join(f"({x:.4f},{y:.4f})" for x, y in corners) + " -- cycle"
  
 
-def _tikz_hex_lines(col: int, row: int, size: float, style: HexStyle) -> List[str]:
+def _tikz_hex_lines(col: int, row: int, size: float, style: HexStyle, offset: Tuple[float,float]) -> List[str]:
     """Return the TikZ lines that draw one hexagon."""
     s = _merge(style)
-    cx, cy = hex_center(col, row, size)
+    cx, cy = hex_center(col, row, size, offset)
     cs = _coord_str(hex_corners(cx, cy, size))
 
-    draw_opts = [s["thickness"], f"draw={s['color']}"]
+    draw_opts = [s["thickness"], f"draw={s['color']}", "fill opacity=0.5", 
+                 f"preaction={{draw={s['double']}, line width={s['double thickness']}}}"]
     hatch = s.get("hatch", "")
     fill  = s.get("fill", "none")
 
@@ -370,14 +419,17 @@ def create_terrain_card(row, i):
         #load the background image
         terrain_text = "\\begin{tikzpicture}[backbox/.style= {rectangle, minimum height = 8.9cm," \
                 + " minimum width =6.35cm, rounded corners = 0.3cm, fill=white, opacity=0.75}]\n "
-        terrain_text += "\\node [rectangle, minimum width = 6.5cm, minimum height = 8.9cm, fill=black!70!white!30] at (3.25,4.5){};\n"
+        terrain_text += "\\node [rectangle, minimum width = 6.4cm, minimum height = 8.7cm, fill=black!70!white!30] at (3.25,4.5){};\n"
         terrain_text += '\\node at (3.25,4.45){\\includegraphics[width=6.5cm, max height = 8.9cm,' +\
                 'keepaspectratio]{' + terrain_images_folder + row["BackgroundImg"] + '}};\n'
 
         # terrain card size
-        cols = 3
-        rows = 4
-        hex_size = 1.35 #cm
+        cols = 4
+        rows = 5
+        hex_size = 0.86 #cm - radius
+
+        hoffset = 0.2
+        voffset = 0.6
 
         # superimpose the grid
         # put height/terrain information in where relevant (borders?)
@@ -390,28 +442,28 @@ def create_terrain_card(row, i):
                 style = dict(DEFAULT_STYLE)
                 if 0 <= c < cols and 0 <= r < rows:
                     style.update(STYLE_DICT.get(row[f"tile_{r}_{c}"], {}))
-                hex_lines.append("\n".join(_tikz_hex_lines(c, r, hex_size, style)))
+                hex_lines.append("\n".join(_tikz_hex_lines(c, r + 1, hex_size, style, (hoffset, voffset))))
 
         inner_body = "\n".join(hex_lines)
 
         # TODO - add this clipping to every card
-        clip_line = f"  \\clip (0,0) rectangle (8.9, 6.5);"
+        clip_line = f"  \\clip ({hoffset-0.1},{voffset-0.3}) rectangle (6.2, 8.6);"
         terrain_text += "\\begin{scope}\n" + clip_line + "\n" + inner_body + "\n" + "\\end{scope}\n"
         
         # add rules text if extant (probably an objective card)
 
         if row["Rules"]:
             terrain_text += "\\node[rectangle, fill = white, opacity = 0.75, minimum height =1.5cm, rounded corners = 0.3cm, " \
-                    + "text width = 5.4cm]  at (3.25, 3){\\small{" + row['Rules'] +"}};\n"
+                    + "text width = 3.cm]  at (4.6, 1.7){\\small{" + row['Rules'] +"}};\n"
 
 
         # add objective information symbols
-        if row["Points"]:
+        if int(row["Points"]):
             terrain_text += '\\node at(1, 8.2){\\includegraphics[' + iconwidth + ']{' + icons_folder + pointsImg + '}};\n'
             terrain_text += "\\node at (1, 8.2){\\Large{\\textbf{" + row['Points'] +"}}};\n"
-        if row["Tokens"]:
-            terrain_text += '\\node at(1, 8.2){\\includegraphics[' + iconwidth + ']{' + icons_folder + tokensImg + '}};\n'
-            terrain_text += "\\node at (1, 8.2){\\Large{\\textbf{" + row['Points'] +"}}};\n"
+        if int(row["Tokens"]):
+            terrain_text += '\\node at(2, 8.2){\\includegraphics[' + iconwidth + ']{' + icons_folder + tokensImg + '}};\n'
+            terrain_text += "\\node at (2, 8.2){\\Large{\\textbf{" + row['Points'] +"}}};\n"
 
 
         #finish the tikzpicture
@@ -457,9 +509,7 @@ if __name__ == "__main__":
             for row in reader:
                 i = i + 1
                 if int(row["Changed"]) > 0:
-                    for img in frameBackgrounds:
-                        row["BackgroundImg"] = img
-                        allfile.write(make_card_from_row(row, i, CardTypeEnum.BASIC))
+                    allfile.write(make_card_from_row(row, i, CardTypeEnum.BASIC))
         j = 0
         with open(frames_file, "r") as fcsvfile:
             reader = csv.DictReader(fcsvfile)
