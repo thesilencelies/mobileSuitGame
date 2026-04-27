@@ -2,8 +2,8 @@ Name,Faction,Group,Initiative,Movement,HighBlock,MidBlock,LowBlock,HighDType,Mid
 Thrust,,Spear,6,-1,0,1,0,pierce,pierce,pierce,0,0,1,0,0,0,,0,Spear_1.jpg,,1
 Jab,,Spear,7,0,1,0,0,pierce,pierce,pierce,1,0,0,0,0,0,Committed \emph{(this attack is discarded after resolving)},0,Spear_1.jpg,,1
 Impale,,Spear,4,-2,1,0,0,pierce,pierce,pierce,1,0,2,0,0,0,,0,Spear_1.jpg,,1
-Sweep,,Spear,5,0,0,0,1,pierce,pierce,impact,0,0,0,0,1,0,"On Hit: target gets -1 mv ",0,Spear_1.jpg,,1
-Lunge,,Sword,5,1,0,0,1,cut,cut,cut,0,0,1,0,0,0,,0,Sword_1.jpg,,1
+Sweep,,Spear,6,0,0,0,1,pierce,pierce,impact,0,0,0,0,1,0,"On Hit: target gets -1 mv ",0,Spear_1.jpg,,1
+Lunge,,Sword,6,1,0,0,1,cut,cut,cut,0,0,1,0,0,0,,0,Sword_1.jpg,,1
 Feint,,Sword,7,1,0,1,0,cut,cut,cut,1,0,0,0,0,0,Feint\emph{(Doesnt deal damage)},0,Sword_1.jpg,,1
 Slice,,Sword,4,-2,0,0,1,cut,cut,cut,1,0,1,0,0,0,,0,Sword_1.jpg,,1
 Parry,,Sword,6,0,1,1,0,cut,cut,cut,0,0,0,0,0,0,"If blocks, deals mid \smallcut",0,Sword_1.jpg,,1
@@ -17,7 +17,7 @@ Zap,,Stun Baton,4,-1,1,0,0,impact,impact,impact,2,0,0,0,0,0,On Hit: target gets 
 Sweep,,Stun Baton,5,-1,0,1,0,impact,impact,impact,0,0,0,0,0,1,On Hit: target gets -1 Init,0,Stun_baton_1.jpg,,1
 Burst Fire,,Assault Rifle,3,-2,0,1,0,projectile,projectile,projectile,0,0,1,16,1,16,,0,Rifle_1.jpg,,1
 Aimed Fire,,Assault Rifle,2,-2,1,0,0,projectile,projectile,projectile,1,18,0,0,0,0,,0,Rifle_1.jpg,,1
-From the hip,,Assault Rifle,4,-1,0,0,1,projectile,projectile,projectile,0,0,1,12,0,0,,0,Rifle_1.jpg,,1
+From the hip,,Assault Rifle,5,-1,0,0,1,projectile,projectile,projectile,0,0,1,12,0,0,,0,Rifle_1.jpg,,1
 Covering Fire,,Assault Rifle,5,-4,0,0,0,projectile,projectile,projectile,1,12,1,12,1,12,Feint\emph{(Doesnt deal damage)},0,Rifle_1.jpg,,1
 Rapid fire,,Stun bow,2,-3,1,0,0,pierce,pierce,pierce,1,10,1,10,0,0,"On Hit: target gets -1 Init, Guard Break",0,Stun_bow_1.jpg,,1
 Arc shot,,Stun bow,2,-3,1,0,0,pierce,pierce,pierce,1,18,0,0,0,0,On Hit: target gets -1 Init,0,Stun_bow_1.jpg,I'll wipe that smile off your face,1
@@ -35,7 +35,11 @@ Disembowel,,Chainsaw,2,-3,0,1,0,cut,cut,cut,0,0,4,0,0,0,,0,Chainsaw_1.jpg,,1
 Rip,,Chainsaw,2,-3,0,1,0,cut,cut,cut,4,0,0,0,0,0,,0,Chainsaw_1.jpg,,1
 Grind,,Chainsaw,4,-2,0,1,0,cut,cut,cut,1,0,1,0,0,0,,0,Chainsaw_1.jpg,,1
 Tear,,Chainsaw,2,-3,0,1,0,cut,cut,cut,0,0,0,0,4,0,,0,Chainsaw_1.jpg,,1
-Whip,,Chain,4,0,0,0,1,impact,impact,impact,0,0,1,4,0,0,,0,Chain_1.jpg,,1
-Tangle,,Chain,4,-1,0,0,1,impact,impact,impact,0,0,0,0,1,4,On Hit: target gets -1 mv,0,Chain_1.jpg,,1
-Throttle,,Chain,3,-1,1,0,0,impact,impact,impact,1,0,0,0,0,0,On Hit: target gets -2 cards,0,Chain_1.jpg,,1
+Whip,,Chain,5,0,0,0,1,impact,impact,impact,0,0,1,4,0,0,,0,Chain_1.jpg,,1
+Tangle,,Chain,5,-1,0,0,1,impact,impact,impact,0,0,0,0,1,4,On Hit: target gets -1 mv,0,Chain_1.jpg,,1
+Throttle,,Chain,4,-1,1,0,0,impact,impact,impact,1,0,0,0,0,0,On Hit: target gets -2 cards,0,Chain_1.jpg,,1
 Catch,,Chain,5,0,1,1,0,,,,0,0,0,0,0,0,On Block: attacker gets -2 card,0,Chain_1.jpg,,1
+Stab,,Knife,6,0,1,0,0,cut,cut,cut,1,0,0,0,0,0,Precise \emph{(chose which block is consumed)},0,Knife_1.jpg,,1
+Cut,,Knife,6,0,0,1,0,cut,cut,cut,0,0,1,0,0,0,Precise \emph{(chose which block is consumed)},0,Knife_1.jpg,,1
+Slit,,Knife,6,0,0,0,1,cut,cut,cut,0,0,0,0,1,0,Precise \emph{(chose which block is consumed)},0,Knife_1.jpg,,1
+Lunge,,Knife,5,1,0,1,0,cut,cut,cut,0,0,1,0,0,0,Precise \emph{(chose which block is consumed)},0,Knife_1.jpg,,1
