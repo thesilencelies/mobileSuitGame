@@ -2,4 +2,5 @@ Name,Faction,Group,Initiative,Movement,HighBlock,MidBlock,LowBlock,HighDType,Mid
 Punch,,Basic,5,0,0,1,0,,impact,,0,0,1,0,0,0,,0,,Punch.jpg,,1
 Kick,,Basic,5,0,0,0,1,,,impact,0,0,0,0,1,0,,0,,Kick.jpg,,1
 Block,,Basic,2,-1,1,1,0,,,,0,0,0,0,0,0,,0,,Block.jpg,,1
-Shield,Church of the Net,Frame,1,0,0,1,0,,,,0,0,0,0,0,0,add a shield,0,,Shield.jpg,,1
+Shield,Church of the Net,Frame,1,0,0,1,0,,,,0,0,0,0,0,0,Add a shield,0,,Shield.jpg,,1
+Dodge,,Basic,7,0,0,0,0,,,,0,0,0,0,0,0,Ranged attacks target at -8 range,0,,Dodge.jpg
