@@ -28,7 +28,8 @@ initImg = 'initImg.png'
 mvImg = 'mvimg.png'
 weaponImg = 'weapon.png'
 boosterImg = 'boosterImg.png'
-pointsImg = 'points.png'
+atkpointsImg = 'atkpoints.png'
+defpointsImg = 'defpoints.png'
 tokensImg = 'token.png'
 
 images_folder = "../pictures/"
@@ -494,12 +495,15 @@ def create_terrain_card(row, i):
 
 
         # add objective information symbols
-        if int(row["Points"]):
-            terrain_text += '\\node at(1, 8.2){\\includegraphics[' + iconwidth + ']{' + icons_folder + pointsImg + '}};\n'
-            terrain_text += "\\node at (1, 8.2){\\Large{\\textbf{" + row['Points'] +"}}};\n"
+        if int(row["Attack Points"]):
+            terrain_text += '\\node at(1, 8.2){\\includegraphics[' + iconwidth + ']{' + icons_folder + atkpointsImg + '}};\n'
+            terrain_text += "\\node at (1, 8.2){\\Large{\\textbf{" + row['Attack Points'] +"}}};\n"
+        if int(row["Defend Points"]):
+            terrain_text += '\\node at(2, 8.2){\\includegraphics[' + iconwidth + ']{' + icons_folder + defpointsImg + '}};\n'
+            terrain_text += "\\node at (2, 8.2){\\Large{\\textbf{" + row['Defend Points'] +"}}};\n"
         if int(row["Tokens"]):
-            terrain_text += '\\node at(2, 8.2){\\includegraphics[' + iconwidth + ']{' + icons_folder + tokensImg + '}};\n'
-            terrain_text += "\\node at (2, 8.2){\\Large{\\textbf{" + row['Points'] +"}}};\n"
+            terrain_text += '\\node at(3, 8.2){\\includegraphics[' + iconwidth + ']{' + icons_folder + tokensImg + '}};\n'
+            terrain_text += "\\node at (3, 8.2){\\Large{\\textbf{" + row['Tokens'] +"}}};\n"
 
 
         #finish the tikzpicture

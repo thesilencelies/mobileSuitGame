@@ -1,3 +1,24 @@
-BackgroundImg,Rules,Points,Tokens,tile_0_0,tile_0_1,tile_0_2,tile_0_3,tile_1_0,tile_1_1,tile_1_2,tile_1_3,tile_2_0,tile_2_1,tile_2_2,tile_2_3,tile_3_0,tile_3_1,tile_3_2,tile_3_3,tile_4_0,tile_4_1,tile_4_2,tile_4_3,tile_5_0,tile_5_1,tile_5_2,tile_5_3,Changed
-terrain_01.png,,0,0,,,,e1,e2,e1,,e2,,,obs,,,,,,,,,,,,,,1
-terrain_02.png,"\emph{Capture the shiny thing}:\\Frames can pick up the shiny thing, they drop it on damage. Team holding it at the end scores.",1,1,,,im,im,,,,obj,,im,im,,,,,,,,,,,,,,1
+BackgroundImg,Rules,Defend Points,Attack Points,Tokens,tile_0_0,tile_0_1,tile_0_2,tile_0_3,tile_1_0,tile_1_1,tile_1_2,tile_1_3,tile_2_0,tile_2_1,tile_2_2,tile_2_3,tile_3_0,tile_3_1,tile_3_2,tile_3_3,tile_4_0,tile_4_1,tile_4_2,tile_4_3,tile_5_0,tile_5_1,tile_5_2,tile_5_3,Changed
+terrain_01.png,,0,0,0,,,,e1,e2,e1,,e2,,,obs,,,,,,,,,,,,,,1
+terrain_02.png,"\emph{Capture the shiny thing}:\\Frames can pick up the shiny thing, they drop it on damage. Team holding it at the end scores.",1,2,1,,,im,im,,,,obj,,im,im,,,,,,,,,,,,,,1
+terrain_03.png,,0,0,0,,,,,,,,,,,,,,,,,,,,,,,,,1
+terrain_04.png,,0,0,0,,,,,,,,,,,,,,,,,,,,,,,,,1
+terrain_05.png,,0,0,0,,,,,,,,,,,,,,,,,,,,,,,,,1
+terrain_06.png,,0,0,0,,,,,,,,,,,,,,,,,,,,,,,,,1
+terrain_07.png,,0,0,0,,,,,,,,,,,,,,,,,,,,,,,,,1
+terrain_08.png,,0,0,0,,,,,,,,,,,,,,,,,,,,,,,,,1
+terrain_09.png,,0,0,0,,,,,,,,,,,,,,,,,,,,,,,,,1
+terrain_10.png,,0,0,0,,,,,,,,,,,,,,,,,,,,,,,,,1
+terrain_11.png,,0,0,0,,,,,,,,,,,,,,,,,,,,,,,,,1
+terrain_12.png,,0,0,0,,,,,,,,,,,,,,,,,,,,,,,,,1
+terrain_13.png,,0,0,0,,,,,,,,,,,,,,,,,,,,,,,,,1
+terrain_14.png,,0,0,0,,,,,,,,,,,,,,,,,,,,,,,,,1
+terrain_15.png,,0,0,0,,,,,,,,,,,,,,,,,,,,,,,,,1
+terrain_16.png,,0,0,0,,,,,,,,,,,,,,,,,,,,,,,,,1
+terrain_17.png,,0,0,0,,,,,,,,,,,,,,,,,,,,,,,,,1
+terrain_18.png,,0,0,0,,,,,,,,,,,,,,,,,,,,,,,,,1
+terrain_19.png,,0,0,0,,,,,,,,,,,,,,,,,,,,,,,,,1
+terrain_20.png,,0,0,0,,,,,,,,,,,,,,,,,,,,,,,,,1
+terrain_21.png,,0,0,0,,,,,,,,,,,,,,,,,,,,,,,,,1
+terrain_22.png,,0,0,0,,,,,,,,,,,,,,,,,,,,,,,,,1
+terrain_23.png,,0,0,0,,,,,,,,,,,,,,,,,,,,,,,,,1
