@@ -127,9 +127,9 @@ def make_card_from_row(row, i, card_type):
         
         # name and faction
         card_text = card_text + "\\node [rectangle, minimum width=4cm, minimum height = 0.6cm,rounded corners = 0.1cm," +\
-                "fill=white, opacity=0.75] at (4, 9.2){\\large{" + row["Name"]
+                "fill=white, opacity=0.75, text width=4.1cm] at (4, 9.2){\\large{" + row["Name"]
         if row["Faction"]:
-            card_text = card_text +  "}\n\\emph{" + row["Faction"]
+            card_text = card_text +  "}\\\\\n\\small{\\emph{~" + row["Faction"] + "}"
         card_text = card_text +  "}};\n"
 
         # default symbols
@@ -154,18 +154,18 @@ def make_card_from_row(row, i, card_type):
 
         # textbox
         if card_type is CardTypeEnum.PILOT:
-            card_text = card_text + "\\node[rectangle, fill = white, opacity = 0.75, minimum height =1.5cm, rounded corners = 0.3cm, " \
+            card_text = card_text + "\\node[rectangle, fill = white, opacity = 0.75, minimum height =2.5cm, rounded corners = 0.1cm, " \
                     + "text width = 5.4cm]  at (4, 3.5){\\small{" + row['Text'] +"}};\n"
         else:
             if row["Text"]:
-                card_text = card_text + "\\node[rectangle, fill = white, opacity = 0.75, minimum height =1.5cm, rounded corners = 0.3cm, " \
+                card_text = card_text + "\\node[rectangle, fill = white, opacity = 0.75, minimum height =1.5cm, rounded corners = 0.1cm, " \
                     + "text width = 3.5cm]  at (2.75, 3.5){\\small{" + row['Text'] +"}};\n"
         
         #set info
         card_text = card_text + "\\node[rectangle, fill = white, opacity = 0.75, minimum width=6cm, minimum height =0.8cm, " \
-                + "rounded corners = 0.3cm, text width = 5.8cm]  at (4, 0.7){" \
+                + "rounded corners = 0.1cm, text width = 5.8cm]  at (4, 0.7){" \
                 + row["Faction"] + " " + getTypeName(card_type) +  " \\hfill " + row['Group'] + "\\\\" + \
-                "\\emph{" + row["Flavor"] + "}};\n"
+                "\\footnotesize{\\emph{" + row["Flavor"] + "}}};\n"
 
 
         card_text = card_text + "\\end{tikzpicture}\n"
@@ -200,7 +200,7 @@ def create_frame_sheet(frame, i):
         frame_text = frame_text + '\\node at (4,5){\\includegraphics[width=6cm, max height = 8.3cm, keepaspectratio]{' + frame_images_folder + frame["BackgroundImg"] + '}};\n'
         # name
         frame_text = frame_text + "\\node [rectangle, minimum width=4.3cm, minimum height = 1cm,rounded corners = 0.1cm, fill=white, opacity=0.75, text width=4.1cm]" +\
-                            "at (3.3, 9){\\large{" + frame["Name"] + "}\\\\\n\\emph{~" + frame["Faction"] + "}};\n"
+                            "at (3.3, 9){\\large{" + frame["Name"] + "}\\\\\n\\small{\\emph{~" + frame["Faction"] + "}}};\n"
         
         # movement
         frame_text = frame_text + '\\node at (7,9){\\includegraphics[' + iconwidth + ']{' + icons_folder + mvImg + '}};\n'
@@ -212,16 +212,16 @@ def create_frame_sheet(frame, i):
         frame_text = frame_text + draw_armor(int(frame["Low armour"]), 5.5, "-1Mv")
         
         # ability
-        frame_text = frame_text + "\\node[rectangle, fill = white, opacity = 0.75, minimum height =1.5cm, rounded corners = 0.3cm, " \
+        frame_text = frame_text + "\\node[rectangle, fill = white, opacity = 0.75, minimum height =1.5cm, rounded corners = 0.1cm, " \
                     + "text width = 5cm]  at (4, 3.5){\\small{" + frame['Abilities'] +"}};\n"
 
         # weapons
-        frame_text = frame_text + "\\node [rectangle, rounded corners = 0.3cm, minimum width=5.5cm, minimum height = 1.8cm, fill = white," + \
+        frame_text = frame_text + "\\node [rectangle, rounded corners = 0.1cm, minimum width=5.5cm, minimum height = 1.8cm, fill = white," + \
                 " opacity = 0.75] at (4, 1.2)(bottom_box){};\n"
         frame_text = frame_text + "\\node[anchor=north west, text width = 5.2cm] at (bottom_box.north west){" \
                 '\\includegraphics[' + inline_iconwidth + ']{' + icons_folder + weaponImg + '} \\large{ : ' + str(frame["Weapon Slots"]) +  \
                 '} ~\\includegraphics[' + inline_iconwidth + ']{' + icons_folder + boosterImg + '}\\large{  : ' + str(frame["Boosters"]) + \
-                 "} \\\\\\emph{\\small{" + frame["Flavor"] +  "}}};\n"
+                 "} \\\\\\emph{\\footnotesize{" + frame["Flavor"] +  "}}};\n"
 
 
         #finish the tikzpicture
