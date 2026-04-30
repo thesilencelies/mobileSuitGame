@@ -32,33 +32,58 @@
 \maketitle
 
 
-These rules set out a method of handling movement and combat between Mobile Suits. Win conditions and extra rules can be decided on a per game basis.
+These rules set out a method of handling movement and combat between Mobile Suits. The game is played across 10 turns, after which the team with the most victory points wins.
 Each player brings the same number of Frames, and a 20 card deck for that suit. 
  With many players teams are recommended over battle royale due to the necessity of focussed attacks to actually kill anything, though the rules support either playstyle.
 All frames a player brings should be from the same faction.
 
+\section{Victory Points}
+Victory points are obtained in two key ways:
+\begin{itemize}
+\item 1 point per enemy frame defeated 
+\item Points equal to the defender score for each objective they successfully defended 
+\item Points equal to the attacker score for each objective they successfully attacked  
+\end{itemize}
 
 \section{The battlefield}
-The battle is fought on a hex-tri grid. Each frame has a hexagonal base that will occupy exactly 6 of the triangles on the grid.
-distances are reckoned from the edge of this base, everything is measured in steps of triangles - motion is between the vertexes of the triangles.
+
+Terrain blocks movement and line of sight. Terrain that can be stood upon is classified as being on different levels. 
+
+\subsection{Terrain Cards}
+It is recommended for each player to bring a terrain deck of 25 cards, of which between 4 and 8 should be objectives.
+These cards are shuffled, dealt and construct the battlefield. On the card is a hex grid, on which the frames move and ranges are reckoned. 
+The border of the hexes indicate the elevation 
+
+\begin{tabular}{c c}
+black & ground level \\
+dark blue & level 1 \\
+blue & level 2 \\ 
+light blue & elevation 3\\
+red & impassible \\
+\end{tabular}
+
+Hexes that contain obstacles have a yellow dashing on their border. Hexes that indicated objectives are highlighted in green, hexes that need a token placed on them have hatching.
 
 \begin{figure}[htbp]
   \centering
-  \textbf{Distances}\par\medskip
-  \includegraphics[width=6cm]{../pictures/map_example_1.png}
-  \par frame A is 3 away from both B and C
+  \textbf{Terrain cards}\par\medskip
+  \input{../build/terrain_1.tex}
+  \par Exaplaination of each elemnent of a terrain card\par\medskip
 \end{figure}
 
 
-
-\subsection{Terrain}
-It is highly recommended to add some terrain to the battlefield. Terrain blocks movement and line of sight. Terrain that can be stood
-upon is classified as being on different levels. Players should quickly agree at the start of the game what level each piece of terrain is,
-but as a quick rule of thumb, moving up one frame's height is roughly one level. The level indicates how much movement it takes to climb onto the terrain.
-
+\subsection{Prebuilt Terrain}
+If you prefer, instead of using the terrain cards you can use whatever terrain setup you have at your gaming table. 
+Players should quickly agree at the start of the game what level each piece of terrain is,
+but as a quick rule of thumb, moving up one frame's height is roughly one level. The level indicates how much movement it takes to climb onto the terrain, and what can see what.
+In this case, for objectives you can either draw objective cards from the deck and place appropriate markers and tokens at a location of your choosing, or use pre agreed objectives,
+and the objectives on the cards can be used as reference.
+In this case, distances are measured with a tape measure and a fixed base unit should be established based on the scale of the miniatures. 
+Deployment zones are 24 units separated
 
 \subsection{Line of sight}
-For a frame to be selected as a target of an attack, there must be a direct (i.e. no steps moving back) , unbroken (so it can't pass through terrain or other frame) path of steps less than or equal to the range between the edge of the attacking frame and the target. 
+For a frame to be selected as a target of an attack, there must be a direct (i.e. no steps moving back) , 
+unbroken (so it can't pass through terrain or other frame) path of steps less than or equal to the range between the edge of the attacking frame and the target. 
 
 \begin{figure}[htbp]
   \centering
@@ -74,14 +99,17 @@ For a frame to be selected as a target of an attack, there must be a direct (i.e
   \par frame A can see B, C and D\par\medskip
 \end{figure}
 
-Frames on the edge of their level are visible from other levels, and can see other levels, while frames one or more stepa away from the edge do not have LOS to other levels.
+Frames are visible to frames on the same level as them. Frames on the edge of their level are also visible from other levels, and can see other levels, while frames one or more step away from the edge do not have LOS to other levels.
 Terrain that is less than 1 level high will still block line of sight (its assumed that the frames hide).
 
-\subsection{Objectives}
-Optionally, but again recommended, there can be a number of points on the battlefield marked as objectives. Whoever holds the most of these at the end is the winner. (Other mission types are easy to construct as desired)
-
 \section{Setup}
-Each player places their frame at the starting locations, shuffles the decks, and a player receives the priority marker.
+If using the terrain decks, each player deals out 18 of their terrain cards from their terrain deck face down in 3 rows of 6 to make a grid.
+(for 2 players that makes a 6x6 grid). These cards are then turned face up, and any relevant tokens are placed on them. 
+All objectives on these terrain cards are valid for this battle -  you are defending any objectives that are on your teams terrain cards.
+
+Each player takes it in turns to put one of their frames in their deployment zone 
+(The row of terrain cards nearest them if using, else anwyhere more than 12 from the center line).
+After all frames are deplyed this way, shuffle the decks, and the player who deployed first receives the priority marker. 
 
 \section{Card anatomy}
 

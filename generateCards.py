@@ -236,14 +236,13 @@ def create_frame_sheet(frame, i):
 # Types
 # ---------------------------------------------------------------------------
 HexStyle = Dict[str, str]
-StyleMap  = Dict[Tuple[int, int], HexStyle]   # (col, row) -> style
  
 # ---------------------------------------------------------------------------
 # Defaults
 # ---------------------------------------------------------------------------
 DEFAULT_STYLE: HexStyle = {
     "color":       "black",
-    "thickness":   "thin",
+    "thickness":   "semithick",
     "postaction":  "",
     "hatch":       "",
     "hatch_color": "",     # empty = same as color
@@ -252,57 +251,50 @@ DEFAULT_STYLE: HexStyle = {
 
 ## styles for other options
 ELEVATION_1_STYLE: HexStyle = {
-    "color":       "black!70",
-    "thickness":   "thick",
-    "postaction":  "",
-    "hatch":       "",
-    "hatch_color": "",     # empty = same as color
-    "fill":        "blue!20",
+    "color":       "black!70!blue",
+    "thickness":   "line width=2pt",
 }
 
 ELEVATION_2_STYLE: HexStyle = {
-    "color":       "black!30",
-    "thickness":   "thick",
-    "postaction":  "",
-    "hatch":       "",
-    "hatch_color": "",     # empty = same as color
-    "fill":        "green!20",
+    "color":       "blue!70",
+    "thickness":   "line width=3pt",
 }
 
+ELEVATION_3_STYLE: HexStyle = {
+    "color":       "blue!20",
+    "thickness":   "line width=4pt",
+}
+# too high to access
 IMPASSIBLE_STYLE: HexStyle = {
-    "color":       "yellow",
-    "thickness":   "thick",
-    "postaction":  "postaction={draw, line width=0.8pt, black, dash pattern=on 0.2mm off 0.2mm, dash phase=0mm}",
-    "hatch":       "",
-    "hatch_color": "",     # empty = same as color
+    "color":       "red",
+    "thickness":   "line width=4pt",
     "fill":        "black",
 }
 
+# these should not set the line style cause they can appear at any elevation
+
 OBJECTIVE_STYLE: HexStyle = {
-    "color":       "green",
-    "thickness":   "thick",
-    "postaction":  "",
-    "hatch":       "crosshatch",
-    "hatch_color": "yellow!70",     
-    "fill":        "none",
+    "fill":        "green",
 }
 
 OBSTACLE_STYLE: HexStyle = {
-    "color":       "red",
-    "thickness":   "very thick",
-    "postaction":  "",
-    "hatch":       "",
-    "hatch_color": "",     # empty = same as color
-    "fill":        "none",
+    "postaction":  "postaction={draw, line width=2pt, yellow, dash pattern=on 2mm off 2mm, dash phase=0mm}",
+}
+
+TOKEN_STYLE: HexStyle = {
+    "hatch":       "crosshatch",
+    "hatch_color": "orange",     # empty = same as color
 }
 
 
 STYLE_DICT = {
     "e1" : ELEVATION_1_STYLE,
     "e2" : ELEVATION_2_STYLE,
+    "e3" : ELEVATION_3_STYLE,
     "im" : IMPASSIBLE_STYLE,
     "obs": OBSTACLE_STYLE,
-    "obj": OBJECTIVE_STYLE
+    "obj": OBJECTIVE_STYLE,
+    "tkn": TOKEN_STYLE
 }
 
 # ---------------------------------------------------------------------------
@@ -323,7 +315,7 @@ _PT_TO_CM = 0.03528   # 1 pt = 0.03528 cm
 
 def _thickness_to_cm(thickness: str) -> float:
     """Convert a TikZ thickness keyword or 'Xpt' / 'Xcm' string to cm."""
-    t = thickness.strip().lower()
+    t = thickness.split("=")[-1].strip().lower()
     if t in _TIKZ_LW_PT:
         return _TIKZ_LW_PT[t] * _PT_TO_CM
     if t.endswith("cm"):
@@ -400,7 +392,7 @@ def inset_size(size: float, thickness: str) -> float:
     # For a regular hexagon, inset perpendicular to each edge by lw/2.
     # The circumradius shrinkage needed = (lw/2) / sin(pi/6) = lw/2 / 0.5 = lw.
     # (pi/6 = 30 deg is the half-angle at each vertex of a regular hexagon.)
-    return size - lw_cm
+    return size - lw_cm/2
 
 # ---------------------------------------------------------------------------
 # LaTeX / TikZ generation
@@ -435,9 +427,9 @@ def _tikz_hex_lines(col: int, row: int, size: float, s: HexStyle, offset: Tuple[
 
     if hatch:
         if fill != "none":
-            lines.append(f"  \\fill[fill={fill}] {cs_full};")
+            lines.append(f"  \\fill[fill={fill}, fill opacity=0.5] {cs_full};")
         hatch_color = s.get("hatch_color") or s["color"]
-        lines.append(f"  \\fill[pattern={hatch}, pattern color={hatch_color}] {cs_full};")
+        lines.append(f"  \\fill[pattern={hatch}, fill opacity=0.5, pattern color={hatch_color}] {cs_full};")
         # fill_for_draw = fill if fill != "none" else "white"
         # draw_opts.append(f"fill={fill_for_draw}")
         # The draw uses the inset path so the stroke sits inside;
@@ -457,7 +449,7 @@ def create_terrain_card(row, i):
         terrain_text = "\\begin{tikzpicture}[backbox/.style= {rectangle, minimum height = 8.9cm," \
                 + " minimum width =6.35cm, rounded corners = 0.3cm, fill=white, opacity=0.75}]\n "
         terrain_text += "\\node [rectangle, minimum width = 6.4cm, minimum height = 8.7cm, fill=black!70!white!30] at (3.25,4.5){};\n"
-        terrain_text += '\\node at (3.25,4.45){\\includegraphics[width=6.5cm, max height = 8.9cm,' +\
+        terrain_text += '\\node at (3.25,4.45){\\includegraphics[width=6.35cm, max height = 8.85cm,' +\
                 'keepaspectratio]{' + terrain_images_folder + row["BackgroundImg"] + '}};\n'
 
         # terrain card size
@@ -478,7 +470,8 @@ def create_terrain_card(row, i):
             for r in row_range:
                 style = dict(DEFAULT_STYLE)
                 if 0 <= c < cols and 0 <= r < rows:
-                    style.update(STYLE_DICT.get(row[f"tile_{r}_{c}"], {}))
+                    for element in row[f"tile_{r}_{c}"].split(" "):
+                        style.update(STYLE_DICT.get(element, {}))
                 hex_lines.append("\n".join(_tikz_hex_lines(c, r + 1, hex_size, style, (hoffset, voffset))))
 
         inner_body = "\n".join(hex_lines)
@@ -490,8 +483,8 @@ def create_terrain_card(row, i):
         # add rules text if extant (probably an objective card)
 
         if row["Rules"]:
-            terrain_text += "\\node[rectangle, fill = white, opacity = 0.75, minimum height =1.5cm, rounded corners = 0.3cm, " \
-                    + "text width = 3.cm]  at (4.6, 1.7){\\small{" + row['Rules'] +"}};\n"
+            terrain_text += "\\node[rectangle, fill = white, opacity = 0.75, minimum height =1.8cm, rounded corners = 0.3cm, " \
+                    + "text width = 3.1cm]  at (4.6, 2.1){\\small{" + row['Rules'] +"}};\n"
 
 
         # add objective information symbols
@@ -553,7 +546,7 @@ if __name__ == "__main__":
         j = 0
         with open(frames_file, "r") as fcsvfile:
             reader = csv.DictReader(fcsvfile)
-            allfile.write("\\newpage \n")
+            allfile.write("\\newpage \n\\noindent\n")
             for row in reader:
                 j = j + 1
                 if int(row["Changed"]) > 0:
@@ -561,7 +554,7 @@ if __name__ == "__main__":
 
         i = 0
         with open(terrain_file, "r") as tcsvfile:
-            allfile.write("\\newpage \n")
+            allfile.write("\\newpage \n\\noindent\n")
             reader = csv.DictReader(tcsvfile)
             for row in reader:
                 i += 1
