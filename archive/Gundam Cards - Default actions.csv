@@ -1,4 +1,4 @@
-Name,Initiative,Movement,HighBlock,MidBlock,LowBlock,HighAttack,HighRange,MidAttack,MidRange,LowAttack,LowRange,Text,OneUse,BackgroundImg,Slot type,Slot name,Changed
+Name,Initiative,Movement,HighBlock,MidBlock,LowBlock,HighAttack,HighRange,MidAttack,MidRange,LowAttack,LowRange,Text,OneUse,BackgroundImg,Slot type,Slot name,PrintID
 Block,6,-1,1,1,1,0,0,0,0,0,0,"If consumed get +1 initiative next turn",0,Test.png,basic,,1
 Light High,4,0,1,0,0,1,0,0,0,0,0,,0,Test.png,basic,,1
 Light Mid,4,0,0,1,0,0,0,1,0,0,0,,0,Test.png,basic,,1
