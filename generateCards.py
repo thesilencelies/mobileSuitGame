@@ -38,8 +38,9 @@ frame_images_folder = "../pictures/"
 icons_folder = "../icons/"
 
 
-# frameBackgrounds = ["Ouwa_frame_1.jpeg","Aegis_frame_1.jpeg", "Guild_frame_1.png",
-#                     "Collective_frame_1.jpeg", "CotN_frame_1.jpeg", "Revolution_frame_1.jpeg"]
+frameBackgrounds = ["Ouwa_frame_1.jpeg","Aegis_frame_1.jpeg", "Guild_frame_1.png",
+                    "Collective_frame_1.jpeg", "CotN_frame_1.jpeg", "Revolution_frame_1.jpeg",
+                    "Collective_frame_2.jpg", "CotN_frame_2.jpg", "Revolution_frame_2.png"]
 
 iconwidth = "width=0.9cm"
 inline_iconwidth = "width=0.5cm"
@@ -251,13 +252,13 @@ DEFAULT_STYLE: HexStyle = {
 
 ## styles for other options
 ELEVATION_1_STYLE: HexStyle = {
-    "color":       "black!70!blue",
-    "thickness":   "line width=2pt",
+    "color":       "black!40!blue",
+    "thickness":   "line width=3pt",
 }
 
 ELEVATION_2_STYLE: HexStyle = {
     "color":       "blue!70",
-    "thickness":   "line width=3pt",
+    "thickness":   "line width=4pt",
 }
 
 ELEVATION_3_STYLE: HexStyle = {
@@ -267,7 +268,7 @@ ELEVATION_3_STYLE: HexStyle = {
 # too high to access
 IMPASSIBLE_STYLE: HexStyle = {
     "color":       "red",
-    "thickness":   "line width=4pt",
+    "thickness":   "line width=5pt",
     "fill":        "black",
 }
 
@@ -278,7 +279,7 @@ OBJECTIVE_STYLE: HexStyle = {
 }
 
 OBSTACLE_STYLE: HexStyle = {
-    "postaction":  "postaction={draw, line width=2pt, yellow, dash pattern=on 2mm off 2mm, dash phase=0mm}",
+    "postaction":  "postaction={draw, line width=3pt, yellow, dash pattern=on 2mm off 2mm, dash phase=0mm}",
 }
 
 TOKEN_STYLE: HexStyle = {
@@ -484,7 +485,7 @@ def create_terrain_card(row, i):
 
         if row["Rules"]:
             terrain_text += "\\node[rectangle, fill = white, opacity = 0.75, minimum height =1.8cm, rounded corners = 0.3cm, " \
-                    + "text width = 3.1cm]  at (4.6, 2.1){\\small{" + row['Rules'] +"}};\n"
+                    + "text width = 3.1cm]  at (4.6, 2.1){\\footnotesize{" + row['Rules'] +"}};\n"
 
 
         # add objective information symbols
@@ -496,7 +497,7 @@ def create_terrain_card(row, i):
             terrain_text += "\\node at (2, 8.2){\\Large{\\textbf{" + row['Defend Points'] +"}}};\n"
         if int(row["Tokens"]):
             terrain_text += '\\node at(3, 8.2){\\includegraphics[' + iconwidth + ']{' + icons_folder + tokensImg + '}};\n'
-            terrain_text += "\\node at (3, 8.2){\\Large{\\textbf{" + row['Tokens'] +"}}};\n"
+            terrain_text += "\\node at (3, 8.2){\\large{\\textbf{" + row['Tokens'] +"}}};\n"
 
 
         #finish the tikzpicture
@@ -504,6 +505,21 @@ def create_terrain_card(row, i):
 
         ofile.write(terrain_text)
         return terrain_text + "~"
+
+
+def create_flipped(frame):
+    output = "\\begin{tikzpicture}[baseline=(a.north)]\n"
+    #upside down node
+    output += "\\node[yscale=-1,inner sep=0,outer sep=0](a){\\includegraphics[width=2cm, max height = 4.3cm, keepaspectratio]{" 
+    output += frame_images_folder + frame + '}};\n'
+    
+    # normal node
+    output += "\\node[inner sep=0,outer sep=0, anchor=south] at (a.south) {\\includegraphics[width=2cm, max height = 4.3cm, keepaspectratio]{" 
+    output += frame_images_folder + frame + '}};\n'
+
+    #end the tikz
+    output += '\\end{tikzpicture}\n~'
+    return output
 
 
 #the actual run
@@ -516,32 +532,33 @@ if __name__ == "__main__":
         allfile.write(begin_doc)
 
         i = 0
-        with open(weapon_actions_file, "r") as spcsvfile:
-            reader = csv.DictReader(spcsvfile)
-            for row in reader:
-                i = i + 1
-                if int(row["Changed"]) > 0:
-                        allfile.write(make_card_from_row(row, i, CardTypeEnum.WEAPON))
 
         with open(booster_actions_file, "r") as facsvfile:
             reader = csv.DictReader(facsvfile)
             for row in reader:
                 i = i + 1
-                if int(row["Changed"]) > 0:
+                for printcount in range(int(row["PrintID"])):
                         allfile.write(make_card_from_row(row, i, CardTypeEnum.BOOSTER))
+
+        with open(weapon_actions_file, "r") as spcsvfile:
+            reader = csv.DictReader(spcsvfile)
+            for row in reader:
+                i = i + 1
+                if int(row["PrintID"]) > 0:
+                        allfile.write(make_card_from_row(row, i, CardTypeEnum.WEAPON))
 
         with open(pilot_actions_file, "r") as facsvfile:
             reader = csv.DictReader(facsvfile)
             for row in reader:
                 i = i + 1
-                if int(row["Changed"]) > 0:
+                if int(row["PrintID"]) > 0:
                         allfile.write(make_card_from_row(row, i, CardTypeEnum.PILOT))
 
         with open(general_action_file, "r") as gencsvfile:
             reader = csv.DictReader(gencsvfile)
             for row in reader:
                 i = i + 1
-                if int(row["Changed"]) > 0:
+                if int(row["PrintID"]) > 0:
                     allfile.write(make_card_from_row(row, i, CardTypeEnum.BASIC))
         j = 0
         with open(frames_file, "r") as fcsvfile:
@@ -549,16 +566,21 @@ if __name__ == "__main__":
             allfile.write("\\newpage \n\\noindent\n")
             for row in reader:
                 j = j + 1
-                if int(row["Changed"]) > 0:
+                if int(row["PrintID"]) > 0:
                     allfile.write(create_frame_sheet(row, j))
 
         i = 0
         with open(terrain_file, "r") as tcsvfile:
-            allfile.write("\\newpage \n\\noindent\n")
+            allfile.write("\\newpage \n\\noindent ")
             reader = csv.DictReader(tcsvfile)
             for row in reader:
                 i += 1
-                if int(row["Changed"]) > 0:
+                if int(row["PrintID"]) > 0:
                     allfile.write(create_terrain_card(row, i))
+
+        # standees
+        allfile.write("\\newpage \n\\noindent ")
+        for frame in  frameBackgrounds:
+            allfile.write(create_flipped(frame))
 
         allfile.write("\\end{document}\n")

@@ -1,4 +1,4 @@
-Name,Faction,Group,Initiative,Movement,Text,OneUse,BackgroundImg,Flavor,Changed
+Name,Faction,Group,Initiative,Movement,Text,OneUse,BackgroundImg,Flavor,PrintID
 Relentless Assault,,Bruiser,6,-3,All other actions this frame takes this turn resolve twice at -2mv,0,Bruiser_attack.jpg,You like that? How about this time?,1
 Intimidate,,Bruiser,7,0,All enemies within 5 must consume one block,1,Bruiser_attack.jpg,You can feel his presence in your bones,1
 Net Strength,,Bruiser,4,-2,All attacks you make this turn and next gain guard break,0,Bruiser_attack.jpg,Draws from the net,1
