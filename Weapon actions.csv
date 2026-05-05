@@ -1,5 +1,5 @@
 Name,Faction,Group,Initiative,Movement,HighBlock,MidBlock,LowBlock,HighDType,MidDType,LowDType,HighAttack,HighRange,MidAttack,MidRange,LowAttack,LowRange,Text,OneUse,BackgroundImg,Flavor,PrintID
-Thrust,,Spear,6,-1,0,1,0,pierce,pierce,pierce,0,0,1,0,0,0,,0,Spear_1.jpg,,1
+Thrust,,Spear,6,0,0,1,0,pierce,pierce,pierce,0,0,1,0,0,0,,0,Spear_1.jpg,,1
 Jab,,Spear,7,0,1,0,0,pierce,pierce,pierce,1,0,0,0,0,0,Committed \emph{(this attack is discarded after resolving)},0,Spear_1.jpg,,1
 Impale,,Spear,4,-2,1,0,0,pierce,pierce,pierce,1,0,2,0,0,0,,0,Spear_1.jpg,,1
 Sweep,,Spear,6,0,0,0,1,pierce,pierce,impact,0,0,0,0,1,0,"On Hit: target gets -1 mv ",0,Spear_1.jpg,,1
@@ -7,29 +7,29 @@ Lunge,,Sword,6,1,0,0,1,cut,cut,cut,0,0,1,0,0,0,,0,Sword_1.jpg,,1
 Feint,,Sword,7,1,0,1,0,cut,cut,cut,1,0,0,0,0,0,Feint\emph{(Doesnt deal damage)},0,Sword_1.jpg,,1
 Slice,,Sword,4,-2,0,0,1,cut,cut,cut,1,0,1,0,0,0,,0,Sword_1.jpg,,1
 Parry,,Sword,6,0,1,1,0,cut,cut,cut,0,0,0,0,0,0,"If blocks, deals mid \smallcut",0,Sword_1.jpg,,1
-Bash,,Shield,4,-1,0,1,0,impact,impact,impact,1,0,0,0,0,0,On Hit: target gets -1 card,0,Shield_1.jpg,,1
+Bash,,Shield,4,0,0,1,0,impact,impact,impact,1,0,0,0,0,0,On Hit: target gets -1 card,0,Shield_1.jpg,,1
 Full Guard,,Shield,1,-1,1,1,1,,,,0,0,0,0,0,0,,0,Shield_1.jpg,,1
 Push on,,Shield,7,0,0,1,1,,,,0,0,0,0,0,0,,0,Shield_1.jpg,,1
 Lock down,,Sheild,5,-1,1,1,0,impact,impact,impact,1,0,1,0,0,0,Feint \emph{(Doesnt deal damage)},0,Shield_1.jpg,,1
 Overcharge,,Stun Baton,3,-1,0,0,1,impact,impact,impact,1,0,1,0,1,0,Guard Break\\On Hit: target gets -1 Init,1,Stun_baton_1.jpg,,1
 Shock,,Stun Baton,5,0,0,1,0,impact,impact,impact,0,0,1,0,0,0,On Hit: target gets -1 Init,0,Stun_baton_1.jpg,,1
 Zap,,Stun Baton,4,-1,1,0,0,impact,impact,impact,2,0,0,0,0,0,On Hit: target gets -1 Init,0,Stun_baton_1.jpg,,1
-Sweep,,Stun Baton,5,-1,0,1,0,impact,impact,impact,0,0,0,0,0,1,On Hit: target gets -1 Init,0,Stun_baton_1.jpg,,1
+Sweep,,Stun Baton,5,-1,0,1,0,impact,impact,impact,0,0,0,0,1,0,On Hit: target gets -1 Init,0,Stun_baton_1.jpg,,1
 Burst Fire,,Assault Rifle,3,-2,0,1,0,projectile,projectile,projectile,0,0,1,16,1,16,,0,Rifle_1.png,,1
 Aimed Fire,,Assault Rifle,2,-2,1,0,0,projectile,projectile,projectile,1,18,0,0,0,0,,0,Rifle_1.png,,1
-From the hip,,Assault Rifle,5,-1,0,0,1,projectile,projectile,projectile,0,0,1,12,0,0,,0,Rifle_1.png,,1
-Covering Fire,,Assault Rifle,5,-4,0,0,0,projectile,projectile,projectile,1,12,1,12,1,12,Feint\emph{(Doesnt deal damage)},0,Rifle_1.png,,1
+From the hip,,Assault Rifle,4,-1,0,0,1,projectile,projectile,projectile,0,0,1,12,0,0,,0,Rifle_1.png,,1
+Covering Fire,,Assault Rifle,5,0,0,0,0,projectile,projectile,projectile,1,12,1,12,1,12,Feint\emph{(Doesnt deal damage)},0,Rifle_1.png,,1
 Rapid fire,,Stun bow,2,-3,1,0,0,pierce,pierce,pierce,1,10,1,10,0,0,"On Hit: target gets -1 Init, Guard Break",0,Stun_bow_1.jpg,,1
 Arc shot,,Stun bow,2,-3,1,0,0,pierce,pierce,pierce,1,18,0,0,0,0,On Hit: target gets -1 Init,0,Stun_bow_1.jpg,I'll wipe that smile off your face,1
 Straight shot,,Stun bow,4,-1,0,1,0,pierce,pierce,pierce,0,0,1,12,0,0,On Hit: target gets -1 Init,0,Stun_bow_1.jpg,,1
 Low blow,,Stun bow,4,-1,0,0,1,pierce,pierce,pierce,0,0,0,0,1,12,On Hit: target gets -1 Init,0,Stun_bow_1.jpg,,1
-Fullbore,,Cannon,2,-3,1,0,0,projectile,projectile,projectile,0,0,3,20,0,0,Guard Break,1,Cannon_1.jpg,,1
+Fullbore,,Cannon,2,-3,1,0,0,projectile,projectile,projectile,0,0,3,20,0,0,,1,Cannon_1.jpg,,1
 Airburst,,Cannon,2,-2,0,1,0,projectile,projectile,projectile,2,20,1,20,0,0,Guard Break,1,Cannon_1.jpg,,1
 Cannon,,Cannon,2,-3,0,1,0,projectile,projectile,projectile,0,0,1,20,2,20,Guard Break,1,Cannon_1.jpg,,1
-Pummel,,Cannon,2,-3,0,1,0,projectile,projectile,projectile,0,0,0,0,3,20,Guard Break,1,Cannon_1.jpg,,1
+Pummel,,Cannon,2,-3,0,1,0,projectile,projectile,projectile,0,0,0,0,3,20,,1,Cannon_1.jpg,,1
 Crush,,Halberd,3,-2,0,0,1,impact,impact,impact,3,0,0,0,0,0,,0,Halberd_1.jpg,,1
 Eviscerate,,Halberd,3,-2,1,0,0,cut,cut,cut,0,0,3,0,0,0,,0,Halberd_1.jpg,,1
-Thrust,,Halberd,6,0,0,1,0,pierce,pierce,pierce,1,0,0,0,0,0,,0,Halberd_1.jpg,,1
+Thrust,,Halberd,6,1,0,1,0,pierce,pierce,pierce,1,0,0,0,0,0,,0,Halberd_1.jpg,,1
 Sweep,,Halberd,4,0,0,0,1,cut,cut,cut,0,0,0,0,2,0,,0,Halberd_1.jpg,,1
 Disembowel,,Chainsaw,2,-3,0,1,0,cut,cut,cut,0,0,4,0,0,0,,0,Chainsaw_1.jpg,,1
 Rip,,Chainsaw,2,-3,0,1,0,cut,cut,cut,4,0,0,0,0,0,,0,Chainsaw_1.jpg,,1
@@ -45,3 +45,4 @@ Slit,,Knife,6,0,0,0,1,cut,cut,cut,0,0,0,0,1,0,Precise \emph{(chose which block i
 Lunge,,Knife,5,1,0,1,0,cut,cut,cut,0,0,1,0,0,0,Precise \emph{(chose which block is consumed)},0,Knife_1.jpg,,1
 Missile Rack 1,Guild,Missile Rack,2,0,1,0,0,projectile,projectile,projectile,2,18,2,18,0,0,Guard Break \\ Can only be used by J7R-Salryman,1,Missile_1.jpg,,1
 Missile Rack 2,Guild,Missile Rack,2,0,1,0,0,projectile,projectile,projectile,0,0,2,18,2,18,Guard Break \\ Can only be used by J7R-Salryman,1,Missile_1.jpg,,1
+Missile Rack 3,Guild,Missile Rack,2,0,1,0,0,projectile,projectile,projectile,2,18,0,0,2,18,Guard Break \\ Can only be used by J7R-Salryman,1,Missile_1.jpg,,1

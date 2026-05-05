@@ -2,7 +2,7 @@ BackgroundImg,Rules,Defend Points,Attack Points,Tokens,tile_0_0,tile_0_1,tile_0_
 terrain_help.png,"Here is any special rules that apply to this terrain card (Normally ojectives and scoring).\\This card gives 1 point to the defenders, 2 to the attackers, and has 4 tokens",1,2,4,im,,BehindText,BehindText,N/A,obj,BehindText,BehindText,tkn,tkn e1,tkn e2,tkn e3,N/A,obs,obs e1,obs e2,,e1,e2,e3,1
 terrain_01.png,,0,0,0,obs,obs,,e1,N/A,,obs,e1,,obs,,e1,N/A,,,e1,,,,e1,1
 terrain_02.png,,0,0,0,e1,e1,e2,e2,N/A,e1,e1,e2,e1,e1,,,N/A,e1,e1,,,,,,1
-terrain_03.png,"\emph{Power reactors}:\\Each power reactor has 2 hitpoints and can be attacked. Attackers score if 2 or more are destroyed, else defenders score.",2,2,6,,,obs tkn obj,,N/A,,,,,,obs tkn obj,,N/A,obs tkn obj,,,,,obs tkn obj,,1
+terrain_03.png,"\emph{Power reactors}:\\Each power reactor has 2 hitpoints and can be attacked. Attackers score if 2 or more are destroyed, else defenders score.",2,2,4,,,obs tkn obj,,N/A,,,,,,obs tkn obj,,N/A,obs tkn obj,,,,,obs tkn obj,,1
 terrain_04.png,,0,0,0,,,e1,,N/A,,e1,e1,,,,,N/A,,,,,,,,1
 terrain_05.png,,0,0,0,e1,e1,e1,e1,N/A,e2,e2,e2,e2,e1,e2,e1,N/A,e2,e1,e2,e2,e2,e2,e1,1
 terrain_06.png,\emph{Shiny thing}:\\Frames pick up the shiny thing by stepping on it; they drop it to a neignoring tile on damage. Team holding it at the end scores.,1,2,1,,,e1,,N/A,,,,,,tkn,,N/A,e1,,e1,,,,,1
@@ -13,7 +13,7 @@ terrain_10.png,,0,0,0,,e1,e1,e1,N/A,e1,e1,e1,,e1,e1,e1,N/A,e1,e1,,e1,e1,,e1,1
 terrain_11.png,,0,0,0,e1,e1,,e1,N/A,e1,,e1,,,,e1,N/A,e1,e1,,e1,e1,,e1,1
 terrain_12.png,,0,0,0,e1,e1,e1,e1,N/A,,,,e1,,,,N/A,e1,e1,e1,e1,e1,e1,,1
 terrain_13.png,,0,0,0,,e2,e2,,N/A,,e2,e2,e1,,e2,e2,N/A,e1,,,e1,,obs,e1,1
-terrain_14.png,"\emph{Extraction}:\\ Put a fugitive token anywhere in the enemy half after deployment. Token moves along with any ally touching it. Defenders score if it reaches the objective point, else attackers score.",2,1,0,e2,e2,,,N/A,e2 obj,e2,,e2,e2,,,N/A,,,,,,,e1,1
+terrain_14.png,"\emph{Extraction}:\\ Put a fugitive token anywhere in the enemy half after deployment. Token moves along with any ally touching it. Defenders score if it reaches the objective point, else attackers score.",2,1,1,e2,e2,,,N/A,e2 obj,e2,,e2,e2,,,N/A,,,,,,,e1,1
 terrain_15.png,,0,0,0,e1,e1,e1,e1,N/A,,,,,,,,N/A,e2,e2,e2,e2,e2 obs,e2 obs,e2,1
 terrain_16.png,,0,0,0,obs,obs,obs,,N/A,obs,,,,,,,N/A,obs,,,,,,,1
 terrain_17.png,,0,0,0,,,,obs,N/A,obs,,obs,obs,obs,,,N/A,,,,,,,,1
