@@ -28,6 +28,7 @@ initImg = 'initImg.png'
 mvImg = 'mvimg.png'
 weaponImg = 'weapon.png'
 boosterImg = 'boosterImg.png'
+deckImg = 'deckImg.png'
 atkpointsImg = 'atkpoints.png'
 defpointsImg = 'defpoints.png'
 tokensImg = 'token.png'
@@ -39,7 +40,7 @@ icons_folder = "../icons/"
 
 
 frameBackgrounds = ["Ouwa_frame_1.jpeg","Aegis_frame_1.jpeg", "Guild_frame_1.png",
-                    "Collective_frame_1.jpeg", "CotN_frame_1.jpeg", "Revolution_frame_1.jpeg",
+                    "Collective_frame_1.jpeg", "CotN_frame_1.jpeg", "Revolution_frame_1.jpeg", "Guild_frame_2.png",
                     "Collective_frame_2.jpg", "CotN_frame_2.jpg", "Revolution_frame_2.png"]
 
 iconwidth = "width=0.9cm"
@@ -223,6 +224,7 @@ def create_frame_sheet(frame, i):
         frame_text = frame_text + "\\node[anchor=north west, text width = 5.2cm] at (bottom_box.north west){" \
                 '\\includegraphics[' + inline_iconwidth + ']{' + icons_folder + weaponImg + '} \\large{ : ' + str(frame["Weapon Slots"]) +  \
                 '} ~\\includegraphics[' + inline_iconwidth + ']{' + icons_folder + boosterImg + '}\\large{  : ' + str(frame["Boosters"]) + \
+                '} ~\\includegraphics[' + inline_iconwidth + ']{' + icons_folder + deckImg + '}\\large{  : ' + str(frame["Deck size"]) + \
                  "} \\\\\\emph{\\footnotesize{" + frame["Flavor"] +  "}}};\n"
 
 
@@ -252,12 +254,12 @@ DEFAULT_STYLE: HexStyle = {
 
 ## styles for other options
 ELEVATION_1_STYLE: HexStyle = {
-    "color":       "black!40!blue",
+    "color":       "blue",
     "thickness":   "line width=3pt",
 }
 
 ELEVATION_2_STYLE: HexStyle = {
-    "color":       "blue!70",
+    "color":       "blue!50",
     "thickness":   "line width=4pt",
 }
 

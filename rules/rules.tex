@@ -181,7 +181,7 @@ The priority marker then moves one step anticlockwise.
 
 
 \section{Deck Construction}
-Each mobile suit must have a deck of exactly 20 cards.
+Each mobile suit must have a deck.
 To construct a deck, you first choose the frame.
 That frame has a stats card with the following information:
 
@@ -194,17 +194,18 @@ That frame has a stats card with the following information:
 \item Base movement
 \item Faction
 \item Armor values at each location
+\item How many cards go in it's deck
 \item How many weapon and booster slots you have
 \item Frame ability (if any)
 \end{itemize}
 
+The frame's deck must have exactly the numnber of cards in its deck size count in it.
 To build the deck, you can have:
 
 \begin{itemize}
 \item Max 4 pilot cards, all from the same pilot, no duplicates
-\item Max X booster cards, where X is the frame's booster count
-\item Your frame can choose up to N weapons. Each weapon is a set of 4 attack cards.
-\item For each weapon slot you can include up to 1 of each card in that weapon.
+\item Max X booster cards, where X is the frame's booster count (duplicates allowed)
+\item Up to N weapons where N is the frame's weapon count. Each weapon is a set of 4 attack cards. For each weapon slot you can include up to 1 of each card in that weapon.
 \item 1 of each of the generic cards 
 \end{itemize}
 
@@ -214,7 +215,7 @@ If any card has a faction logo on it, it can only be in a deck for a frame of th
 So for example:
 
 \begin{tabular}{l l}
-Frame & Protector Mk IV (3 weapons, 3 boosters) \\
+Frame & Protector Mk IV (20 card, 3 weapons, 3 boosters) \\
 3 pilot cards & bruiser 1 2 3 \\
 3 booster cards& \\
 weapon & Stun batom 1 2 3 \\

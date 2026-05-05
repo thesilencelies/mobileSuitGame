@@ -5,7 +5,7 @@ Net Strength,,Bruiser,4,-2,All attacks you make this turn and next gain guard br
 Lockdown,,Bruiser,4,-1,Target frame within 3 gets -4mv next turn,0,Bruiser_attack.jpg,"Summons matter all around the enemy, literally locking them in concrete",1
 Ephemeral Images,,Mystic,1,-1,"Replace this frame with 3 tokens, one of which is secretly marked to be this frame. All tokens move as this frame and the fakes are removed if attacked.",1,Mystic_1.jpg,,1
 Teleport,,Mystic,1,-4,Next turn: Reposition this frame anywhere on the map at initiative 4,0,Mystic_1.jpg,,1
-Utter darkness,,Mystic,1,-4,Next turn: Frames within 5 cannot be attacked and get -2mv,0,Mystic_1.jpg,,1
+Utter darkness,,Mystic,1,-4,Next turn: While a frame is within 5 of this frame it cannot be attacked and get -2mv,0,Mystic_1.jpg,,1
 Encode the future,,Mystic,1,-3,Next turn: one allied frame \emph{(includes this)} chooses cards from their deck,0,Mystic_1.jpg,,1
 Tactical broadcast,,Tactician,3,-1,Allied frames within 6 get +2 cards next turn,0,Tactician_1.jpg,,1
 Fog of war,,Tactician,5,0,Next turn: Allies within 4 cannot be targeted by ranged attacks,0,Tactician_1.jpg,,1
@@ -13,10 +13,10 @@ Set the trap,,Tactician,6,0,Enemy frames that attack an ally within 5 next turn 
 Outfox,,Tactician,3,-1,Targe frame within 7 gets -3 init next turn,0,Tactician_1.jpg,,1
 Hyper,,Wunderkid,2,-4,Next turn: play 1 extra action,0,Wunderkid_1.jpg,,1
 Net Speed,,Wunderkid,4,0,Next turn: get +2 init and +1mv,0,Wunderkid_1.jpg,,1
-Newtype flair,,Wunderkid,9,2,Other attack made this turn get +1 init,0,Wunderkid_1.jpg,,1
+Newtype flair,,Wunderkid,7,0,Resolve another action from this frame immediately,0,Wunderkid_1.jpg,,1
 Ace reflexes,,Wunderkid,9,1,"Whenever this frame is attacked this turn, move 2 after the attack",0,Wunderkid_1.jpg,,1
 Battlefield Repairs,,Engineer,3,-2,Repair 1 damage from an allied frame within 3,0,Engineer_1.jpg,,1
-Barricade,,Engineer,5,-3,Put a barricade token within 3 - that location becomes impassible,0,Engineer_1.jpg,,1
+Barricade,,Engineer,5,-3,Put up to 3 barricade tokens within 3; that location becomes impassible,0,Engineer_1.jpg,,1
 Dismantle,,Engineer,6,-2,"If an attack from this frame hits, it deals 2 extra damage",0,Engineer_1.jpg,,1
 Precision Tuning,,Engineer,3,-3,"For the next 3 turns, this frame gets +1 mv",0,Engineer_1.jpg,,1
 Combo strike,,Specialist,7,-2,"When resolving the next attack from this frame, reveal the top 4 cards of its deck and choose up to 1 attack from the same weapon: add it's attacks to the attack",0,Specialist_1.jpg,,1
