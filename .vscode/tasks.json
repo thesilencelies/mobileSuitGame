@@ -38,6 +38,26 @@
       "group": "build"
     },
     {
+      "label": "create tts terrain",
+      "command": "convert",
+      "type": "shell",
+      "options": {
+        "cwd": "${workspaceFolder}/build"
+      },
+      "args": [
+        "-density",
+        "150",
+        "terrain_image.pdf",
+        "-compress",
+        "lzw",
+        "terrain_image.png"
+      ],
+      "dependsOn": [
+        "create tts terrain pdf"
+      ],
+      "group": "build"
+    },
+    {
       "label": "create tts frames pdf",
       "command": "pdflatex",
       "type": "shell",
@@ -66,6 +86,38 @@
       ],
       "dependsOn": [
         "create tts frames pdf"
+      ],
+      "group": "build"
+    },
+    {
+      "label": "create tts deck pdf",
+      "command": "pdflatex",
+      "type": "shell",
+      "args": [
+        "deck_1_image.tex"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/build"
+      },
+      "group": "build"
+    },
+    {
+      "label": "create tts deck",
+      "command": "convert",
+      "type": "shell",
+      "options": {
+        "cwd": "${workspaceFolder}/build"
+      },
+      "args": [
+        "-density",
+        "150",
+        "deck_1_image.pdf",
+        "-compress",
+        "lzw",
+        "deck_1_image.png"
+      ],
+      "dependsOn": [
+        "create tts deck pdf"
       ],
       "group": "build"
     },
