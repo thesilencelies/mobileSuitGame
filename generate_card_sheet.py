@@ -59,9 +59,6 @@ PREAMBLE = r"""\documentclass{{article}}
 
 \setlength{{\parindent}}{{0pt}}
 \setlength{{\parskip}}{{0pt}}
-\setlength{{\baselineskip}}{{0pt}}
-\setlength{{\lineskip}}{{0pt}}
-\setlength{{\lineskiplimit}}{{0pt}}
 \pagestyle{{empty}}
 
 \begin{{document}}
@@ -88,9 +85,10 @@ EMPTY_CELL = r"""\hbox to {width}cm{{\hss
   \hss}}%
 """
 
-ROW_BEGIN = r"""\hbox\bgroup\hss"""
+ROW_BEGIN = r"""\noindent\makebox[0pt][l]{}%
+"""
 
-ROW_END = r"""\hss\egroup
+ROW_END = r"""\par\vspace{0pt}%
 """
 
 SHEET_END = r"""\newpage
@@ -131,7 +129,7 @@ def generate_latex(cards: list[str], bleed: float, cols: int, rows: int) -> str:
     num_sheets = math.ceil(len(cards) / cards_per_sheet)
 
     page_width  = cols * CARD_WIDTH_CM  + (cols - 1) * bleed
-    page_height = rows * CARD_HEIGHT_CM + (rows - 1) * bleed
+    page_height = rows * (CARD_HEIGHT_CM + 0.1) + (rows - 1) * bleed
 
     w = f"{CARD_WIDTH_CM:.4f}"
     h = f"{CARD_HEIGHT_CM:.4f}"
