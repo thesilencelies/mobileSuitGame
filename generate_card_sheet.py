@@ -42,7 +42,11 @@ CARD_HEIGHT_CM = 8.9
 
 PREAMBLE = r"""\documentclass{{article}}
 \usepackage{{tikz}}
+ \usepackage[export]{{adjustbox}}
 \usepackage{{geometry}}
+\input{{card_macros.tex}}
+ \usetikzlibrary{{positioning}}
+ \usetikzlibrary{{patterns}}
 
 % Page size matches the exact grid: {page_width}cm x {page_height}cm
 \geometry{{
