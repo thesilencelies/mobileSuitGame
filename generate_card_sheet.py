@@ -3,20 +3,23 @@
 generate_card_sheet.py
 
 Reads a CSV file of card .tex filenames (one per line, no header) and generates
-a LaTeX file that lays them out in a 10×7 grid suitable for Tabletop Simulator
+a LaTeX file that lays them out in a grid suitable for Tabletop Simulator
 custom card sheets.
 
 Each card is a TikZ image of 6.4cm × 8.9cm, included via \input{}.
-Cards fill left-to-right, top-to-bottom. If the final sheet has fewer than 70
-cards, the remaining cells are left blank.
+Cards fill left-to-right, top-to-bottom. If the final sheet has fewer cards
+than the grid, the remaining cells are left blank.
 
 Usage:
     python generate_card_sheet.py --csv cards.csv --output card_sheet.tex
-    python generate_card_sheet.py --csv cards.csv --output card_sheet.tex --no-bleed
+    python generate_card_sheet.py --csv cards.csv --cols 10 --rows 7
+    python generate_card_sheet.py --csv cards.csv --cols 5 --rows 4 --bleed 0.1
 
 Arguments:
     --csv       Path to the CSV file listing card .tex filenames (required)
     --output    Path for the generated .tex file (default: card_sheet.tex)
+    --cols      Number of columns per sheet (default: 10)
+    --rows      Number of rows per sheet (default: 7)
     --bleed     Gap between cards in cm (default: 0.0 — cards flush together)
 """
 
@@ -27,11 +30,10 @@ import os
 import sys
 
 # ---------------------------------------------------------------------------
-# Layout constants
+# Layout defaults (overridable via CLI)
 # ---------------------------------------------------------------------------
-COLS = 10
-ROWS = 7
-CARDS_PER_SHEET = COLS * ROWS  # 70
+DEFAULT_COLS = 10
+DEFAULT_ROWS = 7
 
 CARD_WIDTH_CM  = 6.4
 CARD_HEIGHT_CM = 8.9
@@ -57,6 +59,9 @@ PREAMBLE = r"""\documentclass{{article}}
 
 \setlength{{\parindent}}{{0pt}}
 \setlength{{\parskip}}{{0pt}}
+\setlength{{\baselineskip}}{{0pt}}
+\setlength{{\lineskip}}{{0pt}}
+\setlength{{\lineskiplimit}}{{0pt}}
 \pagestyle{{empty}}
 
 \begin{{document}}
@@ -83,10 +88,9 @@ EMPTY_CELL = r"""\hbox to {width}cm{{\hss
   \hss}}%
 """
 
-ROW_BEGIN = r"""\noindent\makebox[0pt][l]{}%
-"""
+ROW_BEGIN = r"""\hbox\bgroup\hss"""
 
-ROW_END = r"""\par\vspace{{0pt}}%
+ROW_END = r"""\hss\egroup
 """
 
 SHEET_END = r"""\newpage
@@ -120,13 +124,14 @@ def read_card_list(csv_path: str) -> list[str]:
 
 
 
-def generate_latex(cards: list[str], bleed: float) -> str:
+def generate_latex(cards: list[str], bleed: float, cols: int, rows: int) -> str:
     """Build the full LaTeX source string."""
 
-    num_sheets = math.ceil(len(cards) / CARDS_PER_SHEET)
+    cards_per_sheet = cols * rows
+    num_sheets = math.ceil(len(cards) / cards_per_sheet)
 
-    page_width  = COLS * CARD_WIDTH_CM  + (COLS - 1) * bleed
-    page_height = ROWS * CARD_HEIGHT_CM + (ROWS - 1) * bleed
+    page_width  = cols * CARD_WIDTH_CM  + (cols - 1) * bleed
+    page_height = rows * CARD_HEIGHT_CM + (rows - 1) * bleed
 
     w = f"{CARD_WIDTH_CM:.4f}"
     h = f"{CARD_HEIGHT_CM:.4f}"
@@ -138,8 +143,8 @@ def generate_latex(cards: list[str], bleed: float) -> str:
     ))
 
     for sheet in range(num_sheets):
-        first_idx  = sheet * CARDS_PER_SHEET
-        last_idx   = min(first_idx + CARDS_PER_SHEET, len(cards))
+        first_idx  = sheet * cards_per_sheet
+        last_idx   = min(first_idx + cards_per_sheet, len(cards))
         sheet_cards = cards[first_idx:last_idx]
 
         lines.append(SHEET_BEGIN.format(
@@ -148,10 +153,10 @@ def generate_latex(cards: list[str], bleed: float) -> str:
             last_card=last_idx,
         ))
 
-        for row in range(ROWS):
+        for row in range(rows):
             lines.append(ROW_BEGIN)
-            for col in range(COLS):
-                pos = row * COLS + col
+            for col in range(cols):
+                pos = row * cols + col
                 if pos < len(sheet_cards):
                     lines.append(CARD_INCLUDE.format(
                         width=w, height=h,
@@ -184,16 +189,26 @@ def main():
         help="Output .tex filename (default: card_sheet.tex)."
     )
     parser.add_argument(
+        "--cols", type=int, default=DEFAULT_COLS,
+        help=f"Number of card columns per sheet (default: {DEFAULT_COLS})."
+    )
+    parser.add_argument(
+        "--rows", type=int, default=DEFAULT_ROWS,
+        help=f"Number of card rows per sheet (default: {DEFAULT_ROWS})."
+    )
+    parser.add_argument(
         "--bleed", type=float, default=0.0,
         help="Gap between cards in cm (default: 0.0)."
     )
     args = parser.parse_args()
 
+    cards_per_sheet = args.cols * args.rows
     cards = read_card_list(args.csv)
+    print(f"Grid: {args.cols}×{args.rows} ({cards_per_sheet} cards per sheet)")
     print(f"Found {len(cards)} card(s) → "
-          f"{math.ceil(len(cards) / CARDS_PER_SHEET)} sheet(s) of up to {CARDS_PER_SHEET}.")
+          f"{math.ceil(len(cards) / cards_per_sheet)} sheet(s).")
 
-    latex_source = generate_latex(cards, bleed=args.bleed)
+    latex_source = generate_latex(cards, bleed=args.bleed, cols=args.cols, rows=args.rows)
 
     with open(args.output, "w", encoding="utf-8") as fh:
         fh.write(latex_source)

@@ -5,7 +5,9 @@
       "label": "create cards",
       "command": "pdflatex",
       "type": "shell",
-      "args": ["card_all.tex"],
+      "args": [
+        "card_all.tex"
+      ],
       "options": {
         "cwd": "${workspaceFolder}/build"
       },
@@ -15,17 +17,33 @@
       "label": "create rules",
       "command": "pdflatex",
       "type": "shell",
-      "args": ["rules.tex"],
+      "args": [
+        "rules.tex"
+      ],
       "options": {
         "cwd": "${workspaceFolder}/rules"
       },
       "group": "build"
     },
     {
-      "label": "create tts terrain",
+      "label": "create tts terrain pdf",
       "command": "pdflatex",
       "type": "shell",
-      "args": ["terrain_image.tex"],
+      "args": [
+        "terrain_image.tex"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/build"
+      },
+      "group": "build"
+    },
+    {
+      "label": "create tts frames pdf",
+      "command": "pdflatex",
+      "type": "shell",
+      "args": [
+        "frames_image.tex"
+      ],
       "options": {
         "cwd": "${workspaceFolder}/build"
       },
@@ -33,19 +51,32 @@
     },
     {
       "label": "create tts frames",
-      "command": "pdflatex",
+      "command": "convert",
       "type": "shell",
-      "args": ["frames_image.tex"],
       "options": {
         "cwd": "${workspaceFolder}/build"
       },
+      "args": [
+        "-density",
+        "150",
+        "frames_image.pdf",
+        "-compress",
+        "lzw",
+        "frames_image.png"
+      ],
+      "dependsOn": [
+        "create tts frames pdf"
+      ],
       "group": "build"
     },
     {
       "label": "create all",
       "type": "shell",
       "command": "echo created",
-      "dependsOn": ["create rules", "create cards"]
+      "dependsOn": [
+        "create rules",
+        "create cards"
+      ]
     }
   ]
 }
