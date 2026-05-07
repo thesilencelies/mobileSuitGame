@@ -18,7 +18,7 @@
       "type": "debugpy",
       "request": "launch",
       "program": "${workspaceFolder}/generate_card_sheet.py",
-      "args": ["--csv=terrain_deck.csv", "--output=build/terrain_image.tex"],
+      "args": ["--csv=terrain_deck.csv", "--output=build/terrain_image.tex", "--cols=6", "--rows=5", "--back_text=Terrain", "--back_color=green"],
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
       "postDebugTask": "create tts terrain",
@@ -28,10 +28,20 @@
       "type": "debugpy",
       "request": "launch",
       "program": "${workspaceFolder}/generate_card_sheet.py",
-      "args": ["--csv=frames_deck.csv", "--output=build/frames_image.tex", "--cols=5", "--rows=2", "--bleed=0.1"],
+      "args": ["--csv=frames_deck.csv", "--output=build/frames_image.tex", "--cols=6", "--rows=2", "--back_text=Frame", "--back_color=red"],
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
       "postDebugTask": "create tts frames",
+    },
+    {
+      "name": "generate TTS images - deck",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/generate_card_sheet.py",
+      "args": ["--csv=deck_1.csv", "--output=build/deck_1_image.tex", "--cols=6", "--rows=4"],
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "postDebugTask": "create tts deck",
     }
   ]
 }

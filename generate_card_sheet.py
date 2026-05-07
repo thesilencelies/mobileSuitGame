@@ -49,6 +49,7 @@ PREAMBLE = r"""\documentclass{{article}}
 \input{{card_macros.tex}}
  \usetikzlibrary{{positioning}}
  \usetikzlibrary{{patterns}}
+ \usetikzlibrary{{arrows.meta}}
 
 % Page size matches the exact grid: {page_width}cm x {page_height}cm
 \geometry{{
@@ -81,6 +82,20 @@ CARD_INCLUDE = r"""\hbox to {width}cm{{\hss
 
 EMPTY_CELL = r"""\hbox to {width}cm{{\hss
   \begin{{minipage}}[t][{height}cm][t]{{{width}cm}}%
+  \end{{minipage}}%
+  \hss}}%
+"""
+
+FINAL_CELL = r"""\hbox to {width}cm{{\hss
+  \begin{{minipage}}[t][{height}cm][t]{{{width}cm}}%
+    \vspace{{0pt}}%
+    \begin{{tikzpicture}}[backbox/.style= {{rectangle, minimum height = 8.9cm, minimum width =6.35cm, rounded corners = 0.3cm, fill=white, opacity=0.75}}]
+    \node [rectangle, minimum width = 6.4cm, minimum height = 8.7cm, fill=black!70!white!30] at (3.25,4.5){{}};
+    \draw[<->, line width=12pt, draw={color}] (0.4,0.5) -- (6.0, 8.4);
+    \draw[<->, line width=12pt, draw={color}] (6.0,0.5) -- (0.4, 8.4);
+    \node [rectangle, draw, rounded corners = 0.4cm, minimum width = 5cm, minimum height=2cm, fill=blue!10] at (3.25,4.5) {{}};
+    \node [circle, draw, minimum width = 3.4cm, fill=blue!10] at (3.25,4.5) {{\Large{{{text}}}}};
+    \end{{tikzpicture}}
   \end{{minipage}}%
   \hss}}%
 """
@@ -122,14 +137,15 @@ def read_card_list(csv_path: str) -> list[str]:
 
 
 
-def generate_latex(cards: list[str], bleed: float, cols: int, rows: int) -> str:
+def generate_latex(cards: list[str], bleed: float, cols: int, rows: int,
+                    back_text: str, back_color: str) -> str:
     """Build the full LaTeX source string."""
 
     cards_per_sheet = cols * rows
     num_sheets = math.ceil(len(cards) / cards_per_sheet)
 
     page_width  = cols * CARD_WIDTH_CM  + (cols - 1) * bleed
-    page_height = rows * (CARD_HEIGHT_CM + 0.1) + (rows - 1) * bleed
+    page_height = rows * (CARD_HEIGHT_CM + 0.14) + (rows - 1) * bleed
 
     w = f"{CARD_WIDTH_CM:.4f}"
     h = f"{CARD_HEIGHT_CM:.4f}"
@@ -154,14 +170,17 @@ def generate_latex(cards: list[str], bleed: float, cols: int, rows: int) -> str:
         for row in range(rows):
             lines.append(ROW_BEGIN)
             for col in range(cols):
-                pos = row * cols + col
-                if pos < len(sheet_cards):
-                    lines.append(CARD_INCLUDE.format(
-                        width=w, height=h,
-                        filename=sheet_cards[pos],
-                    ))
+                if row == rows -1 and col == cols -1:
+                    lines.append(FINAL_CELL.format(width=w, height=h, text=back_text, color=back_color))
                 else:
-                    lines.append(EMPTY_CELL.format(width=w, height=h))
+                    pos = row * cols + col
+                    if pos < len(sheet_cards):
+                        lines.append(CARD_INCLUDE.format(
+                            width=w, height=h,
+                            filename=sheet_cards[pos],
+                        ))
+                    else:
+                        lines.append(EMPTY_CELL.format(width=w, height=h))
             lines.append(ROW_END)
 
         lines.append(SHEET_END)
@@ -198,6 +217,13 @@ def main():
         "--bleed", type=float, default=0.0,
         help="Gap between cards in cm (default: 0.0)."
     )
+    parser.add_argument(
+        "--back_text", default="NetFrame",
+        help="text to write on the back of the card"
+    )
+    parser.add_argument(
+        "--back_color", default="blue", help="color for the lines on the back"
+    )
     args = parser.parse_args()
 
     cards_per_sheet = args.cols * args.rows
@@ -206,7 +232,8 @@ def main():
     print(f"Found {len(cards)} card(s) → "
           f"{math.ceil(len(cards) / cards_per_sheet)} sheet(s).")
 
-    latex_source = generate_latex(cards, bleed=args.bleed, cols=args.cols, rows=args.rows)
+    latex_source = generate_latex(cards, bleed=args.bleed, cols=args.cols, rows=args.rows,
+                                   back_text=args.back_text, back_color=args.back_color)
 
     with open(args.output, "w", encoding="utf-8") as fh:
         fh.write(latex_source)

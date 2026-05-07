@@ -578,10 +578,14 @@ if __name__ == "__main__":
         allfile.write(begin_doc)
 
         i = 0
+        last_group = ""
 
         with open(booster_actions_file, "r") as facsvfile:
             reader = csv.DictReader(facsvfile)
             for row in reader:
+                if row["Group"] != last_group:
+                    i = 0
+                    last_group = row["Group"]
                 i = i + 1
                 for printcount in range(int(row["PrintID"])):
                         allfile.write(make_card_from_row(row, i, CardTypeEnum.BOOSTER))
@@ -589,6 +593,9 @@ if __name__ == "__main__":
         with open(weapon_actions_file, "r") as spcsvfile:
             reader = csv.DictReader(spcsvfile)
             for row in reader:
+                if row["Group"] != last_group:
+                    i = 0
+                    last_group = row["Group"]
                 i = i + 1
                 if int(row["PrintID"]) > 0:
                         allfile.write(make_card_from_row(row, i, CardTypeEnum.WEAPON))
@@ -596,6 +603,9 @@ if __name__ == "__main__":
         with open(pilot_actions_file, "r") as facsvfile:
             reader = csv.DictReader(facsvfile)
             for row in reader:
+                if row["Group"] != last_group:
+                    i = 0
+                    last_group = row["Group"]
                 i = i + 1
                 if int(row["PrintID"]) > 0:
                         allfile.write(make_card_from_row(row, i, CardTypeEnum.PILOT))
@@ -603,6 +613,9 @@ if __name__ == "__main__":
         with open(general_action_file, "r") as gencsvfile:
             reader = csv.DictReader(gencsvfile)
             for row in reader:
+                if row["Group"] != last_group:
+                    i = 0
+                    last_group = row["Group"]
                 i = i + 1
                 if int(row["PrintID"]) > 0:
                     allfile.write(make_card_from_row(row, i, CardTypeEnum.BASIC))
