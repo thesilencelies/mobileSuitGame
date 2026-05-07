@@ -5,4 +5,4 @@ Block,,Basic,2,-1,1,1,0,,,,0,0,0,0,0,0,,0,,Block.jpg,,1
 Shield,Church of the Net,Frame,1,-2,0,1,0,,,,0,0,0,0,0,0,Add a shield,0,,Shield.jpg,,1
 Dodge,,Basic,7,0,0,0,0,,,,0,0,0,0,0,0,Ranged attacks target at -8 range,0,,Dodge.jpg,,1
 Bio-regen,Collective,Basic,2,-2,0,1,0,,,,0,0,0,0,0,0,Repair 2,0,,Restore.jpg,,1
-Call of Nature,Collective,Basic,,,,,,,,,0,0,0,0,0,0,Select an opposing frame within 6: move them 1,0,,Howl.jpg,,1
+Call of Nature,Collective,Basic,5,-2,0,1,0,,,,0,0,0,0,0,0,Select an opposing frame within 6: move them 1,0,,Howl.jpg,,1

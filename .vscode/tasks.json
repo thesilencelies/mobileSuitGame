@@ -22,6 +22,26 @@
       "group": "build"
     },
     {
+      "label": "create tts terrain",
+      "command": "pdflatex",
+      "type": "shell",
+      "args": ["terrain_image.tex"],
+      "options": {
+        "cwd": "${workspaceFolder}/build"
+      },
+      "group": "build"
+    },
+    {
+      "label": "create tts frames",
+      "command": "pdflatex",
+      "type": "shell",
+      "args": ["frames_image.tex"],
+      "options": {
+        "cwd": "${workspaceFolder}/build"
+      },
+      "group": "build"
+    },
+    {
       "label": "create all",
       "type": "shell",
       "command": "echo created",

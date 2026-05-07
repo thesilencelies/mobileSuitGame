@@ -9,7 +9,7 @@ weapon_actions_file = 'Weapon actions.csv'
 general_action_file = 'Basic actions.csv'
 pilot_actions_file = 'Pilot actions.csv'
 booster_actions_file = 'Booster actions.csv'
-terrain_file = "Terrain.csv"
+terrain_file = "Terrain_square.csv"
 frames_file = 'Frames.csv'
 
 cardoutputfolder='build/card_'
@@ -40,7 +40,7 @@ icons_folder = "../icons/"
 
 
 frameBackgrounds = ["Ouwa_frame_1.jpeg","Aegis_frame_1.jpeg", "Guild_frame_1.png",
-                    "Collective_frame_1.jpeg", "CotN_frame_1.jpeg", "Revolution_frame_1.jpeg", "Guild_frame_2.png",
+                    "Collective_frame_1.jpeg", "CotN_frame_1.jpeg", "Revolution_frame_1.jpeg", "Guild_frame_2.jpg",
                     "Collective_frame_2.jpg", "CotN_frame_2.jpg", "Revolution_frame_2.png"]
 
 iconwidth = "width=0.9cm"
@@ -238,12 +238,12 @@ def create_frame_sheet(frame, i):
 # ---------------------------------------------------------------------------
 # Types
 # ---------------------------------------------------------------------------
-HexStyle = Dict[str, str]
+TileStyle = Dict[str, str]
  
 # ---------------------------------------------------------------------------
 # Defaults
 # ---------------------------------------------------------------------------
-DEFAULT_STYLE: HexStyle = {
+DEFAULT_STYLE: TileStyle = {
     "color":       "black",
     "thickness":   "semithick",
     "postaction":  "",
@@ -253,22 +253,22 @@ DEFAULT_STYLE: HexStyle = {
 }
 
 ## styles for other options
-ELEVATION_1_STYLE: HexStyle = {
+ELEVATION_1_STYLE: TileStyle = {
     "color":       "blue",
     "thickness":   "line width=3pt",
 }
 
-ELEVATION_2_STYLE: HexStyle = {
+ELEVATION_2_STYLE: TileStyle = {
     "color":       "blue!50",
     "thickness":   "line width=4pt",
 }
 
-ELEVATION_3_STYLE: HexStyle = {
+ELEVATION_3_STYLE: TileStyle = {
     "color":       "blue!20",
     "thickness":   "line width=4pt",
 }
 # too high to access
-IMPASSIBLE_STYLE: HexStyle = {
+IMPASSIBLE_STYLE: TileStyle = {
     "color":       "red",
     "thickness":   "line width=5pt",
     "fill":        "black",
@@ -276,15 +276,15 @@ IMPASSIBLE_STYLE: HexStyle = {
 
 # these should not set the line style cause they can appear at any elevation
 
-OBJECTIVE_STYLE: HexStyle = {
+OBJECTIVE_STYLE: TileStyle = {
     "fill":        "green",
 }
 
-OBSTACLE_STYLE: HexStyle = {
+OBSTACLE_STYLE: TileStyle = {
     "postaction":  "postaction={draw, line width=3pt, yellow, dash pattern=on 2mm off 2mm, dash phase=0mm}",
 }
 
-TOKEN_STYLE: HexStyle = {
+TOKEN_STYLE: TileStyle = {
     "hatch":       "crosshatch",
     "hatch_color": "orange",     # empty = same as color
 }
@@ -397,6 +397,19 @@ def inset_size(size: float, thickness: str) -> float:
     # (pi/6 = 30 deg is the half-angle at each vertex of a regular hexagon.)
     return size - lw_cm/2
 
+def inset_size_square(size: float, thickness: str) -> float:
+    lw_cm = _thickness_to_cm(thickness)
+    return size - lw_cm
+
+def square_center(col: int, row: int, size: float, offset: Tuple[float,float]) -> Tuple[float, float]:
+    """Return the (x, y) centre of square (col, row) in cm """
+    x = size * col + offset[0]
+    y = size * row + offset[1]
+    return x, y
+
+def create_square(cx: float, cy: float, size: float) -> str:
+    return f"({cx},{cy}) rectangle ++({size},{size})"
+
 # ---------------------------------------------------------------------------
 # LaTeX / TikZ generation
 # ---------------------------------------------------------------------------
@@ -405,13 +418,11 @@ def _coord_str(corners: List[Tuple[float, float]]) -> str:
     return " -- ".join(f"({x:.4f},{y:.4f})" for x, y in corners) + " -- cycle"
  
 
-def _tikz_hex_lines(col: int, row: int, size: float, s: HexStyle, offset: Tuple[float,float]) -> List[str]:
+def _tikz_hex_lines(col: int, row: int, size: float, s: TileStyle, offset: Tuple[float,float]) -> List[str]:
     """Return the TikZ lines that draw one hexagon.
 
     The stroke path uses an inset circumradius so the border is drawn
-    entirely inside the nominal hex boundary -- no bleed into neighbours.
-    The fill/hatch path uses the full nominal size so the interior is
-    completely covered with no visible gap.
+    entirely inside the nominal hex boundary
     """
     cx, cy = hex_center(col, row, size, offset)
 
@@ -433,11 +444,40 @@ def _tikz_hex_lines(col: int, row: int, size: float, s: HexStyle, offset: Tuple[
             lines.append(f"  \\fill[fill={fill}, fill opacity=0.5] {cs_full};")
         hatch_color = s.get("hatch_color") or s["color"]
         lines.append(f"  \\fill[pattern={hatch}, fill opacity=0.5, pattern color={hatch_color}] {cs_full};")
-        # fill_for_draw = fill if fill != "none" else "white"
-        # draw_opts.append(f"fill={fill_for_draw}")
-        # The draw uses the inset path so the stroke sits inside;
-        # re-apply fill on the inset shape so it covers up to the stroke edge
-        # lines.append(f"  \\fill[fill={fill_for_draw}] {cs_inset};")
+    else:
+        draw_opts.append(f"fill={fill}")
+
+    lines.append(f"  \\draw[{', '.join(draw_opts)}] {cs_inset};")
+    return lines
+
+
+
+def _tikz_square_lines(col: int, row: int, size: float, s: TileStyle, offset: Tuple[float,float]) -> List[str]:
+    """Return the TikZ for the given tile
+    """
+    cx, cy = square_center(col, row, size, offset)
+
+    # Full-size path for fill/hatch (covers the whole cell)
+
+    # Full-size path for fill/hatch (covers the whole cell)
+    cs_full  = create_square(cx, cy, size)
+    # Inset path for the stroke (border stays inside the cell)
+    r_inset  = inset_size_square(size, s["thickness"])
+    cs_inset = create_square(cx, cy, r_inset)
+
+    draw_opts = [s["thickness"], f"draw={s['color']}", "fill opacity=0.5", s["postaction"]]
+
+    hatch = s.get("hatch", "")
+    fill  = s.get("fill", "none")
+
+    lines: List[str] = []
+
+    if hatch:
+        if fill != "none":
+            lines.append(f"  \\fill[fill={fill}, fill opacity=0.5] {cs_full};")
+        hatch_color = s.get("hatch_color") or s["color"]
+        lines.append(f"  \\fill[pattern={hatch}, fill opacity=0.5, pattern color={hatch_color}] {cs_full};")
+
     else:
         draw_opts.append(f"fill={fill}")
 
@@ -456,17 +496,19 @@ def create_terrain_card(row, i):
                 'keepaspectratio]{' + terrain_images_folder + row["BackgroundImg"] + '}};\n'
 
         # terrain card size
-        cols = 4
-        rows = 5
-        hex_size = 0.865 #cm - radius
+        cols = 3
+        rows = 4
+        hex_size = 2.06 #cm - diameter
 
-        hoffset = 0.2
-        voffset = 0.6
+        hoffset = 0.1
+        voffset = 0.2
 
         # superimpose the grid
         # put height/terrain information in where relevant (borders?)
-        col_range = range(-1, cols + 1)
-        row_range = range(-1, rows + 1)
+        # col_range = range(-1, cols + 1)
+        # row_range = range(-1, rows + 1)
+        col_range = range(0, cols)
+        row_range = range(0, rows)
 
         hex_lines: List[str] = []
         for c in col_range:
@@ -475,12 +517,14 @@ def create_terrain_card(row, i):
                 if 0 <= c < cols and 0 <= r < rows:
                     for element in row[f"tile_{r}_{c}"].split(" "):
                         style.update(STYLE_DICT.get(element, {}))
-                hex_lines.append("\n".join(_tikz_hex_lines(c, r + 1, hex_size, style, (hoffset, voffset))))
+                # hex_lines.append("\n".join(_tikz_hex_lines(c, r + 1, hex_size, style, (hoffset, voffset))))
+                hex_lines.append("\n".join(_tikz_square_lines(c, r, hex_size, style, (hoffset, voffset))))
+
 
         inner_body = "\n".join(hex_lines)
 
         # TODO - add this clipping to every card
-        clip_line = f"  \\clip ({hoffset-0.05},{voffset-0.3}) rectangle (6.2, 8.6);"
+        clip_line = f"  \\clip ({hoffset},{voffset}) rectangle (6.4, 8.9);"
         terrain_text += "\\begin{scope}\n" + clip_line + "\n" + inner_body + "\n" + "\\end{scope}\n"
         
         # add rules text if extant (probably an objective card)
