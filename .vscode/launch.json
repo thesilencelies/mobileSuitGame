@@ -12,6 +12,26 @@
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
       "postDebugTask": "create all",
+    },
+    {
+      "name": "generate TTS images - terrain",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/generate_card_sheet.py",
+      "args": ["--csv=terrain_deck.csv", "--output=build/terrain_image.tex"],
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "postDebugTask": "create tts terrain",
+    },
+    {
+      "name": "generate TTS images - frames",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/generate_card_sheet.py",
+      "args": ["--csv=frames_deck.csv", "--output=build/frames_image.tex"],
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "postDebugTask": "create tts frames",
     }
   ]
 }

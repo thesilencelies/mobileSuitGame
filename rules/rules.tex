@@ -10,7 +10,10 @@
  \usetikzlibrary{positioning}
  \usetikzlibrary{patterns}
 
-\title{NetFrame \\ \large{working title} \\ \small{Version 0.4}}
+ \setcounter{secnumdepth}{0}
+
+
+\title{NetFrame \\ \large{working title} \\ \small{Version 0.5}}
 %\author{Stephen Lilico}
 \date{}
 \ULCornerWallPaper{1.0}{../pictures/background.png}
@@ -32,9 +35,9 @@
 \maketitle
 
 
-These rules set out a method of handling movement and combat between Mobile Suits. The game is played across 10 turns, after which the team with the most victory points wins.
-Each player brings the same number of Frames, and a 20 card deck for that suit. 
- With many players teams are recommended over battle royale due to the necessity of focussed attacks to actually kill anything, though the rules support either playstyle.
+These rules set out a method of handling movement and combat between Mobile Suits. The game is played across 6 turns, after which the team with the most victory points wins.
+Each player brings the same number of Frames, each with their own deck. A good default number is 3 per player, although with teams 2 each can be smoother.
+ With many players teams are recommended over battle royale, though the rules support either playstyle.
 All frames a player brings should be from the same faction.
 
 \section{Victory Points}
@@ -50,9 +53,9 @@ Victory points are obtained in two key ways:
 Terrain blocks movement and line of sight. Terrain that can be stood upon is classified as being on different levels. 
 
 \subsection{Terrain Cards}
-It is recommended for each player to bring a terrain deck of 25 cards, of which between 4 and 8 should be objectives.
-These cards are shuffled, dealt and construct the battlefield. On the card is a hex grid, on which the frames move and ranges are reckoned. 
-The border of the hexes indicate the elevation 
+It is recommended for each player to bring a terrain deck of 15 cards, of which between 2 and 4 should be objectives.
+These cards are shuffled, dealt and construct the battlefield. On the card is a grid, on which the frames move and ranges are reckoned. 
+The border of the tiles indicate the elevation 
 
 \begin{tabular}{c c}
 black & ground level \\
@@ -62,7 +65,7 @@ light blue & elevation 3\\
 red & impassible \\
 \end{tabular}
 
-Hexes that contain obstacles have a yellow dashing on their border. Hexes that indicated objectives are highlighted in green, hexes that need a token placed on them have hatching.
+Tiles that contain obstacles have a yellow dashing on their border. Tiles that indicated objectives are highlighted in green, tiles that need a token placed on them have hatching.
 
 \begin{figure}[htbp]
   \centering
@@ -70,6 +73,9 @@ Hexes that contain obstacles have a yellow dashing on their border. Hexes that i
   \input{../build/terrain_1.tex}
   \par Exaplaination of each elemnent of a terrain card\par\medskip
 \end{figure}
+
+Movement on these tiles is lateral and diagonal. The 8 tiles surrounding any one tile are all adjacent to it (so would count for melee attacks).
+Ranges are considered the same way (so you can consider the maximum range a square centered on the frame with sides of length twice the range).
 
 
 \subsection{Prebuilt Terrain}
@@ -79,32 +85,25 @@ but as a quick rule of thumb, moving up one frame's height is roughly one level.
 In this case, for objectives you can either draw objective cards from the deck and place appropriate markers and tokens at a location of your choosing, or use pre agreed objectives,
 and the objectives on the cards can be used as reference.
 In this case, distances are measured with a tape measure and a fixed base unit should be established based on the scale of the miniatures. 
-Deployment zones are 24 units separated
+Deployment zones are 10 units away from the midline.
 
 \subsection{Line of sight}
-For a frame to be selected as a target of an attack, there must be a direct (i.e. no steps moving back) , 
-unbroken (so it can't pass through terrain or other frame) path of steps less than or equal to the range between the edge of the attacking frame and the target. 
+For a frame to be selected as a target of an attack, there must be a direct (i.e. no steps moving in an opposite direction to a previous step) , 
+unbroken (so it can't pass through an obstruction) path of steps less than or equal to the range between the edge of the attacking frame and the target. 
 
-\begin{figure}[htbp]
-  \centering
-  \textbf{Line of Sight}\par\medskip
-  \includegraphics[width=6cm]{../pictures/map_example_2.png}
+The following count as an obstruction:
+\begin{itemize}
+  \item Other Frames
+  \item Impassible terrain
+  \item Terrain at a higher level that the attacker
+  \item Obstacles adjacent to the target
+  \item Terrain at a higher elevation than the target next to the target
+\end{itemize} 
 
-  \par frame A can see B and C but not D\par\medskip
-
-  \includegraphics[width=6cm]{../pictures/map_example_3.png}
-  \par frame A can see B and D but not C\par\medskip
-
-  \includegraphics[width=6cm]{../pictures/map_example_4.png}
-  \par frame A can see B, C and D\par\medskip
-\end{figure}
-
-Frames are visible to frames on the same level as them. Frames on the edge of their level are also visible from other levels, and can see other levels, while frames one or more step away from the edge do not have LOS to other levels.
-Terrain that is less than 1 level high will still block line of sight (its assumed that the frames hide).
 
 \section{Setup}
-If using the terrain decks, each player deals out 18 of their terrain cards from their terrain deck face down in 3 rows of 6 to make a grid.
-(for 2 players that makes a 6x6 grid). These cards are then turned face up, and any relevant tokens are placed on them. 
+If using the terrain decks, each player deals out 12 of their terrain cards from their terrain deck landscape in 3 rows of 4 to make a grid.
+(for 2 players that makes a 6x4 grid). These cards are then turned face up, and any relevant tokens are placed on them. 
 All objectives on these terrain cards are valid for this battle -  you are defending any objectives that are on your teams terrain cards.
 
 Each player takes it in turns to put one of their frames in their deployment zone 
@@ -138,21 +137,27 @@ On each turn of the game there are 3 phases: planning, action and cleanup.
 in the planning phase, simultaneously for each frame 5 cards are drawn from it's deck, and from those 2 are chosen and placed facedown. The rest of the cards are placed on the bottom of the deck.
 each deck has one marked card in it - if that card would be drawn, instead the deck is shuffled.
 
+\subsubsection{Echos of the fallen}
+If a frame has been defeated, at the end of the planning phase the player can reveal the top card of that frame's deck and put it sideways with the actions of a surviving frame. That card can also be used to block attacks this turn.
+
 \subsection{Action}
 At the start of the action phase all the face down cards are turned face up.
 
 Cards are resolved in order of the initiative value, starting with the highest. In the event of a tie, players take it in turns to choose one card at the current intiative to resolve, starting with the player with the priority marker and moving clockwise.
 
-Card resolution consists of 3 steps: effect, movement and attack, resolved in that order.
-
-\subsubsection{Effect}
-If the card has a stated effect, that effect is now applied. For some effects this will modify movement or the attack or the other action, other times it just does something.
+Card resolution consists of 3 steps: movement, effect, and attack, resolved in that order.
 
 \subsubsection{Movement}
 The frame can move up to their base movement  plus the movement modifier on the card currently being resolved steps in any direction. 
 
-\subsubsection{Movement between levels}
-It takes 2 movement to move up or down a level, and you cannot stop halfway up. Terrain that is smaller than a level can be traversed at a -1 mv penalty, but cannot be stopped inside.
+\subsubsection{Effect}
+\subsubsection{Movement}
+The frame can move up to their base movement  plus the movement modifier on the card currently being resolved steps in any direction. 
+
+If the card has a stated effect, that effect is now applied. The card text is resolved in order.
+
+\subsubsection{Movement penalties}
+It takes 1 movement to move up per level difference, and you cannot stop halfway up. It costs 1 movement to move down any number of levels. Obsacles can be crossed at a -1mv penalty, but cannot be stopped inside.
 
 \subsubsection{Attack}
 If the card has any attack listed, one target frame within any of the ranges may be chosen. They are then the defender for this attack.
@@ -176,9 +181,10 @@ Low &
 
 \subsection{Cleanup}
 All remaining cards on the field are discarded.
-Cards with the single use mark are set aside, while all other cards that were discarded are put to the bottom of their respective decks.
+Cards with the single use mark are set aside underneath the frame card,
+Cards with a Next (X) turn(s) effect are kept to one side as a reminder of their effect for as long as they are active,
+while all other cards that were discarded are put to the bottom of their respective decks.
 The priority marker then moves one step anticlockwise. 
-
 
 \section{Deck Construction}
 Each mobile suit must have a deck.
@@ -235,10 +241,10 @@ weapon & Rifle 1 2 3 4 \\
   flying & This frame does not spend movement to cross obstacles or move between floors.
    Terrain of less than 1 level height does not block LoS to or from this frame. \\
   shield (X) & When a card with shield (X) resolves, or a frame with shield (X) starts,
-   put X shield counters on the frame card. The next time the frame would take damage,
+   put X shield counters on the frame card. The next time the frame would take any amount of damage,
     instead remove one shield counter from the frame. \\
-  deathstrike & When this frame would be destroyed, they instead get to play one more turn, 
-  after which they are removed from play \\
+  deathstrike & When this frame would be destroyed, they continue to fight until the end of the next turn,
+  after which they are removed from play if they are still dead (they can be repaired)\\
 \end{tabular}
 
 \section{Glossary}
