@@ -397,9 +397,9 @@ def inset_size(size: float, thickness: str) -> float:
     # (pi/6 = 30 deg is the half-angle at each vertex of a regular hexagon.)
     return size - lw_cm/2
 
-def inset_size_square(size: float, thickness: str) -> float:
+def inset_size_square(cx: float, cy:float, size: float, thickness: str) -> float:
     lw_cm = _thickness_to_cm(thickness)
-    return size - lw_cm
+    return cx + lw_cm/2, cy + lw_cm/2, size - lw_cm
 
 def square_center(col: int, row: int, size: float, offset: Tuple[float,float]) -> Tuple[float, float]:
     """Return the (x, y) centre of square (col, row) in cm """
@@ -462,8 +462,8 @@ def _tikz_square_lines(col: int, row: int, size: float, s: TileStyle, offset: Tu
     # Full-size path for fill/hatch (covers the whole cell)
     cs_full  = create_square(cx, cy, size)
     # Inset path for the stroke (border stays inside the cell)
-    r_inset  = inset_size_square(size, s["thickness"])
-    cs_inset = create_square(cx, cy, r_inset)
+    cx_inset, cy_inset, r_inset  = inset_size_square(cx, cy, size, s["thickness"])
+    cs_inset = create_square(cx_inset, cy_inset, r_inset)
 
     draw_opts = [s["thickness"], f"draw={s['color']}", "fill opacity=0.5", s["postaction"]]
 
