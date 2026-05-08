@@ -38,7 +38,7 @@
       "type": "debugpy",
       "request": "launch",
       "program": "${workspaceFolder}/generate_card_sheet.py",
-      "args": ["--csv=deck_1.csv", "--output=build/deck_1_image.tex", "--cols=6", "--rows=4"],
+      "args": ["--csv=${config:deck.prefix}.csv", "--output=build/${config:deck.prefix}_image.tex", "--cols=6", "--rows=4"],
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
       "postDebugTask": "create tts deck",

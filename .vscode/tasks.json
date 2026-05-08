@@ -94,7 +94,7 @@
       "command": "pdflatex",
       "type": "shell",
       "args": [
-        "deck_1_image.tex"
+        "${config:deck.prefix}_image.tex"
       ],
       "options": {
         "cwd": "${workspaceFolder}/build"
@@ -111,10 +111,10 @@
       "args": [
         "-density",
         "150",
-        "deck_1_image.pdf",
+        "${config:deck.prefix}_image.pdf",
         "-compress",
         "lzw",
-        "deck_1_image.png"
+        "${config:deck.prefix}_image.png"
       ],
       "dependsOn": [
         "create tts deck pdf"
