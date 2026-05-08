@@ -91,8 +91,8 @@ FINAL_CELL = r"""\hbox to {width}cm{{\hss
     \vspace{{0pt}}%
     \begin{{tikzpicture}}[backbox/.style= {{rectangle, minimum height = 8.9cm, minimum width =6.35cm, rounded corners = 0.3cm, fill=white, opacity=0.75}}]
     \node [rectangle, minimum width = 6.4cm, minimum height = 8.7cm, fill=black!70!white!30] at (3.25,4.5){{}};
-    \draw[<->, line width=12pt, draw={color}] (0.4,0.5) -- (6.0, 8.4);
-    \draw[<->, line width=12pt, draw={color}] (6.0,0.5) -- (0.4, 8.4);
+    \draw[<->, line width=12pt, draw={color}] (0.6,0.5) -- (5.8, 8.4);
+    \draw[<->, line width=12pt, draw={color}] (5.8,0.5) -- (0.6, 8.4);
     \node [rectangle, draw, rounded corners = 0.4cm, minimum width = 5cm, minimum height=2cm, fill=blue!10] at (3.25,4.5) {{}};
     \node [circle, draw, minimum width = 3.4cm, fill=blue!10] at (3.25,4.5) {{\Large{{{text}}}}};
     \end{{tikzpicture}}
