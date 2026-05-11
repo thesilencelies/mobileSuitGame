@@ -39,12 +39,12 @@ frame_images_folder = "../pictures/"
 icons_folder = "../icons/"
 
 
-frameBackgrounds = ["Ouwa_frame_1.jpeg","Aegis_frame_1.jpeg", "Guild_frame_1.png",
+frameBackgrounds = ["Ouwa_frame_1.jpeg","Aegis_frame_1.jpeg", "Aegis_frame_2.jpg", "Guild_frame_1.png",
                     "Collective_frame_1.jpeg", "CotN_frame_1.jpeg", "Revolution_frame_1.jpeg", "Guild_frame_2.jpg",
                     "Collective_frame_2.jpg", "CotN_frame_2.jpg", "Revolution_frame_2.png"]
 
 iconwidth = "width=0.9cm"
-inline_iconwidth = "width=0.5cm"
+inline_iconwidth = "width=0.4cm"
 
 header_text = "\\documentclass[a4paper, landscape]{article}\n \\usepackage[left =2cm, right = 2cm, " \
             + "top = 1.4cm, bottom =1.4cm]{geometry} \n \\usepackage{tikz} \n \\usepackage[export]{adjustbox}" \
@@ -62,7 +62,9 @@ damage_type_dict = {
     "cut" : cutAtkImg,
     "pierce" : pierceAtkImg,
     "impact" : bludgeonAtkImg,
-    "projectile" : bulletAtkImg
+    "projectile" : bulletAtkImg,
+    # for macro
+    "block": blkImg
     }
 
 def createMacros():
