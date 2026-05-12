@@ -12,6 +12,7 @@ frames_file = 'Frames.csv'
 
 # Initiative distribution
 # Movement distribution
+# damage distribution - how much by card, how much per locaiton
 
 
 # Maybe we want a UI which allows comparing any 2 stats against each other - seems like a good use case for AI
