@@ -114,12 +114,12 @@ After all frames are deplyed this way, shuffle the decks, and the player who dep
 
 \renewcommand{\arraystretch}{1.3}
 \begin{tabular}{p{2.7cm} | p{4.5cm}}
-Initiative:  \includegraphics[width=0.9cm]{../icons/initImg.png} &Marks when the card will resolve. Higher numbers resolve before lower numbers\\ \hline
-Movement: \includegraphics[width=0.9cm]{../icons/mvimg.png}&How much to add (or subtract if its negative) to the movement for the action with this card\\\hline
-Attack marks: \includegraphics[width=0.9cm]{../icons/rattackImg.png} \includegraphics[width=0.9cm]{../icons/attackImg.png} & How much damage to deal at this location if this attack hits (come in melee and ranged form)\\\hline
-Attack range: \includegraphics[width=0.9cm]{../icons/rangeImg.png} &Range of ranged attack\\\hline
-Block mark: \includegraphics[width=0.9cm]{../icons/blockImg.png} &Region that this card can block for\\\hline
-Single use mark: \tikz node [circle, fill = red]{\\large{\\textbf{O}}}; &Indicates that the card is set aside and not shuffled back in after use.\\\hline
+Initiative:\\  \includegraphics[width=0.9cm]{../icons/initImg.png} &Marks when the card will resolve. Higher numbers resolve before lower numbers\\ \hline
+Movement:\\ \includegraphics[width=0.9cm]{../icons/mvimg.png}&How much to add (or subtract if its negative) to the movement for the action with this card\\\hline
+Attack marks:\\ \includegraphics[width=0.9cm]{../icons/rattackImg.png} \includegraphics[width=0.9cm]{../icons/attackImg.png} & How much damage to deal at this location if this attack hits (come in melee and ranged form)\\\hline
+Attack range:\\ \includegraphics[width=0.9cm]{../icons/rangeImg.png} &Range of ranged attack\\\hline
+Block mark:\\ \includegraphics[width=0.9cm]{../icons/blockImg.png} &Region that this card can block for\\\hline
+Single use mark:\\ \tikz{\node [circle, fill = red]{\large{\textbf{O}}}; } &Indicates that the card is set aside and not shuffled back in after use.\\\hline
 Ability text: &Effects that happen when this card is played or resolved.\\\hline
 \makecell[cl]{Type info:\\\emph{(bottom)}} & What type of card it is, and categorisation information. Used for deckbuilding.\\
 \end{tabular}
