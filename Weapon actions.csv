@@ -3,7 +3,7 @@ Thrust,,Spear,6,0,0,1,0,pierce,pierce,pierce,0,0,1,0,0,0,,0,Spear_1.jpg,,1
 Jab,,Spear,7,0,1,0,0,pierce,pierce,pierce,1,0,0,0,0,0,Committed \emph{(this attack is discarded after resolving)},0,Spear_1.jpg,,1
 Impale,,Spear,4,-2,1,0,0,pierce,pierce,pierce,1,0,2,0,0,0,,0,Spear_1.jpg,,1
 Sweep,,Spear,6,0,0,0,1,pierce,pierce,impact,0,0,0,0,1,0,"On Hit: target gets -1 mv ",0,Spear_1.jpg,,1
-Lunge,,Sword,6,1,0,0,1,cut,cut,cut,0,0,1,0,0,0,,0,Sword_1.jpg,,1
+Lunge,,Sword,6,1,0,0,1,cut,cut,cut,0,0,1,0,0,0,Committed \emph{(this attack is discarded after resolving)},0,Sword_1.jpg,,1
 Feint,,Sword,7,1,0,1,0,cut,cut,cut,1,0,0,0,0,0,Feint\emph{(Doesnt deal damage)},0,Sword_1.jpg,,1
 Slice,,Sword,4,-2,0,0,1,cut,cut,cut,1,0,1,0,0,0,,0,Sword_1.jpg,,1
 Parry,,Sword,6,0,1,1,0,cut,cut,cut,0,0,0,0,0,0,If blocks: deals mid \smallcut,0,Sword_1.jpg,,1
@@ -29,7 +29,7 @@ Cannon,,Cannon,2,-3,0,1,0,projectile,projectile,projectile,0,0,1,20,2,20,Guard B
 Pummel,,Cannon,2,-3,0,1,0,projectile,projectile,projectile,0,0,0,0,3,20,,1,Cannon_1.jpg,,1
 Crush,,Halberd,3,-2,0,0,1,impact,impact,impact,3,0,0,0,0,0,,0,Halberd_1.jpg,,1
 Eviscerate,,Halberd,3,-2,1,0,0,cut,cut,cut,0,0,3,0,0,0,,0,Halberd_1.jpg,,1
-Thrust,,Halberd,6,1,0,1,0,pierce,pierce,pierce,1,0,0,0,0,0,,0,Halberd_1.jpg,,1
+Thrust,,Halberd,6,1,0,1,0,pierce,pierce,pierce,1,0,0,0,0,0,Committed \emph{(this attack is discarded after resolving)},0,Halberd_1.jpg,,1
 Sweep,,Halberd,4,0,0,0,1,cut,cut,cut,0,0,0,0,2,0,,0,Halberd_1.jpg,,1
 Disembowel,,Chainsaw,2,-3,0,1,0,cut,cut,cut,0,0,4,0,0,0,,0,Chainsaw_1.jpg,,1
 Rip,,Chainsaw,2,-3,0,1,0,cut,cut,cut,4,0,0,0,0,0,,0,Chainsaw_1.jpg,,1
@@ -42,7 +42,7 @@ Catch,,Chain,5,0,1,1,0,,,,0,0,0,0,0,0,On Block: attacker gets -2 card,0,Chain_1.
 Stab,,Knife,6,0,1,0,0,cut,cut,cut,1,0,0,0,0,0,Precise \emph{(chose which block is consumed)},0,Knife_1.jpg,,1
 Cut,,Knife,6,0,0,1,0,cut,cut,cut,0,0,1,0,0,0,Precise \emph{(chose which block is consumed)},0,Knife_1.jpg,,1
 Slit,,Knife,6,0,0,0,1,cut,cut,cut,0,0,0,0,1,0,Precise \emph{(chose which block is consumed)},0,Knife_1.jpg,,1
-Lunge,,Knife,5,1,0,1,0,cut,cut,cut,0,0,1,0,0,0,Precise \emph{(chose which block is consumed)},0,Knife_1.jpg,,1
+Lunge,,Knife,5,1,0,1,0,cut,cut,cut,0,0,1,0,0,0,Precise \emph{(chose which block is consumed)}\\Committed \emph{(this attack is discarded after resolving)},0,Knife_1.jpg,,1
 Missile Rack 1,Guild,Missile Rack,2,0,1,0,0,projectile,projectile,projectile,2,18,2,18,0,0,Guard Break \\ Can only be used by J7R-Salryman,1,Missile_1.jpg,,1
 Missile Rack 2,Guild,Missile Rack,2,0,1,0,0,projectile,projectile,projectile,0,0,2,18,2,18,Guard Break \\ Can only be used by J7R-Salryman,1,Missile_1.jpg,,1
 Missile Rack 3,Guild,Missile Rack,2,0,1,0,0,projectile,projectile,projectile,2,18,0,0,2,18,Guard Break \\ Can only be used by J7R-Salryman,1,Missile_1.jpg,,1
