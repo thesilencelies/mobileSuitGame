@@ -138,7 +138,7 @@ def read_card_list(csv_path: str) -> list[str]:
 
 
 def generate_latex(cards: list[str], bleed: float, cols: int, rows: int,
-                    back_text: str, back_color: str) -> str:
+                    back_text: str, back_color: str, add_back: bool) -> str:
     """Build the full LaTeX source string."""
 
     cards_per_sheet = cols * rows
@@ -170,7 +170,7 @@ def generate_latex(cards: list[str], bleed: float, cols: int, rows: int,
         for row in range(rows):
             lines.append(ROW_BEGIN)
             for col in range(cols):
-                if row == rows -1 and col == cols -1:
+                if add_back and row == rows -1 and col == cols -1:
                     lines.append(FINAL_CELL.format(width=w, height=h, text=back_text, color=back_color))
                 else:
                     pos = row * cols + col
@@ -224,6 +224,9 @@ def main():
     parser.add_argument(
         "--back_color", default="blue", help="color for the lines on the back"
     )
+    parser.add_argument(
+        "--add_back", action="store_true"
+    )
     args = parser.parse_args()
 
     cards_per_sheet = args.cols * args.rows
@@ -233,7 +236,7 @@ def main():
           f"{math.ceil(len(cards) / cards_per_sheet)} sheet(s).")
 
     latex_source = generate_latex(cards, bleed=args.bleed, cols=args.cols, rows=args.rows,
-                                   back_text=args.back_text, back_color=args.back_color)
+                                   back_text=args.back_text, back_color=args.back_color, add_back=args.add_back)
 
     with open(args.output, "w", encoding="utf-8") as fh:
         fh.write(latex_source)
