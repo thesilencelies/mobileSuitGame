@@ -53,7 +53,7 @@ Victory points are obtained in two key ways:
 Terrain blocks movement and line of sight. Terrain that can be stood upon is classified as being on different levels. 
 
 \subsection{Terrain Cards}
-It is recommended for each player to bring a terrain deck of 20 cards, of which between 2 and 5 should be objectives.
+It is recommended for each player to bring a terrain deck of 20 cards, of which between 2 and 4 should be objectives.
 These cards are shuffled, dealt and construct the battlefield. On the card is a grid, on which the frames move and ranges are reckoned. 
 The border of the tiles indicate the elevation 
 
@@ -89,7 +89,8 @@ Deployment zones are 10 units away from the midline.
 
 \subsection{Line of sight}
 For a frame to be selected as a target of an attack, there must be a direct (i.e. no steps moving in an opposite direction to a previous step) , 
-unbroken (so it can't pass through an obstruction) path of steps less than or equal to the range between the edge of the attacking frame and the target. 
+unbroken (so it can't pass through an obstruction) and symmetric (so the distribution of diagonal and lateral steps should be even across the route)
+ path of steps less than or equal to the range between the edge of the attacking frame and the target. 
 
 The following count as an obstruction:
 \begin{itemize}
@@ -102,10 +103,10 @@ The following count as an obstruction:
 
 
 \section{Setup}
-If using the terrain decks, each player deals out 12 of their terrain cards from their terrain deck landscape in 3 rows of 4 to make a grid.
-(for 2 players that makes a 6x4 grid). If a player deals out more objective cards than the number of frames they bring, the most
- recently reveled objective is put to the bottom and a new card dealt in its place Any relevant tokens are placed on them. 
-All objectives on these terrain cards are valid for this battle -  you are defending any objectives that are on your teams terrain cards.
+If using the terrain decks, each player deals out 12 of their terrain cards from their terrain deck landscape in 3 rows of 5 to make a grid.
+(for 2 players that makes a 6x5 grid). If a player deals out as many or more objective cards than the number of frames they bring, the most
+ recently reveled objective is put to the bottom and a new card dealt in its place. Any relevant tokens are placed on them. 
+All objectives on these terrain cards are valid for this battle - you are defending any objectives that are on your teams terrain cards.
 
 Each player takes it in turns to put one of their frames in their deployment zone 
 (The row of terrain cards nearest them if using, else anwyhere more than 12 from the center line).
@@ -161,10 +162,19 @@ If the card has a stated effect, that effect is now applied. The card text is re
 It takes 1 movement to move up per level difference, and you cannot stop halfway up. It costs 1 movement to move down any number of levels. Obsacles can be crossed at a -1mv penalty, but cannot be stopped inside.
 
 \subsubsection{Attack}
-If the card has any attack listed, one target frame within any of the ranges may be chosen. They are then the defender for this attack.
+If the card has any attack listed, one target frame within any of the ranges may be chosen. For attacks without a range value, the target must be adjacent, and this attack is a melee attack. They are then the defender for this attack.
  If the defender has a block on their remaining cards in the same zone as any of the attacks that are in range, they must choose one of those cards to block. The attack fails and that blocking card is discarded (if its initiative hasn't been reached yet it never happens). Otherwise the attack succeeds, and the defender takes one damage per attack mark in the corresponding zone (high/mid/low).
-
 After finishing the attack the card resolution ends, and the card remains on the field to be used to block. (It can be helpful to turn it sideways to indicate that its been resolved)
+
+\subsubsubsection{Melee between levels}
+If the attack is a melee attack and the defender is at a different elevation to the attacker, the attacks are moved up one bracket per difference in elevation.
+Any attacks that are moved higher than High or lower than Low are considered out of range.
+
+So for example, Frame A at elevation 1 attacks Frame B at elevation 3 with cleave, which has 2 \smallcut high and 2 \smallcut mid. The attacker is 2 levels lower than the defender, so the attacks are moved 2 stages down. 
+The 2 \smallcut high end up 2 \smallcut low, and the 2 \smallcut mid are out of range. 
+Conversely if Frame C at elevation 2 were to attack Frame A with Thrust (1\smallpierce mid), it would be moved one stage up, resulting in 1 \smallpierce high.
+
+Ranged attacks are not affected by elevation in this way.
 
 \subsection{Damage}
 Each frame can endure a number of hits on each zone indicated on the character card (default 4) after which they are destroyed. 
