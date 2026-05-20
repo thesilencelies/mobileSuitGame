@@ -207,4 +207,45 @@ ax_radar.legend(loc='upper right', bbox_to_anchor=(1.55, 1.1),
                 fontsize=7, title='Group')
 
 fig4.tight_layout()
+
+# ── Figure 5: Attack cost (0.4×Initiative + 0.6×Movement) vs Total Attacks ───
+df['AttackCost'] = 0.4 * df['Initiative_parsed'] + 0.6 * df['Movement_parsed']
+
+fig5, ax5 = plt.subplots(figsize=(10, 7))
+fig5.suptitle('Attack Cost vs Total Attacks', fontsize=14, fontweight='bold')
+
+cost_atk = df.dropna(subset=['AttackCost', 'TotalAttacks'])
+for group in groups:
+    gdf = cost_atk[cost_atk['Group'] == group]
+    ax5.scatter(gdf['AttackCost'], gdf['TotalAttacks'],
+                color=color_map[group], label=group,
+                s=60, alpha=0.85, edgecolors='white', linewidths=0.5)
+    for _, row in gdf.iterrows():
+        ax5.annotate(row['Name'], (row['AttackCost'], row['TotalAttacks']),
+                     fontsize=5.5, alpha=0.65,
+                     textcoords='offset points', xytext=(3, 2))
+
+med_cost = cost_atk['AttackCost'].median()
+med_atk  = cost_atk['TotalAttacks'].median()
+ax5.axvline(med_cost, color='gray', linestyle='--', alpha=0.4, linewidth=1)
+ax5.axhline(med_atk,  color='gray', linestyle='--', alpha=0.4, linewidth=1)
+ax5.text(0.97, 0.97, 'High cost,\nhigh attacks',
+         ha='right', va='top', transform=ax5.transAxes,
+         fontsize=7, color='firebrick', alpha=0.9,
+         bbox=dict(boxstyle='round', facecolor='white', alpha=0.6))
+ax5.text(0.03, 0.03, 'Low cost,\nfew attacks',
+         ha='left', va='bottom', transform=ax5.transAxes,
+         fontsize=7, color='seagreen', alpha=0.9,
+         bbox=dict(boxstyle='round', facecolor='white', alpha=0.6))
+
+ax5.set_xlabel('Attack Cost  (0.4 × Initiative + 0.6 × Movement)')
+ax5.set_ylabel('Total Attacks')
+
+handles5 = [plt.Line2D([0], [0], marker='o', color='w',
+                        markerfacecolor=color_map[g], markersize=8, label=g)
+            for g in groups]
+ax5.legend(handles=handles5, title='Group', bbox_to_anchor=(1.01, 1),
+           loc='upper left', fontsize=8)
+fig5.tight_layout()
+
 plt.show()

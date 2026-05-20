@@ -18,7 +18,14 @@
       "type": "debugpy",
       "request": "launch",
       "program": "${workspaceFolder}/generate_card_sheet.py",
-      "args": ["--csv=decks/terrain_deck.csv", "--output=build/terrain_image.tex", "--cols=6", "--rows=6", "--back_text=Terrain", "--back_color=green"],
+      "args": [
+        "--csv=decks/terrain_deck.csv",
+        "--output=build/terrain_image.tex",
+        "--cols=6",
+        "--rows=6",
+        "--back_text=Terrain",
+        "--back_color=green"
+      ],
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
       "postDebugTask": "create tts terrain",
@@ -28,7 +35,14 @@
       "type": "debugpy",
       "request": "launch",
       "program": "${workspaceFolder}/generate_card_sheet.py",
-      "args": ["--csv=decks/frames_deck.csv", "--output=build/frames_image.tex", "--cols=6", "--rows=3", "--back_text=Frame", "--back_color=red"],
+      "args": [
+        "--csv=decks/frames_deck.csv",
+        "--output=build/frames_image.tex",
+        "--cols=6",
+        "--rows=3",
+        "--back_text=Frame",
+        "--back_color=red"
+      ],
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
       "postDebugTask": "create tts frames",
@@ -38,10 +52,22 @@
       "type": "debugpy",
       "request": "launch",
       "program": "${workspaceFolder}/generate_card_sheet.py",
-      "args": ["--csv=decks/${config:deck.prefix}.csv", "--output=build/${config:deck.prefix}_image.tex", "--cols=6", "--rows=4"],
+      "args": [
+        "--csv=decks/${config:deck.prefix}.csv",
+        "--output=build/${config:deck.prefix}_image.tex",
+        "--cols=6",
+        "--rows=4"
+      ],
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
       "postDebugTask": "create tts deck",
+    },
+    {
+      "name": "plot statistics",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/plotCardStatistics.py",
+      "console": "integratedTerminal"
     }
   ]
 }
