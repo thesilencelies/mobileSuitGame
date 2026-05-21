@@ -28,6 +28,6 @@ terrain_25.png,,0,0,0,obs,,obs,,,,obs,,obs,obs,,,1
 terrain_26.png,,0,0,0,,,e2,e2,,e2 ,e2,,,e2,e2,,1
 terrain_27.png,"\emph{The Tower}: The tower has 4 hitpoints - if it is destroyed attackers score, else defenders",1,2,1,,,,e1,,e1,e1,,e3 obs obj tkn,,,,1
 terrain_28.png,,0,0,0,,e2,,e3,e3,,e2,e2,,e3,e3,,1
-terrain_29.png,\emph{The Egg}: The first team to end three consecutive turns standing on the egg scores it,1,2,0,,,,e1 obj,,e3,e1 obj,e1,,,,,1
+terrain_29.png,\emph{The Egg}: The first team to end two consecutive turns standing on the egg scores it,1,2,0,,,,e1 obj,,e3,e1 obj,e1,,,,,1
 terrain_30.png,\emph{Rail lines}: any frame that ends a turn on the rails takes 1 hit low,0,0,0,,tkn,tkn,,tkn,tkn,,tkn,tkn,e1,tkn,tkn,1
 terrain_31.png,,0,0,0,e1,e1,e1,e1,,e1,e1,,e1,e1,,e1,1

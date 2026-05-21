@@ -1,14 +1,28 @@
+import argparse
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import numpy as np
 import pandas as pd
 
-# ── Data loading ──────────────────────────────────────────────────────────────
-weapon_df  = pd.read_csv('Weapon actions.csv')
-basic_df   = pd.read_csv('Basic actions.csv')
-booster_df = pd.read_csv('Booster actions.csv')
+# ── Args ──────────────────────────────────────────────────────────────────────
+parser = argparse.ArgumentParser()
+parser.add_argument('--no-basics',   dest='include_basics',   action='store_false',
+                    help='Exclude Basic actions from the analysis')
+parser.add_argument('--no-boosters', dest='include_boosters', action='store_false',
+                    help='Exclude Booster actions from the analysis')
+attack_type = parser.add_mutually_exclusive_group()
+attack_type.add_argument('--melee',  action='store_true', help='Show only melee attacks (all range values == 0)')
+attack_type.add_argument('--ranged', action='store_true', help='Show only ranged attacks (any range value > 0)')
+args = parser.parse_args()
 
-df = pd.concat([weapon_df, basic_df, booster_df], ignore_index=True)
+# ── Data loading ──────────────────────────────────────────────────────────────
+frames = [pd.read_csv('Weapon actions.csv')]
+if args.include_basics:
+    frames.append(pd.read_csv('Basic actions.csv'))
+if args.include_boosters:
+    frames.append(pd.read_csv('Booster actions.csv'))
+
+df = pd.concat(frames, ignore_index=True)
 
 def parse_numeric_field(val):
     if pd.isna(val):
@@ -22,6 +36,14 @@ df['Initiative_parsed'] = df['Initiative'].apply(parse_numeric_field)
 df['Movement_parsed']   = df['Movement'].apply(parse_numeric_field)
 df['TotalAttacks'] = df['HighAttack'] + df['MidAttack'] + df['LowAttack']
 df['TotalBlocks']  = df['HighBlock']  + df['MidBlock']  + df['LowBlock']
+
+is_ranged = (df[['HighRange', 'MidRange', 'LowRange']].fillna(0) > 0).any(axis=1)
+if args.ranged:
+    df = df[is_ranged].reset_index(drop=True)
+elif args.melee:
+    df = df[~is_ranged].reset_index(drop=True)
+
+attack_suffix = ' — Ranged only' if args.ranged else (' — Melee only' if args.melee else '')
 
 # ── Color palette by Group ────────────────────────────────────────────────────
 groups = sorted(df['Group'].dropna().unique())
@@ -39,9 +61,34 @@ for style in ('seaborn-v0_8-darkgrid', 'seaborn-darkgrid', 'ggplot'):
     except OSError:
         continue
 
+# ── Scatter helper ────────────────────────────────────────────────────────────
+_BASE_SCATTER_SIZE = 20
+
+def _scatter_stacked(ax, data, xcol, ycol, base_size=_BASE_SCATTER_SIZE):
+    """Scatter plot where cards sharing a location get progressively larger rings."""
+    valid = data.dropna(subset=[xcol, ycol]).copy()
+    loc_rank = {}
+    ranks = []
+    for _, row in valid.iterrows():
+        key = (row[xcol], row[ycol])
+        loc_rank[key] = loc_rank.get(key, 0) + 1
+        ranks.append(loc_rank[key])
+    valid['_rank'] = ranks
+    valid['_size'] = valid['_rank'] * base_size
+    valid['_color'] = valid['Group'].map(color_map)
+    # Draw largest first so smaller circles appear on top
+    valid = valid.sort_values('_size', ascending=False)
+    ax.scatter(valid[xcol], valid[ycol],
+               c=valid['_color'].tolist(), s=valid['_size'],
+               alpha=0.85, edgecolors='white', linewidths=0.5)
+    for _, row in valid.iterrows():
+        ax.annotate(row['Name'], (row[xcol], row[ycol]),
+                    fontsize=5.5, alpha=0.65,
+                    textcoords='offset points', xytext=(3, 2))
+
 # ── Figure 1: Trade-off scatter plots ─────────────────────────────────────────
 fig1, axes = plt.subplots(2, 2, figsize=(15, 11))
-fig1.suptitle('Card Balance Trade-offs', fontsize=16, fontweight='bold')
+fig1.suptitle(f'Card Balance Trade-offs{attack_suffix}', fontsize=16, fontweight='bold')
 
 scatter_configs = [
     (axes[0, 0], 'Initiative_parsed', 'Movement_parsed', 'Initiative vs Movement'),
@@ -51,15 +98,7 @@ scatter_configs = [
 ]
 
 for ax, xcol, ycol, title in scatter_configs:
-    for group in groups:
-        gdf = df[df['Group'] == group].dropna(subset=[xcol, ycol])
-        ax.scatter(gdf[xcol], gdf[ycol], color=color_map[group],
-                   label=group, s=60, alpha=0.85, edgecolors='white', linewidths=0.5)
-        for _, row in gdf.iterrows():
-            if pd.notna(row[xcol]) and pd.notna(row[ycol]):
-                ax.annotate(row['Name'], (row[xcol], row[ycol]),
-                            fontsize=5.5, alpha=0.65,
-                            textcoords='offset points', xytext=(3, 2))
+    _scatter_stacked(ax, df, xcol, ycol)
     ax.set_xlabel(xcol.replace('_parsed', ''))
     ax.set_ylabel(ycol.replace('_parsed', ''))
     ax.set_title(title, fontsize=11)
@@ -92,7 +131,7 @@ group_atk['Total'] = group_atk.sum(axis=1)
 group_atk = group_atk.sort_values('Total', ascending=True)
 
 fig2, ax2 = plt.subplots(figsize=(10, 7))
-fig2.suptitle('Average Attack Dice by Zone per Group', fontsize=14, fontweight='bold')
+fig2.suptitle(f'Average Attack Dice by Zone per Group{attack_suffix}', fontsize=14, fontweight='bold')
 
 y = np.arange(len(group_atk))
 zone_cols   = ['HighAttack', 'MidAttack', 'LowAttack']
@@ -135,7 +174,7 @@ width    = 0.18
 offsets  = np.linspace(-(n_stats - 1) / 2 * width, (n_stats - 1) / 2 * width, n_stats)
 
 fig3, ax3 = plt.subplots(figsize=(16, 7))
-fig3.suptitle('Group Meta-Statistics (mean ± std)', fontsize=14, fontweight='bold')
+fig3.suptitle(f'Group Meta-Statistics (mean ± std){attack_suffix}', fontsize=14, fontweight='bold')
 
 for i, (col, label, color) in enumerate(zip(stats_cols, stat_labels, stat_colors)):
     means = group_means[col].values
@@ -152,7 +191,7 @@ fig3.tight_layout()
 
 # ── Figure 4: Correlation heatmap + power budget radar ────────────────────────
 fig4 = plt.figure(figsize=(16, 7))
-fig4.suptitle('Aggregate Analysis', fontsize=14, fontweight='bold')
+fig4.suptitle(f'Aggregate Analysis{attack_suffix}', fontsize=14, fontweight='bold')
 gs4 = gridspec.GridSpec(1, 2, width_ratios=[1, 1.5])
 
 # Left: Pearson correlation heatmap
@@ -212,18 +251,10 @@ fig4.tight_layout()
 df['AttackCost'] = 0.4 * df['Initiative_parsed'] + 0.6 * df['Movement_parsed']
 
 fig5, ax5 = plt.subplots(figsize=(10, 7))
-fig5.suptitle('Attack Cost vs Total Attacks', fontsize=14, fontweight='bold')
+fig5.suptitle(f'Attack Cost vs Total Attacks{attack_suffix}', fontsize=14, fontweight='bold')
 
 cost_atk = df.dropna(subset=['AttackCost', 'TotalAttacks'])
-for group in groups:
-    gdf = cost_atk[cost_atk['Group'] == group]
-    ax5.scatter(gdf['AttackCost'], gdf['TotalAttacks'],
-                color=color_map[group], label=group,
-                s=60, alpha=0.85, edgecolors='white', linewidths=0.5)
-    for _, row in gdf.iterrows():
-        ax5.annotate(row['Name'], (row['AttackCost'], row['TotalAttacks']),
-                     fontsize=5.5, alpha=0.65,
-                     textcoords='offset points', xytext=(3, 2))
+_scatter_stacked(ax5, cost_atk, 'AttackCost', 'TotalAttacks')
 
 med_cost = cost_atk['AttackCost'].median()
 med_atk  = cost_atk['TotalAttacks'].median()
