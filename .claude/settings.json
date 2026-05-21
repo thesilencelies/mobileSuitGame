@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(/home/lilico/venv/normal_env/bin/python -c ' *)"
+      "Bash(/home/lilico/venv/normal_env/bin/python -c ' *)",
+      "Bash(python3 -)"
     ]
   }
 }

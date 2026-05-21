@@ -16,7 +16,7 @@
 \title{NetFrame \\ \large{working title} \\ \small{Version 0.5}}
 %\author{Stephen Lilico}
 \date{}
-\ULCornerWallPaper{1.0}{../pictures/background.png}
+\ULCornerWallPaper{1.0}{../pictures/rules_background.png}
 
 \makeglossaries
 \newglossaryentry{attack}
@@ -136,25 +136,21 @@ Ability text: &Effects that happen when this card is played or resolved.\\\hline
 \section{The turn}
 On each turn of the game there are 3 phases: planning, action and cleanup. 
 
-\subsection{Planning}
+\section{Planning}
 in the planning phase, simultaneously for each frame 5 cards are drawn from it's deck, and from those 2 are chosen and placed facedown. The rest of the cards are placed on the bottom of the deck.
 each deck has one marked card in it - if that card would be drawn, instead the deck is shuffled.
 
-\subsubsection{Echos of the fallen}
+\subsection{Echos of the fallen}
 If a frame has been defeated, at the end of the planning phase the player can reveal the top card of that frame's deck and put it sideways with the actions of a surviving frame. That card can also be used to block attacks this turn.
 
-\subsection{Action}
+\section{Action}
 At the start of the action phase all the face down cards are turned face up.
 
 Cards are resolved in order of the initiative value, starting with the highest. In the event of a tie, players take it in turns to choose one card at the current intiative to resolve, starting with the player with the priority marker and moving clockwise.
 
 Card resolution consists of 3 steps: movement, effect, and attack, resolved in that order.
 
-\subsubsection{Movement}
-The frame can move up to their base movement  plus the movement modifier on the card currently being resolved steps in any direction. 
-
-\subsubsection{Effect}
-\subsubsection{Movement}
+\subsection{Movement}
 The frame can move up to their base movement  plus the movement modifier on the card currently being resolved steps in any direction. 
 
 If the card has a stated effect, that effect is now applied. The card text is resolved in order.
@@ -162,12 +158,15 @@ If the card has a stated effect, that effect is now applied. The card text is re
 \subsubsection{Movement penalties}
 It takes 1 movement to move up per level difference, and you cannot stop halfway up. It costs 1 movement to move down any number of levels. Obsacles can be crossed at a -1mv penalty, but cannot be stopped inside.
 
-\subsubsection{Attack}
+\subsection{Effect}
+After movement is done, any effect on the card is applied. Debuffs and similar are marked on the affected frames. If a duration is not specified, a buff/debuff applies until the end of the next turn
+
+\subsection{Attack}
 If the card has any attack listed, one target frame within any of the ranges may be chosen. For attacks without a range value, the target must be adjacent, and this attack is a melee attack. They are then the defender for this attack.
  If the defender has a block on their remaining cards in the same zone as any of the attacks that are in range, they must choose one of those cards to block. The attack fails and that blocking card is discarded (if its initiative hasn't been reached yet it never happens). Otherwise the attack succeeds, and the defender takes one damage per attack mark in the corresponding zone (high/mid/low).
 After finishing the attack the card resolution ends, and the card remains on the field to be used to block. (It can be helpful to turn it sideways to indicate that its been resolved)
 
-\subsubsubsection{Melee between levels}
+\subsubsection{Melee between levels}
 If the attack is a melee attack and the defender is at a different elevation to the attacker, the attacks are moved up one bracket per difference in elevation.
 Any attacks that are moved higher than High or lower than Low are considered out of range.
 
@@ -177,7 +176,7 @@ Conversely if Frame C at elevation 2 were to attack Frame A with Thrust (1\small
 
 Ranged attacks are not affected by elevation in this way.
 
-\subsection{Damage}
+\subsubsection{Damage}
 Each frame can endure a number of hits on each zone indicated on the character card (default 4) after which they are destroyed. 
 Destroyed frame are removed from the battlefield and can no longer contribute to the fight. 
 Additionally any frame that has endured 2 or more damage in any location faces the following penalty corresponding to the location: 
@@ -191,7 +190,7 @@ Low &
 -1 movement (reduce base movement by 1) \\
 \end{tabular}
 
-\subsection{Cleanup}
+\section{Cleanup}
 All remaining cards on the field are discarded.
 Cards with the single use mark are set aside underneath the frame card,
 Cards with a Next (X) turn(s) effect are kept to one side as a reminder of their effect for as long as they are active,

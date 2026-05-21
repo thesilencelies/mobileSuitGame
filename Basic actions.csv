@@ -1,8 +1,8 @@
-Name,Faction,Group,Initiative,Movement,HighBlock,MidBlock,LowBlock,HighDType,MidDType,LowDType,HighAttack,HighRange,MidAttack,MidRange,LowAttack,LowRange,Text,OneUse,Requirements,BackgroundImg,Flavor,PrintID
-Punch,,Basic,5,0,0,1,0,,impact,,0,0,1,0,0,0,,0,,Punch.jpg,,1
-Kick,,Basic,5,0,0,0,1,,,impact,0,0,0,0,1,0,,0,,Kick.jpg,,1
-Block,,Basic,2,-1,1,1,0,,,,0,0,0,0,0,0,,0,,Block.jpg,,1
-Dodge,,Basic,7,0,0,0,0,,,,0,0,0,0,0,0,Ranged attacks target at -8 range,0,,Dodge.jpg,,1
-Bio-regen,Collective,Frame,2,-2,0,1,0,,,,0,0,0,0,0,0,Repair 2,0,,Restore.jpg,,1
-Call of Nature,Collective,Frame,5,-2,0,1,0,,,,0,0,0,0,0,0,Select an opposing frame within 6: move them 2,0,,Howl.jpg,,1
-Shield,Church of the Net,Frame,1,-2,0,1,0,,,,0,0,0,0,0,0,Add a shield,0,,Shield.jpg,,1
+Name,Faction,Group,Initiative,Movement,HighBlock,MidBlock,LowBlock,HighDType,MidDType,LowDType,HighAttack,HighRange,MidAttack,MidRange,LowAttack,LowRange,Text,OneUse,Requirements,BackgroundImg,BackgroundLayer,ForegroundImg,Flavor,PrintID
+Punch,,Basic,5,0,0,1,0,,impact,,0,0,1,0,0,0,,0,,Punch.jpg,proxy_background.png,,,1
+Kick,,Basic,5,0,0,0,1,,,impact,0,0,0,0,1,0,,0,,Kick.jpg,proxy_background.png,,,1
+Block,,Basic,2,-1,1,1,0,,,,0,0,0,0,0,0,,0,,Block.jpg,proxy_background.png,,,1
+Dodge,,Basic,7,0,0,0,0,,,,0,0,0,0,0,0,Ranged attacks target at -8 range,0,,Dodge.jpg,proxy_background.png,,,1
+Bio-regen,Collective,Frame,2,-2,0,1,0,,,,0,0,0,0,0,0,Repair 2,0,,Restore.jpg,proxy_background.png,,,1
+Call of Nature,Collective,Frame,5,-2,0,1,0,,,,0,0,0,0,0,0,Select an opposing frame within 6: move them 2,0,,Howl.jpg,proxy_background.png,,,1
+Shield,Church of the Net,Frame,1,-2,0,1,0,,,,0,0,0,0,0,0,Add a shield,0,,Shield.jpg,proxy_background.png,,,1

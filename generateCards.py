@@ -117,6 +117,10 @@ def make_card_from_row(row, i, card_type):
         card_text = "\\begin{tikzpicture}[scale=0.86, backbox/.style= {rectangle, minimum height = 2.0cm," \
                    + " minimum width =2.0cm, rounded corners = 0.3cm, fill=white, opacity=0.75}]\n "
         card_text = card_text + "\\node [rectangle, minimum width = 6.2cm, minimum height = 8.5cm, fill=black] at (4,5){};\n"
+        # PNG alpha transparency is supported natively by pdflatex + graphicx; use PNG for transparent images
+        if row.get("BackgroundLayer"):
+            card_text = card_text + '\\node at (4,5){\\includegraphics[width=6cm, max height = 8.3cm,' +\
+                  ' keepaspectratio]{' + images_folder + row["BackgroundLayer"] + '}};\n'
         card_text = card_text + '\\node at (4,5){\\includegraphics[width=6cm, max height = 8.3cm,' +\
               ' keepaspectratio]{' + images_folder + row["BackgroundImg"] + '}};\n'
         # frame style - these need designing
@@ -172,6 +176,10 @@ def make_card_from_row(row, i, card_type):
                 + row["Faction"] + " " + getTypeName(card_type) +  " \\hfill " + row['Group'] + "\\\\" + \
                 "\\footnotesize{\\emph{" + row["Flavor"] + "}}};\n"
 
+        # Foreground overlay rendered above all other elements (optional; use PNG for transparency)
+        if row.get("ForegroundImg"):
+            card_text = card_text + '\\node at (4,5){\\includegraphics[width=6cm, max height = 8.3cm,' +\
+                  ' keepaspectratio]{' + images_folder + row["ForegroundImg"] + '}};\n'
 
         card_text = card_text + "\\end{tikzpicture}\n"
         # ofile.write(header_text)
@@ -202,6 +210,9 @@ def create_frame_sheet(frame, i):
         frame_text = "\\begin{tikzpicture}[scale=0.86, backbox/.style= {rectangle, minimum height = 2.2cm," \
                 + " minimum width =2.2cm, rounded corners = 0.3cm, fill=white, opacity=0.75}]\n "
         frame_text = frame_text + "\\node [rectangle, minimum width = 6.2cm, minimum height = 8.5cm, fill=black!70!white!30] at (4,5){};\n"
+        # PNG alpha transparency is supported natively by pdflatex + graphicx; use PNG for transparent images
+        if frame.get("BackgroundLayer"):
+            frame_text = frame_text + '\\node at (4,5){\\includegraphics[width=6cm, max height = 8.3cm, keepaspectratio]{' + frame_images_folder + frame["BackgroundLayer"] + '}};\n'
         frame_text = frame_text + '\\node at (4,5){\\includegraphics[width=6cm, max height = 8.3cm, keepaspectratio]{' + frame_images_folder + frame["BackgroundImg"] + '}};\n'
         # name
         frame_text = frame_text + "\\node [rectangle, minimum width=4.3cm, minimum height = 1cm,rounded corners = 0.1cm, fill=white, opacity=0.75, text width=4.1cm]" +\
@@ -229,6 +240,9 @@ def create_frame_sheet(frame, i):
                 '} ~\\includegraphics[' + inline_iconwidth + ']{' + icons_folder + deckImg + '}\\large{  : ' + str(frame["Deck size"]) + \
                  "} \\\\\\emph{\\footnotesize{" + frame["Flavor"] +  "}}};\n"
 
+        # Foreground overlay rendered above all other elements (optional; use PNG for transparency)
+        if frame.get("ForegroundImg"):
+            frame_text = frame_text + '\\node at (4,5){\\includegraphics[width=6cm, max height = 8.3cm, keepaspectratio]{' + frame_images_folder + frame["ForegroundImg"] + '}};\n'
 
         #finish the tikzpicture
         frame_text = frame_text + "\\end{tikzpicture}\n"
