@@ -233,9 +233,10 @@ def main():
     args = parser.parse_args()
 
     cards_per_sheet = args.cols * args.rows
-    cards = read_card_list(args.csv)
     if args.repeat:
-        cards = cards * (args.cols * args.rows)
+        cards = [args.csv] * (args.cols * args.rows)
+    else:
+        cards = read_card_list(args.csv)
 
     print(f"Grid: {args.cols}×{args.rows} ({cards_per_sheet} cards per sheet)")
     print(f"Found {len(cards)} card(s) → "
