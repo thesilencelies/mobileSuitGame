@@ -55,12 +55,30 @@
       "args": [
         "--csv=decks/${config:deck.prefix}.csv",
         "--output=build/${config:deck.prefix}_image.tex",
-        "--cols=6",
+        "--add-back",
+        "--cols=7",
         "--rows=4"
       ],
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
       "postDebugTask": "create tts deck",
+    },
+    {
+      "name": "generate TTS images - deck backs",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/generate_card_sheet.py",
+      "args": [
+        "--csv=decks/${config:deck.prefix}_backs.csv",
+        "--output=build/${config:deck.prefix}_image.tex",
+        "--repeat",
+        "--add-back",
+        "--cols=7",
+        "--rows=4"
+      ],
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "postDebugTask": "create tts deck backs",
     },
     {
       "name": "plot statistics",
@@ -70,9 +88,18 @@
       "console": "integratedTerminal",
       "args": [
         // "--melee",
-        "--ranged",
-      "--no-booster",
-      "--no-basic"
+        // "--ranged",
+        "--no-booster",
+        "--no-basic"
+      ]
+    }
+  ],
+  "compounds": [
+    {
+      "name": "create deck",
+      "configurations": [
+        "generate TTS images - deck",
+        "generate TTS images - deck backs"
       ]
     }
   ]

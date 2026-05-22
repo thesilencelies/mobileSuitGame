@@ -11,18 +11,18 @@ Bash,,Shield,4,0,0,1,0,impact,impact,impact,1,0,0,0,0,0,On Hit: target gets -1 c
 Full Guard,,Shield,1,-1,1,1,1,,,,0,0,0,0,0,0,,0,Shield_1.jpg,proxy_background.png,,,1
 Push on,,Shield,7,0,0,1,1,,,,0,0,0,0,0,0,,0,Shield_1.jpg,proxy_background.png,,,1
 Lock down,,Shield,5,-1,1,1,0,impact,impact,impact,1,0,1,0,0,0,Feint \emph{(Doesnt deal damage)},0,Shield_1.jpg,proxy_background.png,,,1
-Overcharge,,Stun Baton,3,-1,0,0,1,impact,impact,impact,1,0,1,0,1,0,Guard Break\\On Hit: target gets -1 Init,1,Stun_baton_1.jpg,proxy_background.png,,,1
+Overcharge,,Stun Baton,3,-2,0,0,1,impact,impact,impact,1,0,1,0,1,0,Guard Break\\On Hit: target gets -1 Init,1,Stun_baton_1.jpg,proxy_background.png,,,1
 Shock,,Stun Baton,5,0,0,1,0,impact,impact,impact,0,0,1,0,0,0,On Hit: target gets -1 Init,0,Stun_baton_1.jpg,proxy_background.png,,,1
-Zap,,Stun Baton,4,-1,1,0,0,impact,impact,impact,2,0,0,0,0,0,On Hit: target gets -1 Init,0,Stun_baton_1.jpg,proxy_background.png,,,1
-Sweep,,Stun Baton,5,-1,0,1,0,impact,impact,impact,0,0,0,0,1,0,On Hit: target gets -1 Init,0,Stun_baton_1.jpg,proxy_background.png,,,1
+Zap,,Stun Baton,5,-1,1,0,0,impact,impact,impact,2,0,0,0,0,0,On Hit: target gets -1 Init,0,Stun_baton_1.jpg,proxy_background.png,,,1
+Strike,,Stun Baton,4,-1,0,1,0,impact,impact,impact,0,0,0,0,2,0,On Hit: target gets -1 Init,0,Stun_baton_1.jpg,proxy_background.png,,,1
 Burst Fire,,Assault Rifle,3,-2,0,1,0,projectile,projectile,projectile,0,0,1,12,1,12,,0,Rifle_1.png,proxy_background.png,,,1
 Aimed Fire,,Assault Rifle,2,-2,1,0,0,projectile,projectile,projectile,1,12,0,0,0,0,,0,Rifle_1.png,proxy_background.png,,,1
 From the hip,,Assault Rifle,4,-1,0,0,1,projectile,projectile,projectile,0,0,1,8,0,0,,0,Rifle_1.png,proxy_background.png,,,1
 Covering Fire,,Assault Rifle,5,0,0,0,0,projectile,projectile,projectile,1,8,1,8,1,8,Feint\emph{(Doesnt deal damage)},0,Rifle_1.png,proxy_background.png,,,1
-Rapid fire,,Stun bow,2,-3,1,0,0,pierce,pierce,pierce,1,6,1,10,0,0,"On Hit: target gets -1 Init, Guard Break",0,Stun_bow_1.jpg,proxy_background.png,,,1
-Arc shot,,Stun bow,2,-3,1,0,0,pierce,pierce,pierce,1,12,0,0,0,0,On Hit: target gets -1 Init,0,Stun_bow_1.jpg,proxy_background.png,,I'll wipe that smile off your face,1
-Straight shot,,Stun bow,4,-1,0,1,0,pierce,pierce,pierce,0,0,1,12,0,0,On Hit: target gets -1 Init,0,Stun_bow_1.jpg,proxy_background.png,,,1
-Low blow,,Stun bow,4,-1,0,0,1,pierce,pierce,pierce,0,0,0,0,1,12,On Hit: target gets -1 Init,0,Stun_bow_1.jpg,proxy_background.png,,,1
+Rapid fire,,Stun Bow,2,-3,1,0,0,pierce,pierce,pierce,1,6,1,10,0,0,"On Hit: target gets -1 Init, Guard Break",0,Stun_bow_1.jpg,proxy_background.png,,,1
+Arc shot,,Stun Bow,2,-3,1,0,0,pierce,pierce,pierce,1,12,0,0,0,0,On Hit: target gets -1 Init,0,Stun_bow_1.jpg,proxy_background.png,,I'll wipe that smile off your face,1
+Straight shot,,Stun Bow,4,-1,0,1,0,pierce,pierce,pierce,0,0,1,12,0,0,On Hit: target gets -1 Init,0,Stun_bow_1.jpg,proxy_background.png,,,1
+Low blow,,Stun Bow,4,-1,0,0,1,pierce,pierce,pierce,0,0,0,0,1,12,On Hit: target gets -1 Init,0,Stun_bow_1.jpg,proxy_background.png,,,1
 Fullbore,,Cannon,2,-3,1,0,0,projectile,projectile,projectile,0,0,3,16,0,0,,1,Cannon_1.jpg,proxy_background.png,,,1
 Airburst,,Cannon,2,-2,0,1,0,projectile,projectile,projectile,2,18,1,16,0,0,Guard Break,1,Cannon_1.jpg,proxy_background.png,,,1
 Cannon,,Cannon,2,-3,0,1,0,projectile,projectile,projectile,0,0,1,16,2,16,Guard Break,1,Cannon_1.jpg,proxy_background.png,,,1

@@ -130,6 +130,12 @@ group_atk = df.groupby('Group')[['HighAttack', 'MidAttack', 'LowAttack']].mean()
 group_atk['Total'] = group_atk.sum(axis=1)
 group_atk = group_atk.sort_values('Total', ascending=True)
 
+# Append overall average as a reference row
+overall_row = df[['HighAttack', 'MidAttack', 'LowAttack']].mean()
+overall_row['Total'] = overall_row.sum()
+overall_row.name = 'All (overall)'
+group_atk = pd.concat([group_atk, overall_row.to_frame().T])
+
 fig2, ax2 = plt.subplots(figsize=(10, 7))
 fig2.suptitle(f'Average Attack Dice by Zone per Group{attack_suffix}', fontsize=14, fontweight='bold')
 
@@ -141,7 +147,10 @@ zone_colors = ['#e74c3c', '#f39c12', '#3498db']
 lefts = np.zeros(len(group_atk))
 for col, label, color in zip(zone_cols, zone_labels, zone_colors):
     vals = group_atk[col].values
-    ax2.barh(y, vals, left=lefts, height=0.65, color=color, label=label, edgecolor='white')
+    # Use a slightly muted shade for the overall reference bar
+    bar_colors = [color if name != 'All (overall)' else '#888888'
+                  for name in group_atk.index]
+    ax2.barh(y, vals, left=lefts, height=0.65, color=bar_colors, label=label, edgecolor='white')
     for i, (v, l) in enumerate(zip(vals, lefts)):
         if v >= 0.25:
             ax2.text(l + v / 2, i, f'{v:.1f}', ha='center', va='center',
@@ -151,6 +160,9 @@ for col, label, color in zip(zone_cols, zone_labels, zone_colors):
 # Total label at end of each bar
 for i, total in enumerate(group_atk['Total'].values):
     ax2.text(total + 0.05, i, f'{total:.1f}', va='center', fontsize=8, color='dimgray')
+
+# Separator line before the overall row
+ax2.axhline(len(group_atk) - 1 - 0.5, color='gray', linestyle='--', linewidth=0.8, alpha=0.6)
 
 ax2.set_yticks(y)
 ax2.set_yticklabels(group_atk.index, fontsize=10)
