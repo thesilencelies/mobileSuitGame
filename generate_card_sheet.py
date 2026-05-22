@@ -227,10 +227,16 @@ def main():
     parser.add_argument(
         "--add_back", action="store_true"
     )
+    parser.add_argument(
+        "--repeat", action="store_true"
+    )
     args = parser.parse_args()
 
     cards_per_sheet = args.cols * args.rows
     cards = read_card_list(args.csv)
+    if args.repeat:
+        cards = cards * (args.cols * args.rows)
+
     print(f"Grid: {args.cols}×{args.rows} ({cards_per_sheet} cards per sheet)")
     print(f"Found {len(cards)} card(s) → "
           f"{math.ceil(len(cards) / cards_per_sheet)} sheet(s).")

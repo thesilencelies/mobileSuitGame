@@ -3,6 +3,7 @@
 import csv
 import enum
 import math
+import os
 from typing import Dict, Tuple, Optional, List
 
 weapon_actions_file = 'Weapon actions.csv'
@@ -14,6 +15,7 @@ frames_file = 'Frames.csv'
 
 cardoutputfolder='build/card_'
 frameoutputfolder='build/frame_'
+backsoutputfolder='build/back_'
 terrianoutputfolder='build/terrain_'
 
 #icon names
@@ -39,9 +41,12 @@ frame_images_folder = "../pictures/"
 icons_folder = "../icons/"
 
 
-frameBackgrounds = ["Ouwa_frame_1.jpeg","Aegis_frame_1.jpeg", "Aegis_frame_2.jpg", "Guild_frame_1.png",
-                    "Collective_frame_1.jpeg", "CotN_frame_1.jpeg", "Revolution_frame_1.jpeg", "Guild_frame_2.jpg",
-                    "Collective_frame_2.jpg", "CotN_frame_2.jpg", "Revolution_frame_2.png"]
+frameImages = ["foreground/aegis_hector.png", "foreground/aegis_percival.png", "foreground/church_elemiah.png",
+                    "foreground/church_hannael.png", "foreground/collective_adam.png", "foreground/collective_fenrir.png",
+                    "foreground/guild_nautilus.png", "foreground/guild_salaryman.png", "foreground/ouwa_kamikiri.png",
+                    "foreground/ouwa_kuwagata.png", "foreground/revolution_flamekin.png", "foreground/revolution_ripper.png"]
+
+frameBackgrounds = ["proxy_background.png"] * len(frameImages)
 
 iconwidth = "width=0.9cm"
 inline_iconwidth = "width=0.4cm"
@@ -111,13 +116,13 @@ def attack_box(atk, rng, block, pos, dmg_type):
     return out_text
 
 
-def make_card_from_row(row, i, card_type):
-    with open(cardoutputfolder + row['Group'] + "_" + str(i) + '.tex', 'w') as ofile:
+def make_card_from_row(row, card_type):
+    with open(cardoutputfolder + row['Group'] + "_" + row['Name'] + '.tex', 'w') as ofile:
         # art and card edge
         card_text = "\\begin{tikzpicture}[scale=0.86, backbox/.style= {rectangle, minimum height = 2.0cm," \
                    + " minimum width =2.0cm, rounded corners = 0.3cm, fill=white, opacity=0.75}]\n "
         card_text = card_text + "\\node [rectangle, minimum width = 6.2cm, minimum height = 8.5cm, fill=black] at (4,5){};\n"
-        # PNG alpha transparency is supported natively by pdflatex + graphicx; use PNG for transparent images
+        # background
         if row.get("BackgroundLayer"):
             card_text = card_text + '\\node at (4,5){\\includegraphics[width=6cm, max height = 8.3cm,' +\
                   ' keepaspectratio]{' + images_folder + row["BackgroundLayer"] + '}};\n'
@@ -158,7 +163,7 @@ def make_card_from_row(row, i, card_type):
                 card_text = card_text + attack_box(int(row["MidAttack"]), int(row["MidRange"]), int(row["MidBlock"]), 5.0, row["MidDType"])
                 card_text = card_text + attack_box(int(row["LowAttack"]), int(row["LowRange"]), int(row["LowBlock"]), 2.5, row["LowDType"])
         except:
-            print(f"exception for {row['Name']}")
+            print(f"exception for {row["Group"]} {row['Name']}")
             return ""
 
         # textbox
@@ -203,14 +208,14 @@ def draw_armor(armor, position, penalty):
 
     return rval
 
-def create_frame_sheet(frame, i):
+def create_frame_sheet(frame):
     """creates the frames datasheet procedurally from the given data"""
-    with open(frameoutputfolder + str(i) + '.tex', 'w') as ofile:
+    with open(frameoutputfolder + frame["Name"] + '.tex', 'w') as ofile:
         #load the initial image
         frame_text = "\\begin{tikzpicture}[scale=0.86, backbox/.style= {rectangle, minimum height = 2.2cm," \
                 + " minimum width =2.2cm, rounded corners = 0.3cm, fill=white, opacity=0.75}]\n "
         frame_text = frame_text + "\\node [rectangle, minimum width = 6.2cm, minimum height = 8.5cm, fill=black!70!white!30] at (4,5){};\n"
-        # PNG alpha transparency is supported natively by pdflatex + graphicx; use PNG for transparent images
+        # background
         if frame.get("BackgroundLayer"):
             frame_text = frame_text + '\\node at (4,5){\\includegraphics[width=6cm, max height = 8.3cm, keepaspectratio]{' + frame_images_folder + frame["BackgroundLayer"] + '}};\n'
         frame_text = frame_text + '\\node at (4,5){\\includegraphics[width=6cm, max height = 8.3cm, keepaspectratio]{' + frame_images_folder + frame["BackgroundImg"] + '}};\n'
@@ -583,6 +588,22 @@ def create_flipped(frame):
     output += '\\end{tikzpicture}\n~'
     return output
 
+def create_back(frame, background):
+    """creates the frames card/sleeve back"""
+    with open(backsoutputfolder + os.path.basename(frame).split(".")[0] + '.tex', 'w') as ofile:
+        #load the initial image
+        frame_text = "\\begin{tikzpicture}[scale=0.86, backbox/.style= {rectangle, minimum height = 2.2cm," \
+                + " minimum width =2.2cm, rounded corners = 0.3cm, fill=white, opacity=0.75}]\n "
+        frame_text = frame_text + "\\node [rectangle, minimum width = 6.2cm, minimum height = 8.5cm, fill=black!70!white!30] at (4,5){};\n"
+        # background
+        frame_text = frame_text + '\\node at (4,5){\\includegraphics[width=6cm, max height = 8.3cm, keepaspectratio]{' + frame_images_folder + background + '}};\n'
+        frame_text = frame_text + '\\node at (4,5){\\includegraphics[width=6cm, max height = 8.3cm, keepaspectratio]{' + frame_images_folder + frame + '}};\n'
+        
+        #finish the tikzpicture
+        frame_text = frame_text + "\\end{tikzpicture}\n"
+
+        ofile.write(frame_text)
+        return frame_text + "~"
 
 #the actual run
 if __name__ == "__main__":
@@ -593,57 +614,36 @@ if __name__ == "__main__":
 
         allfile.write(begin_doc)
 
-        i = 0
-        last_group = ""
-
         with open(booster_actions_file, "r") as facsvfile:
             reader = csv.DictReader(facsvfile)
             for row in reader:
-                if row["Group"] != last_group:
-                    i = 0
-                    last_group = row["Group"]
-                i = i + 1
                 for printcount in range(int(row["PrintID"])):
-                        allfile.write(make_card_from_row(row, i, CardTypeEnum.BOOSTER))
+                        allfile.write(make_card_from_row(row, CardTypeEnum.BOOSTER))
 
         with open(weapon_actions_file, "r") as spcsvfile:
             reader = csv.DictReader(spcsvfile)
             for row in reader:
-                if row["Group"] != last_group:
-                    i = 0
-                    last_group = row["Group"]
-                i = i + 1
                 if int(row["PrintID"]) > 0:
-                        allfile.write(make_card_from_row(row, i, CardTypeEnum.WEAPON))
+                        allfile.write(make_card_from_row(row, CardTypeEnum.WEAPON))
 
         with open(pilot_actions_file, "r") as facsvfile:
             reader = csv.DictReader(facsvfile)
             for row in reader:
-                if row["Group"] != last_group:
-                    i = 0
-                    last_group = row["Group"]
-                i = i + 1
                 if int(row["PrintID"]) > 0:
-                        allfile.write(make_card_from_row(row, i, CardTypeEnum.PILOT))
+                        allfile.write(make_card_from_row(row, CardTypeEnum.PILOT))
 
         with open(general_action_file, "r") as gencsvfile:
             reader = csv.DictReader(gencsvfile)
             for row in reader:
-                if row["Group"] != last_group:
-                    i = 0
-                    last_group = row["Group"]
-                i = i + 1
                 if int(row["PrintID"]) > 0:
-                    allfile.write(make_card_from_row(row, i, CardTypeEnum.BASIC))
-        j = 0
+                    allfile.write(make_card_from_row(row, CardTypeEnum.BASIC))
         with open(frames_file, "r") as fcsvfile:
             reader = csv.DictReader(fcsvfile)
             allfile.write("\\newpage \n\\noindent\n")
             for row in reader:
-                j = j + 1
                 if int(row["PrintID"]) > 0:
-                    allfile.write(create_frame_sheet(row, j))
-
+                    allfile.write(create_frame_sheet(row))
+        # terrain doesnt have names yet
         i = 0
         with open(terrain_file, "r") as tcsvfile:
             allfile.write("\\newpage \n\\noindent ")
@@ -655,7 +655,11 @@ if __name__ == "__main__":
 
         # standees
         allfile.write("\\newpage \n\\noindent ")
-        for frame in  frameBackgrounds:
+        for frame in  frameImages:
             allfile.write(create_flipped(frame))
+        # card backs
+        allfile.write("\\newpage \n\\noindent ")
+        for frame, background in  zip(frameImages, frameBackgrounds):
+            allfile.write(create_back(frame, background))
 
         allfile.write("\\end{document}\n")

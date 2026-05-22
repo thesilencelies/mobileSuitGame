@@ -122,6 +122,38 @@
       "group": "build"
     },
     {
+      "label": "create tts deck back pdf",
+      "command": "pdflatex",
+      "type": "shell",
+      "args": [
+        "${config:deck.prefix}_back_image.tex"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/build"
+      },
+      "group": "build"
+    },
+    {
+      "label": "create tts deck back",
+      "command": "convert",
+      "type": "shell",
+      "options": {
+        "cwd": "${workspaceFolder}/build"
+      },
+      "args": [
+        "-density",
+        "150",
+        "${config:deck.prefix}_back_image.pdf",
+        "-compress",
+        "lzw",
+        "${config:deck.prefix}_back_image.png"
+      ],
+      "dependsOn": [
+        "create tts deck back pdf"
+      ],
+      "group": "build"
+    },
+    {
       "label": "create all",
       "type": "shell",
       "command": "echo created",
