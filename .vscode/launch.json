@@ -53,9 +53,9 @@
       "request": "launch",
       "program": "${workspaceFolder}/generate_card_sheet.py",
       "args": [
-        "--csv=decks/${config:deck.prefix}.csv",
+        "--csv=decks/deck_${config:deck.prefix}.csv",
         "--output=build/${config:deck.prefix}_image.tex",
-        "--add-back",
+        "--add_back",
         "--cols=7",
         "--rows=4"
       ],
@@ -69,16 +69,16 @@
       "request": "launch",
       "program": "${workspaceFolder}/generate_card_sheet.py",
       "args": [
-        "--csv=decks/${config:deck.prefix}_backs.csv",
-        "--output=build/${config:deck.prefix}_image.tex",
+        "--csv=back_${config:deck.prefix}.tex",
+        "--output=build/${config:deck.prefix}_back_image.tex",
         "--repeat",
-        "--add-back",
+        "--add_back",
         "--cols=7",
         "--rows=4"
       ],
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
-      "postDebugTask": "create tts deck backs",
+      "postDebugTask": "create tts deck back",
     },
     {
       "name": "plot statistics",
