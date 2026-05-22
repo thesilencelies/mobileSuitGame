@@ -170,10 +170,12 @@ def generate_latex(cards: list[str], bleed: float, cols: int, rows: int,
         for row in range(rows):
             lines.append(ROW_BEGIN)
             for col in range(cols):
-                if add_back and row == rows -1 and col == cols -1:
+                if add_back and row == 0 and col == 0:
                     lines.append(FINAL_CELL.format(width=w, height=h, text=back_text, color=back_color))
                 else:
                     pos = row * cols + col
+                    if add_back:
+                        pos -= 1
                     if pos < len(sheet_cards):
                         lines.append(CARD_INCLUDE.format(
                             width=w, height=h,

@@ -81,6 +81,15 @@
       "postDebugTask": "create tts deck back",
     },
     {
+      "name": "generate TTS images - all decks",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/generate_all_decks.py",
+      "args": [],
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}"
+    },
+    {
       "name": "plot statistics",
       "type": "debugpy",
       "request": "launch",
