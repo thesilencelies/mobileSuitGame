@@ -11,10 +11,10 @@ Bash,,Shield,4,0,0,1,0,impact,impact,impact,1,0,0,0,0,0,On Hit: target gets -1 c
 Full Guard,,Shield,1,-1,1,1,1,,,,0,0,0,0,0,0,,0,Shield_1.jpg,proxy_background.png,,,1
 Push on,,Shield,7,0,0,1,1,,,,0,0,0,0,0,0,,0,Shield_1.jpg,proxy_background.png,,,1
 Lock down,,Shield,5,-1,1,1,0,impact,impact,impact,1,0,1,0,0,0,Feint \emph{(Doesnt deal damage)},0,Shield_1.jpg,proxy_background.png,,,1
-Overcharge,,Stun Baton,3,-2,0,0,1,impact,impact,impact,1,0,1,0,1,0,Guard Break\\On Hit: target gets -1 Init,1,Stun_baton_1.jpg,proxy_background.png,,,1
-Shock,,Stun Baton,5,0,0,1,0,impact,impact,impact,0,0,1,0,0,0,On Hit: target gets -1 Init,0,Stun_baton_1.jpg,proxy_background.png,,,1
-Zap,,Stun Baton,5,-1,1,0,0,impact,impact,impact,2,0,0,0,0,0,On Hit: target gets -1 Init,0,Stun_baton_1.jpg,proxy_background.png,,,1
-Strike,,Stun Baton,4,-1,0,1,0,impact,impact,impact,0,0,0,0,2,0,On Hit: target gets -1 Init,0,Stun_baton_1.jpg,proxy_background.png,,,1
+Overcharge,,Stun Baton,3,-2,0,0,1,energy,energy,energy,1,0,1,0,1,0,Guard Break\\On Hit: target gets -1 Init,1,Stun_baton_1.jpg,proxy_background.png,,,1
+Shock,,Stun Baton,5,0,0,1,0,energy,energy,energy,0,0,1,0,0,0,On Hit: target gets -1 Init,0,Stun_baton_1.jpg,proxy_background.png,,,1
+Zap,,Stun Baton,5,-1,1,0,0,energy,energy,energy,2,0,0,0,0,0,On Hit: target gets -1 Init,0,Stun_baton_1.jpg,proxy_background.png,,,1
+Strike,,Stun Baton,4,-1,0,1,0,energy,energy,energy,0,0,0,0,2,0,On Hit: target gets -1 Init,0,Stun_baton_1.jpg,proxy_background.png,,,1
 Burst Fire,,Assault Rifle,3,-2,0,1,0,projectile,projectile,projectile,0,0,1,12,1,12,,0,Rifle_1.png,proxy_background.png,,,1
 Aimed Fire,,Assault Rifle,2,-2,1,0,0,projectile,projectile,projectile,1,12,0,0,0,0,,0,Rifle_1.png,proxy_background.png,,,1
 From the hip,,Assault Rifle,4,-1,0,0,1,projectile,projectile,projectile,0,0,1,8,0,0,,0,Rifle_1.png,proxy_background.png,,,1
@@ -50,27 +50,27 @@ Cleave,,Greatsword,3,-2,0,1,0,cut,cut,cut,2,0,2,0,0,0,,0,Greatsword.jpg,proxy_ba
 Parry,,Greatsword,3,-1,0,1,1,cut,cut,cut,0,0,0,0,0,0,If blocks:  deals mid \smallcut,0,Greatsword.jpg,proxy_background.png,,,1
 Grand Sweep,,Greatsword,3,-2,0,1,0,cut,cut,cut,0,0,2,0,0,0,Hits all adjacent enemies,0,Greatsword.jpg,proxy_background.png,,,1
 Rising Cut,,Greatsword,3,-1,1,1,0,cut,cut,cut,0,0,0,0,2,0,,0,Greatsword.jpg,proxy_background.png,,,1
-Slam,,Kinetic Hammer,,,,,,,,,,,,,,,Also hits any enemies adjacent to the target,0,Kinetic_hammer.jpg,proxy_background.png,,,1
-Strike,,Kinetic Hammer,,,,,,,,,,,,,,,,,,proxy_background.png,,,1
-Heavy Swing,,Kinetic Hammer,,,,,,,,,,,,,,,,,,proxy_background.png,,,1
-Batter,,Kinetic Hammer,,,,,,,,,,,,,,,,,,proxy_background.png,,,1
-Charged Shot,,Plasma Rifle,,,,,,,,,,,,,,,,,,proxy_background.png,,,1
-Single Shot,,Plasma Rifle,,,,,,,,,,,,,,,,,,proxy_background.png,,,1
-Plasma Stream,,Plasma Rifle,,,,,,,,,,,,,,,,,,proxy_background.png,,,1
-Vent,,Plasma Rifle,,,,,,,,,,,,,,,,,,proxy_background.png,,,1
-Hypervelocity Shot,,Railgun,,,,,,,,,,,,,,,,,,proxy_background.png,,,1
-Piercing Round,,Railgun,,,,,,,,,,,,,,,,,,proxy_background.png,,,1
-Snipe,,Railgun,,,,,,,,,,,,,,,,,,proxy_background.png,,,1
-Kinetic Barrage,,Railgun,,,,,,,,,,,,,,,,,,proxy_background.png,,,1
-Headshot,,Sniper Rifle,,,,,,,,,,,,,,,,,,proxy_background.png,,,1
-Calibrated Hit,,Sniper Rifle,,,,,,,,,,,,,,,,,,proxy_background.png,,,1
-Heartpiercer,,Sniper Rifle,,,,,,,,,,,,,,,,,,proxy_background.png,,,1
-Patience's Reward,,Sniper Rifle,,,,,,,,,,,,,,,,,,proxy_background.png,,,1
-Chop,,Axe,,,,,,,,,,,,,,,,,,proxy_background.png,,,1
-Hook,,Axe,,,,,,,,,,,,,,,,,,proxy_background.png,,,1
-Split,,Axe,,,,,,,,,,,,,,,,,,proxy_background.png,,,1
-Throw,,Axe,,,,,,,,,,,,,,,,,,proxy_background.png,,,1
-Cleave,,Great Axe,,,,,,,,,,,,,,,,,,proxy_background.png,,,1
-Split,,Great Axe,,,,,,,,,,,,,,,,,,proxy_background.png,,,1
-Whirl,,Great Axe,,,,,,,,,,,,,,,,,,proxy_background.png,,,1
-Eviscerate,,Great Axe,,,,,,,,,,,,,,,,,,proxy_background.png,,,1
+Slam,,Kinetic Hammer,3,-3,0,0,1,impact,impact,impact,0,0,0,0,2,0,Also hits any enemies adjacent to the target,0,Kinetic_hammer.jpg,proxy_background.png,,,1
+Strike,,Kinetic Hammer,3,-2,0,1,0,impact,impact,impact,3,0,0,0,0,0,On Hit: target gets -1 init,0,Kinetic_hammer.jpg,proxy_background.png,,,1
+Heavy Swing,,Kinetic Hammer,3,-3,0,0,1,impact,impact,impact,2,0,2,0,0,0,On Hit: target gets -1 init,0,Kinetic_hammer.jpg,proxy_background.png,,,1
+Batter,,Kinetic Hammer,5,-2,0,1,0,impact,impact,impact,1,0,1,0,0,0,On Hit: target gets -1 init,0,Kinetic_hammer.jpg,proxy_background.png,,,1
+Charged Shot,,Plasma Rifle,2,-3,1,0,0,energy,energy,energy,2,18,1,14,0,0,Guard Break,1,Plasma_rifle.jpg,proxy_background.png,,,1
+Single Shot,,Plasma Rifle,4,-2,0,1,0,energy,energy,energy,0,0,2,16,0,0,,0,Plasma_rifle.jpg,proxy_background.png,,,1
+Plasma Stream,,Plasma Rifle,3,-2,0,1,0,energy,energy,energy,0,0,1,12,1,12,Guard Break,0,Plasma_rifle.jpg,proxy_background.png,,,1
+Vent,,Plasma Rifle,5,1,0,1,0,energy,energy,energy,1,0,1,0,0,0,Feint \emph{(Doesnt deal damage)},0,Plasma_rifle.jpg,proxy_background.png,,,1
+Hypervelocity Shot,,Railgun,2,-3,0,1,0,projectile,projectile,projectile,0,0,2,20,1,20,Guard Break,1,Railgun.jpg,proxy_background.png,,,1
+Piercing Round,,Railgun,2,-3,0,1,0,projectile,projectile,projectile,0,0,3,16,0,0,Guard Break,1,Railgun.jpg,proxy_background.png,,,1
+Snipe,,Railgun,1,-3,1,0,0,projectile,projectile,projectile,3,20,0,0,0,0,,0,Railgun.jpg,proxy_background.png,,,1
+Kinetic Barrage,,Railgun,1,-3,0,1,0,projectile,projectile,projectile,2,12,2,12,2,12,Guard Break,1,Railgun.jpg,proxy_background.png,,,1
+Headshot,,Sniper Rifle,3,-3,1,0,0,projectile,projectile,projectile,3,24,0,0,0,0,Deals 1 extra \smallprojectile if the target didnt move,0,Sniper_rifle.jpg,proxy_background.png,,,1
+Calibrated Hit,,Sniper Rifle,3,-3,0,1,0,projectile,projectile,projectile,0,0,0,0,3,24,Deals 1 extra \smallprojectile if the target didnt move,0,Sniper_rifle.jpg,proxy_background.png,,,1
+Heartpiercer,,Sniper Rifle,3,-3,1,0,0,projectile,projectile,projectile,0,0,4,24,0,0,Deals 1 extra \smallprojectile if the target didnt move,1,Sniper_rifle.jpg,proxy_background.png,,,1
+Patience's Reward,,Sniper Rifle,2,-3,0,1,0,projectile,projectile,projectile,0,0,4,24,0,0,Deals 1 extra \smallprojectile if the target didnt move \\ Guard Break,1,Sniper_rifle.jpg,proxy_background.png,,,1
+Chop,,Axe,5,0,1,0,0,cut,cut,cut,2,0,0,0,0,0,,0,Axe.jpg,proxy_background.png,,,1
+Hook,,Axe,5,0,0,0,1,cut,cut,cut,0,0,1,0,0,0,On Hit: target gets -1 card,0,Axe.jpg,proxy_background.png,,,1
+Split,,Axe,5,-1,0,1,0,cut,cut,cut,2,0,0,0,0,0,,0,Axe.jpg,proxy_background.png,,,1
+Throw,,Axe,4,0,0,1,0,cut,cut,cut,0,0,2,8,0,0,Committed \emph{(this attack is discarded after resolving)},1,Axe.jpg,proxy_background.png,,,1
+Cleave,,Great Axe,3,-2,0,1,0,cut,cut,cut,2,0,3,0,0,0,,0,Great_axe.jpg,proxy_background.png,,,1
+Split,,Great Axe,2,-2,1,0,0,cut,cut,cut,3,0,2,0,0,0,,0,Great_axe.jpg,proxy_background.png,,,1
+Whirl,,Great Axe,3,-2,0,1,0,cut,cut,cut,1,0,2,0,1,0,Hits all adjacent enemies,0,Great_axe.jpg,proxy_background.png,,,1
+Eviscerate,,Great Axe,2,-3,0,0,1,cut,cut,cut,0,0,2,0,3,0,,0,Great_axe.jpg,proxy_background.png,,,1
