@@ -2,7 +2,7 @@ Name,Faction,Group,Initiative,Movement,HighBlock,MidBlock,LowBlock,HighDType,Mid
 Thrust,,Spear,6,0,0,1,0,pierce,pierce,pierce,0,0,1,0,0,0,,0,Spear_1.jpg,proxy_background.png,,,1
 Jab,,Spear,7,0,1,0,0,pierce,pierce,pierce,1,0,0,0,0,0,Committed \emph{(this attack is discarded after resolving)},0,Spear_1.jpg,proxy_background.png,,,1
 Impale,,Spear,4,-2,1,0,0,pierce,pierce,pierce,1,0,2,0,0,0,,0,Spear_1.jpg,proxy_background.png,,,1
-Sweep,,Spear,6,0,0,0,1,pierce,pierce,impact,0,0,0,0,1,0,On Hit: target gets -1 mv ,0,Spear_1.jpg,proxy_background.png,,,1
+Sweep,,Spear,6,0,0,0,1,pierce,pierce,impact,0,0,0,0,1,0,"On Hit: target gets -1 mv ",0,Spear_1.jpg,proxy_background.png,,,1
 Lunge,,Sword,6,1,0,0,1,cut,cut,cut,0,0,1,0,0,0,Committed \emph{(this attack is discarded after resolving)},0,Sword_1.jpg,proxy_background.png,,,1
 Feint,,Sword,6,1,0,1,0,cut,cut,cut,1,0,0,0,0,0,Feint\emph{(Doesnt deal damage)},0,Sword_1.jpg,proxy_background.png,,,1
 Slice,,Sword,4,-2,0,0,1,cut,cut,cut,1,0,1,0,0,0,,0,Sword_1.jpg,proxy_background.png,,,1
@@ -50,3 +50,27 @@ Cleave,,Greatsword,3,-2,0,1,0,cut,cut,cut,2,0,2,0,0,0,,0,Greatsword.jpg,proxy_ba
 Parry,,Greatsword,3,-1,0,1,1,cut,cut,cut,0,0,0,0,0,0,If blocks:  deals mid \smallcut,0,Greatsword.jpg,proxy_background.png,,,1
 Grand Sweep,,Greatsword,3,-2,0,1,0,cut,cut,cut,0,0,2,0,0,0,Hits all adjacent enemies,0,Greatsword.jpg,proxy_background.png,,,1
 Rising Cut,,Greatsword,3,-1,1,1,0,cut,cut,cut,0,0,0,0,2,0,,0,Greatsword.jpg,proxy_background.png,,,1
+Slam,,Kinetic Hammer,,,,,,,,,,,,,,,Also hits any enemies adjacent to the target,0,Kinetic_hammer.jpg,proxy_background.png,,,1
+Strike,,Kinetic Hammer,,,,,,,,,,,,,,,,,,proxy_background.png,,,1
+Heavy Swing,,Kinetic Hammer,,,,,,,,,,,,,,,,,,proxy_background.png,,,1
+Batter,,Kinetic Hammer,,,,,,,,,,,,,,,,,,proxy_background.png,,,1
+Charged Shot,,Plasma Rifle,,,,,,,,,,,,,,,,,,proxy_background.png,,,1
+Single Shot,,Plasma Rifle,,,,,,,,,,,,,,,,,,proxy_background.png,,,1
+Plasma Stream,,Plasma Rifle,,,,,,,,,,,,,,,,,,proxy_background.png,,,1
+Vent,,Plasma Rifle,,,,,,,,,,,,,,,,,,proxy_background.png,,,1
+Hypervelocity Shot,,Railgun,,,,,,,,,,,,,,,,,,proxy_background.png,,,1
+Piercing Round,,Railgun,,,,,,,,,,,,,,,,,,proxy_background.png,,,1
+Snipe,,Railgun,,,,,,,,,,,,,,,,,,proxy_background.png,,,1
+Kinetic Barrage,,Railgun,,,,,,,,,,,,,,,,,,proxy_background.png,,,1
+Headshot,,Sniper Rifle,,,,,,,,,,,,,,,,,,proxy_background.png,,,1
+Calibrated Hit,,Sniper Rifle,,,,,,,,,,,,,,,,,,proxy_background.png,,,1
+Heartpiercer,,Sniper Rifle,,,,,,,,,,,,,,,,,,proxy_background.png,,,1
+Patience's Reward,,Sniper Rifle,,,,,,,,,,,,,,,,,,proxy_background.png,,,1
+Chop,,Axe,,,,,,,,,,,,,,,,,,proxy_background.png,,,1
+Hook,,Axe,,,,,,,,,,,,,,,,,,proxy_background.png,,,1
+Split,,Axe,,,,,,,,,,,,,,,,,,proxy_background.png,,,1
+Throw,,Axe,,,,,,,,,,,,,,,,,,proxy_background.png,,,1
+Cleave,,Great Axe,,,,,,,,,,,,,,,,,,proxy_background.png,,,1
+Split,,Great Axe,,,,,,,,,,,,,,,,,,proxy_background.png,,,1
+Whirl,,Great Axe,,,,,,,,,,,,,,,,,,proxy_background.png,,,1
+Eviscerate,,Great Axe,,,,,,,,,,,,,,,,,,proxy_background.png,,,1
