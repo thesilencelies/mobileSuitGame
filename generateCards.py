@@ -23,6 +23,7 @@ cutAtkImg = 'attackImg.png'
 bulletAtkImg = 'rattackImg.png'
 bludgeonAtkImg = "hammerAttackImg.png"
 pierceAtkImg = "pierceAttackImg.png"
+energyAtkImg = "energyAttackImg.png"
 
 blkImg = 'blockImg.png'
 rangeImg = 'rangeImg.png'
@@ -68,6 +69,7 @@ damage_type_dict = {
     "pierce" : pierceAtkImg,
     "impact" : bludgeonAtkImg,
     "projectile" : bulletAtkImg,
+    "energy" : energyAtkImg,
     # for macro
     "block": blkImg
     }
