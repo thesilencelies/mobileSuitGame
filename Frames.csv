@@ -10,4 +10,4 @@ J7R-Salaryman,Guild,4,5,24,Ranged attacks get +4 range,3,3,4,1,foreground/guild_
 Flamekin,Revolution,4,3,20,"Deathstrike \\ At the end of each turn, repair 1",2,2,2,3,foreground/revolution_flamekin.png,proxy_background.png,,"Held together by the will of it's pilot, its eiree form sparks the flame of revolution.",1
 Fenrir,Collective,6,2,15,Can't use ranged weapons,3,4,3,0,foreground/collective_fenrir.png,proxy_background.png,,The howl of the hunt still rings even in the City,1
 Hector MkI,Aegis,3,3,20,Each attack gains 1 mid \smallblock,5,4,4,2,foreground/aegis_hector.png,proxy_background.png,,The wall against which the tide of crime breaks,1
-Kamikiri,Ouwa,4,4,18,The first action taken each turn deals an additional \smallcut mid,4,4,3,4,foreground/ouwa_kamikiri.png,proxy_background.png,,"Waiting patiently for the perfect moment, it strikes with a lethal flurry of blades",1
+Kamikiri,Ouwa,4,4,18,The first melee attack each turn deals an additional \smallcut mid,4,4,3,4,foreground/ouwa_kamikiri.png,proxy_background.png,,"Waiting patiently for the perfect moment, it strikes with a lethal flurry of blades",1
