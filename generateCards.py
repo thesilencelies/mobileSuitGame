@@ -579,11 +579,11 @@ def create_terrain_card(row, i):
 def create_flipped(frame):
     output = "\\begin{tikzpicture}[baseline=(a.north)]\n"
     #upside down node
-    output += "\\node[yscale=-1,inner sep=0,outer sep=0](a){\\includegraphics[width=2cm, max height = 4.3cm, keepaspectratio]{" 
+    output += "\\node[yscale=-1,inner sep=0,outer sep=0](a){\\includegraphics[height=3cm, max width = 2.5cm, keepaspectratio]{" 
     output += frame_images_folder + frame + '}};\n'
     
     # normal node
-    output += "\\node[inner sep=0,outer sep=0, anchor=south] at (a.south) {\\includegraphics[width=2cm, max height = 4.3cm, keepaspectratio]{" 
+    output += "\\node[inner sep=0,outer sep=0, anchor=south] at (a.south) {\\includegraphics[height=3cm, max width = 2.5cm, keepaspectratio]{" 
     output += frame_images_folder + frame + '}};\n'
 
     #end the tikz
