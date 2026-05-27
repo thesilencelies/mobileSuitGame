@@ -18,6 +18,7 @@ import argparse
 import subprocess
 import sys
 from pathlib import Path
+import os
 
 WORKSPACE = Path(__file__).parent
 BUILD = WORKSPACE / "build"
@@ -52,6 +53,7 @@ def process_deck(prefix):
 
     front_tex = f"{prefix}_image.tex"
     back_tex = f"{prefix}_back_image.tex"
+    has_back = os.path.exists(f"build/back_{prefix}.tex")
 
     run(
         [sys.executable, "generate_card_sheet.py",
@@ -65,17 +67,19 @@ def process_deck(prefix):
         label=f"pdflatex {front_tex}")
     pdf_to_png(f"{prefix}_image")
 
-    run(
-        [sys.executable, "generate_card_sheet.py",
-         f"--csv=back_{prefix}.tex",
-         f"--output=build/{back_tex}",
-         "--repeat", "--add_back", f"--cols={COLS}", f"--rows={ROWS}"],
-        cwd=WORKSPACE,
-        label=f"generate_card_sheet  back_{prefix}.tex → {back_tex}",
-    )
-    run(["pdflatex", "-interaction=nonstopmode", back_tex], cwd=BUILD,
-        label=f"pdflatex {back_tex}")
-    pdf_to_png(f"{prefix}_back_image")
+    if has_back:
+        print(f"   creating back {back_tex}")
+        run(
+            [sys.executable, "generate_card_sheet.py",
+            f"--csv=back_{prefix}.tex",
+            f"--output=build/{back_tex}",
+            "--repeat", "--add_back", f"--cols={COLS}", f"--rows={ROWS}"],
+            cwd=WORKSPACE,
+            label=f"generate_card_sheet  back_{prefix}.tex → {back_tex}",
+        )
+        run(["pdflatex", "-interaction=nonstopmode", back_tex], cwd=BUILD,
+            label=f"pdflatex {back_tex}")
+        pdf_to_png(f"{prefix}_back_image")
 
     print(f"  Done: {prefix}")
 
