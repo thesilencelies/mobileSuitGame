@@ -4,7 +4,7 @@ import csv
 import enum
 import math
 import os
-from typing import Dict, Tuple, Optional, List
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 weapon_actions_file = 'Weapon actions.csv'
 general_action_file = 'Basic actions.csv'
@@ -263,7 +263,7 @@ def create_frame_sheet(frame):
 # ---------------------------------------------------------------------------
 # Types
 # ---------------------------------------------------------------------------
-TileStyle = Dict[str, str]
+TileStyle = Dict[str, Union[str, List[str]]]
  
 # ---------------------------------------------------------------------------
 # Defaults
@@ -276,8 +276,31 @@ DEFAULT_STYLE: TileStyle = {
     "hatch_color": "",     # empty = same as color
     "fill":        "none",
     "text":        "",
-    "icon":        "",
 }
+
+def _merge_style(style: TileStyle, new_vals: TileStyle) -> None:
+    """Merge new_vals into style. If a key already holds a non-default value,
+    that entry becomes a list so both values are preserved."""
+    for key, val in new_vals.items():
+        current = style.get(key)
+        default = DEFAULT_STYLE.get(key, "")
+        if current is None or current == default:
+            style[key] = val
+        elif isinstance(current, list):
+            current.append(val)
+        else:
+            style[key] = [current, val]
+
+
+def _first_valid(val: Union[str, List[str]], default: str = "") -> str:
+    """Return the first non-default entry from a possibly-list style value."""
+    if isinstance(val, list):
+        for v in val:
+            if v and v != default:
+                return v
+        return default
+    return val
+
 
 TERRAIN_STYLE = "full"
 
@@ -557,29 +580,42 @@ def _tikz_hex_lines(col: int, row: int, size: float, s: TileStyle, offset: Tuple
     """
     cx, cy = hex_center(col, row, size, offset)
 
+    thickness  = _first_valid(s["thickness"],   DEFAULT_STYLE["thickness"])
+    color      = _first_valid(s["color"],        DEFAULT_STYLE["color"])
+    fill       = _first_valid(s.get("fill",       "none"), "none")
+    postaction = _first_valid(s.get("postaction", ""),     "")
+
     # Full-size path for fill/hatch (covers the whole cell)
     cs_full  = _coord_str(hex_corners(cx, cy, size))
     # Inset path for the stroke (border stays inside the cell)
-    r_inset  = inset_size(size, s["thickness"])
+    r_inset  = inset_size(size, thickness)
     cs_inset = _coord_str(hex_corners(cx, cy, r_inset))
 
-    draw_opts = [s["thickness"], f"draw={s['color']}", "fill opacity=0.5", s["postaction"]]
+    draw_opts = [thickness, f"draw={color}", "fill opacity=0.5", postaction]
 
-    hatch = s.get("hatch", "")
-    fill  = s.get("fill", "none")
+    hatch_val = s.get("hatch", "")
+    hatches   = hatch_val if isinstance(hatch_val, list) else ([hatch_val] if hatch_val else [])
+    hc_val    = s.get("hatch_color", "")
+    hatch_colors = hc_val if isinstance(hc_val, list) else [hc_val] * len(hatches)
 
     lines: List[str] = []
 
-    if hatch:
+    if hatches:
         if fill != "none":
             lines.append(f"  \\fill[fill={fill}, fill opacity=0.5] {cs_full};")
-        hatch_color = s.get("hatch_color") or s["color"]
-        lines.append(f"  \\fill[pattern={hatch}, fill opacity=0.5, pattern color={hatch_color}] {cs_full};")
+        for hatch, hc in zip(hatches, hatch_colors):
+            lines.append(f"  \\fill[pattern={hatch}, fill opacity=0.5, pattern color={hc or color}] {cs_full};")
     else:
         draw_opts.append(f"fill={fill}")
 
-
-    # TODO - icon handling
+    # icons
+    icon_val = s.get("icon", "")
+    icons = icon_val if isinstance(icon_val, list) else ([icon_val] if icon_val else [])
+    hoffset = terrain_iconwidth_value / 2 + _thickness_to_cm(thickness)
+    voffset = terrain_iconwidth_value / 2 + _thickness_to_cm(thickness)
+    for icon in icons:
+        lines.append(f'    \\node at({cx + size/2 - hoffset}, {cy + voffset})' + '{\\includegraphics[' + terarin_iconwidth + ']{' + icons_folder + icon + '}};\n')
+        hoffset += terrain_iconwidth_value
 
     lines.append(f"  \\draw[{', '.join(draw_opts)}] {cs_inset};")
     return lines
@@ -591,36 +627,46 @@ def _tikz_square_lines(col: int, row: int, size: float, s: TileStyle, offset: Tu
     """
     cx, cy = square_center(col, row, size, offset)
 
-    # Full-size path for fill/hatch (covers the whole cell)
+    thickness  = _first_valid(s["thickness"],   DEFAULT_STYLE["thickness"])
+    color      = _first_valid(s["color"],        DEFAULT_STYLE["color"])
+    fill       = _first_valid(s.get("fill",       "none"), "none")
+    postaction = _first_valid(s.get("postaction", ""),     "")
 
     # Full-size path for fill/hatch (covers the whole cell)
     cs_full  = create_square(cx, cy, size)
     # Inset path for the stroke (border stays inside the cell)
-    cx_inset, cy_inset, r_inset  = inset_size_square(cx, cy, size, s["thickness"])
+    cx_inset, cy_inset, r_inset  = inset_size_square(cx, cy, size, thickness)
     cs_inset = create_square(cx_inset, cy_inset, r_inset)
 
-    draw_opts = [s["thickness"], f"draw={s['color']}", "fill opacity=0.5", s["postaction"]]
+    draw_opts = [thickness, f"draw={color}", "fill opacity=0.5", postaction]
 
-    hatch = s.get("hatch", "")
-    fill  = s.get("fill", "none")
+    hatch_val = s.get("hatch", "")
+    hatches   = hatch_val if isinstance(hatch_val, list) else ([hatch_val] if hatch_val else [])
+    hc_val    = s.get("hatch_color", "")
+    hatch_colors = hc_val if isinstance(hc_val, list) else [hc_val] * len(hatches)
 
     lines: List[str] = []
 
-    if hatch:
+    if hatches:
         if fill != "none":
             lines.append(f"  \\fill[fill={fill}, fill opacity=0.5] {cs_full};")
-        hatch_color = s.get("hatch_color") or s["color"]
-        lines.append(f"  \\fill[pattern={hatch}, fill opacity=0.5, pattern color={hatch_color}] {cs_full};")
-
+        for hatch, hc in zip(hatches, hatch_colors):
+            lines.append(f"  \\fill[pattern={hatch}, fill opacity=0.5, pattern color={hc or color}] {cs_full};")
     else:
         draw_opts.append(f"fill={fill}")
 
     lines.append(f"  \\draw[{', '.join(draw_opts)}] {cs_inset};\n")
     # icons
-    hoffset = terrain_iconwidth_value / 2 + _thickness_to_cm(s["thickness"])
-    for icon in s.get("icons", []):
-        lines.append(f'    \\node at({cx + size - hoffset}, {cy + terrain_iconwidth_value/2})' + '{\\includegraphics[' + terarin_iconwidth + ']{' + icons_folder + icon + '}};\n')
+    icon_val = s.get("icon", "")
+    icons = icon_val if isinstance(icon_val, list) else ([icon_val] if icon_val else [])
+    hoffset = terrain_iconwidth_value / 2 + _thickness_to_cm(thickness)
+    voffset = terrain_iconwidth_value / 2 + _thickness_to_cm(thickness)
+    for icon in icons:
+        lines.append(f'    \\node at({cx + size - hoffset}, {cy + voffset})' + '{\\includegraphics[' + terarin_iconwidth + ']{' + icons_folder + icon + '}};\n')
         hoffset += terrain_iconwidth_value
+        if hoffset > size - terrain_iconwidth_value / 2 + _thickness_to_cm(thickness):
+            hoffset = terrain_iconwidth_value / 2 + _thickness_to_cm(thickness)
+            voffset += terrain_iconwidth_value
 
     return lines
 
@@ -654,14 +700,9 @@ def create_terrain_card(row, i):
         for c in col_range:
             for r in row_range:
                 style = dict(DEFAULT_STYLE)
-                icons = []
                 if 0 <= c < cols and 0 <= r < rows:
                     for element in row[f"tile_{r}_{c}"].split(" "):
-                        prev_icon = style["icon"]
-                        style.update(STYLE_DICT.get(element, {}))
-                        if style["icon"] and prev_icon != style["icon"]:
-                            icons.append(style["icon"])
-                style["icons"] = icons
+                        _merge_style(style, STYLE_DICT.get(element, {}))
                 # hex_lines.append("\n".join(_tikz_hex_lines(c, r + 1, hex_size, style, (hoffset, voffset))))
                 hex_lines.append("\n".join(_tikz_square_lines(c, r, hex_size, style, (hoffset, voffset))))
 
