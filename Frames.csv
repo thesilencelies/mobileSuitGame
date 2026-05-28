@@ -1,4 +1,4 @@
-Name,Faction,Movement,Weapon Slots,Deck size,Abilities,Top armour,Side armour,Low armour,Boosters,BackgroundImg,BackgroundLayer,ForegroundImg,Flavor,PrintID
+Name,Faction,Movement,Weapon Slots,Deck size,Abilities,Top armour,Side armour,Low armour,Boosters,CardImg,BackgroundLayer,ForegroundImg,Flavor,PrintID
 Percival MkIV,Aegis,4,3,20,Attacks with multiple blocks reduce movement by 2 less,4,4,4,2,foreground/aegis_percival.png,proxy_background.png,,"Where it stands, peace stands",1
 Kuwagata,Ouwa,4,4,20,\smallcut attacks have Precise \emph{(You choose which block is consumed)},4,4,4,3,foreground/ouwa_kuwagata.png,proxy_background.png,,"Menacing in it's effciency, it stands tall on generations of craftmanship",1
 VX4-Nautilus,Guild,3,4,20,Ranged attacks reduce movement by 2 less,3,4,4,1,foreground/guild_nautilus.png,proxy_background.png,,"Built for combat in the bay area, it's a relentless force of firepower",1

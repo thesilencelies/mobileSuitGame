@@ -15,6 +15,7 @@ generating the card files (generateCards.py creates back_<name>.tex in build/).
 """
 
 import argparse
+import math
 import subprocess
 import sys
 from pathlib import Path
@@ -55,11 +56,24 @@ def process_deck(prefix):
     back_tex = f"{prefix}_back_image.tex"
     has_back = os.path.exists(f"build/back_{prefix}.tex")
 
-    run(
-        [sys.executable, "generate_card_sheet.py",
+    cols = COLS
+    rows = ROWS
+
+    deck_csv = DECKS_DIR / f"deck_{prefix}.csv"
+    num_rows = sum(1 for line in deck_csv.read_text().splitlines() if line.strip())
+    num_cards = num_rows + 1 if has_back else num_rows
+    if num_cards > cols * rows:
+        rows = math.ceil(num_cards / cols)
+        print(f"  Expanding to {rows} rows to fit {num_cards} cards")
+
+    deck_run = [sys.executable, "generate_card_sheet.py",
          f"--csv=decks/deck_{prefix}.csv",
          f"--output=build/{front_tex}",
-         "--add_back", f"--cols={COLS}", f"--rows={ROWS}"],
+         f"--cols={cols}", f"--rows={rows}"]
+    if has_back:
+        deck_run.append("--add_back")
+    run(
+        deck_run,
         cwd=WORKSPACE,
         label=f"generate_card_sheet  deck_{prefix}.csv → {front_tex}",
     )

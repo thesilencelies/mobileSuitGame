@@ -1,4 +1,4 @@
-Name,Faction,Group,Initiative,Movement,HighBlock,MidBlock,LowBlock,HighDType,MidDType,LowDType,HighAttack,HighRange,MidAttack,MidRange,LowAttack,LowRange,Text,OneUse,Requirements,BackgroundImg,BackgroundLayer,ForegroundImg,Flavor,PrintID
+Name,Faction,Group,Initiative,Movement,HighBlock,MidBlock,LowBlock,HighDType,MidDType,LowDType,HighAttack,HighRange,MidAttack,MidRange,LowAttack,LowRange,Text,OneUse,Requirements,CardImg,BackgroundLayer,ForegroundImg,Flavor,PrintID
 Punch,,Basic,5,0,0,1,0,,impact,,0,0,1,0,0,0,,0,,Punch.jpg,proxy_background.png,,,1
 Kick,,Basic,5,0,0,0,1,,,impact,0,0,0,0,1,0,,0,,Kick.jpg,proxy_background.png,,,1
 Block,,Basic,2,-1,1,1,0,,,,0,0,0,0,0,0,,0,,Block.jpg,proxy_background.png,,,1

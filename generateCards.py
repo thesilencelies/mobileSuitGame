@@ -94,11 +94,11 @@ def createMacros():
 def getTypeName(t: CardTypeEnum):
     return str(t).split(".")[-1].lower().capitalize()
 
-def attack_box(atk, rng, block, pos, dmg_type):
+def attack_box(atk, rng, block, pos, dmg_type, color):
     out_text = ""
     # the attack box at the requested location
     if atk or block:
-        out_text = out_text + "\\node[backbox] at (6.2, " + str(pos) +"){};\n"
+        out_text = out_text + "\\node[backbox, fill=" + color + "] at (6.2, " + str(pos) +"){};\n"
     # what graphic to use
     aimg = "\\" + dmg_type
 
@@ -131,7 +131,7 @@ def make_card_from_row(row, card_type):
             card_text = card_text + '\\node at (4,5){\\includegraphics[width=6cm, max height = 8.3cm,' +\
                   ' keepaspectratio]{' + images_folder + row["BackgroundLayer"] + '}};\n'
         card_text = card_text + '\\node at (4,5){\\includegraphics[width=6cm, max height = 8.3cm,' +\
-              ' keepaspectratio]{' + images_folder + row["BackgroundImg"] + '}};\n'
+              ' keepaspectratio]{' + images_folder + row["CardImg"] + '}};\n'
         # frame style - these need designing
         if card_type is CardTypeEnum.BOOSTER:
             # TODO - create booster frame
@@ -161,11 +161,11 @@ def make_card_from_row(row, card_type):
 
         try:
             if card_type is CardTypeEnum.PILOT:
-                card_text = card_text + attack_box(0, 0, 1, 7.5, "")
+                card_text = card_text + attack_box(0, 0, 1, 7.5, "", "yellow!20")
             else:
-                card_text = card_text + attack_box(int(row["HighAttack"]), int(row["HighRange"]), int(row["HighBlock"]), 7.5, row["HighDType"])
-                card_text = card_text + attack_box(int(row["MidAttack"]), int(row["MidRange"]), int(row["MidBlock"]), 5.0, row["MidDType"])
-                card_text = card_text + attack_box(int(row["LowAttack"]), int(row["LowRange"]), int(row["LowBlock"]), 2.5, row["LowDType"])
+                card_text = card_text + attack_box(int(row["HighAttack"]), int(row["HighRange"]), int(row["HighBlock"]), 7.5, row["HighDType"], "yellow!20")
+                card_text = card_text + attack_box(int(row["MidAttack"]), int(row["MidRange"]), int(row["MidBlock"]), 5.0, row["MidDType"], "red!20")
+                card_text = card_text + attack_box(int(row["LowAttack"]), int(row["LowRange"]), int(row["LowBlock"]), 2.5, row["LowDType"], "blue!20")
         except:
             print(f"exception for {row["Group"]} {row['Name']}")
             return ""
@@ -222,7 +222,7 @@ def create_frame_sheet(frame):
         # background
         if frame.get("BackgroundLayer"):
             frame_text = frame_text + '\\node at (4,5){\\includegraphics[width=6cm, max height = 8.3cm, keepaspectratio]{' + frame_images_folder + frame["BackgroundLayer"] + '}};\n'
-        frame_text = frame_text + '\\node at (4,5){\\includegraphics[width=6cm, max height = 8.3cm, keepaspectratio]{' + frame_images_folder + frame["BackgroundImg"] + '}};\n'
+        frame_text = frame_text + '\\node at (4,5){\\includegraphics[width=6cm, max height = 8.3cm, keepaspectratio]{' + frame_images_folder + frame["CardImg"] + '}};\n'
         # name
         frame_text = frame_text + "\\node [rectangle, minimum width=4.3cm, minimum height = 1cm,rounded corners = 0.1cm, fill=white, opacity=0.75, text width=4.1cm]" +\
                             "at (3.3, 9){\\large{" + frame["Name"] + "}\\\\\n\\small{\\emph{~" + frame["Faction"] + "}}};\n"
@@ -679,7 +679,7 @@ def create_terrain_card(row, i):
                 + " minimum width =6.35cm, rounded corners = 0.3cm, fill=white, opacity=0.75}]\n "
         terrain_text += "\\node [rectangle, minimum width = 6.4cm, minimum height = 8.7cm, fill=black!70!white!30] at (3.25,4.5){};\n"
         terrain_text += '\\node at (3.25,4.45){\\includegraphics[width=6.35cm, max height = 8.85cm,' +\
-                'keepaspectratio]{' + terrain_images_folder + row["BackgroundImg"] + '}};\n'
+                'keepaspectratio]{' + terrain_images_folder + row["CardImg"] + '}};\n'
 
         # terrain card size
         cols = 3

@@ -1,8 +1,8 @@
-BackgroundImg,Rules,Defend Points,Attack Points,Tokens,tile_0_0,tile_0_1,tile_0_2,tile_1_0,tile_1_1,tile_1_2,tile_2_0,tile_2_1,tile_2_2,tile_3_0,tile_3_1,tile_3_2,PrintID
-terrain_help.png,"Here is any special rules that apply to this terrain card (Normally ojectives and scoring).\\This card gives 1 point to the defenders, 2 to the attackers, and has 4 tokens",1,2,4,im,BehindText,BehindText,obj,BehindText,BehindText,tkn,obs,tkn e2,e1,e2,e3,1
+CardImg,Rules,Defend Points,Attack Points,Tokens,tile_0_0,tile_0_1,tile_0_2,tile_1_0,tile_1_1,tile_1_2,tile_2_0,tile_2_1,tile_2_2,tile_3_0,tile_3_1,tile_3_2,PrintID
+terrain_help.png,"Here is any special rules that apply to this terrain card (Normally ojectives and scoring).\\This card gives 1 point to the defenders, 2 to the attackers, and has 4 tokens",1,2,4,im,BehindText,BehindText,obj,BehindText,BehindText,tkn,obs,tkn e2 obs,e1,e2,e3,1
 terrain_01.png,,0,0,0,,,e1,obs,obs,e1,,obs,e1,,,e1,1
 terrain_02.png,,0,0,0,e2,e2,e2,e1,e2,e2,e1,e1,,,,,1
-terrain_03.png,"\emph{Power reactors}:\\Each power reactor has 2 hitpoints and can be attacked. Attackers score if 2 or more are destroyed, else defenders score.",2,2,4,obs tkn obj,,,,,obs tkn obj,,obs tkn obj,,,,obs tkn obj,1
+terrain_03.png,"\emph{Power reactors}:\\Each power reactor has 2 hitpoints. Attackers score if 3 or more are destroyed, else defenders score.",2,2,4,obs tkn obj,,,,,obs tkn obj,,obs tkn obj,,,,obs tkn obj,1
 terrain_04.png,,0,0,0,,e1,,,e1,e1,,,,N/A,,,1
 terrain_05.png,,0,0,0,,,,e2,e2,e2,e2,e1,e2,e2,e2,e2,1
 terrain_06.png,\emph{Shiny thing}:\\Frames pick up the shiny thing by stepping on it; they drop it to a neignoring tile on damage. Team holding it at the end scores.,1,2,1,,obs,,,obs,,obs,tkn,obs,,,,1
@@ -26,8 +26,8 @@ terrain_23.png,,0,0,0,,,,,im,,,,,,im,,1
 terrain_24.png,,0,0,0,e1,e1,e1,e1,,e1,e1,,e1,e1,e1,e1,1
 terrain_25.png,,0,0,0,obs,,obs,,,,obs,,obs,obs,,,1
 terrain_26.png,,0,0,0,,,e2,e2,,e2 ,e2,,,e2,e2,,1
-terrain_27.png,"\emph{The Tower}: The tower has 4 hitpoints - if it is destroyed attackers score, else defenders",1,2,1,,,,e1,,e1,e1,,e3 obs obj tkn,,,,1
+terrain_27.png,"\emph{The Tower}: The tower has 4 hitpoints - if it is destroyed attackers score, else defenders",2,2,1,,,,e1,,e1,e1,,e3 obs obj tkn,,,,1
 terrain_28.png,,0,0,0,,e2,,e3,e3,,e2,e2,,e3,e3,,1
 terrain_29.png,\emph{The Egg}: The first team to end two consecutive turns standing on the egg scores it,1,2,0,,,,e1 obj,,e3,e1 obj,e1,,,,,1
-terrain_30.png,\emph{Rail lines}: any frame that ends a turn on the rails takes 1 hit low,0,0,0,,tkn,tkn,,tkn,tkn,,tkn,tkn,e1,tkn,tkn,1
+terrain_30.png,\emph{Rail lines}: any frame that ends a turn on the rails takes \smallenergy low,0,0,0,,tkn,tkn,,tkn,tkn,,tkn,tkn,e1,tkn,tkn,1
 terrain_31.png,,0,0,0,e1,e1,e1,e1,,e1,e1,,e1,e1,,e1,1
