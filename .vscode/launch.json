@@ -19,7 +19,7 @@
       "request": "launch",
       "program": "${workspaceFolder}/generate_card_sheet.py",
       "args": [
-        "--csv=decks/terrain_deck.csv",
+        "--csv=decks/deck_terrain.csv",
         "--output=build/terrain_image.tex",
         "--cols=6",
         "--rows=6",

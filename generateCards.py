@@ -51,6 +51,8 @@ frameBackgrounds = ["proxy_background.png"] * len(frameImages)
 
 iconwidth = "width=0.9cm"
 inline_iconwidth = "width=0.4cm"
+terrain_iconwidth_value = 0.6
+terarin_iconwidth = f"width={terrain_iconwidth_value}cm"
 
 header_text = "\\documentclass[a4paper, landscape]{article}\n \\usepackage[left =2cm, right = 2cm, " \
             + "top = 1.4cm, bottom =1.4cm]{geometry} \n \\usepackage{tikz} \n \\usepackage[export]{adjustbox}" \
@@ -273,44 +275,150 @@ DEFAULT_STYLE: TileStyle = {
     "hatch":       "",
     "hatch_color": "",     # empty = same as color
     "fill":        "none",
+    "text":        "",
+    "icon":        "",
 }
 
-## styles for other options
-ELEVATION_1_STYLE: TileStyle = {
-    "color":       "blue",
-    "thickness":   "line width=3pt",
-}
+TERRAIN_STYLE = "full"
 
-ELEVATION_2_STYLE: TileStyle = {
-    "color":       "blue!50",
-    "thickness":   "line width=4pt",
-}
+if TERRAIN_STYLE == "border":
+    ## styles for other options
+    ELEVATION_1_STYLE: TileStyle = {
+        "color":       "blue",
+        "thickness":   "line width=3pt",
+    }
 
-ELEVATION_3_STYLE: TileStyle = {
-    "color":       "blue!20",
-    "thickness":   "line width=4pt",
-}
-# too high to access
-IMPASSIBLE_STYLE: TileStyle = {
-    "color":       "red",
-    "thickness":   "line width=5pt",
-    "fill":        "black",
-}
+    ELEVATION_2_STYLE: TileStyle = {
+        "color":       "blue!50",
+        "thickness":   "line width=4pt",
+    }
 
-# these should not set the line style cause they can appear at any elevation
+    ELEVATION_3_STYLE: TileStyle = {
+        "color":       "blue!20",
+        "thickness":   "line width=4pt",
+    }
+    # too high to access
+    IMPASSIBLE_STYLE: TileStyle = {
+        "color":       "red",
+        "thickness":   "line width=5pt",
+        "fill":        "black",
+    }
 
-OBJECTIVE_STYLE: TileStyle = {
-    "fill":        "green",
-}
+    # these should not set the line style cause they can appear at any elevation
 
-OBSTACLE_STYLE: TileStyle = {
-    "postaction":  "postaction={draw, line width=3pt, yellow, dash pattern=on 2mm off 2mm, dash phase=0mm}",
-}
+    OBJECTIVE_STYLE: TileStyle = {
+        "fill":        "green",
+    }
 
-TOKEN_STYLE: TileStyle = {
-    "hatch":       "crosshatch",
-    "hatch_color": "orange",     # empty = same as color
-}
+    OBSTACLE_STYLE: TileStyle = {
+        "postaction":  "postaction={draw, line width=3pt, yellow, dash pattern=on 2mm off 2mm, dash phase=0mm}",
+    }
+
+    TOKEN_STYLE: TileStyle = {
+        "hatch":       "crosshatch",
+        "hatch_color": "orange",     # empty = same as color
+    }
+elif TERRAIN_STYLE == "corner":
+
+    ## styles for other options
+    ELEVATION_1_STYLE: TileStyle = {
+        # "color":       "blue",
+        "thickness":   "line width=3pt",
+        "icon":        "e1_filled.png",
+    }
+
+    ELEVATION_2_STYLE: TileStyle = {
+        # "color":       "blue!50",
+        "thickness":   "line width=4pt",
+        "icon":        "e2_filled.png",
+    }
+
+    ELEVATION_3_STYLE: TileStyle = {
+        # "color":       "blue!20",
+        "thickness":   "line width=5pt",
+        "icon":        "e3_filled.png",
+    }
+
+    # too high to access
+    IMPASSIBLE_STYLE: TileStyle = {
+        # "color":       "red",
+        "thickness":   "line width=6pt",
+        # "fill":        "black",
+        "icon":        "imp_filled.png",
+    }
+
+    # these should not set the line style cause they can appear at any elevation
+
+    OBJECTIVE_STYLE: TileStyle = {
+        # "fill":        "green",
+        "icon":        "obj_filled.png",
+    }
+
+    OBSTACLE_STYLE: TileStyle = {
+        # "postaction":  "postaction={draw, line width=3pt, yellow, dash pattern=on 2mm off 2mm, dash phase=0mm}",
+        "icon":        "obs_filled.png",
+    }
+
+    TOKEN_STYLE: TileStyle = {
+        # "hatch":       "crosshatch",
+        # "hatch_color": "orange",     # empty = same as color
+        "icon":        "tkn_filled.png",
+    }
+
+elif TERRAIN_STYLE == "full":
+    ## styles for other options
+    ELEVATION_1_STYLE: TileStyle = {
+        "color":       "blue",
+        "thickness":   "line width=3pt",
+        "icon":        "e1.png",
+        "fill":        "blue"
+    }
+
+    ELEVATION_2_STYLE: TileStyle = {
+        "color":       "blue!50",
+        "thickness":   "line width=4pt",
+        "icon":        "e2.png",
+        "fill":        "blue!50",
+    }
+
+    ELEVATION_3_STYLE: TileStyle = {
+        "color":       "blue!20",
+        "thickness":   "line width=4pt",
+        "icon":        "e3.png",
+        "fill":        "blue!20",
+    }
+    # too high to access
+    IMPASSIBLE_STYLE: TileStyle = {
+        "color":       "red",
+        "thickness":   "line width=5pt",
+        "fill":        "black",
+        "icon":        "imp.png",
+    }
+
+    # these should not set the line style cause they can appear at any elevation
+
+    OBJECTIVE_STYLE: TileStyle = {
+        "hatch":        "vertical lines",
+        "hatch_color":  "green",
+        "icon":         "obj.png",
+    }
+
+    OBSTACLE_STYLE: TileStyle = {
+        "hatch":       "crosshatch",
+        "hatch_color": "yellow", 
+        "postaction":  "postaction={draw, line width=3pt, yellow, dash pattern=on 2mm off 2mm, dash phase=0mm}",
+        "icon":         "obs.png",
+    }
+
+    TOKEN_STYLE: TileStyle = {
+        "hatch":       "horizontal lines",
+        "hatch_color": "purple", 
+        "icon":        "tkn.png",
+    }
+else:
+  print("unrecognised terrain stye")
+  exit()
+  
 
 
 STYLE_DICT = {
@@ -470,6 +578,9 @@ def _tikz_hex_lines(col: int, row: int, size: float, s: TileStyle, offset: Tuple
     else:
         draw_opts.append(f"fill={fill}")
 
+
+    # TODO - icon handling
+
     lines.append(f"  \\draw[{', '.join(draw_opts)}] {cs_inset};")
     return lines
 
@@ -504,7 +615,13 @@ def _tikz_square_lines(col: int, row: int, size: float, s: TileStyle, offset: Tu
     else:
         draw_opts.append(f"fill={fill}")
 
-    lines.append(f"  \\draw[{', '.join(draw_opts)}] {cs_inset};")
+    lines.append(f"  \\draw[{', '.join(draw_opts)}] {cs_inset};\n")
+    # icons
+    hoffset = terrain_iconwidth_value / 2 + _thickness_to_cm(s["thickness"])
+    for icon in s.get("icons", []):
+        lines.append(f'    \\node at({cx + size - hoffset}, {cy + terrain_iconwidth_value/2})' + '{\\includegraphics[' + terarin_iconwidth + ']{' + icons_folder + icon + '}};\n')
+        hoffset += terrain_iconwidth_value
+
     return lines
 
 
@@ -537,9 +654,14 @@ def create_terrain_card(row, i):
         for c in col_range:
             for r in row_range:
                 style = dict(DEFAULT_STYLE)
+                icons = []
                 if 0 <= c < cols and 0 <= r < rows:
                     for element in row[f"tile_{r}_{c}"].split(" "):
+                        prev_icon = style["icon"]
                         style.update(STYLE_DICT.get(element, {}))
+                        if style["icon"] and prev_icon != style["icon"]:
+                            icons.append(style["icon"])
+                style["icons"] = icons
                 # hex_lines.append("\n".join(_tikz_hex_lines(c, r + 1, hex_size, style, (hoffset, voffset))))
                 hex_lines.append("\n".join(_tikz_square_lines(c, r, hex_size, style, (hoffset, voffset))))
 
