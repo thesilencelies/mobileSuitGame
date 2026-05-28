@@ -1,4 +1,4 @@
-BackgroundImg,Rules,Defend Points,Attack Points,Tokens,tile_0_0,tile_0_1,tile_0_2,tile_0_3,tile_1_0,tile_1_1,tile_1_2,tile_1_3,tile_2_0,tile_2_1,tile_2_2,tile_2_3,tile_3_0,tile_3_1,tile_3_2,tile_3_3,tile_4_0,tile_4_1,tile_4_2,tile_4_3,PrintID
+CardImg,Rules,Defend Points,Attack Points,Tokens,tile_0_0,tile_0_1,tile_0_2,tile_0_3,tile_1_0,tile_1_1,tile_1_2,tile_1_3,tile_2_0,tile_2_1,tile_2_2,tile_2_3,tile_3_0,tile_3_1,tile_3_2,tile_3_3,tile_4_0,tile_4_1,tile_4_2,tile_4_3,PrintID
 terrain_help.png,"Here is any special rules that apply to this terrain card (Normally ojectives and scoring).\\This card gives 1 point to the defenders, 2 to the attackers, and has 4 tokens",1,2,4,im,,BehindText,BehindText,N/A,obj,BehindText,BehindText,tkn,tkn e1,tkn e2,tkn e3,N/A,obs,obs e1,obs e2,,e1,e2,e3,1
 terrain_01.png,,0,0,0,obs,obs,,e1,N/A,,obs,e1,,obs,,e1,N/A,,,e1,,,,e1,1
 terrain_02.png,,0,0,0,e1,e1,e2,e2,N/A,e1,e1,e2,e1,e1,,,N/A,e1,e1,,,,,,1

@@ -51,12 +51,12 @@ Run: `python plotCardStatistics.py [--no-basics] [--no-boosters] [--melee] [--ra
 
 | File | Card Type | Key Columns |
 |---|---|---|
-| `Weapon actions.csv` | Action cards with attacks | Name, Group, Initiative, Movement, High/Mid/Low Attack+Block+DType+Range, Text, OneUse, BackgroundImg, PrintID |
+| `Weapon actions.csv` | Action cards with attacks | Name, Group, Initiative, Movement, High/Mid/Low Attack+Block+DType+Range, Text, OneUse, CardImg, PrintID |
 | `Basic actions.csv` | Basic action cards | Same as Weapon actions |
 | `Booster actions.csv` | Booster cards | Same as Weapon actions |
-| `Pilot actions.csv` | Pilot cards (no attack zones) | Name, Group, Initiative, Movement, Text, OneUse, BackgroundImg, Flavor, PrintID |
-| `Frames.csv` | Mecha/frame datasheets | Name, Movement, Weapon Slots, Deck size, Abilities, Top/Side/Low armour, Boosters, BackgroundImg |
-| `Terrain_square.csv` | Tactical map tiles | BackgroundImg, Rules, Defend/Attack Points, Tokens, tile_0_0…tile_3_2 (3×4 grid codes) |
+| `Pilot actions.csv` | Pilot cards (no attack zones) | Name, Group, Initiative, Movement, Text, OneUse, CardImg, Flavor, PrintID |
+| `Frames.csv` | Mecha/frame datasheets | Name, Movement, Weapon Slots, Deck size, Abilities, Top/Side/Low armour, Boosters, CardImg |
+| `Terrain_square.csv` | Tactical map tiles | CardImg, Rules, Defend/Attack Points, Tokens, tile_0_0…tile_3_2 (3×4 grid codes) |
 
 **Damage types (DType):** `cut`, `pierce`, `impact`, `projectile`
 
@@ -68,7 +68,7 @@ Each file is a single-column list of `card_<Group>_<N>.tex` filenames. One file 
 
 ## Asset Directories
 
-- `pictures/` — card background images (JPEG/PNG, referenced by `BackgroundImg` column)
+- `pictures/` — card background images (JPEG/PNG, referenced by `CardImg` column)
 - `icons/` — mechanic icons (attack types, block, range, initiative, movement, etc.)
 - `terrain/` — terrain tile PNG images
 - `backs/` — card back designs

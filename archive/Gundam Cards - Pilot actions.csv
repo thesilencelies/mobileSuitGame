@@ -1,4 +1,4 @@
-Name,Initiative,Movement,Text,OneUse,BackgroundImg,Slot type,Slot name,PrintID
+Name,Initiative,Movement,Text,OneUse,CardImg,Slot type,Slot name,PrintID
 Intimidatie,6,-1,Choose an enemy at melee range - this turn they get -1 init -1 mv,0,Hekija_2.jpg,pilot,hekija,1
 Fast Thinking,*,-1,"When placed, put an extra card from your hand down - that card resolves at +1 init -1 mv",1,Hekija_2.jpg,pilot,hekija,1
 Wing Boost,7,4,,1,Bael_anime_1.jpg,pilot,bael,1

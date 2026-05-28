@@ -1,4 +1,4 @@
-Name,Initiative,Movement,HighBlock,MidBlock,LowBlock,HighAttack,HighRange,MidAttack,MidRange,LowAttack,LowRange,Text,OneUse,BackgroundImg,Slot type,Slot name,PrintID
+Name,Initiative,Movement,HighBlock,MidBlock,LowBlock,HighAttack,HighRange,MidAttack,MidRange,LowAttack,LowRange,Text,OneUse,CardImg,Slot type,Slot name,PrintID
 Knife low,4,0,0,0,1,0,0,0,0,1,0,You choose which block is consumed if there is a choice,0,Hekija_knife.jpeg,Weapon,Knife,1
 Knife mid,4,0,0,1,0,0,0,1,0,0,0,You choose which block is consumed if there is a choice,0,Hekija_knife.jpeg,Weapon,Knife,1
 Knife high,4,0,1,0,0,1,0,0,0,0,0,You choose which block is consumed if there is a choice,0,Hekija_knife.jpeg,Weapon,Knife,1
