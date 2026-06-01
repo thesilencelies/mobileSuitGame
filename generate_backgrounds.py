@@ -75,7 +75,8 @@ def generate_background(group_name: str, out_path: str) -> None:
 
 def main() -> None:
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    csv_path = os.path.join(script_dir, "Weapon actions.csv")
+    # csv_path = os.path.join(script_dir, "Weapon actions.csv")
+    csv_path = os.path.join(script_dir, "Basic actions.csv")
 
     groups: set[str] = set()
     with open(csv_path, newline="", encoding="utf-8") as f:
