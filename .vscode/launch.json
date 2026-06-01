@@ -86,7 +86,7 @@
       "request": "launch",
       "program": "${workspaceFolder}/generate_all_decks.py",
       "args": [
-        "terrain_assault"
+        // "terrain_assault"
       ],
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}"
