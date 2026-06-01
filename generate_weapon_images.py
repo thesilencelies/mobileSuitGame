@@ -9,13 +9,14 @@ The base weapon sprite (pictures/weapons/<group>.png) is scaled, then
 rotated so its topmost non-transparent pixel (the tip) points toward
 the primary attack zone.
 
-Motion lines are drawn BEHIND the weapon.  All arcs originate from the
-weapon's butt/handle end (10 % of weapon length extended past that end)
-so they look like the weapon is swinging from a pivot at its body:
-  - High/Low (melee): outward-bowing quadratic Bézier, curving away from
-    the weapon toward the right side of the card.
-  - Mid (melee): tip-through quadratic Bézier; the arc passes through a
-    point 10 % of weapon-length back from the tip along the shaft.
+Motion lines are drawn BEHIND the weapon.  A single tapered arc is drawn
+for melee attacks (thick at its origin, thin at the weapon tip); the shape
+depends on which attack zones are active and which is primary:
+  - Single zone: arc from the card's left edge at that zone's height,
+    curving gently toward the tip.
+  - Multi-zone combinations: originate from geometric anchors (centre,
+    corners, left/right mid-points) chosen to convey the swing direction.
+  - Two arcs are drawn for high/low combos and the full-3-zone mid-primary case.
   - Ranged: dashed straight rays fanning from the weapon centre.
 """
 
@@ -72,7 +73,7 @@ WEAPON_MAX_H  = 600
 WEAPON_MAX_W  = 340
 # Short weapons are shifted right until their tip reaches this x,
 # keeping the attacking end at a consistent distance from the zones.
-TARGET_TIP_X  = 490
+TARGET_TIP_X  = 460
 
 WEAPONS_DIR = "pictures/weapons"
 
@@ -191,6 +192,25 @@ def draw_quad_bezier(draw: ImageDraw.ImageDraw,
         draw.line([pts[i], pts[i + 1]], fill=color, width=width)
 
 
+def draw_quad_bezier_tapered(draw: ImageDraw.ImageDraw,
+                              p0: tuple, p1: tuple, p2: tuple,
+                              color: tuple,
+                              width_start: int = 14, width_end: int = 3,
+                              steps: int = 120) -> None:
+    """Quadratic Bézier with width tapering from width_start at p0 to width_end at p2."""
+    pts = []
+    for i in range(steps + 1):
+        t = i / steps
+        u = 1.0 - t
+        x = round(u * u * p0[0] + 2 * u * t * p1[0] + t * t * p2[0])
+        y = round(u * u * p0[1] + 2 * u * t * p1[1] + t * t * p2[1])
+        pts.append((x, y))
+    for i in range(len(pts) - 1):
+        t = i / steps
+        w = max(round(width_start + t * (width_end - width_start)), 1)
+        draw.line([pts[i], pts[i + 1]], fill=color, width=w)
+
+
 # ---------------------------------------------------------------------------
 # Line drawing
 # ---------------------------------------------------------------------------
@@ -219,61 +239,147 @@ def draw_dashed_line(draw: ImageDraw.ImageDraw,
         is_dash  = not is_dash
 
 
-def draw_motion_lines(draw: ImageDraw.ImageDraw,
+def draw_ranged_lines(draw: ImageDraw.ImageDraw,
                       zone: str,
-                      arc_start: tuple,
-                      through_point: tuple,
                       weapon_center: tuple,
-                      attack: int,
-                      is_ranged: bool) -> None:
+                      attack: int) -> None:
+    """Dashed-ray fan for a ranged attack zone."""
+    target    = ZONE_CENTER[zone]
+    color     = ZONE_COLOR[zone]
+    n_lines   = max(min(attack + 1, 4), 2)
+    lw        = 3
+    base_ang  = math.atan2(target[1] - weapon_center[1],
+                            target[0] - weapon_center[0])
+    fan_total = math.radians(8)
+    dist      = math.hypot(target[0] - weapon_center[0],
+                            target[1] - weapon_center[1])
+    for i in range(n_lines):
+        frac = (i / (n_lines - 1) - 0.5) if n_lines > 1 else 0.0
+        ang  = base_ang + fan_total * frac
+        end  = (round(weapon_center[0] + dist * math.cos(ang)),
+                round(weapon_center[1] + dist * math.sin(ang)))
+        draw_dashed_line(draw, weapon_center, end, color, lw)
+
+
+def draw_melee_arcs(draw: ImageDraw.ImageDraw,
+                    tip_canvas: tuple,
+                    melee_attacks: dict,
+                    primary_zone: str) -> None:
     """
-    Draw motion lines for one attack zone.
+    Draw a single tapered melee motion arc (or a pair for certain zone combos).
 
-    arc_start     – where melee arcs originate (weapon butt end, extended).
-    through_point – for mid melee arcs, the point the Bézier passes through
-                    (tip offset 10 % toward the butt).
-    weapon_center – WEAPON_CENTER on the canvas; ranged rays start here.
+    The arc shape is determined by which zones are active and which is primary.
+    All arcs taper from thick at their origin to thin at the weapon tip.
+    melee_attacks: {zone: atk_count} for melee-only zones (range == 0).
     """
-    target  = ZONE_CENTER[zone]
-    color   = ZONE_COLOR[zone]
-    n_lines = max(min(attack + 1, 4), 2)
-    lw      = 3
-    gap_px  = 7
+    active = [z for z in ("high", "mid", "low") if melee_attacks.get(z, 0) > 0]
+    if not active:
+        return
 
-    def perp_off(a: tuple, b: tuple, off: float) -> tuple:
-        dx = b[0] - a[0]
-        dy = b[1] - a[1]
-        ln = math.hypot(dx, dy) or 1.0
-        return (-dy / ln * off, dx / ln * off)
+    color       = ZONE_COLOR[primary_zone]
+    tip         = tip_canvas
+    W_START     = 14
+    W_END       = 3
 
-    if is_ranged:
-        base_ang  = math.atan2(target[1] - weapon_center[1],
-                               target[0] - weapon_center[0])
-        fan_total = math.radians(8)
-        dist      = math.hypot(target[0] - weapon_center[0],
-                               target[1] - weapon_center[1])
-        for i in range(n_lines):
-            frac = (i / (n_lines - 1) - 0.5) if n_lines > 1 else 0.0
-            ang  = base_ang + fan_total * frac
-            end  = (round(weapon_center[0] + dist * math.cos(ang)),
-                    round(weapon_center[1] + dist * math.sin(ang)))
-            draw_dashed_line(draw, weapon_center, end, color, lw)
+    # Named anchor positions on the canvas
+    L  = 50
+    CX = CARD_W // 2            # 320
+    HY = ZONE_CENTER["high"][1]  # ≈ 245
+    MY = ZONE_CENTER["mid"][1]   # ≈ 460
+    LY = ZONE_CENTER["low"][1]   # ≈ 675
+
+    top_left  = (L,   HY)
+    mid_left  = (L,   MY)
+    bot_left  = (L,   LY)
+    top_ctr   = (CX,  HY)
+    center    = (CX,  MY)
+    bot_ctr   = (CX,  LY)
+    top_right = (420, HY)
+    mid_right = (420, MY)
+    bot_right = (420, LY)
+
+    def arc(p0, through, p2=None):
+        """Tapered arc from p0, passing through `through` at t=0.5, ending at p2."""
+        if p2 is None:
+            p2 = tip
+        p1 = quad_ctrl(p0, p2, through)
+        draw_quad_bezier_tapered(draw, p0, p1, p2, color, W_START, W_END)
+
+    def arc_outward(p0, p2=None, fraction=0.35):
+        """Tapered arc that bows outward (rightward)."""
+        if p2 is None:
+            p2 = tip
+        p1 = outward_ctrl(p0, p2, fraction)
+        draw_quad_bezier_tapered(draw, p0, p1, p2, color, W_START, W_END)
+
+    def mp(p0, p2, dx=0, dy=0):
+        """Midpoint of p0→p2 plus an absolute pixel offset."""
+        return (round((p0[0] + p2[0]) / 2 + dx), round((p0[1] + p2[1]) / 2 + dy))
+
+    # -----------------------------------------------------------------------
+    # Single active zone
+    # -----------------------------------------------------------------------
+    if active == ["high"]:
+        # Arc from top-left curving over (upward) to tip
+        arc(top_left, mp(top_left, tip, dy=-140))
+
+    elif active == ["mid"]:
+        # Arc from mid-left curving up to tip
+        arc(mid_left, mp(mid_left, tip, dy=-110))
+
+    elif active == ["low"]:
+        # Arc from bottom-left curving down to tip
+        arc(bot_left, mp(bot_left, tip, dy=110))
+
+    # -----------------------------------------------------------------------
+    # Two active zones
+    # -----------------------------------------------------------------------
+    elif active == ["high", "mid"] and primary_zone == "high":
+        # Arc curves up from bottom-middle, through mid-right, to tip
+        arc(bot_ctr, mid_right)
+
+    elif active == ["high", "mid"] and primary_zone == "mid":
+        # Arc from top-left, through top-right area, to tip
+        arc(top_left, (380, HY - 40))
+
+    elif active == ["high", "low"] and primary_zone == "high":
+        # Two arcs from center, both curving upward to tip
+        arc(center, (360, 240))
+        arc(center, (440, 240))
+
+    elif active == ["high", "low"] and primary_zone == "low":
+        # Two arcs from center, both curving downward to tip
+        arc(center, (360, 660))
+        arc(center, (440, 660))
+
+    elif active == ["mid", "low"] and primary_zone == "mid":
+        # Arc from bottom-left, through bottom-right mark, to tip
+        arc(bot_left, bot_right)
+
+    elif active == ["mid", "low"] and primary_zone == "low":
+        # Arc from middle-left, through middle-right, to tip
+        arc(mid_left, mid_right)
+
+    # -----------------------------------------------------------------------
+    # Three active zones
+    # -----------------------------------------------------------------------
+    elif active == ["high", "mid", "low"] and primary_zone == "mid":
+        # Two arcs: one from top-center, one from bottom-center, both to tip
+        arc_outward(top_ctr)
+        arc_outward(bot_ctr)
+
+    elif active == ["high", "mid", "low"] and primary_zone == "high":
+        # Arc from bottom-right to tip
+        arc(bot_right, mp(bot_right, tip, dx=30))
+
+    elif active == ["high", "mid", "low"] and primary_zone == "low":
+        # Arc from top-right to tip
+        arc(top_right, mp(top_right, tip, dx=30))
 
     else:
-        for i in range(n_lines):
-            off = gap_px * (i - (n_lines - 1) / 2.0)
-            po  = perp_off(arc_start, target, off)
-            p0  = (round(arc_start[0] + po[0]), round(arc_start[1] + po[1]))
-            p2  = (round(target[0]    + po[0]), round(target[1]    + po[1]))
-
-            if zone == "mid":
-                tp = (round(through_point[0] + po[0]), round(through_point[1] + po[1]))
-                p1 = quad_ctrl(p0, p2, tp)
-            else:
-                # High and low: outward-bowing arc (rightward)
-                p1 = outward_ctrl(p0, p2)
-
-            draw_quad_bezier(draw, p0, p1, p2, color, lw)
+        # Fallback: outward arc from the primary zone's left anchor
+        left_pts = {"high": top_left, "mid": mid_left, "low": bot_left}
+        arc_outward(left_pts.get(primary_zone, mid_left))
 
 
 # ---------------------------------------------------------------------------
@@ -299,12 +405,8 @@ def generate_weapon_image(row: dict, output_path: str) -> None:
 
     # --- Locate tip and butt/handle ---
     tip    = find_tip(base)
-    bottom = find_bottom(base)
     img_cx = new_w // 2
     img_cy = new_h // 2
-
-    # Weapon span in (scaled) image pixels; rotation preserves length
-    weapon_length = math.hypot(bottom[0] - tip[0], bottom[1] - tip[1])
 
     # --- Parse attacks and ranges ---
     attacks = {
@@ -364,41 +466,30 @@ def generate_weapon_image(row: dict, output_path: str) -> None:
                                 ZONE_CENTER[primary_zone], weapon_center)
     rotated = base.rotate(-angle, expand=True, resample=Image.BICUBIC)
 
-    # --- Canvas positions of tip and butt after rotation ---
-    tip_rel    = rotate_point(tip,    (img_cx, img_cy), angle)
-    bottom_rel = rotate_point(bottom, (img_cx, img_cy), angle)
-    tip_canvas    = (weapon_center[0] + tip_rel[0],    weapon_center[1] + tip_rel[1])
-    bottom_canvas = (weapon_center[0] + bottom_rel[0], weapon_center[1] + bottom_rel[1])
-
-    # Unit vector from tip toward butt (direction "back along shaft")
-    tb = (bottom_canvas[0] - tip_canvas[0], bottom_canvas[1] - tip_canvas[1])
-    tb_len  = math.hypot(*tb) or 1.0
-    tb_unit = (tb[0] / tb_len, tb[1] / tb_len)
-
-    # Arc start: butt end extended 10 % past the handle
-    arc_start = (
-        round(bottom_canvas[0] + 0.1 * weapon_length * tb_unit[0]),
-        round(bottom_canvas[1] + 0.1 * weapon_length * tb_unit[1]),
-    )
-
-    # Through-point for mid arcs: 10 % back from tip along the shaft
-    through_point = (
-        round(tip_canvas[0] + 0.1 * weapon_length * tb_unit[0]),
-        round(tip_canvas[1] + 0.1 * weapon_length * tb_unit[1]),
-    )
+    # --- Canvas position of tip after rotation ---
+    tip_rel    = rotate_point(tip, (img_cx, img_cy), angle)
+    tip_canvas = (weapon_center[0] + tip_rel[0], weapon_center[1] + tip_rel[1])
 
     # --- Build image: motion layer behind weapon ---
     canvas       = Image.new("RGBA", (CARD_W, CARD_H), (0, 0, 0, 0))
     motion_layer = Image.new("RGBA", (CARD_W, CARD_H), (0, 0, 0, 0))
     motion_draw  = ImageDraw.Draw(motion_layer)
 
+    # Ranged zones: dashed ray fans
     for zone, atk in attacks.items():
-        if atk > 0:
-            draw_motion_lines(
-                motion_draw, zone,
-                arc_start, through_point, weapon_center,
-                atk, is_ranged=(ranges[zone] > 0),
-            )
+        if atk > 0 and ranges[zone] > 0:
+            draw_ranged_lines(motion_draw, zone, weapon_center, atk)
+
+    # Melee zones: single tapered arc (or pair for certain combos)
+    melee_attacks = {z: v for z, v in attacks.items() if v > 0 and ranges[z] == 0}
+    if melee_attacks:
+        max_m = max(melee_attacks.values())
+        melee_primary = None
+        for z in ("mid", "low", "high"):
+            if melee_attacks.get(z, 0) == max_m:
+                melee_primary = z
+                break
+        draw_melee_arcs(motion_draw, tip_canvas, melee_attacks, melee_primary)
 
     canvas = Image.alpha_composite(canvas, motion_layer)
 
