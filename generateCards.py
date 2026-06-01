@@ -671,9 +671,9 @@ def _tikz_square_lines(col: int, row: int, size: float, s: TileStyle, offset: Tu
     return lines
 
 
-def create_terrain_card(row, i):
+def create_terrain_card(row):
     """populates the terrain including correct borders"""
-    with open(terrianoutputfolder + str(i) + '.tex', 'w') as ofile:
+    with open(terrianoutputfolder + row["Name"] + '.tex', 'w') as ofile:
         #load the background image
         terrain_text = "\\begin{tikzpicture}[backbox/.style= {rectangle, minimum height = 8.9cm," \
                 + " minimum width =6.35cm, rounded corners = 0.3cm, fill=white, opacity=0.75}]\n "
@@ -809,14 +809,12 @@ if __name__ == "__main__":
                 if int(row["PrintID"]) > 0:
                     allfile.write(create_frame_sheet(row))
         # terrain doesnt have names yet
-        i = 0
         with open(terrain_file, "r") as tcsvfile:
             allfile.write("\\newpage \n\\noindent ")
             reader = csv.DictReader(tcsvfile)
             for row in reader:
-                i += 1
                 if int(row["PrintID"]) > 0:
-                    allfile.write(create_terrain_card(row, i))
+                    allfile.write(create_terrain_card(row))
 
         # standees
         allfile.write("\\newpage \n\\noindent ")

@@ -1,33 +1,33 @@
-CardImg,Rules,Defend Points,Attack Points,Tokens,tile_0_0,tile_0_1,tile_0_2,tile_1_0,tile_1_1,tile_1_2,tile_2_0,tile_2_1,tile_2_2,tile_3_0,tile_3_1,tile_3_2,PrintID
-terrain_help.png,"Here is any special rules that apply to this terrain card (Normally ojectives and scoring).\\This card gives 1 point to the defenders, 2 to the attackers, and has 4 tokens",1,2,4,im,BehindText,BehindText,obj,BehindText,BehindText,tkn,obs,tkn e2 obs,e1,e2,e3,1
-terrain_01.png,,0,0,0,,,e1,obs,obs,e1,,obs,e1,,,e1,1
-terrain_02.png,,0,0,0,e2,e2,e2,e1,e2,e2,e1,e1,,,,,1
-terrain_03.png,"\emph{Power reactors}:\\Each power reactor has 2 hitpoints. Attackers score if 3 or more are destroyed, else defenders score.",2,2,4,obs tkn obj,,,,,obs tkn obj,,obs tkn obj,,,,obs tkn obj,1
-terrain_04.png,,0,0,0,,e1,,,e1,e1,,,,N/A,,,1
-terrain_05.png,,0,0,0,,,,e2,e2,e2,e2,e1,e2,e2,e2,e2,1
-terrain_06.png,\emph{Shiny thing}:\\Frames pick up the shiny thing by stepping on it; they drop it to a neignoring tile on damage. Team holding it at the end scores.,1,2,1,,obs,,,obs,,obs,tkn,obs,,,,1
-terrain_07.png,,0,0,0,e2,e2,,e2,e2,,e2,e3,,,e2,e2,1
-terrain_08.png,,0,0,0,,,,e1,,,e1,,obs,N/A,,,1
-terrain_09.png,"\emph{Triangle}:\\If only one team has a frame on the triangle, they score",1,1,0,,,,obj e2,obj e2,,obj e2,obj e2,obj e2,obj e2,,,1
-terrain_10.png,,0,0,0,,e1,e1,e1,e1,e2,e1,e1,e2,e1,e1,e1,1
-terrain_11.png,,0,0,0,e1,,e1,e1,,e1,e1,,e1,e1,,e1,1
-terrain_12.png,,0,0,0,,e1,e1,e1,e,,e1,e1,,,e1,,1
-terrain_13.png,,0,0,0,,e2,e2,,,e2,e1,,,e1,,,1
-terrain_14.png,"\emph{Extraction}:\\ Put a fugitive token anywhere in the enemy half after deployment. Token moves along with any ally touching it. Defenders score if it reaches the objective point, else attackers score.",2,1,1,e2,e2,,e2 obj,e2,,,,,,,,1
-terrain_15.png,,0,0,0,e1,e1,e1,,,,,,,e2,e2,e2,1
-terrain_16.png,,0,0,0,obs,obs,obs,,,,,,,,,,1
-terrain_17.png,,0,0,0,,,,obs,,,,,obs,,,,1
-terrain_18.png,"\emph{Holo-spires}:\\If there are any attacking frames on any of the holo spires at the end, attackers score, else defenders score.",1,1,0,,obj e3,,obj e3,,obj e3,,obj e3,obj e3,obj e3,obj e3,,1
-terrain_19.png,"\emph{Church}:\\ If only one team has a frame within 2 of the church, they score.",1,1,0,obs,,e1,,,e1,,obj e1,,obj e2,obj e2,,1
-terrain_20.png,,0,0,0,e1,e1,,,e1,e1,e1,,e1,,,,1
-terrain_21.png,,0,0,0,,e2,e2,,,,,,,,e1,,1
-terrain_22.png,,0,0,0,,,,,,,,,,e1,,,1
-terrain_23.png,,0,0,0,,,,,im,,,,,,im,,1
-terrain_24.png,,0,0,0,e1,e1,e1,e1,,e1,e1,,e1,e1,e1,e1,1
-terrain_25.png,,0,0,0,obs,,obs,,,,obs,,obs,obs,,,1
-terrain_26.png,,0,0,0,,,e2,e2,,e2 ,e2,,,e2,e2,,1
-terrain_27.png,"\emph{The Tower}: The tower has 4 hitpoints - if it is destroyed attackers score, else defenders",2,2,1,,,,e1,,e1,e1,,e3 obs obj tkn,,,,1
-terrain_28.png,,0,0,0,,e2,,e3,e3,,e2,e2,,e3,e3,,1
-terrain_29.png,\emph{The Egg}: The first team to end two consecutive turns standing on the egg scores it,1,2,0,,,,e1 obj,,e3,e1 obj,e1,,,,,1
-terrain_30.png,\emph{Rail lines}: any frame that ends a turn on the rails takes \smallenergy low,0,0,0,,tkn,tkn,,tkn,tkn,,tkn,tkn,e1,tkn,tkn,1
-terrain_31.png,,0,0,0,e1,e1,e1,e1,,e1,e1,,e1,e1,,e1,1
+Name,CardImg,Rules,Defend Points,Attack Points,Tokens,tile_0_0,tile_0_1,tile_0_2,tile_1_0,tile_1_1,tile_1_2,tile_2_0,tile_2_1,tile_2_2,tile_3_0,tile_3_1,tile_3_2,PrintID
+Helpcard,terrain_help.png,"Here is any special rules that apply to this terrain card (Normally ojectives and scoring).\\This card gives 1 point to the defenders, 2 to the attackers, and has 4 tokens",1,2,4,im,BehindText,BehindText,obj,BehindText,BehindText,tkn,obs,tkn e2 obs,e1,e2,e3,1
+Construction,terrain_01.png,,0,0,0,,,e1,obs,obs,e1,,obs,e1,,,e1,1
+Warehouse,terrain_02.png,,0,0,0,e2,e2,e2,e1,e2,e2,e1,e1,,,,,1
+Power Reactors,terrain_03.png,"\emph{Power reactors}:\\Each power reactor has 2 hitpoints. Attackers score if 3 or more are destroyed, else defenders score.",2,2,4,obs tkn obj,,,,,obs tkn obj,,obs tkn obj,,,,obs tkn obj,1
+Sports Field,terrain_04.png,,0,0,0,,e1,,,e1,e1,,,,N/A,,,1
+Box,terrain_05.png,,0,0,0,,,,e2,e2,e2,e2,e1,e2,e2,e2,e2,1
+Shiny Thing,terrain_06.png,\emph{Shiny thing}:\\Frames pick up the shiny thing by stepping on it; they drop it to a neignoring tile on damage. Team holding it at the end scores.,1,2,1,,obs,,,obs,,obs,tkn,obs,,,,1
+High Tower,terrain_07.png,,0,0,0,e2,e2,,e2,e2,,e2,e3,,,e2,e2,1
+Park,terrain_08.png,,0,0,0,,,,e1,,,e1,,obs,N/A,,,1
+Triangle,terrain_09.png,"\emph{Triangle}:\\If only one team has a frame on the triangle, they score",1,1,0,,,,obj e2,obj e2,,obj e2,obj e2,obj e2,obj e2,,,1
+Helipad,terrain_10.png,,0,0,0,,e1,e1,e1,e1,e2,e1,e1,e2,e1,e1,e1,1
+Slum road,terrain_11.png,,0,0,0,e1,,e1,e1,,e1,e1,,e1,e1,,e1,1
+Suburb L,terrain_12.png,,0,0,0,,e1,e1,e1,e,,e1,e1,,,e1,,1
+Cross Junction,terrain_13.png,,0,0,0,,e2,e2,,,e2,e1,,,e1,,,1
+Fugitive,terrain_14.png,"\emph{Extraction}:\\ Put a fugitive token anywhere in the enemy half after deployment. Token moves along with any ally touching it. Defenders score if it reaches the objective point, else attackers score.",2,1,1,e2,e2,,e2 obj,e2,,,,,,,,1
+Split Offices,terrain_15.png,,0,0,0,e1,e1,e1,,,,,,,e2,e2,e2,1
+Wastes,terrain_16.png,,0,0,0,obs,obs,obs,,,,,,,,,,1
+Waste Camp,terrain_17.png,,0,0,0,,,,obs,,,,,obs,,,,1
+Holo Spires,terrain_18.png,"\emph{Holo-spires}:\\If there are any attacking frames on any of the holo spires at the end, attackers score, else defenders score.",1,1,0,,obj e3,,obj e3,,obj e3,,obj e3,obj e3,obj e3,obj e3,,1
+Church,terrain_19.png,"\emph{Church}:\\ If only one team has a frame within 2 of the church, they score.",1,1,0,obs,,e1,,,e1,,obj e1,,obj e2,obj e2,,1
+U homes,terrain_20.png,,0,0,0,e1,e1,,,e1,e1,e1,,e1,,,,1
+T Tower,terrain_21.png,,0,0,0,,e2,e2,,,,,,,,e1,,1
+Crossings,terrain_22.png,,0,0,0,,,,,,,,,,e1,,,1
+The Pit,terrain_23.png,,0,0,0,,,,,im,,,,,,im,,1
+Stadium,terrain_24.png,,0,0,0,e1,e1,e1,e1,,e1,e1,,e1,e1,e1,e1,1
+Zig-zag,terrain_25.png,,0,0,0,obs,,obs,,,,obs,,obs,obs,,,1
+Two pads,terrain_26.png,,0,0,0,,,e2,e2,,"e2 ",e2,,,e2,e2,,1
+The Tower,terrain_27.png,"\emph{The Tower}: The tower has 4 hitpoints - if it is destroyed attackers score, else defenders",2,2,1,,,,e1,,e1,e1,,e3 obs obj tkn,,,,1
+Twin Peaks,terrain_28.png,,0,0,0,,e2,,e3,e3,,e2,e2,,e3,e3,,1
+The egg,terrain_29.png,\emph{The Egg}: The first team to end two consecutive turns standing on the egg scores it,1,2,0,,,,e1 obj,,e3,e1 obj,e1,,,,,1
+Railway,terrain_30.png,\emph{Rail lines}: any frame that ends a turn on the rails takes \smallenergy low,0,0,0,,tkn,tkn,,tkn,tkn,,tkn,tkn,e1,tkn,tkn,1
+Steps,terrain_31.png,,0,0,0,e1,e1,e1,e1,,e1,e1,,e1,e1,,e1,1

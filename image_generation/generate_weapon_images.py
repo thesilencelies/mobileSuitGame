@@ -33,6 +33,9 @@ from PIL import Image, ImageDraw
 CARD_W = 640
 CARD_H = 890
 
+_SCRIPT_DIR   = os.path.dirname(os.path.abspath(__file__))
+_PROJECT_ROOT = os.path.dirname(_SCRIPT_DIR)
+
 # ---------------------------------------------------------------------------
 # TikZ → pixel mapping
 # Cards are rendered at scale=0.86 with ~100 px/cm.
@@ -75,7 +78,7 @@ WEAPON_MAX_W  = 340
 # keeping the attacking end at a consistent distance from the zones.
 TARGET_TIP_X  = 460
 
-WEAPONS_DIR = "pictures/weapons"
+WEAPONS_DIR = os.path.join(_PROJECT_ROOT, "pictures", "weapons")
 
 
 # ---------------------------------------------------------------------------
@@ -506,8 +509,8 @@ def generate_weapon_image(row: dict, output_path: str) -> None:
 # ---------------------------------------------------------------------------
 
 def main() -> None:
-    csv_path   = "Weapon actions.csv"
-    output_dir = "pictures/weapon_pictures"
+    csv_path   = os.path.join(_PROJECT_ROOT, "Weapon actions.csv")
+    output_dir = os.path.join(_PROJECT_ROOT, "pictures", "weapon_pictures")
     os.makedirs(output_dir, exist_ok=True)
 
     with open(csv_path, newline="") as f:

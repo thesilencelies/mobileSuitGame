@@ -1,25 +1,25 @@
-CardImg,Rules,Defend Points,Attack Points,Tokens,tile_0_0,tile_0_1,tile_0_2,tile_0_3,tile_1_0,tile_1_1,tile_1_2,tile_1_3,tile_2_0,tile_2_1,tile_2_2,tile_2_3,tile_3_0,tile_3_1,tile_3_2,tile_3_3,tile_4_0,tile_4_1,tile_4_2,tile_4_3,PrintID
-terrain_help.png,"Here is any special rules that apply to this terrain card (Normally ojectives and scoring).\\This card gives 1 point to the defenders, 2 to the attackers, and has 4 tokens",1,2,4,im,,BehindText,BehindText,N/A,obj,BehindText,BehindText,tkn,tkn e1,tkn e2,tkn e3,N/A,obs,obs e1,obs e2,,e1,e2,e3,1
-terrain_01.png,,0,0,0,obs,obs,,e1,N/A,,obs,e1,,obs,,e1,N/A,,,e1,,,,e1,1
-terrain_02.png,,0,0,0,e1,e1,e2,e2,N/A,e1,e1,e2,e1,e1,,,N/A,e1,e1,,,,,,1
-terrain_03.png,"\emph{Power reactors}:\\Each power reactor has 2 hitpoints and can be attacked. Attackers score if 2 or more are destroyed, else defenders score.",2,2,4,,,obs tkn obj,,N/A,,,,,,obs tkn obj,,N/A,obs tkn obj,,,,,obs tkn obj,,1
-terrain_04.png,,0,0,0,,,e1,,N/A,,e1,e1,,,,,N/A,,,,,,,,1
-terrain_05.png,,0,0,0,e1,e1,e1,e1,N/A,e2,e2,e2,e2,e1,e2,e1,N/A,e2,e1,e2,e2,e2,e2,e1,1
-terrain_06.png,\emph{Shiny thing}:\\Frames pick up the shiny thing by stepping on it; they drop it to a neignoring tile on damage. Team holding it at the end scores.,1,2,1,,,e1,,N/A,,,,,,tkn,,N/A,e1,,e1,,,,,1
-terrain_07.png,,0,0,0,e2,e2,e2,,N/A,e2,e2,,e2,e2,e3,,N/A,e2,e3,,,e2,e2,e2,1
-terrain_08.png,,0,0,0,,,,,N/A,e1,,,e1,e1,,,N/A,,,obs,,,,,1
-terrain_09.png,"\emph{Triangle}:\\If only one team has a frame on the triangle, they score",1,1,0,,obj e2,,,N/A,obj e2,obj e2,,obj e2,obj e2,obj e2,,N/A,obj e2,obj e2,obj e2,obj e2,,,,1
-terrain_10.png,,0,0,0,,e1,e1,e1,N/A,e1,e1,e1,,e1,e1,e1,N/A,e1,e1,,e1,e1,,e1,1
-terrain_11.png,,0,0,0,e1,e1,,e1,N/A,e1,,e1,,,,e1,N/A,e1,e1,,e1,e1,,e1,1
-terrain_12.png,,0,0,0,e1,e1,e1,e1,N/A,,,,e1,,,,N/A,e1,e1,e1,e1,e1,e1,,1
-terrain_13.png,,0,0,0,,e2,e2,,N/A,,e2,e2,e1,,e2,e2,N/A,e1,,,e1,,obs,e1,1
-terrain_14.png,"\emph{Extraction}:\\ Put a fugitive token anywhere in the enemy half after deployment. Token moves along with any ally touching it. Defenders score if it reaches the objective point, else attackers score.",2,1,1,e2,e2,,,N/A,e2 obj,e2,,e2,e2,,,N/A,,,,,,,e1,1
-terrain_15.png,,0,0,0,e1,e1,e1,e1,N/A,,,,,,,,N/A,e2,e2,e2,e2,e2 obs,e2 obs,e2,1
-terrain_16.png,,0,0,0,obs,obs,obs,,N/A,obs,,,,,,,N/A,obs,,,,,,,1
-terrain_17.png,,0,0,0,,,,obs,N/A,obs,,obs,obs,obs,,,N/A,,,,,,,,1
-terrain_18.png,"\emph{Holo-spires}:\\If there are any attacking frames on any of the holo spires at the end, attackers score, else defenders score.",1,1,0,,obj e3,,obj e3,N/A,,,,obj e3,obj e3,obj e3,obj e3,N/A,,,e3,obj e3,obj e3,obj e3,,1
-terrain_19.png,"\emph{Church}:\\ If only one team has a frame within 2 of the church, they score.",1,1,0,obs,,,e1,N/A,,,e1,,,,,N/A,obj e2,obj e2,,,e2 obj,e2 obj,,1
-terrain_20.png,,0,0,0,e1,,e1,,N/A,,e1,e1,,e1,,e1,N/A,e1,,e1,,,e1,,1
-terrain_21.png,,0,0,0,,,e2,e2,N/A,,e2,,,,,,N/A,,,e2,,,e2,e2,1
-terrain_22.png,,0,0,0,obs,obs,,,N/A,,obs,obs,,,obs,,N/A,,,obs,e1,e1,e1,,1
-terrain_23.png,,0,0,0,,,,,N/A,im,im,,,,,,N/A,im,"im",obs,,,,,1
+Name,CardImg,Rules,Defend Points,Attack Points,Tokens,tile_0_0,tile_0_1,tile_0_2,tile_0_3,tile_1_0,tile_1_1,tile_1_2,tile_1_3,tile_2_0,tile_2_1,tile_2_2,tile_2_3,tile_3_0,tile_3_1,tile_3_2,tile_3_3,tile_4_0,tile_4_1,tile_4_2,tile_4_3,PrintID
+Helpcard,terrain_help.png,"Here is any special rules that apply to this terrain card (Normally ojectives and scoring).\\This card gives 1 point to the defenders, 2 to the attackers, and has 4 tokens",1,2,4,im,,BehindText,BehindText,N/A,obj,BehindText,BehindText,tkn,tkn e1,tkn e2,tkn e3,N/A,obs,obs e1,obs e2,,e1,e2,e3,1
+Construction,terrain_01.png,,0,0,0,obs,obs,,e1,N/A,,obs,e1,,obs,,e1,N/A,,,e1,,,,e1,1
+Warehouse,terrain_02.png,,0,0,0,e1,e1,e2,e2,N/A,e1,e1,e2,e1,e1,,,N/A,e1,e1,,,,,,1
+Power Reactors,terrain_03.png,"\emph{Power reactors}:\\Each power reactor has 2 hitpoints and can be attacked. Attackers score if 2 or more are destroyed, else defenders score.",2,2,4,,,obs tkn obj,,N/A,,,,,,obs tkn obj,,N/A,obs tkn obj,,,,,obs tkn obj,,1
+Sports Field,terrain_04.png,,0,0,0,,,e1,,N/A,,e1,e1,,,,,N/A,,,,,,,,1
+Box,terrain_05.png,,0,0,0,e1,e1,e1,e1,N/A,e2,e2,e2,e2,e1,e2,e1,N/A,e2,e1,e2,e2,e2,e2,e1,1
+Shiny Thing,terrain_06.png,\emph{Shiny thing}:\\Frames pick up the shiny thing by stepping on it; they drop it to a neignoring tile on damage. Team holding it at the end scores.,1,2,1,,,e1,,N/A,,,,,,tkn,,N/A,e1,,e1,,,,,1
+High Tower,terrain_07.png,,0,0,0,e2,e2,e2,,N/A,e2,e2,,e2,e2,e3,,N/A,e2,e3,,,e2,e2,e2,1
+Park,terrain_08.png,,0,0,0,,,,,N/A,e1,,,e1,e1,,,N/A,,,obs,,,,,1
+Triangle,terrain_09.png,"\emph{Triangle}:\\If only one team has a frame on the triangle, they score",1,1,0,,obj e2,,,N/A,obj e2,obj e2,,obj e2,obj e2,obj e2,,N/A,obj e2,obj e2,obj e2,obj e2,,,,1
+Helipad,terrain_10.png,,0,0,0,,e1,e1,e1,N/A,e1,e1,e1,,e1,e1,e1,N/A,e1,e1,,e1,e1,,e1,1
+Slum road,terrain_11.png,,0,0,0,e1,e1,,e1,N/A,e1,,e1,,,,e1,N/A,e1,e1,,e1,e1,,e1,1
+Suburb L,terrain_12.png,,0,0,0,e1,e1,e1,e1,N/A,,,,e1,,,,N/A,e1,e1,e1,e1,e1,e1,,1
+Cross Junction,terrain_13.png,,0,0,0,,e2,e2,,N/A,,e2,e2,e1,,e2,e2,N/A,e1,,,e1,,obs,e1,1
+Fugitive,terrain_14.png,"\emph{Extraction}:\\ Put a fugitive token anywhere in the enemy half after deployment. Token moves along with any ally touching it. Defenders score if it reaches the objective point, else attackers score.",2,1,1,e2,e2,,,N/A,e2 obj,e2,,e2,e2,,,N/A,,,,,,,e1,1
+Split Offices,terrain_15.png,,0,0,0,e1,e1,e1,e1,N/A,,,,,,,,N/A,e2,e2,e2,e2,e2 obs,e2 obs,e2,1
+Wastes,terrain_16.png,,0,0,0,obs,obs,obs,,N/A,obs,,,,,,,N/A,obs,,,,,,,1
+Waste Camp,terrain_17.png,,0,0,0,,,,obs,N/A,obs,,obs,obs,obs,,,N/A,,,,,,,,1
+Holo Spires,terrain_18.png,"\emph{Holo-spires}:\\If there are any attacking frames on any of the holo spires at the end, attackers score, else defenders score.",1,1,0,,obj e3,,obj e3,N/A,,,,obj e3,obj e3,obj e3,obj e3,N/A,,,e3,obj e3,obj e3,obj e3,,1
+Church,terrain_19.png,"\emph{Church}:\\ If only one team has a frame within 2 of the church, they score.",1,1,0,obs,,,e1,N/A,,,e1,,,,,N/A,obj e2,obj e2,,,e2 obj,e2 obj,,1
+U homes,terrain_20.png,,0,0,0,e1,,e1,,N/A,,e1,e1,,e1,,e1,N/A,e1,,e1,,,e1,,1
+T Tower,terrain_21.png,,0,0,0,,,e2,e2,N/A,,e2,,,,,,N/A,,,e2,,,e2,e2,1
+Crossings,terrain_22.png,,0,0,0,obs,obs,,,N/A,,obs,obs,,,obs,,N/A,,,obs,e1,e1,e1,,1
+,terrain_23.png,,0,0,0,,,,,N/A,im,im,,,,,,N/A,im,im,obs,,,,,1
