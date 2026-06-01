@@ -227,3 +227,6 @@ TSWLatexianTemp*
 
 build
 .idea
+
+#python
+*.cpython*

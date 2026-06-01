@@ -27,9 +27,12 @@ from PIL import Image, ImageDraw, ImageFilter
 CARD_W = 640
 CARD_H = 890
 
-FOREGROUND_DIR = "pictures/foreground"
-OUTPUT_DIR     = "pictures/booster_pictures"
-BOOSTER_CSV    = "Booster actions.csv"
+_SCRIPT_DIR   = os.path.dirname(os.path.abspath(__file__))
+_PROJECT_ROOT = os.path.dirname(_SCRIPT_DIR)
+
+FOREGROUND_DIR = os.path.join(_PROJECT_ROOT, "pictures", "foreground")
+OUTPUT_DIR     = os.path.join(_PROJECT_ROOT, "pictures", "booster_pictures")
+BOOSTER_CSV    = os.path.join(_PROJECT_ROOT, "Booster actions.csv")
 
 # Foreground images whose names start with this prefix are excluded.
 EXCLUDE_PREFIX = "collective_"
