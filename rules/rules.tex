@@ -158,16 +158,15 @@ Cards are resolved in order of the initiative value, starting with the highest. 
 
 Card resolution consists of 3 steps: movement, effect, and attack, resolved in that order.
 
-\subsection{Movement}
-The frame can move up to their base movement  plus the movement modifier on the card currently being resolved steps in any direction. 
-
-If the card has a stated effect, that effect is now applied. The card text is resolved in order.
+\subsection{Pre-combat Movement}
+The frame can move up to their base movement plus the movement modifier on the card currently being resolved steps in any direction.
+The frame can move either before or after attacking.
 
 \subsubsection{Movement penalties}
 It takes 1 movement to move up per level difference, and you cannot stop halfway up. It costs 1 movement to move down any number of levels. Obsacles can be crossed at a -1mv penalty, but cannot be stopped inside.
 
 \subsection{Effect}
-After movement is done, any effect on the card is applied. Debuffs and similar are marked on the affected frames. If a duration is not specified, a buff/debuff applies until the end of the next turn
+After movement is done, any effect on the card is applied. Effects are applied in printed order. Debuffs and similar are marked on the affected frames. If a duration is not specified, a buff/debuff applies until the end of the next turn
 
 \subsection{Attack}
 If the card has any attack listed, one target frame within any of the ranges may be chosen. For attacks without a range value, the target must be adjacent, and this attack is a melee attack. They are then the defender for this attack.
@@ -197,6 +196,9 @@ Mid &
 Low &
 -1 movement (reduce base movement by 1) \\
 \end{tabular}
+
+\subsection{Post-combat Movement}
+If the frame did not move before applying effects and attacking it may move after finishing the attack.
 
 \section{Cleanup}
 All remaining cards on the field are discarded.
