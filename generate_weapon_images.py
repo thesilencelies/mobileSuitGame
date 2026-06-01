@@ -318,11 +318,11 @@ def generate_weapon_image(row: dict, output_path: str) -> None:
         "high": int(row.get("HighRange") or 0),
     }
 
-    # --- Primary zone: highest count, tie-break low > mid > high ---
+    # --- Primary zone: highest count, tie-break  mid > low >high ---
     max_atk      = max(attacks.values())
     primary_zone = None
     if max_atk > 0:
-        for zone in ("low", "mid", "high"):
+        for zone in ("mid", "low", "high"):
             if attacks[zone] == max_atk:
                 primary_zone = zone
                 break
@@ -342,10 +342,22 @@ def generate_weapon_image(row: dict, output_path: str) -> None:
                                 ZONE_CENTER[primary_zone], WEAPON_CENTER)
     tip_rel = rotate_point(tip, (img_cx, img_cy), angle)
 
-    # Shift short weapons right so the tip sits at TARGET_TIP_X.
-    # Longer weapons whose tip already reaches there are left unchanged.
-    x_shift       = max(0, TARGET_TIP_X - (WEAPON_CENTER[0] + tip_rel[0]))
-    weapon_center = (WEAPON_CENTER[0] + x_shift, WEAPON_CENTER[1])
+    # Shift short weapons so the tip sits at TARGET_TIP_X.
+    # The shift is applied along the weapon's own butt→tip axis direction so
+    # that it behaves like a pre-rotation vertical offset (sliding the weapon
+    # forward along its shaft, not purely sideways on the canvas).
+    tip_len = math.hypot(*tip_rel) or 1.0
+    bt_unit = (tip_rel[0] / tip_len, tip_rel[1] / tip_len)
+
+    weapon_center = WEAPON_CENTER
+    current_tip_x = WEAPON_CENTER[0] + tip_rel[0]
+    if current_tip_x < TARGET_TIP_X and abs(bt_unit[0]) > 1e-6:
+        d = (TARGET_TIP_X - current_tip_x) / bt_unit[0]
+        if d > 0:
+            weapon_center = (
+                round(WEAPON_CENTER[0] + d * bt_unit[0]),
+                round(WEAPON_CENTER[1] + d * bt_unit[1]),
+            )
 
     # Recompute angle with the adjusted pivot (weapon still points at zone)
     angle   = pil_rotation_deg(tip, (img_cx, img_cy),

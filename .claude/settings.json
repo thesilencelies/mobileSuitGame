@@ -5,7 +5,10 @@
       "Bash(python3 -)",
       "Bash(python3 -c ' *)",
       "Bash(python3 -c \"import PIL; import numpy; print\\('PIL', PIL.__version__, 'numpy', numpy.__version__\\)\")",
-      "Bash(python3 generate_weapon_images.py)"
+      "Bash(python3 generate_weapon_images.py)",
+      "Bash(python generate_weapon_images.py)",
+      "Bash(python generate_booster_images.py)",
+      "Bash(awk -F, '{for\\(i=1;i<=NF;i++\\) print $i}')"
     ]
   }
 }
