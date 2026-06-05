@@ -72,6 +72,8 @@ def process_deck(prefix):
          f"--cols={cols}", f"--rows={rows}"]
     if has_back:
         deck_run.append("--add_back")
+        deck_run.append("--back_color=purple")
+        deck_run.append("--back_text=SHUFFLE")
     run(
         deck_run,
         cwd=WORKSPACE,
