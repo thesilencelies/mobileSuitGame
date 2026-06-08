@@ -96,9 +96,15 @@ def getTypeName(t: CardTypeEnum):
 
 def attack_box(atk, rng, block, pos, dmg_type, color):
     out_text = ""
+    # blocks have different box styling
+    if block:
+       box_style = "backbox, draw, thickness=thick, fill=" + color
+    else:
+       box_style = "backbox, fill=" + color
+
     # the attack box at the requested location
     if atk or block:
-        out_text = out_text + "\\node[backbox, fill=" + color + "] at (6.2, " + str(pos) +"){};\n"
+        out_text = out_text + "\\node[" + box_style + "] at (6.2, " + str(pos) +"){};\n"
     # what graphic to use
     aimg = "\\" + dmg_type
 
