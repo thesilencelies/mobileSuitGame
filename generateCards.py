@@ -29,6 +29,8 @@ blkImg = 'blockImg.png'
 rangeImg = 'rangeImg.png'
 initImg = 'initImg.png'
 mvImg = 'mvimg.png'
+
+framemvImg = 'mvimg_old.png'
 weaponImg = 'weapon.png'
 boosterImg = 'boosterImg.png'
 deckImg = 'deckImg.png'
@@ -129,9 +131,9 @@ def attack_box(atk, rng, block, pos, dmg_type, color):
     out_text = ""
     # blocks have different box styling
     if block:
-       box_style = "backbox, draw, thickness=thick, fill=" + color
+       box_style = f"backbox, draw={color}, line width=6pt, fill={color}!20"
     else:
-       box_style = "backbox, fill=" + color
+       box_style = f"backbox, fill={color}!20"
 
     # the attack box at the requested location
     if atk or block:
@@ -160,8 +162,8 @@ def attack_box(atk, rng, block, pos, dmg_type, color):
 def make_card_from_row(row, card_type):
     with open(cardoutputfolder + row['Group'] + "_" + row['Name'] + '.tex', 'w') as ofile:
         # art and card edge
-        card_text = "\\begin{tikzpicture}[scale=0.86, backbox/.style= {rectangle, minimum height = 2.0cm," \
-                   + " minimum width =2.0cm, rounded corners = 0.3cm, fill=white, opacity=0.75}]\n "
+        card_text = "\\begin{tikzpicture}[scale=0.86, backbox/.style= {rectangle, minimum height=2.0cm," \
+                   + " minimum width =2.0cm, rounded corners = 0.3cm, fill opacity=0.75}]\n "
         card_text = card_text + "\\node [rectangle, minimum width = 6.2cm, minimum height = 8.5cm, fill=black] at (4,5){};\n"
         # background
         if row.get("BackgroundLayer"):
@@ -187,7 +189,7 @@ def make_card_from_row(row, card_type):
         # background circles for the initiative and movement markers, drawn before the name plate
         # so it sits on top of any overlap
         card_text = card_text + "\\node[circle, fill=" + initiative_color(row['Initiative']) + ", minimum size=1.5cm] at " + init_pos + "{};\n"
-        card_text = card_text + "\\node[rectangle, fill=" + movement_color(row['Movement']) + ", minimum width=1.0cm, minimum height=0.5cm] at " + move_pos + "{};\n"
+        card_text = card_text + "\\node[rectangle, fill=" + movement_color(row['Movement']) + ", minimum width=0.7cm, minimum height=0.5cm] at " + move_pos + "{};\n"
 
 
         # default symbols
@@ -209,11 +211,11 @@ def make_card_from_row(row, card_type):
 
         try:
             if card_type is CardTypeEnum.PILOT:
-                card_text = card_text + attack_box(0, 0, 1, 7.5, "", "yellow!20")
+                card_text = card_text + attack_box(0, 0, 1, 7.5, "", "yellow")
             else:
-                card_text = card_text + attack_box(int(row["HighAttack"]), int(row["HighRange"]), int(row["HighBlock"]), 7.5, row["HighDType"], "yellow!20")
-                card_text = card_text + attack_box(int(row["MidAttack"]), int(row["MidRange"]), int(row["MidBlock"]), 5.0, row["MidDType"], "red!20")
-                card_text = card_text + attack_box(int(row["LowAttack"]), int(row["LowRange"]), int(row["LowBlock"]), 2.5, row["LowDType"], "blue!20")
+                card_text = card_text + attack_box(int(row["HighAttack"]), int(row["HighRange"]), int(row["HighBlock"]), 7.5, row["HighDType"], "yellow")
+                card_text = card_text + attack_box(int(row["MidAttack"]), int(row["MidRange"]), int(row["MidBlock"]), 5.0, row["MidDType"], "red")
+                card_text = card_text + attack_box(int(row["LowAttack"]), int(row["LowRange"]), int(row["LowBlock"]), 2.5, row["LowDType"], "blue")
         except:
             print(f"exception for {row["Group"]} {row['Name']}")
             return ""
@@ -276,7 +278,7 @@ def create_frame_sheet(frame):
                             "at (3.3, 9){\\large{" + frame["Name"] + "}\\\\\n\\small{\\emph{~" + frame["Faction"] + "}}};\n"
         
         # movement
-        frame_text = frame_text + '\\node at (7,9){\\includegraphics[' + iconwidth + ']{' + icons_folder + mvImg + '}};\n'
+        frame_text = frame_text + '\\node at (7,9){\\includegraphics[' + iconwidth + ']{' + icons_folder + framemvImg + '}};\n'
         frame_text = frame_text + " \\node at (7,9){\\Large{\\textbf{" + frame['Movement'] +"}}};\n"
         
         # armor
@@ -806,7 +808,7 @@ def create_back(frame, background):
     with open(backsoutputfolder + os.path.basename(frame).split(".")[0] + '.tex', 'w') as ofile:
         #load the initial image
         frame_text = "\\begin{tikzpicture}[scale=0.86, backbox/.style= {rectangle, minimum height = 2.2cm," \
-                + " minimum width =2.2cm, rounded corners = 0.3cm, fill=white, opacity=0.75}]\n "
+                + " minimum width =2.2cm, rounded corners = 0.3cm, fill opacity=0.75}]\n "
         frame_text = frame_text + "\\node [rectangle, minimum width = 6.2cm, minimum height = 8.5cm, fill=black!70!white!30] at (4,5){};\n"
         # background
         frame_text = frame_text + '\\node at (4,5){\\includegraphics[width=6cm, max height = 8.3cm, keepaspectratio]{' + frame_images_folder + background + '}};\n'
