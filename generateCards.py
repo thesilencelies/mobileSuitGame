@@ -51,12 +51,14 @@ frameBackgrounds = ["proxy_background.png"] * len(frameImages)
 
 iconwidth = "width=0.9cm"
 inline_iconwidth = "width=0.4cm"
+init_iconwidth = "width=1.35cm"
 terrain_iconwidth_value = 0.6
 terarin_iconwidth = f"width={terrain_iconwidth_value}cm"
 
 header_text = "\\documentclass[a4paper, landscape]{article}\n \\usepackage[left =2cm, right = 2cm, " \
             + "top = 1.4cm, bottom =1.4cm]{geometry} \n \\usepackage{tikz} \n \\usepackage[export]{adjustbox}" \
-            + "\n \\usetikzlibrary{positioning} \n \\usetikzlibrary{patterns} \n"
+            + "\n \\usetikzlibrary{positioning} \n \\usetikzlibrary{patterns} \n" + \
+            "\\usepackage{contour}\n\\contourlength{0.8pt}"
 
 begin_doc = "\\begin{document}\n\\noindent\n"
 
@@ -93,6 +95,35 @@ def createMacros():
 
 def getTypeName(t: CardTypeEnum):
     return str(t).split(".")[-1].lower().capitalize()
+
+def parse_int_safe(value: str) -> Optional[int]:
+    """Parses an int from a CSV field, returning None for blank/non-numeric values."""
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+def initiative_color(value: str) -> str:
+    """Background circle color for the initiative marker - darker blue for low initiatives, lighter blue for high ones."""
+    init_min, init_max = 1, 9
+    parsed = parse_int_safe(value)
+    if parsed is None:
+        parsed = (init_min + init_max) // 2
+    clamped = max(init_min, min(init_max, parsed))
+    fraction = (clamped - init_min) / (init_max - init_min)
+    blue_pct = round(90 - fraction * 70)
+    return f"blue!{blue_pct}!white"
+
+def movement_color(value: str) -> str:
+    """Background circle color for the movement marker - red for negative movement, green for positive, tone scales with magnitude."""
+    move_max_abs = 5
+    parsed = parse_int_safe(value)
+    if parsed is None or parsed == 0:
+        return "white"
+    fraction = min(abs(parsed), move_max_abs) / move_max_abs
+    pct = round(20 + fraction * 70)
+    color_name = "green" if parsed > 0 else "red"
+    return f"{color_name}!{pct}!white"
 
 def attack_box(atk, rng, block, pos, dmg_type, color):
     out_text = ""
@@ -143,18 +174,29 @@ def make_card_from_row(row, card_type):
             # TODO - create weapon frame
             pass
         
+        init_pos = "(1.2, 9.0)"
+        move_pos = "(1,7.7)"
+
+
+        # background circles for the initiative and movement markers, drawn before the name plate
+        # so it sits on top of any overlap
+        card_text = card_text + "\\node[circle, fill=" + initiative_color(row['Initiative']) + ", minimum size=1.5cm] at " + init_pos + "{};\n"
+        card_text = card_text + "\\node[rectangle, fill=" + movement_color(row['Movement']) + ", minimum width=1.0cm, minimum height=0.5cm] at " + move_pos + "{};\n"
+
+
+        # default symbols
+        card_text = card_text + '\\node at ' + init_pos + '{\\includegraphics[' + init_iconwidth + ']{' + icons_folder + initImg + '}};\n'
+        card_text = card_text + "\\node at " + init_pos + "{\\huge{\\textbf{\\contour{white}{" + row['Initiative'] +"}}}};\n"
+        card_text = card_text + '\\node at ' + move_pos + '{\\includegraphics[' + iconwidth + ']{' + icons_folder + mvImg + '}};\n'
+        card_text = card_text + " \\node at " + move_pos + "{\\Large{\\textbf{" + row['Movement'] +"}}};\n"
+
         # name and faction
         card_text = card_text + "\\node [rectangle, minimum width=4cm, minimum height = 0.6cm,rounded corners = 0.1cm," +\
-                "fill=white, opacity=0.75, text width=4.1cm] at (4, 9.2){\\large{" + row["Name"]
+                "fill=white, opacity=0.75, text width=4cm] at (4.3, 9.2){\\large{" + row["Name"]
         if row["Faction"]:
             card_text = card_text +  "}\\\\\n\\small{\\emph{~" + row["Faction"] + "}"
         card_text = card_text +  "}};\n"
 
-        # default symbols
-        card_text = card_text + '\\node at(1, 9.2){\\includegraphics[' + iconwidth + ']{' + icons_folder + initImg + '}};\n'
-        card_text = card_text + "\\node at (1, 9.2){\\Large{\\textbf{" + row['Initiative'] +"}}};\n"
-        card_text = card_text + '\\node at (1.1, 8.2){\\includegraphics[' + iconwidth + ']{' + icons_folder + mvImg + '}};\n'
-        card_text = card_text + " \\node at (1, 8.2){\\Large{\\textbf{" + row['Movement'] +"}}};\n"
 
         if int(row["OneUse"]) > 0:
              card_text = card_text + "\\node at (7,9.2)[circle, fill = red]{\\large{\\textbf{O}}};\n"

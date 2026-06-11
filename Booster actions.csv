@@ -1,5 +1,5 @@
 Name,Faction,Group,Initiative,Movement,HighBlock,MidBlock,LowBlock,HighDType,MidDType,LowDType,HighAttack,HighRange,MidAttack,MidRange,LowAttack,LowRange,Text,OneUse,CardImg,BackgroundLayer,ForegroundImg,Flavor,PrintID
 Full speed ahead,,Booster,9,+5,0,0,0,,,,0,0,0,0,0,0,,1,booster_pictures/Booster_Full_speed_ahead.png,proxy_background.png,,,2
-Quick Step,,Booster,"7,2",-1,0,0,1,,,,0,0,0,0,0,0,Acts twice if not comsumed,1,booster_pictures/Booster_Quick_Step.png,proxy_background.png,,,2
+Quick Step,,Booster,"7,2",+1,0,0,1,,,,0,0,0,0,0,0,Acts twice if not comsumed,1,booster_pictures/Booster_Quick_Step.png,proxy_background.png,,,2
 Shoulder barge,,Booster,5,+3,0,1,0,,impact,,0,0,1,0,0,0,,1,booster_pictures/Booster_Shoulder_barge.png,proxy_background.png,,,2
 Accelerate,,Booster,9,+1,0,0,0,,,,0,0,0,0,0,0,Other actions this turn get +3 mv,1,booster_pictures/Booster_Accelerate.png,proxy_background.png,,,2
