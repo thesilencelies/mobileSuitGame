@@ -8,7 +8,9 @@
       "Bash(python3 generate_weapon_images.py)",
       "Bash(python generate_weapon_images.py)",
       "Bash(python generate_booster_images.py)",
-      "Bash(awk -F, '{for\\(i=1;i<=NF;i++\\) print $i}')"
+      "Bash(awk -F, '{for\\(i=1;i<=NF;i++\\) print $i}')",
+      "Bash(pdfinfo card_sheet_test.pdf)",
+      "Bash(pdftoppm -png -r 100 -f 1 -l 7 card_sheet_test.pdf card_sheet_preview)"
     ]
   }
 }

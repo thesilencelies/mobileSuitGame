@@ -46,6 +46,8 @@ PREAMBLE = r"""\documentclass{{article}}
 \usepackage{{tikz}}
  \usepackage[export]{{adjustbox}}
 \usepackage{{geometry}}
+\usepackage{{contour}}
+\contourlength{{0.8pt}}
 \input{{card_macros.tex}}
  \usetikzlibrary{{positioning}}
  \usetikzlibrary{{patterns}}
