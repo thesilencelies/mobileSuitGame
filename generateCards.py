@@ -57,10 +57,26 @@ init_iconwidth = "width=1.35cm"
 terrain_iconwidth_value = 0.6
 terarin_iconwidth = f"width={terrain_iconwidth_value}cm"
 
+# tikzpicture [scale=...] used by make_card_from_row; offsets given in physical cm
+# (e.g. move_icon_outline) need to be divided by this to land at the right size
+card_scale = 0.86
+
+# outline of mvImg (a right-pointing block arrow), as (dx, dy) cm offsets from its
+# centre when drawn at iconwidth (0.9cm); used to draw a fill that lines up with it
+move_icon_outline = [
+    (-0.45, 0.234),
+    (0.054, 0.234),
+    (0.054, 0.414),
+    (0.45, 0.0),
+    (0.054, -0.414),
+    (0.054, -0.234),
+    (-0.45, -0.234),
+]
+
 header_text = "\\documentclass[a4paper, landscape]{article}\n \\usepackage[left =2cm, right = 2cm, " \
             + "top = 1.4cm, bottom =1.4cm]{geometry} \n \\usepackage{tikz} \n \\usepackage[export]{adjustbox}" \
-            + "\n \\usetikzlibrary{positioning} \n \\usetikzlibrary{patterns} \n" + \
-            "\\usepackage{contour}\n\\contourlength{0.8pt}"
+            + "\n \\usetikzlibrary{positioning} \n \\usetikzlibrary{patterns} \n \\usetikzlibrary{calc} \n" + \
+            "\\usepackage{contour}\n\\contourlength{0.8pt}\n"
 
 begin_doc = "\\begin{document}\n\\noindent\n"
 
@@ -127,6 +143,18 @@ def movement_color(value: str) -> str:
     color_name = "green" if parsed > 0 else "red"
     return f"{color_name}!{pct}!white"
 
+def move_icon_outline_fill(pos: str, color: str) -> str:
+    """Filled polygon matching the outline of mvImg, centred on pos (a TikZ coordinate string).
+
+    move_icon_outline is given in physical cm to match iconwidth; pos is a coordinate
+    in the enclosing tikzpicture, which is drawn at [scale=card_scale], so the offsets
+    are scaled back up here to land at the correct physical size.
+    """
+    points = " -- ".join(
+        f"($ {pos} + ({dx / card_scale},{dy / card_scale}) $)" for dx, dy in move_icon_outline
+    )
+    return "\\fill[" + color + "] " + points + " -- cycle;\n"
+
 def attack_box(atk, rng, block, pos, dmg_type, color):
     out_text = ""
     # blocks have different box styling
@@ -162,7 +190,7 @@ def attack_box(atk, rng, block, pos, dmg_type, color):
 def make_card_from_row(row, card_type):
     with open(cardoutputfolder + row['Group'] + "_" + row['Name'] + '.tex', 'w') as ofile:
         # art and card edge
-        card_text = "\\begin{tikzpicture}[scale=0.86, backbox/.style= {rectangle, minimum height=2.0cm," \
+        card_text = f"\\begin{{tikzpicture}}[scale={card_scale}, backbox/.style= {{rectangle, minimum height=2.0cm," \
                    + " minimum width =2.0cm, rounded corners = 0.3cm, fill opacity=0.75}]\n "
         card_text = card_text + "\\node [rectangle, minimum width = 6.2cm, minimum height = 8.5cm, fill=black] at (4,5){};\n"
         # background
@@ -189,7 +217,7 @@ def make_card_from_row(row, card_type):
         # background circles for the initiative and movement markers, drawn before the name plate
         # so it sits on top of any overlap
         card_text = card_text + "\\node[circle, fill=" + initiative_color(row['Initiative']) + ", minimum size=1.5cm] at " + init_pos + "{};\n"
-        card_text = card_text + "\\node[rectangle, fill=" + movement_color(row['Movement']) + ", minimum width=0.7cm, minimum height=0.5cm] at " + move_pos + "{};\n"
+        card_text = card_text + move_icon_outline_fill(move_pos, movement_color(row['Movement']))
 
 
         # default symbols
