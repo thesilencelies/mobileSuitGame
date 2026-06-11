@@ -52,6 +52,7 @@ PREAMBLE = r"""\documentclass{{article}}
  \usetikzlibrary{{positioning}}
  \usetikzlibrary{{patterns}}
  \usetikzlibrary{{arrows.meta}}
+ \usetikzlibrary{{calc}}
 
 % Page size matches the exact grid: {page_width}cm x {page_height}cm
 \geometry{{

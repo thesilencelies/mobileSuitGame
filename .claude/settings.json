@@ -10,7 +10,25 @@
       "Bash(python generate_booster_images.py)",
       "Bash(awk -F, '{for\\(i=1;i<=NF;i++\\) print $i}')",
       "Bash(pdfinfo card_sheet_test.pdf)",
-      "Bash(pdftoppm -png -r 100 -f 1 -l 7 card_sheet_test.pdf card_sheet_preview)"
+      "Bash(pdftoppm -png -r 100 -f 1 -l 7 card_sheet_test.pdf card_sheet_preview)",
+      "Bash(python3 -c \"from PIL import Image; im = Image.open\\('icons/mvimg.png'\\); print\\(im.size, im.mode\\)\")",
+      "Bash(python3 -c \"import numpy\")",
+      "Bash(pip3 list *)",
+      "Bash(identify icons/mvimg.png)",
+      "Bash(convert icons/mvimg.png -alpha extract -depth 8 txt:)",
+      "Bash(convert icons/mvimg.png -trim info:)",
+      "Bash(convert icons/mvimg.png -alpha extract -threshold 50% -resize 25x25 txt:-)",
+      "Bash(awk -F'[:,\\(\\)]' '{x=$1+0; y=$2+0; v=$5+0; printf \"%d\", \\(v>0?1:0\\); if\\(x==24\\) printf \"\\\\n\"}')",
+      "Bash(convert icons/mvimg.png -alpha extract -resize 25x25 -threshold 50% txt:-)",
+      "Read(//tmp/**)",
+      "Bash(convert /home/stephen/mobileSuitGame/icons/mvimg.png -background '#888888' -alpha remove -resize 300x300 mvimg_preview.png)",
+      "Bash(convert /home/stephen/mobileSuitGame/icons/mvimg.png -resize 300x300 mvimg_preview2.png)",
+      "Bash(convert -density 300 test.pdf -trim +repage -bordercolor white -border 20 test.png)",
+      "Bash(convert -density 200 sample.pdf -trim +repage -bordercolor white -border 20 sample.png)",
+      "Bash(rm -rf /tmp/cardtest)"
+    ],
+    "additionalDirectories": [
+      "/tmp/cardtest"
     ]
   }
 }
