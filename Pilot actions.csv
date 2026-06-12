@@ -1,25 +1,25 @@
 Name,Faction,Group,Initiative,Movement,Text,OneUse,CardImg,BackgroundLayer,ForegroundImg,Flavor,PrintID
-Relentless Assault,,Bruiser,6,-2,All other actions this frame takes this turn resolve twice at -2mv,0,Bruiser_1.png,proxy_background.png,,You like that? How about this time?,1
-Intimidate,,Bruiser,7,0,All enemies within 5 must consume one block,1,Bruiser_1.png,proxy_background.png,,You can feel his presence in your bones,1
-Net Strength,,Bruiser,4,-2,All attacks you make this turn and next gain guard break,0,Bruiser_1.png,proxy_background.png,,Draws from the net,1
-Lockdown,,Bruiser,4,-1,Target frame within 3 gets -4mv next turn,0,Bruiser_1.png,proxy_background.png,,"Summons matter all around the enemy, literally locking them in concrete",1
+Relentless Assault,,Bruiser,7,-2,All other actions this frame takes this turn resolve twice at -2mv,0,Bruiser_1.png,proxy_background.png,,You like that? How about this time?,1
+Intimidate,,Bruiser,8,0,All enemies within 5 must consume one block,1,Bruiser_1.png,proxy_background.png,,You can feel his presence in your bones,1
+Net Strength,,Bruiser,5,-2,All attacks you make this turn and next gain guard break,0,Bruiser_1.png,proxy_background.png,,Draws from the net,1
+Lockdown,,Bruiser,5,-1,Target frame within 3 gets 3 \fullslowed,0,Bruiser_1.png,proxy_background.png,,"Summons matter all around the enemy, literally locking them in concrete",1
 Ephemeral Images,,Mystic,1,-1,"Replace this frame with 3 tokens, one of which is secretly marked to be this frame. All tokens move as this frame and the fakes are removed if attacked.",1,Mystic_1.png,proxy_background.png,,,1
 Teleport,,Mystic,1,-4,Next turn: Reposition this frame anywhere on the map at initiative 4,0,Mystic_1.png,proxy_background.png,,,1
-Utter darkness,,Mystic,1,-4,Next turn: While a frame is within 5 of this frame it cannot be attacked and get -2mv,0,Mystic_1.png,proxy_background.png,,,1
+Utter darkness,,Mystic,1,-4,Next turn: While any frame is within 5 of this frame it cannot be attacked,0,Mystic_1.png,proxy_background.png,,,1
 Encode the future,,Mystic,1,-3,Next turn: one allied frame \emph{(includes this)} chooses cards from their deck,0,Mystic_1.png,proxy_background.png,,,1
-Tactical broadcast,,Tactician,3,-1,Allied frames within 8 get +2 cards next turn,0,Tactician_1.jpg,proxy_background.png,,,1
-Fog of war,,Tactician,5,0,Next turn: Allies within 5 cannot be targeted by ranged attacks,0,Tactician_1.jpg,proxy_background.png,,,1
-Set the trap,,Tactician,6,0,Enemy frames that attack an ally within 5 next turn get -3mv until the end of their next turn,0,Tactician_1.jpg,proxy_background.png,,,1
-Outfox,,Tactician,3,-1,Targe frame within 7 gets -3 init and -2 cards next turn,0,Tactician_1.jpg,proxy_background.png,,,1
-Hyper,,Wunderkid,2,-4,Next turn: play 1 extra action,0,Wunderkid_1.png,proxy_background.png,,,1
-Net Speed,,Wunderkid,4,0,Next turn: get +2 init and +1mv,0,Wunderkid_1.png,proxy_background.png,,,1
-Newtype flair,,Wunderkid,7,0,Resolve another action from this frame immediately,0,Wunderkid_1.png,proxy_background.png,,,1
-Ace reflexes,,Wunderkid,9,1,"Whenever this frame is attacked this turn, move 2 after the attack",0,Wunderkid_1.png,proxy_background.png,,,1
-Battlefield Repairs,,Engineer,3,-2,Repair 2 damage from an allied frame within 3,0,Engineer_1.png,proxy_background.png,,,1
-Barricade,,Engineer,5,-3,Put up to 3 barricade tokens within 3; that location becomes impassible,0,Engineer_1.png,proxy_background.png,,,1
-Dismantle,,Engineer,6,-2,Attacks this turn deal 2 extra damage,0,Engineer_1.png,proxy_background.png,,,1
-Precision Tuning,,Engineer,3,-3,"For the next 3 turns, this frame gets +2 mv",0,Engineer_1.png,proxy_background.png,,,1
-Combo strike,,Specialist,7,-2,"When resolving the next attack from this frame, reveal the top 4 cards of its deck and choose up to 1 attack from the same weapon: add it's attacks to the attack",0,Specialist_1.png,proxy_background.png,,,1
-Snipers aim,,Specialist,6,-3,"Ranged attacks this turn can ignore obstacles, get + 4 range and deal 1 extra damage",0,Specialist_1.png,proxy_background.png,,,1
+Tactical broadcast,,Tactician,4,-1,Allied frames within 8 get 2 \fulllucid,0,Tactician_1.jpg,proxy_background.png,,,1
+Fog of war,,Tactician,6,0,Next turn: Allies within 5 cannot be targeted by ranged attacks,0,Tactician_1.jpg,proxy_background.png,,,1
+Set the trap,,Tactician,7,0,Enemy frames that attack an ally within 5 get 3 \fullslowed,0,Tactician_1.jpg,proxy_background.png,,,1
+Outfox,,Tactician,4,-1,Targe frame within 7 gets 3 \stunned and 2 \dazed,0,Tactician_1.jpg,proxy_background.png,,,1
+Hyper,,Wunderkid,3,-4,Next turn: play 1 extra action,0,Wunderkid_1.png,proxy_background.png,,,1
+Net Speed,,Wunderkid,5,0,This frame gets 2 \fullstimmed and 2 \fullboosted,0,Wunderkid_1.png,proxy_background.png,,,1
+Newtype flair,,Wunderkid,8,0,Resolve another action from this frame immediately,0,Wunderkid_1.png,proxy_background.png,,,1
+Ace reflexes,,Wunderkid,10,1,"Whenever this frame is attacked this turn, move 2 after the attack",0,Wunderkid_1.png,proxy_background.png,,,1
+Battlefield Repairs,,Engineer,4,-2,Repair 2 damage from an allied frame within 3,0,Engineer_1.png,proxy_background.png,,,1
+Barricade,,Engineer,6,-3,Put up to 3 barricade tokens within 3; that location becomes impassible,0,Engineer_1.png,proxy_background.png,,,1
+Dismantle,,Engineer,7,-2,Attacks this turn deal 2 extra damage,0,Engineer_1.png,proxy_background.png,,,1
+Precision Tuning,,Engineer,4,-3,This frame gets 4 \fullboosted,0,Engineer_1.png,proxy_background.png,,,1
+Combo strike,,Specialist,8,-2,"When resolving the next attack from this frame, reveal the top 4 cards of its deck and choose up to 1 attack from the same weapon: add it's attacks to the attack",0,Specialist_1.png,proxy_background.png,,,1
+Snipers aim,,Specialist,7,-3,"Ranged attacks this turn can ignore obstacles, get + 4 range and deal 1 extra damage",0,Specialist_1.png,proxy_background.png,,,1
 Master duelist,,Specialist,*+1,*,Resolves as a copy of a melee attack played this turn at +1 init,0,Specialist_1.png,proxy_background.png,,,1
-Practiced Technique,,Specialist,4,-1,"Next turn: + 2 cards, attacks deal 1 extra damage for each other attack played from the same weapon",0,Specialist_1.png,proxy_background.png,,,1
+Practiced Technique,,Specialist,5,-1,\fulllucid \\ Next turn: attacks deal 1 extra damage for each other attack played from the same weapon,0,Specialist_1.png,proxy_background.png,,,1
