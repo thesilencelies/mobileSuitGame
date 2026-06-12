@@ -62,10 +62,10 @@ Hypervelocity Shot,,Railgun,2,-3,0,1,0,projectile,projectile,projectile,0,0,2,20
 Piercing Round,,Railgun,2,-3,0,1,0,projectile,projectile,projectile,0,0,3,16,0,0,Guard Break,1,weapon_pictures/Railgun_Piercing_Round_t.png,backgrounds/Railgun_bg.png,,,1
 Snipe,,Railgun,1,-3,1,0,0,projectile,projectile,projectile,3,20,0,0,0,0,,0,weapon_pictures/Railgun_Snipe_t.png,backgrounds/Railgun_bg.png,,,1
 Kinetic Barrage,,Railgun,1,-3,0,1,0,projectile,projectile,projectile,2,12,2,12,2,12,Guard Break,1,weapon_pictures/Railgun_Kinetic_Barrage_t.png,backgrounds/Railgun_bg.png,,,1
-Headshot,,Sniper Rifle,3,-3,1,0,0,projectile,projectile,projectile,2,24,0,0,0,0,Deals + \smallprojectile \smallprojectile if the target didnt move,0,weapon_pictures/Sniper_Rifle_Headshot_t.png,backgrounds/Sniper_Rifle_bg.png,,,1
-Calibrated Hit,,Sniper Rifle,3,-3,0,1,0,projectile,projectile,projectile,0,0,0,0,2,24,Deals + \smallprojectile \smallprojectile if the target didnt move,0,weapon_pictures/Sniper_Rifle_Calibrated_Hit_t.png,backgrounds/Sniper_Rifle_bg.png,,,1
-Heartpiercer,,Sniper Rifle,3,-3,1,0,0,projectile,projectile,projectile,0,0,2,24,0,0,Deals + \smallprojectile \smallprojectile if the target didnt move,1,weapon_pictures/Sniper_Rifle_Heartpiercer_t.png,backgrounds/Sniper_Rifle_bg.png,,,1
-Patience's Reward,,Sniper Rifle,2,-3,0,1,0,projectile,projectile,projectile,0,0,2,24,0,0,Deals + \smallprojectile \smallprojectile if the target didnt move \\ Guard Break,1,weapon_pictures/Sniper_Rifle_Patience's_Reward_t.png,backgrounds/Sniper_Rifle_bg.png,,,1
+Headshot,,Sniper Rifle,3,-3,1,0,0,projectile,projectile,projectile,2,24,0,0,0,0,Deals + \smallprojectilex{2} if the target didnt move,0,weapon_pictures/Sniper_Rifle_Headshot_t.png,backgrounds/Sniper_Rifle_bg.png,,,1
+Calibrated Hit,,Sniper Rifle,3,-3,0,1,0,projectile,projectile,projectile,0,0,0,0,2,24,Deals + \smallprojectilex{2} if the target didnt move,0,weapon_pictures/Sniper_Rifle_Calibrated_Hit_t.png,backgrounds/Sniper_Rifle_bg.png,,,1
+Heartpiercer,,Sniper Rifle,3,-3,1,0,0,projectile,projectile,projectile,0,0,2,24,0,0,Deals + \smallprojectilex{2} if the target didnt move,1,weapon_pictures/Sniper_Rifle_Heartpiercer_t.png,backgrounds/Sniper_Rifle_bg.png,,,1
+Patience's Reward,,Sniper Rifle,2,-3,0,1,0,projectile,projectile,projectile,0,0,2,24,0,0,Deals + \smallprojectilex{2} if the target didnt move \\ Guard Break,1,weapon_pictures/Sniper_Rifle_Patience's_Reward_t.png,backgrounds/Sniper_Rifle_bg.png,,,1
 Chop,,Axe,5,0,1,0,0,cut,cut,cut,2,0,0,0,0,0,,0,weapon_pictures/Axe_Chop_t.png,backgrounds/Axe_bg.png,,,1
 Hook,,Axe,5,0,0,0,1,cut,cut,cut,0,0,1,0,0,0,On Hit: target gets -1 card,0,weapon_pictures/Axe_Hook_t.png,backgrounds/Axe_bg.png,,,1
 Split,,Axe,5,-1,0,1,0,cut,cut,cut,2,0,0,0,0,0,,0,weapon_pictures/Axe_Split_t.png,backgrounds/Axe_bg.png,,,1
