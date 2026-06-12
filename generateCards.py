@@ -98,6 +98,23 @@ damage_type_dict = {
     "block": blkImg
     }
 
+ability_dict = {
+    "Guard Break": "This attack consumes one block per damage",
+    "Feint": "This attack deals no damage",
+    "Precise": "chose which block is consumed",
+    "Committed": "this attack is discarded after resolving"
+}
+
+status_dict = {
+    "Stunned": ("-2 init", "stunimg.png"),
+    "Slowed": ("-2 movement", "slowimg.png"),
+    "Dazed": ("-2 card", "dazeimg.png"),
+    "Stimmed": ("+2 init", "stimimg.png"),
+    "Boosted": ("+2 mv", "boostimg.png"),
+    "Lucid": ("+2 init", "lucidimg.png")
+}
+
+
 def createMacros():
     with open(cardoutputfolder + 'macros.tex', 'w') as ofile:
         card_text = ""
@@ -108,6 +125,28 @@ def createMacros():
             card_text += "}\n\\newcommand{\\small" + t + "}{"
             card_text += '\\includegraphics[' + inline_iconwidth + ']{' + icons_folder + img + '}'
             card_text += "}\n"
+            # repeated inline version: \smallcutx{N} draws N copies, spaced like the
+            # attack icons in attack_box (-(d / 2) offset per icon)
+            card_text += "\\newcommand{\\small" + t + "x}[1]{\\begin{tikzpicture}[baseline=(current bounding box.south)]\n"
+            card_text += "\\pgfmathtruncatemacro{\\n}{#1-1}\n"
+            card_text += "\\foreach \\d in {0,...,\\n}{\n"
+            card_text += "\\pgfmathsetmacro{\\x}{-\\d/2}\n"
+            card_text += "\\node at (\\x, 0) {\\includegraphics[" + inline_iconwidth + ']{' + icons_folder + img + "}};\n"
+            card_text += "}\n\\end{tikzpicture}}\n"
+
+        for ability, desc in ability_dict.items():
+            cmd = ability.lower().replace(" ", "")
+            card_text += "\n\\newcommand{\\" + cmd + "}{\\textbf{" + ability + "}}"
+            card_text += "\n\\newcommand{\\full" + cmd + "}{\\textbf{" + ability
+            card_text += "} \\emph{(" + desc + ")}}"
+
+        for status, (desc, img) in status_dict.items():
+            cmd = status.lower().replace(" ", "")
+            card_text += "\n\\newcommand{\\" + cmd + "}{\\textbf{" + status + "}"
+            card_text += '\\includegraphics[' + inline_iconwidth + ']{' + icons_folder + img + '}}\n'
+            card_text += "\n\\newcommand{\\full" + cmd + "}{\\textbf{" + status
+            card_text += '}\\includegraphics[' + inline_iconwidth + ']{' + icons_folder + img + '}'
+            card_text += " \\emph{(" + desc + ")}}\n"
 
         ofile.write(card_text)
         return card_text
