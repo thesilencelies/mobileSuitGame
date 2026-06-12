@@ -111,7 +111,11 @@ status_dict = {
     "Dazed": ("-2 card", "dazeimg.png"),
     "Stimmed": ("+2 init", "stimimg.png"),
     "Boosted": ("+2 mv", "boostimg.png"),
-    "Lucid": ("+2 init", "lucidimg.png")
+    "Lucid": ("+2 cards", "lucidimg.png")
+}
+
+rules_dict = {
+    "drone": "A unit that attacks once each turn with this card, with its own movement and health."
 }
 
 
@@ -145,6 +149,9 @@ def createMacros():
             card_text += "\n\\newcommand{\\full" + cmd + "}{\\textbf{" + status
             card_text += '}\\includegraphics[' + inline_iconwidth + ']{' + icons_folder + img + '}'
             card_text += " \\emph{(" + desc + ")}}\n"
+
+        for rule, desc in rules_dict.items():
+            card_text += "\n\\newcommand{\\" + rule + "text}{\\emph{(" + desc + ")}}"
 
         ofile.write(card_text)
         return card_text
@@ -225,6 +232,22 @@ def attack_box(atk, rng, block, pos, dmg_type, color):
 
     return out_text
 
+def draw_armor(armor, position, penalty="", horizontal_pos = 7, hori_step=-0.7):
+    # old style
+#    rval = "\\node [rectangle, minimum width=2cm, minimum height = 1cm, fill = red, opacity = 0.75] at (6.5, "  + position + "){" + armor +"};\n"
+    rval = ""
+    # bars
+    for i in range(armor):
+        rval += "\\node [anchor=east, rectangle, rounded corners = 0.1cm, minimum width=0.9cm, minimum height=0.6cm, draw, fill=red, opacity=0.8, rotate=90] at "+\
+            "(" + str(horizontal_pos) + ", " + str(position) + "){"
+        if i == armor - 1:
+            rval += "\\tiny{" + penalty + "}"
+        rval += "};\n"
+        horizontal_pos += hori_step
+
+    return rval
+
+
 
 def make_card_from_row(row, card_type):
     with open(cardoutputfolder + row['Group'] + "_" + row['Name'] + '.tex', 'w') as ofile:
@@ -250,8 +273,12 @@ def make_card_from_row(row, card_type):
             pass
         if card_type is CardTypeEnum.DRONE:
             # TODO - create drone frame
-            card_text += "\\node[square, rounded corners=0.2cm, fill=red!80, opacity=80, minimum width=1cm] at () {" + row["Drone_Health"] + "};"
-            card_text += move_icon_outline_fill("(1.4, 5)", movement_color(row['Drone_MV']))
+            card_text += draw_armor(int(row["Drone_Health"]), 6.8,horizontal_pos=1.4, hori_step=0.7)
+            drone_mv_pos = "(1.4, 5)"
+            card_text += move_icon_outline_fill(drone_mv_pos, movement_color(row['Drone_MV']))
+            card_text += '\\node at ' + drone_mv_pos + '{\\includegraphics[' + iconwidth + ']{' + icons_folder + mvImg + '}};\n'
+            card_text += " \\node at " + drone_mv_pos + "{\\Large{\\textbf{" + row['Drone_MV'] +"}}};\n"
+
             pass
         
         init_pos = "(1.2, 9.0)"
@@ -317,23 +344,7 @@ def make_card_from_row(row, card_type):
         ofile.write(card_text)
         # ofile.write("\\end{document}\n")
         return card_text + "~"
-
-def draw_armor(armor, position, penalty):
-    # old style
-#    rval = "\\node [rectangle, minimum width=2cm, minimum height = 1cm, fill = red, opacity = 0.75] at (6.5, "  + position + "){" + armor +"};\n"
-    rval = ""
-    # bars
-    horizontal_pos = 7
-    for i in range(armor):
-        rval += "\\node [anchor=east, rectangle, rounded corners = 0.1cm, minimum width=0.9cm, minimum height=0.6cm, draw, fill=red, opacity=0.8, rotate=90] at "+\
-            "(" + str(horizontal_pos) + ", " + str(position) + "){"
-        if i == armor - 1:
-            rval += "\\tiny{" + penalty + "}"
-        rval += "};\n"
-        horizontal_pos -= 0.7
-
-    return rval
-
+    
 def create_frame_sheet(frame):
     """creates the frames datasheet procedurally from the given data"""
     with open(frameoutputfolder + frame["Name"] + '.tex', 'w') as ofile:
@@ -912,6 +923,12 @@ if __name__ == "__main__":
             for row in reader:
                 if int(row["PrintID"]) > 0:
                         allfile.write(make_card_from_row(row, CardTypeEnum.WEAPON))
+
+        with open(drone_actions_file, "r") as facsvfile:
+            reader = csv.DictReader(facsvfile)
+            for row in reader:
+                if int(row["PrintID"]) > 0:
+                        allfile.write(make_card_from_row(row, CardTypeEnum.DRONE))
 
         with open(pilot_actions_file, "r") as facsvfile:
             reader = csv.DictReader(facsvfile)

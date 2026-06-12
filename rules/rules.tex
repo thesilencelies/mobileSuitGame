@@ -156,6 +156,9 @@ each deck has one additional marked card in it - if that card would be drawn, in
 \subsection{Echos of the fallen}
 If a frame has been defeated, at the end of the planning phase the player can reveal the top card of that frame's deck and put it sideways with the actions of a surviving frame. That card can also be used to block attacks this turn.
 
+\subsection{Status update}
+At the end of the planning phase, one status token of each type is removed from each frame.
+
 \section{Action}
 At the start of the action phase all the face down cards are turned face up.
 
@@ -195,7 +198,7 @@ Additionally any frame that has endured 2 or more damage in any location faces t
 
 \begin{tabular}{c p{4cm}}
 High &
- -1 initiative (reduce initiative on all actions by 1) \\
+-1 initiative (reduce initiative on all actions by 1) \\
 Mid &
 -1 cards (draw one less card to choose actions from) \\
 Low &
@@ -208,9 +211,46 @@ If the frame did not move before applying effects and attacking it may move afte
 \section{Cleanup}
 All remaining cards on the field are discarded.
 Cards with the single use mark are set aside underneath the frame card,
-Cards with a Next (X) turn(s) effect are kept to one side as a reminder of their effect for as long as they are active,
 while all other cards that were discarded are put to the bottom of their respective decks.
 The priority marker then moves one step anticlockwise. 
+
+\section{Status}
+Various cards apply certain status effects to frames. These status effects are marked with a counter added to the frame.
+As long as the frame has any amount of the status marker on it, the frame's stats are modified according to the status.
+The modification amount is the same regardless of the quantity of status counters.
+
+Status:
+\begin{tabular}{c|c}
+Debuff & Buff \\
+\fullstunned & \fullstimmed \\
+\fulldazed  & \fulllucid \\
+\fullslowed & \fullboosted \\
+\end{tabular}
+
+\subsection{Status annihilation}
+If a frame would receives the opposite status to the status it already has,
+instead remove that many of the counters it already has before applying the difference.
+
+\subsection{Status application}
+The number of status counters on the frame indicate the duration of the effect.
+Each turn, after the planning phase finishes one of each status counter is removed.
+
+\section{Tokens}
+Terrain and various card effects create tokens. These can normally be indicated by anything you have around, 
+coins, dice, whatever, as long as it is clear to everyone what it is. Dedicated token pieces are also manufactured
+for players who wish to use them. 
+
+
+\subsection{Drones}
+Some attacks summon drones TODO!
+
+
+\begin{figure}[htbp]
+  \centering
+\input{../build/card_Swarm_Swarm.tex}
+\end{figure}
+
+
 
 \section{Deck Construction}
 Each mobile suit must have a deck.

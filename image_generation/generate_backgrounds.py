@@ -77,7 +77,8 @@ def main() -> None:
     script_dir = os.path.dirname(os.path.abspath(__file__))
     project_root = os.path.dirname(script_dir)
     # csv_path = os.path.join(project_root, "Weapon actions.csv")
-    csv_path = os.path.join(project_root, "Basic actions.csv")
+    # csv_path = os.path.join(project_root, "Basic actions.csv")
+    csv_path = os.path.join(project_root, "Drone actions.csv")
 
     groups: set[str] = set()
     with open(csv_path, newline="", encoding="utf-8") as f:
