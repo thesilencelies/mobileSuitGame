@@ -125,14 +125,10 @@ def createMacros():
             card_text += "}\n\\newcommand{\\small" + t + "}{"
             card_text += '\\includegraphics[' + inline_iconwidth + ']{' + icons_folder + img + '}'
             card_text += "}\n"
-            # repeated inline version: \smallcutx{N} draws N copies, spaced like the
-            # attack icons in attack_box (-(d / 2) offset per icon)
-            card_text += "\\newcommand{\\small" + t + "x}[1]{\\begin{tikzpicture}[baseline=(current bounding box.south)]\n"
-            card_text += "\\pgfmathtruncatemacro{\\n}{#1-1}\n"
-            card_text += "\\foreach \\d in {0,...,\\n}{\n"
-            card_text += "\\pgfmathsetmacro{\\x}{-\\d/2}\n"
-            card_text += "\\node at (\\x, 0) {\\includegraphics[" + inline_iconwidth + ']{' + icons_folder + img + "}};\n"
-            card_text += "}\n\\end{tikzpicture}}\n"
+            # repeated inline version: \smallcutx{N} draws N copies in a row, with the
+            # same 0.5cm step used for the attack icons in attack_box (-(d / 2) offset)
+            card_text += "\\newcommand{\\small" + t + "x}[1]{\\foreach \\d in {1,...,#1}{"
+            card_text += '\\includegraphics[' + inline_iconwidth + ']{' + icons_folder + img + '}\\hspace{0.1cm}}}\n'
 
         for ability, desc in ability_dict.items():
             cmd = ability.lower().replace(" ", "")

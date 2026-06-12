@@ -25,10 +25,28 @@
       "Bash(convert /home/stephen/mobileSuitGame/icons/mvimg.png -resize 300x300 mvimg_preview2.png)",
       "Bash(convert -density 300 test.pdf -trim +repage -bordercolor white -border 20 test.png)",
       "Bash(convert -density 200 sample.pdf -trim +repage -bordercolor white -border 20 sample.png)",
-      "Bash(rm -rf /tmp/cardtest)"
+      "Bash(rm -rf /tmp/cardtest)",
+      "Bash(pdflatex -interaction=nonstopmode -output-directory=/tmp/latextest /tmp/latextest/test.tex)",
+      "Bash(pdflatex -interaction=nonstopmode -output-directory=/tmp/latextest /tmp/latextest/test2.tex)",
+      "Bash(pdflatex -interaction=nonstopmode -output-directory=/tmp/latextest /tmp/latextest/test3.tex)",
+      "Bash(pdflatex -interaction=nonstopmode -output-directory=/tmp/latextest /tmp/latextest/test4.tex)",
+      "Bash(pdflatex -interaction=nonstopmode -output-directory=/tmp/latextest /tmp/latextest/test5.tex)",
+      "Bash(pdflatex -interaction=nonstopmode -output-directory=/tmp/latextest /tmp/latextest/test6.tex)",
+      "Bash(pdflatex -interaction=nonstopmode -output-directory=/tmp/latextest /tmp/latextest/test7.tex)",
+      "Bash(pdflatex -interaction=nonstopmode -output-directory=/tmp/latextest /tmp/latextest/test8.tex)",
+      "Bash(pdftoppm -png -r 150 test8.pdf test8)",
+      "Bash(python generateCards.py)",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(pdflatex -interaction=nonstopmode test_macros.tex)",
+      "Bash(rm -f test_macros.tex test_macros.aux test_macros.log test_macros.pdf test_macros_out-1.png)",
+      "Bash(pdftoppm -png -r 150 /home/stephen/mobileSuitGame/build/test_card.pdf /home/stephen/mobileSuitGame/build/test_card_out)",
+      "Bash(pdflatex -interaction=nonstopmode test9.tex)",
+      "Bash(ln -sf /home/stephen/mobileSuitGame/icons /tmp/latextest/icons)",
+      "Bash(pdftoppm -png -r 150 /tmp/latextest/test9.pdf /tmp/latextest/test9_out)"
     ],
     "additionalDirectories": [
-      "/tmp/cardtest"
+      "/tmp/cardtest",
+      "/home/stephen/mobileSuitGame/build"
     ]
   }
 }
