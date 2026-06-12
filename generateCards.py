@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 weapon_actions_file = 'Weapon actions.csv'
 general_action_file = 'Basic actions.csv'
 pilot_actions_file = 'Pilot actions.csv'
+drone_actions_file = 'Drone actions.csv'
 booster_actions_file = 'Booster actions.csv'
 terrain_file = "Terrain_square.csv"
 frames_file = 'Frames.csv'
@@ -85,6 +86,7 @@ class CardTypeEnum(enum.Enum):
     WEAPON = 1
     PILOT = 2
     BOOSTER = 3
+    DRONE = 4
 
 damage_type_dict = {
     "cut" : cutAtkImg,
@@ -208,6 +210,11 @@ def make_card_from_row(row, card_type):
             pass
         if card_type is CardTypeEnum.WEAPON:
             # TODO - create weapon frame
+            pass
+        if card_type is CardTypeEnum.DRONE:
+            # TODO - create drone frame
+            card_text += "\\node[square, rounded corners=0.2cm, fill=red!80, opacity=80, minimum width=1cm] at () {" + row["Drone_Health"] + "};"
+            card_text += move_icon_outline_fill("(1.4, 5)", movement_color(row['Drone_MV']))
             pass
         
         init_pos = "(1.2, 9.0)"
