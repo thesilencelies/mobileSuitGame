@@ -42,11 +42,13 @@
       "Bash(pdftoppm -png -r 150 /home/stephen/mobileSuitGame/build/test_card.pdf /home/stephen/mobileSuitGame/build/test_card_out)",
       "Bash(pdflatex -interaction=nonstopmode test9.tex)",
       "Bash(ln -sf /home/stephen/mobileSuitGame/icons /tmp/latextest/icons)",
-      "Bash(pdftoppm -png -r 150 /tmp/latextest/test9.pdf /tmp/latextest/test9_out)"
+      "Bash(pdftoppm -png -r 150 /tmp/latextest/test9.pdf /tmp/latextest/test9_out)",
+      "Bash(python generateCards.py > /tmp/gen.log 2>&1; echo \"EXIT: $?\"; tail -5 /tmp/gen.log)"
     ],
     "additionalDirectories": [
       "/tmp/cardtest",
-      "/home/stephen/mobileSuitGame/build"
+      "/home/stephen/mobileSuitGame/build",
+      "/tmp"
     ]
   }
 }

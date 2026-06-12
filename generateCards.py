@@ -125,10 +125,12 @@ def createMacros():
             card_text += "}\n\\newcommand{\\small" + t + "}{"
             card_text += '\\includegraphics[' + inline_iconwidth + ']{' + icons_folder + img + '}'
             card_text += "}\n"
-            # repeated inline version: \smallcutx{N} draws N copies in a row, with the
-            # same 0.5cm step used for the attack icons in attack_box (-(d / 2) offset)
-            card_text += "\\newcommand{\\small" + t + "x}[1]{\\foreach \\d in {1,...,#1}{"
-            card_text += '\\includegraphics[' + inline_iconwidth + ']{' + icons_folder + img + '}\\hspace{0.1cm}}}\n'
+            # repeated inline version: \smallcutx{N} draws N overlapping copies in a row,
+            # using the same step/width ratio (0.5/0.9) as the attack icons in attack_box
+            card_text += "\\newcommand{\\small" + t + "x}[1]{"
+            card_text += '\\includegraphics[' + inline_iconwidth + ']{' + icons_folder + img + '}'
+            card_text += "\\ifnum#1>1\n\\foreach \\d in {2,...,#1}{\\hspace{-0.178cm}"
+            card_text += '\\includegraphics[' + inline_iconwidth + ']{' + icons_folder + img + '}}\n\\fi}\n'
 
         for ability, desc in ability_dict.items():
             cmd = ability.lower().replace(" ", "")
