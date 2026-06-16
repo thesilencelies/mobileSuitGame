@@ -65,7 +65,11 @@
       "Bash(convert full-1.png -crop 600x900+580+50 +repage f2.png)",
       "Bash(convert full-1.png -crop 600x900+1160+50 +repage f3.png)",
       "Bash(convert full-1.png -crop 600x900+580+820 +repage f5.png)",
-      "Bash(xxd)"
+      "Bash(xxd)",
+      "Bash(python3 /tmp/add_artist_column.py)",
+      "Bash(git checkout *)",
+      "Bash(python3 /tmp/add_artist_column2.py)",
+      "Bash(python3 generateCards.py)"
     ],
     "additionalDirectories": [
       "/tmp/cardtest",
