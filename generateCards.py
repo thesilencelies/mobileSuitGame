@@ -39,6 +39,25 @@ atkpointsImg = 'atkpoints.png'
 defpointsImg = 'defpoints.png'
 tokensImg = 'token.png'
 
+
+logos_dict = {
+    "Aegis": "AegisLogo.png",
+    "Collective": "CollectiveLogo.png",
+    "Church of the Net": "CotNLogo.png",
+    "Guild": "GuildLogo.png",
+    "Ouwa": "OuwaLogo.png",
+    "Revolution": "RevLogo.png"
+}
+
+light_logos_dict = {
+    "Aegis": "AegisLogo_light.png",
+    "Collective": "CollectiveLogo_light.png",
+    "Church of the Net": "CotNLogo_light.png",
+    "Guild": "GuildLogo_light.png",
+    "Ouwa": "OuwaLogo_light.png",
+    "Revolution": "RevLogo_light.png"
+}
+
 images_folder = "../pictures/"
 terrain_images_folder = "../terrain/"
 frame_images_folder = "../pictures/"
@@ -57,6 +76,7 @@ inline_iconwidth = "width=0.4cm"
 init_iconwidth = "width=1.35cm"
 terrain_iconwidth_value = 0.6
 terarin_iconwidth = f"width={terrain_iconwidth_value}cm"
+logo_width = "width=1.2cm"
 
 # tikzpicture [scale=...] used by make_card_from_row; offsets given in physical cm
 # (e.g. move_icon_outline) need to be divided by this to land at the right size
@@ -281,14 +301,12 @@ def make_card_from_row(row, card_type):
             pass
         
         init_pos = "(1.2, 9.0)"
-        move_pos = "(1,7.7)"
-
+        move_pos = "(1, 7.7)"
 
         # background circles for the initiative and movement markers, drawn before the name plate
         # so it sits on top of any overlap
         card_text = card_text + "\\node[circle, fill=" + initiative_color(row['Initiative']) + ", minimum size=1.5cm] at " + init_pos + "{};\n"
         card_text = card_text + move_icon_outline_fill(move_pos, movement_color(row['Movement']))
-
 
         # default symbols
         card_text = card_text + '\\node at ' + init_pos + '{\\includegraphics[' + init_iconwidth + ']{' + icons_folder + initImg + '}};\n'
@@ -302,6 +320,9 @@ def make_card_from_row(row, card_type):
         if row["Faction"]:
             card_text = card_text +  "}\\\\\n\\small{\\emph{~" + row["Faction"] + "}"
         card_text = card_text +  "}};\n"
+
+        if row["Faction"]:
+            card_text += "\\node[opacity=0.7] at (2.2, 7.9) {\\includegraphics[" + logo_width + "]{" + images_folder + light_logos_dict[row["Faction"]] + "}};\n"
 
 
         if int(row["OneUse"]) > 0:
@@ -367,6 +388,9 @@ def create_frame_sheet(frame):
         frame_text = frame_text + '\\node at (7,9){\\includegraphics[' + iconwidth + ']{' + icons_folder + framemvImg + '}};\n'
         frame_text = frame_text + " \\node at (7,9){\\Large{\\textbf{" + frame['Movement'] +"}}};\n"
         
+        if frame["Faction"]:
+            frame_text += "\\node[opacity=0.7] at (1.5, 7.7) {\\includegraphics[" + logo_width + "]{" + images_folder + light_logos_dict[frame["Faction"]] + "}};\n"
+
         # armor
         frame_text = frame_text + draw_armor(int(frame["Top armour"]), 8.5, "-1Init")
         frame_text = frame_text + draw_armor(int(frame["Side armour"]), 7, "-1Crd")
