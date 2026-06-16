@@ -1,13 +1,13 @@
-Name,Faction,Movement,Weapon Slots,Deck size,Abilities,Top armour,Side armour,Low armour,Boosters,CardImg,BackgroundLayer,ForegroundImg,Flavor,PrintID
-Percival MkIV,Aegis,4,3,20,Attacks with multiple blocks reduce movement by 2 less,4,4,4,2,foreground/aegis_percival.png,proxy_background.png,,"Where it stands, peace stands",1
-Kuwagata,Ouwa,4,4,20,\smallcut attacks have Precise \emph{(You choose which block is consumed)},4,4,4,3,foreground/ouwa_kuwagata.png,proxy_background.png,,"Menacing in it's effciency, it stands tall on generations of craftmanship",1
-VX4-Nautilus,Guild,3,4,20,Ranged attacks reduce movement by 2 less,3,4,4,2,foreground/guild_nautilus.png,proxy_background.png,,"Built for combat in the bay area, it's a relentless force of firepower",1
-Adam,Collective,5,2,15,\smallpierce Attacks get +1 initiative,4,3,3,0,foreground/collective_adam.png,proxy_background.png,,"Named after the first man, he's the last thing many will ever see",1
-RipperSmasher,Revolution,3,3,20,"Deathstrike\\ Attacks reduce movement by a maximum of -1",4,3,4,2,foreground/revolution_ripper.png,proxy_background.png,,Here to bring the people up top what's coming for them,1
-Hannael,Church of the Net,4,3,20,"Flying\\ Shield 1",3,3,3,3,foreground/church_hannael.png,proxy_background.png,,"Descending down as if from the heavens, humanity's redemption",1
-Elemiah,Church of the Net,3,3,20,"Shield 2\\ \smallimpact attacks deal 1 extra damage",3,3,3,3,foreground/church_elemiah.png,proxy_background.png,,Wings that cover all reality's lies,1
-J7R-Salaryman,Guild,4,5,24,Ranged attacks get +4 range,3,3,4,1,foreground/guild_salaryman.png,proxy_background.png,,Mindless drones of destruction still bring destruction,1
-Flamekin,Revolution,4,3,20,"Deathstrike \\ At the end of each turn, repair 1",2,2,2,3,foreground/revolution_flamekin.png,proxy_background.png,,"Held together by the will of it's pilot, its eiree form sparks the flame of revolution.",1
-Fenrir,Collective,6,2,15,Can't use ranged weapons,3,4,3,0,foreground/collective_fenrir.png,proxy_background.png,,The howl of the hunt still rings even in the City,1
-Hector MkI,Aegis,3,3,20,Each attack gains 1 mid \smallblock,5,4,4,2,foreground/aegis_hector.png,proxy_background.png,,The wall against which the tide of crime breaks,1
-Kamikiri,Ouwa,4,4,18,The first melee attack each turn deals an additional \smallcut mid,4,4,3,4,foreground/ouwa_kamikiri.png,proxy_background.png,,"Waiting patiently for the perfect moment, it strikes with a lethal flurry of blades",1
+Name,Faction,Movement,Weapon Slots,Deck size,Abilities,Top armour,Side armour,Low armour,Boosters,CardImg,BackgroundLayer,ForegroundImg,Flavor,PrintID,Artist
+Percival MkIV,Aegis,4,3,20,Attacks with multiple blocks reduce movement by 2 less,4,4,4,2,foreground/aegis_percival.png,proxy_background.png,,"Where it stands, peace stands",1,GoodBoy
+Kuwagata,Ouwa,4,4,20,\smallcut attacks have Precise \emph{(You choose which block is consumed)},4,4,4,3,foreground/ouwa_kuwagata.png,proxy_background.png,,"Menacing in it's effciency, it stands tall on generations of craftmanship",1,GoodBoy
+VX4-Nautilus,Guild,3,4,20,Ranged attacks reduce movement by 2 less,3,4,4,2,foreground/guild_nautilus.png,proxy_background.png,,"Built for combat in the bay area, it's a relentless force of firepower",1,GoodBoy
+Adam,Collective,5,2,15,\smallpierce Attacks get +1 initiative,4,3,3,0,foreground/collective_adam.png,proxy_background.png,,"Named after the first man, he's the last thing many will ever see",1,GoodBoy
+RipperSmasher,Revolution,3,3,20,"Deathstrike\\ Attacks reduce movement by a maximum of -1",4,3,4,2,foreground/revolution_ripper.png,proxy_background.png,,Here to bring the people up top what's coming for them,1,GoodBoy
+Hannael,Church of the Net,4,3,20,"Flying\\ Shield 1",3,3,3,3,foreground/church_hannael.png,proxy_background.png,,"Descending down as if from the heavens, humanity's redemption",1,GoodBoy
+Elemiah,Church of the Net,3,3,20,"Shield 2\\ \smallimpact attacks deal 1 extra damage",3,3,3,3,foreground/church_elemiah.png,proxy_background.png,,Wings that cover all reality's lies,1,GoodBoy
+J7R-Salaryman,Guild,4,5,24,Ranged attacks get +4 range,3,3,4,1,foreground/guild_salaryman.png,proxy_background.png,,Mindless drones of destruction still bring destruction,1,GoodBoy
+Flamekin,Revolution,4,3,20,"Deathstrike \\ At the end of each turn, repair 1",2,2,2,3,foreground/revolution_flamekin.png,proxy_background.png,,"Held together by the will of it's pilot, its eiree form sparks the flame of revolution.",1,GoodBoy
+Fenrir,Collective,6,2,15,Can't use ranged weapons,3,4,3,0,foreground/collective_fenrir.png,proxy_background.png,,The howl of the hunt still rings even in the City,1,GoodBoy
+Hector MkI,Aegis,3,3,20,Each attack gains 1 mid \smallblock,5,4,4,2,foreground/aegis_hector.png,proxy_background.png,,The wall against which the tide of crime breaks,1,GoodBoy
+Kamikiri,Ouwa,4,4,18,The first melee attack each turn deals an additional \smallcut mid,4,4,3,4,foreground/ouwa_kamikiri.png,proxy_background.png,,"Waiting patiently for the perfect moment, it strikes with a lethal flurry of blades",1,GoodBoy

@@ -273,10 +273,9 @@ def make_card_from_row(row, card_type):
             pass
         if card_type is CardTypeEnum.DRONE:
             # TODO - create drone frame
-            card_text += draw_armor(int(row["Drone_Health"]), 6.8,horizontal_pos=1.4, hori_step=0.7)
-            drone_mv_pos = "(1.4, 5)"
-            card_text += move_icon_outline_fill(drone_mv_pos, movement_color(row['Drone_MV']))
-            card_text += '\\node at ' + drone_mv_pos + '{\\includegraphics[' + iconwidth + ']{' + icons_folder + mvImg + '}};\n'
+            card_text += draw_armor(int(row["Drone_Health"]), 7.1, horizontal_pos=1.4, hori_step=0.7)
+            drone_mv_pos = "(1.7, 5.5)"
+            card_text += '\\node at ' + drone_mv_pos + '{\\includegraphics[' + iconwidth + ']{' + icons_folder + framemvImg + '}};\n'
             card_text += " \\node at " + drone_mv_pos + "{\\Large{\\textbf{" + row['Drone_MV'] +"}}};\n"
 
             pass
@@ -339,6 +338,10 @@ def make_card_from_row(row, card_type):
             card_text = card_text + '\\node at (4,5){\\includegraphics[width=6cm, max height = 8.3cm,' +\
                   ' keepaspectratio]{' + images_folder + row["ForegroundImg"] + '}};\n'
 
+        # artist credit
+        if row.get("Artist"):
+            card_text = card_text + "\\node at (4, 0.3){\\footnotesize{\\copyright  LiliCo 2026 \\emph{ Art: " + row["Artist"] + "}}};\n"
+
         card_text = card_text + "\\end{tikzpicture}\n"
         # ofile.write(header_text)
         ofile.write(card_text)
@@ -385,6 +388,10 @@ def create_frame_sheet(frame):
         # Foreground overlay rendered above all other elements (optional; use PNG for transparency)
         if frame.get("ForegroundImg"):
             frame_text = frame_text + '\\node at (4,5){\\includegraphics[width=6cm, max height = 8.3cm, keepaspectratio]{' + frame_images_folder + frame["ForegroundImg"] + '}};\n'
+
+        # artist credit
+        if frame.get("Artist"):
+            frame_text = frame_text + "\\node at (4, 0.3){\\footnotesize{\\copyright LiliCo 2026 \\emph{Art: " + frame["Artist"] + "}}};\n"
 
         #finish the tikzpicture
         frame_text = frame_text + "\\end{tikzpicture}\n"
