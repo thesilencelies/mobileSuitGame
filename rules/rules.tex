@@ -164,7 +164,7 @@ At the start of the action phase all the face down cards are turned face up.
 
 Cards are resolved in order of the initiative value, starting with the highest. In the event of a tie, players take it in turns to choose one card at the current intiative to resolve, starting with the player with the priority marker and moving clockwise.
 
-Card resolution consists of 3 steps: movement, effect, and attack, resolved in that order.
+Card resolution consists of 3 steps: movement, effect, and attack. Movement can happen first or last. 
 
 \subsection{Pre-combat Movement}
 The frame can move up to their base movement plus the movement modifier on the card currently being resolved steps in any direction.
@@ -240,15 +240,88 @@ Terrain and various card effects create tokens. These can normally be indicated 
 coins, dice, whatever, as long as it is clear to everyone what it is. Dedicated token pieces are also manufactured
 for players who wish to use them. 
 
+If a token has a specified health stat, then it can be attacked by an opposing team the same way as a frame can be.
+Tokens never block, and they only have one health stat, so all damage from all zones affects its health the same.
+If it takes damage past its health stat, it is destroyed. Unless a card says otherwise, tokens cannot be repaired.
+
 
 \subsection{Drones}
-Some attacks summon drones TODO!
-
+Some attacks summon drones. A drone is a token that will take the action on the card that summoned it every turn
+(including the turn that it is summoned), except that it moves with its own movement value (the one next to its health bar).
+The drone has a health stat indicated on the card that summoned it, which should stay in play until the drone is destroyed.
+The drone, like other tokens, cannot block.
 
 \begin{figure}[htbp]
   \centering
 \input{../build/card_Swarm_Swarm.tex}
 \end{figure}
+
+
+
+\begin{figure*}[p]
+  \centering
+  \Large{\textbf{The Factions}}
+
+  \normalsize
+  There are 6 main factions vying for control of the city, using their frames to exert their influence over their domain and
+  contest territory with one another.
+
+  \bigskip
+
+  % Row 1
+  \begin{minipage}[t]{0.3\textwidth}
+    \centering
+    \large{\textbf{The Ouwa}}\\[0.5em]
+    \includegraphics[width=\linewidth/3]{../pictures/OuwaLogo_light.png}
+     \includegraphics[width=\linewidth/3]{../pictures/OuwaLogo.png}\\[0.5em]   
+    Regal samurai with a keen sense of honor, they are the original creators of the frames, responsible for averting the destruction of the city when the nukes hit.
+    They consider themselves the rightful rulers of the city, and will brook no disrespect, of which there is much.\\[0.5em]
+
+  \end{minipage}
+  \hfill
+  \begin{minipage}[t]{0.3\textwidth}
+    \centering
+    \large{\textbf{The Aegis}}\\[0.5em]
+    \includegraphics[width=\linewidth/3]{../pictures/AegisLogo_light.png}
+    \includegraphics[width=\linewidth/3]{../pictures/AegisLogo.png}\\[0.5em]
+    ~\\[0.5em]
+    \end{minipage}
+  \hfill
+  \begin{minipage}[t]{0.3\textwidth}
+    \centering
+    \large{\textbf{The Guild}}\\[0.5em]
+    \includegraphics[width=\linewidth/3]{../pictures/GuildLogo_light.png}
+    \includegraphics[width=\linewidth/3]{../pictures/GuildLogo.png}\\[0.5em]
+    ~\\[0.5em]
+  \end{minipage}
+
+  \bigskip
+
+  % Row 2
+  \begin{minipage}[t]{0.3\textwidth}
+    \centering
+    \large{\textbf{The Church of the Net}}\\[0.5em]
+    \includegraphics[width=\linewidth/3]{../pictures/CotNLogo_light.png}
+    \includegraphics[width=\linewidth/3]{../pictures/CotNLogo.png}\\[0.5em]
+    ~\\[0.5em]
+  \end{minipage}
+  \hfill
+  \begin{minipage}[t]{0.3\textwidth}
+    \centering
+    \large{\textbf{The Revolution}}\\[0.5em]
+    \includegraphics[width=\linewidth/3]{../pictures/RevLogo_light.png}
+    \includegraphics[width=\linewidth/3]{../pictures/RevLogo.png}\\[0.5em]
+    ~\\[0.5em]
+  \end{minipage}
+  \hfill
+  \begin{minipage}[t]{0.3\textwidth}
+    \centering
+    \large{\textbf{The Collective}}\\[0.5em]
+    \includegraphics[width=\linewidth/3]{../pictures/CollectiveLogo_light.png}
+    \includegraphics[width=\linewidth/3]{../pictures/CollectiveLogo.png}\\[0.5em]
+    ~\\[0.5em]
+  \end{minipage}
+\end{figure*}
 
 
 
