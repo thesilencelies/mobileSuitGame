@@ -103,23 +103,6 @@
         "--no-booster",
         "--no-basic"
       ]
-    },
-    {
-      "name": "generate from prompts",
-      "type": "debugpy",
-      "request": "launch",
-      "program": "${workspaceFolder}/generate_attack_proxies.py",
-      "args": [
-        "--ref-mode", "card",
-        "--csv=Booster_Action_Prompts.csv",
-        "--reference-images", "pictures/foreground/ouwa_kuwagata.png",
-        "pictures/foreground/guild_nautilus.png",
-        "pictures/foreground/aegis_percival.png",
-        "pictures/foreground/church_elemiah.png",
-        "pictures/foreground/church_hannael.png",
-      ],
-      "console": "integratedTerminal",
-      "cwd": "${workspaceFolder}"
     }
   ],
   "compounds": [
