@@ -61,7 +61,7 @@ Vent,,Plasma Rifle,6,1,0,1,0,energy,energy,energy,1,0,1,0,0,0,\fullfeint,0,weapo
 Hypervelocity Shot,,Railgun,2,-3,0,1,0,projectile,projectile,projectile,0,0,2,20,1,20,\guardbreak,1,weapon_pictures/Railgun_Hypervelocity_Shot_t.png,backgrounds/Railgun_bg.png,,,1,Stephen Lilico
 Piercing Round,,Railgun,2,-3,0,1,0,projectile,projectile,projectile,0,0,3,16,0,0,\guardbreak,1,weapon_pictures/Railgun_Piercing_Round_t.png,backgrounds/Railgun_bg.png,,,1,Stephen Lilico
 Snipe,,Railgun,1,-3,1,0,0,projectile,projectile,projectile,3,20,0,0,0,0,,0,weapon_pictures/Railgun_Snipe_t.png,backgrounds/Railgun_bg.png,,,1,Stephen Lilico
-Kinetic Barrage,,Railgun,1,-3,0,1,0,projectile,projectile,projectile,2,12,2,12,2,12,\guardbreak,1,weapon_pictures/Railgun_Kinetic_Barrage_t.png,backgrounds/Railgun_bg.png,,,1,Stephen Lilico
+Kinetic Barrage,,Railgun,1,-3,0,1,0,projectile,projectile,projectile,2,12,2,12,2,12,\knockback{2},1,weapon_pictures/Railgun_Kinetic_Barrage_t.png,backgrounds/Railgun_bg.png,,,1,Stephen Lilico
 Headshot,,Sniper Rifle,3,-3,1,0,0,projectile,projectile,projectile,2,24,0,0,0,0,Deals + \smallprojectilex{2} if the target didnt move,0,weapon_pictures/Sniper_Rifle_Headshot_t.png,backgrounds/Sniper_Rifle_bg.png,,,1,Stephen Lilico
 Calibrated Hit,,Sniper Rifle,3,-3,0,1,0,projectile,projectile,projectile,0,0,0,0,2,24,Deals + \smallprojectilex{2} if the target didnt move,0,weapon_pictures/Sniper_Rifle_Calibrated_Hit_t.png,backgrounds/Sniper_Rifle_bg.png,,,1,Stephen Lilico
 Heartpiercer,,Sniper Rifle,3,-3,1,0,0,projectile,projectile,projectile,0,0,2,24,0,0,Deals + \smallprojectilex{2} if the target didnt move,1,weapon_pictures/Sniper_Rifle_Heartpiercer_t.png,backgrounds/Sniper_Rifle_bg.png,,,1,Stephen Lilico

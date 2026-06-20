@@ -122,16 +122,20 @@ ability_dict = {
     "Guard Break": "This attack consumes one block per damage",
     "Feint": "This attack deals no damage",
     "Precise": "chose which block is consumed",
-    "Committed": "this attack is discarded after resolving"
+    "Committed": "this attack is discarded after resolving",
+}
+
+numbered_ability_dict = {
+    "Knockback": "Move the target frame #1 steps in any direction away from the source"
 }
 
 status_dict = {
-    "Stunned": ("-2 init", "stunimg.png"),
-    "Slowed": ("-2 movement", "slowimg.png"),
-    "Dazed": ("-2 card", "dazeimg.png"),
-    "Stimmed": ("+2 init", "stimimg.png"),
-    "Boosted": ("+2 mv", "boostimg.png"),
-    "Lucid": ("+2 cards", "lucidimg.png")
+    "Stunned": ("-2 init", "stunned.png"),
+    "Slowed": ("-2 movement", "slowed.png"),
+    "Dazed": ("-2 card", "dazed.png"),
+    "Stimmed": ("+2 init", "stimmed.png"),
+    "Boosted": ("+2 mv", "boosted.png"),
+    "Lucid": ("+2 cards", "lucid.png")
 }
 
 rules_dict = {
@@ -161,6 +165,13 @@ def createMacros():
             card_text += "\n\\newcommand{\\" + cmd + "}{\\textbf{" + ability + "}}"
             card_text += "\n\\newcommand{\\full" + cmd + "}{\\textbf{" + ability
             card_text += "} \\emph{(" + desc + ")}}"
+
+        for ability, desc in numbered_ability_dict.items():
+            cmd = ability.lower().replace(" ", "")
+            card_text += "\n\\newcommand{\\" + cmd + "}[1]{\\textbf{" + ability + " #1}}"
+            card_text += "\n\\newcommand{\\full" + cmd + "}[1]{\\textbf{" + ability
+            card_text += " #1} \\emph{(" + desc + ")}}"
+
 
         for status, (desc, img) in status_dict.items():
             cmd = status.lower().replace(" ", "")
