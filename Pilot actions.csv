@@ -14,7 +14,7 @@ Outfox,,Tactician,4,-1,Targe frame within 7 gets 3 \stunned and 2 \dazed,0,Tacti
 Hyper,,Wunderkid,3,-4,Next turn: play 1 extra action,0,Wunderkid_1.png,proxy_background.png,,,1,GoodBoy
 Net Speed,,Wunderkid,5,0,This frame gets 2 \fullstimmed and 2 \fullboosted,0,Wunderkid_1.png,proxy_background.png,,,1,GoodBoy
 Newtype flair,,Wunderkid,8,0,Resolve another action from this frame immediately,0,Wunderkid_1.png,proxy_background.png,,,1,GoodBoy
-Ace reflexes,,Wunderkid,10,1,"Whenever this frame is attacked this turn, move 2 after the attack",0,Wunderkid_1.png,proxy_background.png,,,1,GoodBoy
+Ace reflexes,,Wunderkid,8,1,"Whenever this frame is attacked this turn, move 2 after the attack",0,Wunderkid_1.png,proxy_background.png,,,1,GoodBoy
 Battlefield Repairs,,Engineer,4,-2,Repair 2 damage from an allied frame within 3,0,Engineer_1.png,proxy_background.png,,,1,GoodBoy
 Barricade,,Engineer,6,-3,Put up to 3 barricade tokens on unoccupied locations within 3; that location becomes impassible,0,Engineer_1.png,proxy_background.png,,,1,GoodBoy
 Dismantle,,Engineer,7,-2,Attacks this turn deal 2 extra damage,0,Engineer_1.png,proxy_background.png,,,1,GoodBoy
