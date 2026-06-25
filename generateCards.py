@@ -199,15 +199,16 @@ def parse_int_safe(value: str) -> Optional[int]:
         return None
 
 def initiative_color(value: str) -> str:
-    """Background circle color for the initiative marker - darker blue for low initiatives, lighter blue for high ones."""
+    """Background circle color for the initiative marker - hue shifts blue→purple across initiative range, fixed brightness (matching old init 7)."""
     init_min, init_max = 1, 9
     parsed = parse_int_safe(value)
     if parsed is None:
         parsed = (init_min + init_max) // 2
     clamped = max(init_min, min(init_max, parsed))
     fraction = (clamped - init_min) / (init_max - init_min)
-    blue_pct = round(90 - fraction * 70)
-    return f"blue!{blue_pct}!white"
+    # blue!100!magenta = pure blue (H=240°), blue!25!magenta ≈ purple (H=285°)
+    blue_pct = round(100 - fraction * 75)
+    return f"blue!{blue_pct}!magenta!20!white"
 
 def movement_color(value: str) -> str:
     """Background circle color for the movement marker - red for negative movement, green for positive, tone scales with magnitude."""
