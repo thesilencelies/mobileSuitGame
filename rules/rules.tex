@@ -3,7 +3,6 @@
  \usepackage[left =2cm, right = 2cm, top = 1.4cm, bottom =1.4cm]{geometry} 
  \usepackage{tikz} 
  \usepackage[export]{adjustbox}
-\usepackage[acronym]{glossaries}
 \usepackage{wallpaper}
 \usepackage{makecell}
 
@@ -22,15 +21,6 @@
 %\author{Stephen Lilico}
 \date{}
 \ULCornerWallPaper{1.0}{../pictures/rules_background.png}
-
-\makeglossaries
-\newglossaryentry{attack}
-{
-  name=attack,
-  description={An attack is where an action that is being resolved that has one or more of the attack symbols
-  resolves against another target, either inflicting damage or consuming a block}
-}
-%need to write a lot more glossary entries?? or remove it
 
 
 \input{../build/card_macros.tex}
@@ -150,8 +140,7 @@ Ability text: &Effects that happen when this card is played or resolved.\\\hline
 On each turn of the game there are 3 phases: planning, action and cleanup. 
 
 \section{Planning}
-in the planning phase, simultaneously for each frame 5 cards are drawn from it's deck, and from those 2 are chosen and placed facedown. The rest of the cards are placed on the bottom of the deck.
-each deck has one additional marked card in it - if that card would be drawn, instead the deck is shuffled.
+in the planning phase, simultaneously for each frame 5 cards are drawn from it's deck, and from those 2 are chosen and placed facedown. The rest of the cards are put in that decks discard pile (if you are short of space, you can put the cards face up at the bottom of the deck). When the deck runs out, the discard pile is shuffled back in.
 
 \subsection{Echos of the fallen}
 If a frame has been defeated, at the end of the planning phase the player can reveal the top card of that frame's deck and put it sideways with the actions of a surviving frame. That card can also be used to block attacks this turn.
@@ -160,7 +149,7 @@ If a frame has been defeated, at the end of the planning phase the player can re
 At the end of the planning phase, one status token of each type is removed from each frame.
 
 \section{Action}
-At the start of the action phase all the face down cards are turned face up.
+Each players declares the highest remaining initiaive amongst the initiatives of their remaining cards. 
 
 Cards are resolved in order of the initiative value, starting with the highest. In the event of a tie, players take it in turns to choose one card at the current intiative to resolve, starting with the player with the priority marker and moving clockwise.
 
@@ -209,9 +198,7 @@ Low &
 If the frame did not move before applying effects and attacking it may move after finishing the attack.
 
 \section{Cleanup}
-All remaining cards on the field are discarded.
-Cards with the single use mark are set aside underneath the frame card,
-while all other cards that were discarded are put to the bottom of their respective decks.
+Cards with a persistence mark on them tick one step down, and any which tick down to zero are put into the discarad along with the other cards. 
 The priority marker then moves one step anticlockwise. 
 
 \section{Status}
