@@ -117,7 +117,7 @@ After all frames are deplyed this way, shuffle the decks, and the player who dep
 \makecell[cl]{Attack marks:\\ \smallprojectile \smallpierce \smallcut \smallimpact \smallenergy }& How much damage to deal at this location if this attack hits (symbol indicates damage type)\\\hline
 \makecell[cl]{Attack range:\\ \includegraphics[width=0.5cm]{../icons/rangeImg.png}} &Range of ranged attack\\\hline
 \makecell[cl]{Block mark:\\ \includegraphics[width=0.5cm]{../icons/blockImg.png}} &Region that this card can block for\\\hline
-\makecell[cl]{Single use mark:\\ \tikz{\node [circle, fill = red]{{\textbf{O}}}; }} &Indicates that the card is set aside and not shuffled back in after use.\\\hline
+\makecell[cl]{Persistence mark:\\ \tikz{\node [circle, fill = red]{{\textbf{2}}}; }} &Indicates that the card stays on the field after resolving until its effects finish. N indicates how many turns that is.\\\hline
 Ability text: &Effects that happen when this card is played or resolved.\\\hline
 \makecell[cl]{Type info:\\\emph{(bottom)}} & What type of card it is, and categorisation information. Used for deckbuilding.\\
 \end{tabular}
@@ -167,8 +167,10 @@ After movement is done, any effect on the card is applied. Effects are applied i
 
 \subsection{Attack}
 If the card has any attack listed, one target frame within any of the ranges may be chosen. For attacks without a range value, the target must be adjacent, and this attack is a melee attack. They are then the defender for this attack.
- If the defender has a block on their remaining cards in the same zone as any of the attacks that are in range, they must choose one of those cards to block. The attack fails and that blocking card is discarded (if its initiative hasn't been reached yet it never happens). Otherwise the attack succeeds, and the defender takes one damage per attack mark in the corresponding zone (high/mid/low).
+ If the defender has a block on their remaining cards in the same zone as any of the attacks that are in range, they must choose one of those cards to block. The attack fails and that blocking card is discarded 
+ (if its initiative hasn't been reached yet it never happens). Otherwise the attack succeeds, and the defender takes one damage per attack mark in the corresponding zone (high/mid/low).
 After finishing the attack the card resolution ends, and the card remains on the field to be used to block. (It can be helpful to turn it sideways to indicate that its been resolved)
+If the defender fails to reveal any valid blocks they did have face down, those cards cannot be activated later in the round and are instead discarded.
 
 \subsubsection{Melee between levels}
 If the attack is a melee attack and the defender is at a different elevation to the attacker, the attacks are moved up one bracket per difference in elevation.
@@ -198,7 +200,8 @@ Low &
 If the frame did not move before applying effects and attacking it may move after finishing the attack.
 
 \section{Cleanup}
-Cards with a persistence mark on them tick one step down, and any which tick down to zero are put into the discarad along with the other cards. 
+Cards without a persistence marker and any cards with a persistence marker whos effects have finished are put into their respective discard piles.
+Cards with a persistence marker that are still active are set aside clearly distinct from the turn's chosen actions ( they do not have active blocks). 
 The priority marker then moves one step anticlockwise. 
 
 \section{Status}
@@ -207,11 +210,13 @@ As long as the frame has any amount of the status marker on it, the frame's stat
 The modification amount is the same regardless of the quantity of status counters.
 
 Status:
-\begin{tabular}{l | l}
+
+\begin{tabular}{p{4cm}| p{4cm}}
 Debuff & Buff \\
 \fullstunned & \fullstimmed \\
 \fulldazed  & \fulllucid \\
 \fullslowed & \fullboosted \\
+\fullrevealed & \\
 \end{tabular}
 
 \subsection{Status annihilation}
@@ -366,8 +371,7 @@ count & type & group & cards \\
 
 \begin{tabular}{l p{0.8\linewidth}}
   On Hit: & The ability text after the colon only applies if the attack hits (that is, is not blocked) \\ 
-  Guard Break & This attack deals damage equal to its damage count minus the number of blocks consumed 
-  by it \\
+  Guard Break & This attack consumes a block for each zone. Zones that are not blocked deal damage. \\
   Committed & this attack is consumed after it resolves \\
   Feint & if this attack is not blocked, it deals no damage \\
   on strike: (X) & if this attack hits (is not blocked), then X happens \\
@@ -380,11 +384,5 @@ count & type & group & cards \\
   after which they are removed from play if they are still dead (they can be repaired)\\
   Knockback (X) & Move the target frame X steps in any direction away from the source (ignore descent) \\
 \end{tabular}
-
-\section{Glossary}
-
-\printglossary
-
-\printglossary[type=\acronymtype]
 
 \end{document}

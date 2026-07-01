@@ -119,9 +119,9 @@ damage_type_dict = {
     }
 
 ability_dict = {
-    "Guard Break": "This attack consumes one block per damage",
+    "Guard Break": "This attack consumes one block per zone",
     "Feint": "This attack deals no damage",
-    "Precise": "chose which block is consumed",
+    "Close Quarters": "Cannot be blocked by higher initiative attacks",
     "Committed": "this attack is discarded after resolving",
 }
 
@@ -131,11 +131,12 @@ numbered_ability_dict = {
 
 status_dict = {
     "Stunned": ("-2 init", "stunned.png"),
-    "Slowed": ("-2 movement", "slowed.png"),
+    "Slowed": ("-2 mv", "slowed.png"),
     "Dazed": ("-2 card", "dazed.png"),
     "Stimmed": ("+2 init", "stimmed.png"),
     "Boosted": ("+2 mv", "boosted.png"),
-    "Lucid": ("+2 cards", "lucid.png")
+    "Lucid": ("+2 cards", "lucid.png"),
+    "Revealed": ("chosen actions are turned face up", "revealed.png")
 }
 
 rules_dict = {
@@ -337,8 +338,8 @@ def make_card_from_row(row, card_type):
             card_text += "\\node[opacity=0.7] at (2.2, 7.9) {\\includegraphics[" + logo_width + "]{" + images_folder + light_logos_dict[row["Faction"]] + "}};\n"
 
 
-        if int(row["OneUse"]) > 0:
-             card_text = card_text + "\\node at (7,9.2)[circle, fill = red]{\\large{\\textbf{O}}};\n"
+        if row["Persistence"] != "0":
+             card_text = card_text + "\\node at (7,9.2)[circle, fill = red]{\\large{\\textbf{$" + row["Persistence"] + "$}}};\n"
 
         try:
             if card_type is CardTypeEnum.PILOT:
