@@ -61,7 +61,7 @@ Run each from any directory: `python image_generation/<script>.py`
 | `Frames.csv` | Mecha datasheets |
 | `Terrain_square.csv` | Tactical map tiles |
 
-Key columns: `Name`, `Group`, `Initiative`, `Movement`, `High/Mid/Low Attack+Block+DType+Range`, `Text`, `OneUse`, `CardImg`, `PrintID` (`0` = omit from output).
+Key columns: `Name`, `Group`, `Initiative`, `Movement`, `High/Mid/Low Attack+Block+DType+Range`, `Text`, `Persistence`, `CardImg`, `PrintID` (`0` = omit from output).
 
 **Damage types:** `cut`, `pierce`, `impact`, `projectile`, `energy`
 
