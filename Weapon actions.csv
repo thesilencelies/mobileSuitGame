@@ -58,9 +58,9 @@ Charged Shot,,Plasma Rifle,3,-3,1,0,0,energy,energy,energy,2,18,1,14,0,0,\fullgu
 Single Shot,,Plasma Rifle,5,-2,0,1,0,energy,energy,energy,0,0,2,16,0,0,,0,weapon_pictures/Plasma_Rifle_Single_Shot_t.png,backgrounds/Plasma_Rifle_bg.png,,,1,Stephen Lilico
 Plasma Stream,,Plasma Rifle,4,-2,0,1,0,energy,energy,energy,0,0,1,12,1,12,\fullguardbreak,0,weapon_pictures/Plasma_Rifle_Plasma_Stream_t.png,backgrounds/Plasma_Rifle_bg.png,,,1,Stephen Lilico
 Vent,,Plasma Rifle,6,1,0,1,0,energy,energy,energy,1,0,1,0,0,0,\fullfeint,0,weapon_pictures/Plasma_Rifle_Vent_t.png,backgrounds/Plasma_Rifle_bg.png,,,1,Stephen Lilico
-Hypervelocity Shot,,Railgun,2,-3,0,1,0,projectile,projectile,projectile,0,0,2,20,1,20,\fullguardbreak,0,weapon_pictures/Railgun_Hypervelocity_Shot_t.png,backgrounds/Railgun_bg.png,,,1,Stephen Lilico
-Piercing Round,,Railgun,2,-3,0,1,0,projectile,projectile,projectile,0,0,3,16,0,0,\fullguardbreak,0,weapon_pictures/Railgun_Piercing_Round_t.png,backgrounds/Railgun_bg.png,,,1,Stephen Lilico
-Snipe,,Railgun,1,-3,1,0,0,projectile,projectile,projectile,3,20,0,0,0,0,,0,weapon_pictures/Railgun_Snipe_t.png,backgrounds/Railgun_bg.png,,,1,Stephen Lilico
+Hypervelocity Shot,,Railgun,2,-3,0,1,0,projectile,projectile,projectile,0,0,2,20,1,20,\fullknockback{2},0,weapon_pictures/Railgun_Hypervelocity_Shot_t.png,backgrounds/Railgun_bg.png,,,1,Stephen Lilico
+Piercing Round,,Railgun,2,-3,0,1,0,projectile,projectile,projectile,0,0,2,16,0,0,\fullknockback{2},0,weapon_pictures/Railgun_Piercing_Round_t.png,backgrounds/Railgun_bg.png,,,1,Stephen Lilico
+Snipe,,Railgun,1,-3,1,0,0,projectile,projectile,projectile,2,20,0,0,0,0,\fullknockback{2},0,weapon_pictures/Railgun_Snipe_t.png,backgrounds/Railgun_bg.png,,,1,Stephen Lilico
 Kinetic Barrage,,Railgun,1,-3,0,1,0,projectile,projectile,projectile,2,12,2,12,2,12,\fullknockback{2},0,weapon_pictures/Railgun_Kinetic_Barrage_t.png,backgrounds/Railgun_bg.png,,,1,Stephen Lilico
 Headshot,,Sniper Rifle,3,-3,1,0,0,projectile,projectile,projectile,2,24,0,0,0,0,Deals + \smallprojectilex{2} if the target didnt move,0,weapon_pictures/Sniper_Rifle_Headshot_t.png,backgrounds/Sniper_Rifle_bg.png,,,1,Stephen Lilico
 Calibrated Hit,,Sniper Rifle,3,-3,0,1,0,projectile,projectile,projectile,0,0,0,0,2,24,Deals + \smallprojectilex{2} if the target didnt move,0,weapon_pictures/Sniper_Rifle_Calibrated_Hit_t.png,backgrounds/Sniper_Rifle_bg.png,,,1,Stephen Lilico

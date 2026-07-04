@@ -70,10 +70,6 @@ def process_deck(prefix):
          f"--csv=decks/deck_{prefix}.csv",
          f"--output=build/{front_tex}",
          f"--cols={cols}", f"--rows={rows}"]
-    if has_back:
-        deck_run.append("--add_back")
-        deck_run.append("--back_color=purple")
-        deck_run.append("--back_text=SHUFFLE")
     run(
         deck_run,
         cwd=WORKSPACE,
@@ -89,7 +85,7 @@ def process_deck(prefix):
             [sys.executable, "generate_card_sheet.py",
             f"--csv=back_{prefix}.tex",
             f"--output=build/{back_tex}",
-            "--repeat", "--add_back", f"--cols={COLS}", f"--rows={ROWS}"],
+            "--repeat", f"--cols={COLS}", f"--rows={ROWS}"],
             cwd=WORKSPACE,
             label=f"generate_card_sheet  back_{prefix}.tex → {back_tex}",
         )
