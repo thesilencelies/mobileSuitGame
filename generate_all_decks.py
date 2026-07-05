@@ -24,6 +24,7 @@ import os
 WORKSPACE = Path(__file__).parent
 BUILD = WORKSPACE / "build"
 DECKS_DIR = WORKSPACE / "decks"
+TTS_IMAGES = WORKSPACE / "TTSImages"
 
 COLS = 7
 ROWS = 4
@@ -42,10 +43,12 @@ def run(cmd, cwd=None, label=""):
 
 
 def pdf_to_png(stem):
+    TTS_IMAGES.mkdir(exist_ok=True)
+    out = TTS_IMAGES / f"{stem}.png"
     run(
-        ["convert", "-density", "150", f"{stem}.pdf", "-compress", "lzw", f"{stem}.png"],
+        ["convert", "-density", "150", f"{stem}.pdf", "-compress", "lzw", str(out)],
         cwd=BUILD,
-        label=f"convert {stem}.pdf → {stem}.png",
+        label=f"convert {stem}.pdf → TTSImages/{stem}.png",
     )
 
 
