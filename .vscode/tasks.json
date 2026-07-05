@@ -70,7 +70,7 @@
       "group": "build"
     },
     {
-      "label": "create tts frames",
+      "label": "create tts frames image",
       "command": "convert",
       "type": "shell",
       "options": {
@@ -86,6 +86,22 @@
       ],
       "dependsOn": [
         "create tts frames pdf"
+      ],
+      "group": "build"
+    },
+    {
+      "label": "create tts frames",
+      "command": "cp",
+      "type": "shell",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "args": [
+        "build/frames_image.png",
+        "TTSImages/frames_image.png",
+      ],
+      "dependsOn": [
+        "create tts frames image"
       ],
       "group": "build"
     },
