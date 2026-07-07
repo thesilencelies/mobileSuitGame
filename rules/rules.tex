@@ -30,7 +30,7 @@
 \maketitle
 
 
-These rules set out a method of handling movement and combat between Mobile Suits. The game is played across 6 turns, after which the team with the most victory points wins.
+These rules set out a method of handling movement and combat between Mobile Suits. The game is played across 5 turns, after which the team with the most victory points wins.
 Each player brings the same number of Frames, each with their own deck. A good default number is 3 per player, although with teams 2 each can be smoother.
  With many players teams are recommended over battle royale, though the rules support either playstyle.
 All frames a player brings should be from the same faction.
@@ -60,7 +60,7 @@ light blue & elevation 3\\
 red & impassible \\
 \end{tabular}
 
-Tiles that contain obstacles have a yellow dashing on their border. Tiles that indicated objectives are highlighted in green, tiles that need a token placed on them have hatching.
+Tiles that contain obstacles have a yellow dashing on their border and yellow diagonal lines. Tiles that indicate objectives have green lines, tiles that need a token placed on them have hatching.
 
 \begin{figure}[htbp]
   \centering
@@ -72,7 +72,6 @@ Tiles that contain obstacles have a yellow dashing on their border. Tiles that i
 Movement on these tiles is lateral and diagonal. The 8 tiles surrounding any one tile are all adjacent to it (so would count for melee attacks).
 Ranges are considered the same way (so you can consider the maximum range a square centered on the frame with sides of length twice the range).
 
-
 \subsection{Prebuilt Terrain}
 If you prefer, instead of using the terrain cards you can use whatever terrain setup you have at your gaming table. 
 Players should quickly agree at the start of the game what level each piece of terrain is,
@@ -80,32 +79,15 @@ but as a quick rule of thumb, moving up one frame's height is roughly one level.
 In this case, for objectives you can either draw objective cards from the deck and place appropriate markers and tokens at a location of your choosing, or use pre agreed objectives,
 and the objectives on the cards can be used as reference.
 In this case, distances are measured with a tape measure and a fixed base unit should be established based on the scale of the miniatures. 
-Deployment zones are 10 units away from the midline.
-
-\subsection{Line of sight}
-For a frame to be selected as a target of an attack, there must be a direct (i.e. no steps moving in an opposite direction to a previous step) , 
-unbroken (so it can't pass through an obstruction) and symmetric (so the distribution of diagonal and lateral steps should be even across the route)
- path of steps less than or equal to the range between the edge of the attacking frame and the target. 
-
-The following count as an obstruction:
-\begin{itemize}
-  \item Other Frames
-  \item Impassible terrain
-  \item Terrain at a higher level that the attacker
-  \item Obstacles adjacent to the target
-  \item Terrain at a higher elevation than the target next to the target
-\end{itemize} 
-
+Deployment zones are 7 units away from the midline.
 
 \section{Setup}
-If using the terrain decks, each player deals out 12 of their terrain cards from their terrain deck landscape in 3 rows of (nframes + 2) to make a grid.
-(for 2 players with 3 frames each that makes a 6x5 grid). If a player deals out as many or more objective cards than the number of frames they bring, or deals 
-an objecttive in their deployment zone, the most
- recently reveled objective is put to the bottom and a new card dealt in its place. Any relevant tokens are placed on them. 
+If using the terrain decks, each player deals out their terrain cards from their terrain deck in 2 rows of (nframes + 2) to make a grid.
+(for 2 players with 3 frames each that makes a 4x5 grid). Any relevant tokens are placed on the terrain cards.
 All objectives on these terrain cards are valid for this battle - you are defending any objectives that are on your teams terrain cards.
 
 Each player takes it in turns to put one of their frames in their deployment zone 
-(The row of terrain cards nearest them if using, else anwyhere more than 12 from the center line).
+(The nearest edge of the row of terrain cards nearest them if using, else anwyhere more than 7 from the center line).
 After all frames are deplyed this way, shuffle the decks, and the player who deployed first receives the priority marker. 
 
 \section{Card anatomy}
@@ -116,7 +98,7 @@ After all frames are deplyed this way, shuffle the decks, and the player who dep
 \makecell[cl]{Movement:\\ \includegraphics[width=0.5cm]{../icons/mvimg_old.png}}&How much to add (or subtract if its negative) to the movement for the action with this card\\\hline
 \makecell[cl]{Attack marks:\\ \smallprojectile \smallpierce \smallcut \smallimpact \smallenergy }& How much damage to deal at this location if this attack hits (symbol indicates damage type)\\\hline
 \makecell[cl]{Attack range:\\ \includegraphics[width=0.5cm]{../icons/rangeImg.png}} &Range of ranged attack\\\hline
-\makecell[cl]{Block mark:\\ \includegraphics[width=0.5cm]{../icons/blockImg.png}} &Region that this card can block for\\\hline
+\makecell[cl]{Block mark:\\ \includegraphics[width=0.5cm]{../icons/blockImg.png}} &Region that this card blocks for\\\hline
 \makecell[cl]{Persistence mark:\\ \tikz{\node [circle, fill = red]{{\textbf{2}}}; }} &Indicates that the card stays on the field after resolving until its effects finish. N indicates how many turns that is.\\\hline
 Ability text: &Effects that happen when this card is played or resolved.\\\hline
 \makecell[cl]{Type info:\\\emph{(bottom)}} & What type of card it is, and categorisation information. Used for deckbuilding.\\
@@ -160,13 +142,31 @@ The frame can move up to their base movement plus the movement modifier on the c
 The frame can move either before or after attacking.
 
 \subsubsection{Movement penalties}
-It takes 1 movement to move up per level difference, and you cannot stop halfway up. It costs 1 movement to move down any number of levels. Obsacles can be crossed at a -1mv penalty, but cannot be stopped inside.
+It takes 1 movement to move up per level difference, and you cannot stop halfway up. It costs no additional movement to move down any number of levels. Obsacles cannot be moved through.
 
 \subsection{Effect}
-After movement is done, any effect on the card is applied. Effects are applied in printed order. Debuffs and similar are marked on the affected frames. If a duration is not specified, a buff/debuff applies until the end of the next turn
+After movement is done, any effect on the card is applied. Effects are applied in printed order.
 
 \subsection{Attack}
 If the card has any attack listed, one target frame within any of the ranges may be chosen. For attacks without a range value, the target must be adjacent, and this attack is a melee attack. They are then the defender for this attack.
+
+\subsubsection{Line of sight}
+To select a target for a ranged attack the target must be:
+\begin{itemize}
+\item within the range of the target
+\item not adjacent to the attacking frame
+\end{itemize}
+Then draw a line starting from anwyhere on the the attacking frame to anywhere on the target. If there are no obstructions on that line, the target is valid.
+
+The following count as an obstruction:
+\begin{itemize}
+  \item Other Frames
+  \item Impassible terrain
+  \item Terrain at a higher level that the attacker
+  \item Obstacles adjacent to the target
+  \item Terrain at a higher elevation than the target adjacent to the target
+\end{itemize} 
+
  If the defender has a block on their remaining cards in the same zone as any of the attacks that are in range, they must choose one of those cards to block. The attack fails and that blocking card is discarded 
  (if its initiative hasn't been reached yet it never happens). Otherwise the attack succeeds, and the defender takes one damage per attack mark in the corresponding zone (high/mid/low).
 After finishing the attack the card resolution ends, and the card remains on the field to be used to block. (It can be helpful to turn it sideways to indicate that its been resolved)
@@ -210,7 +210,7 @@ As long as the frame has any amount of the status marker on it, the frame's stat
 The modification amount is the same regardless of the quantity of status counters.
 
 Status:
-
+Various cards say that a frame will recieve one of the below status. As long as they have any amount of that status token on them, the noted effect applies.
 \begin{tabular}{p{4cm}| p{4cm}}
 Debuff & Buff \\
 \fullstunned & \fullstimmed \\
