@@ -235,17 +235,42 @@ def move_icon_outline_fill(pos: str, color: str) -> str:
     )
     return "\\fill[" + color + "] " + points + " -- cycle;\n"
 
+def block_shield_outline(pos, color):
+    """Bold shield-shaped background+outline for a blocked zone, replacing
+    the plain backbox rounded rectangle so a block reads as covering the
+    whole attack, not just a pip icon.
+
+    Footprint starts from the same 2cm square centred on (6.2, pos), but:
+    - the top edge gets a shallow V notch at its centre
+    - the bottom-left/right corners are raised 0.5cm
+    - a point continues down from those raised corners into the dead space
+      below the box (between this zone row and the next), which is where
+      the (now centred) range indicator sits
+    """
+    x, y = 6.2, pos
+    hw, hh = 1.0, 1.0
+    notch_depth = 0.2
+    tip_depth = 0.3
+    corner_raise = 0.5
+    tl = f"({x - hw}, {y + hh})"
+    top = f"({x}, {y + hh - notch_depth})"
+    tr = f"({x + hw}, {y + hh})"
+    br = f"({x + hw}, {y - hh + corner_raise})"
+    bl = f"({x - hw}, {y - hh + corner_raise})"
+    tip = f"({x}, {y - hh - tip_depth})"
+    return f"\\filldraw[draw={color}, line width=6pt, fill={color}!20, rounded corners=0.15cm] {tl} -- {top} -- {tr} -- {br} -- {tip} -- {bl} -- cycle;\n"
+
 def attack_box(atk, rng, block, pos, dmg_type, color):
     out_text = ""
-    # blocks have different box styling
-    if block:
-       box_style = f"backbox, draw={color}, line width=6pt, fill={color}!20"
-    else:
-       box_style = f"backbox, fill={color}!20"
 
-    # the attack box at the requested location
-    if atk or block:
-        out_text = out_text + "\\node[" + box_style + "] at (6.2, " + str(pos) +"){};\n"
+    # background: a plain rounded rectangle when there's no block; when
+    # blocked, the shield shape itself (fill + bold outline) takes over as
+    # the background, since the block applies to the whole attack in that
+    # zone, not just the block pips
+    if block:
+        out_text = out_text + block_shield_outline(pos, color)
+    elif atk:
+        out_text = out_text + f"\\node[backbox, fill={color}!20] at (6.2, {pos}){{}};\n"
     # what graphic to use
     aimg = "\\" + dmg_type
 
@@ -253,16 +278,17 @@ def attack_box(atk, rng, block, pos, dmg_type, color):
         out_text = out_text + "\\node at (" + str(
             -(d / 2) + 7.0) + ', ' + str(pos + 0.5) + '){' + aimg + '};\n'
 
-    # blocks
-    for d in range(0, block):
-        out_text = out_text + "\\node at (" + str(
-            -(d / 2) + 7.0) + ', ' + str(pos - 0.5) + '){\\includegraphics[' + iconwidth + ']{' + icons_folder + \
-                   blkImg + '}};\n'
+    # blocks -- the shield outline above is now the block indicator, so the
+    # individual block pip icons are no longer drawn
+    # for d in range(0, block):
+    #     out_text = out_text + "\\node at (" + str(
+    #         -(d / 2) + 7.0) + ', ' + str(pos - 0.5) + '){\\includegraphics[' + iconwidth + ']{' + icons_folder + \
+    #                blkImg + '}};\n'
     # ranges
     if rng > 0:
-        out_text = out_text + '\\node at ( 5.9, ' + str(pos - 0.55) + '){\\includegraphics[' + iconwidth + ']{' + \
+        out_text = out_text + '\\node at ( 6.2, ' + str(pos - 0.55) + '){\\includegraphics[' + iconwidth + ']{' + \
                    icons_folder + rangeImg + '}};\n'
-        out_text = out_text + '\\node at (5.9, ' + str(pos - 0.1) + '){\\Large{' + str(rng) + '}};\n'
+        out_text = out_text + '\\node at (6.2, ' + str(pos - 0.1) + '){\\Large{' + str(rng) + '}};\n'
 
     return out_text
 
