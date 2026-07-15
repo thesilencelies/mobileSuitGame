@@ -18,6 +18,7 @@ cardoutputfolder='build/card_'
 frameoutputfolder='build/frame_'
 backsoutputfolder='build/back_'
 terrianoutputfolder='build/terrain_'
+groupindicatoroutputfolder='build/group_indicator_'
 
 #icon names
 cutAtkImg = 'attackImg.png'
@@ -282,7 +283,85 @@ def draw_armor(armor, position, penalty="", horizontal_pos = 7, hori_step=-0.7):
 
 
 
-def make_card_from_row(row, card_type):
+# ---------------------------------------------------------------------------
+# Per-weapon-group zone indicator (bottom-left of each weapon card)
+#
+# Shows, for the weapon *group* as a whole (not just this one card), which of
+# the High/Mid/Low zones it can attack (red triangle) and/or block (blue
+# square) across all its printed cards -- so a played card tips the opponent
+# off about the rest of the kit, not just itself.
+# ---------------------------------------------------------------------------
+zones_order = ["High", "Mid", "Low"]  # top to bottom, matching card layout
+
+def compute_group_zone_capabilities(rows):
+    """rows: iterable of CSV dict-rows from Weapon actions.csv (already PrintID-filtered).
+    Returns {group: {zone: {"attack": bool, "block": bool}}}."""
+    caps: Dict[str, Dict[str, Dict[str, bool]]] = {}
+    for row in rows:
+        entry = caps.setdefault(row["Group"], {z: {"attack": False, "block": False} for z in zones_order})
+        for z in zones_order:
+            atk = parse_int_safe(row.get(f"{z}Attack"))
+            if atk and atk > 0:
+                entry[z]["attack"] = True
+            blk = parse_int_safe(row.get(f"{z}Block"))
+            if blk and blk > 0:
+                entry[z]["block"] = True
+    return caps
+
+def _triangle_path(cx, cy, r=0.22):
+    pts = [(cx, cy + r), (cx - r * 0.866, cy - r * 0.5), (cx + r * 0.866, cy - r * 0.5)]
+    return " -- ".join(f"({x:.4f},{y:.4f})" for x, y in pts) + " -- cycle"
+
+def _square_path(cx, cy, half=0.175):
+    return f"({cx - half:.4f},{cy - half:.4f}) rectangle ({cx + half:.4f},{cy + half:.4f})"
+
+# indicator is drawn at 2/3 of its original size so it reads as a compact
+# corner marker rather than competing with the card's other icons
+INDICATOR_SCALE = 2.0 / 3.0
+INDICATOR_PAD = 0.06  # margin between icons and their background panel
+
+
+def create_group_indicator(group, capability):
+    """Writes the small standalone tikzpicture nested/\\input by each card of this group.
+
+    Includes its own opaque-ish background panel (drawn first, underneath the
+    icons) so the card's other UI boxes never show through behind it."""
+    s = INDICATOR_SCALE
+    zone_y = {"High": 1.25 * s, "Mid": 0.75 * s, "Low": 0.25 * s}
+    atk_x, blk_x = 0.28 * s, 0.72 * s
+    tri_r = 0.22 * s
+    sq_half = 0.175 * s
+
+    panel_left = atk_x - tri_r * 0.866 - INDICATOR_PAD
+    panel_right = blk_x + sq_half + INDICATOR_PAD
+    panel_bottom = zone_y["Low"] - max(tri_r * 0.5, sq_half) - INDICATOR_PAD
+    panel_top = zone_y["High"] + max(tri_r, sq_half) + INDICATOR_PAD
+
+    lines = ["\\begin{tikzpicture}[x=1cm,y=1cm]\n"]
+    lines.append(
+        f"  \\fill[white, opacity=0.75, rounded corners=0.05cm] "
+        f"({panel_left:.4f},{panel_bottom:.4f}) rectangle ({panel_right:.4f},{panel_top:.4f});\n"
+    )
+    for zone in zones_order:
+        y = zone_y[zone]
+        tri = _triangle_path(atk_x, y, tri_r)
+        if capability[zone]["attack"]:
+            lines.append(f"  \\fill[red!80!black] {tri};\n")
+        else:
+            lines.append(f"  \\draw[gray!45, thin] {tri};\n")
+        sq = _square_path(blk_x, y, sq_half)
+        if capability[zone]["block"]:
+            lines.append(f"  \\fill[blue!65!black] {sq};\n")
+        else:
+            lines.append(f"  \\draw[gray!45, thin] {sq};\n")
+    lines.append("\\end{tikzpicture}\n")
+    text = "".join(lines)
+    with open(groupindicatoroutputfolder + group + ".tex", "w") as ofile:
+        ofile.write(text)
+    return text
+
+
+def make_card_from_row(row, card_type, group_capability=None):
     with open(cardoutputfolder + row['Group'] + "_" + row['Name'] + '.tex', 'w') as ofile:
         # art and card edge
         card_text = f"\\begin{{tikzpicture}}[scale={card_scale}, backbox/.style= {{rectangle, minimum height=2.0cm," \
@@ -360,21 +439,36 @@ def make_card_from_row(row, card_type):
             if row["Text"]:
                 card_text = card_text + "\\node[rectangle, fill = white, opacity = 0.75, minimum height =1.5cm, rounded corners = 0.1cm, " \
                     + "text width = 3.5cm]  at (2.75, 3.5){\\small{" + row['Text'] +"}};\n"
-        
-        #set info
+
+        # set info: deckbuilding info (Faction/Type/Group/Flavor) is narrower and
+        # shifted right, and its font shrunk, for weapon cards to leave room for
+        # the group zone-capability indicator down in the bottom-left corner
+        set_info_content = row["Faction"] + " " + getTypeName(card_type) +  " \\hfill " + row['Group'] + "\\\\" + \
+                "\\footnotesize{\\emph{" + row["Flavor"] + "}}"
+        if group_capability is not None:
+            set_info_center_x, set_info_width = 4.45, 4.9
+            set_info_content = "\\footnotesize{" + set_info_content + "}"
+        else:
+            set_info_center_x, set_info_width = 4, 5.8
         card_text = card_text + "\\node[rectangle, fill = white, opacity = 0.75, minimum width=6cm, minimum height =0.8cm, " \
-                + "rounded corners = 0.1cm, text width = 5.8cm]  at (4, 0.7){" \
-                + row["Faction"] + " " + getTypeName(card_type) +  " \\hfill " + row['Group'] + "\\\\" + \
-                "\\footnotesize{\\emph{" + row["Flavor"] + "}}};\n"
+                + f"rounded corners = 0.1cm, text width = {set_info_width}cm]  at ({set_info_center_x}, 0.7){{" \
+                + set_info_content + "};\n"
+
+        # group zone-capability indicator: which zones this weapon group can
+        # attack/block across all its cards, not just this one -- pinned to the
+        # true bottom-left corner of the card
+        if group_capability is not None:
+            card_text = card_text + "\\node[anchor=south west, inner sep=0pt] at (0.95, 0.65){\\input{" \
+                    + "group_indicator_" + row['Group'] + ".tex}};\n"
 
         # Foreground overlay rendered above all other elements (optional; use PNG for transparency)
         if row.get("ForegroundImg"):
             card_text = card_text + '\\node at (4,5){\\includegraphics[width=6cm, max height = 8.3cm,' +\
                   ' keepaspectratio]{' + images_folder + row["ForegroundImg"] + '}};\n'
 
-        # artist credit
+        # artist credit -- kept aligned under the (possibly shifted) set info box
         if row.get("Artist"):
-            card_text = card_text + "\\node at (4, 0.3){\\footnotesize{\\copyright  LiliCo 2026 \\emph{ Art: " + row["Artist"] + "}}};\n"
+            card_text = card_text + f"\\node at ({set_info_center_x}, 0.3){{\\footnotesize{{\\copyright  LiliCo 2026 \\emph{{ Art: " + row["Artist"] + "}}};\n"
 
         card_text = card_text + "\\end{tikzpicture}\n"
         # ofile.write(header_text)
@@ -964,9 +1058,14 @@ if __name__ == "__main__":
 
         with open(weapon_actions_file, "r") as spcsvfile:
             reader = csv.DictReader(spcsvfile)
-            for row in reader:
-                if int(row["PrintID"]) > 0:
-                        allfile.write(make_card_from_row(row, CardTypeEnum.WEAPON))
+            weapon_rows = [row for row in reader if int(row["PrintID"]) > 0]
+
+        weapon_group_caps = compute_group_zone_capabilities(weapon_rows)
+        for group, capability in weapon_group_caps.items():
+            create_group_indicator(group, capability)
+
+        for row in weapon_rows:
+            allfile.write(make_card_from_row(row, CardTypeEnum.WEAPON, weapon_group_caps[row["Group"]]))
 
         with open(drone_actions_file, "r") as facsvfile:
             reader = csv.DictReader(facsvfile)

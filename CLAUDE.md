@@ -17,7 +17,7 @@ decks/*.csv → generate_card_sheet.py → card_sheet.tex → card_sheet.pdf
 ## Scripts
 
 ### generateCards.py
-Reads all card CSVs; outputs individual `build/card_<Group>_<Name>.tex` files, a combined `build/card_all.tex`, frame datasheets (`build/frame_*.tex`), and terrain tiles (`build/terrain_*.tex`).
+Reads all card CSVs; outputs individual `build/card_<Group>_<Name>.tex` files, a combined `build/card_all.tex`, frame datasheets (`build/frame_*.tex`), and terrain tiles (`build/terrain_*.tex`). For weapon cards it also writes `build/group_indicator_<Group>.tex` — a small red-triangle/blue-square grid showing which High/Mid/Low zones that weapon *group* can attack/block across all its cards, `\input` by each card in the group at the bottom left.
 Run: `python generateCards.py`
 
 ### generate_card_sheet.py
@@ -36,6 +36,10 @@ Run: `python plotCardStatistics.py [--no-basics] [--no-boosters] [--melee] [--ra
 ### check_deck_coverage.py
 Reports how many times each defined card appears across all action decks; flags missing or orphaned entries.
 Run: `python check_deck_coverage.py [--by-group]`
+
+### weapon_fingerprint_report.py
+Generates a scrollable HTML report (`build/weapon_fingerprint.html`), one row per weapon Group: average attack/block dice by zone, which ability/status keywords appear in that group's card text, and the Initiative/Movement spread across its cards.
+Run: `python weapon_fingerprint_report.py [--output build/weapon_fingerprint.html] [--open]`
 
 ## image_generation/
 
