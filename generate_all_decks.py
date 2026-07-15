@@ -21,10 +21,14 @@ import sys
 from pathlib import Path
 import os
 
+from generate_card_images import generate_card_images
+
 WORKSPACE = Path(__file__).parent
 BUILD = WORKSPACE / "build"
 DECKS_DIR = WORKSPACE / "decks"
 TTS_IMAGES = WORKSPACE / "TTSImages"
+CARD_IMAGES = WORKSPACE / "CardImages"
+INDIVIDUAL_CARDS_CSV = DECKS_DIR / "individual_cards.csv"
 
 COLS = 7
 ROWS = 4
@@ -99,6 +103,21 @@ def process_deck(prefix):
     print(f"  Done: {prefix}")
 
 
+def process_individual_cards():
+    """Renders standalone PNGs for the cards listed in decks/individual_cards.csv, if present."""
+    if not INDIVIDUAL_CARDS_CSV.exists():
+        print(f"\n(no {INDIVIDUAL_CARDS_CSV.relative_to(WORKSPACE)} found - skipping individual card images)")
+        return
+
+    print(f"\n=== individual card images ({INDIVIDUAL_CARDS_CSV.name}) ===")
+    generate_card_images(
+        csv_path=INDIVIDUAL_CARDS_CSV,
+        output_dir=CARD_IMAGES,
+        density=150,
+        sheet_name="individual_cards",
+    )
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Generate TTS card sheet images for all (or specified) decks."
@@ -107,6 +126,10 @@ def main():
         "decks", nargs="*",
         help="Deck prefixes to process (e.g. collective_adam). "
              "Omit to process all deck_*.csv files in decks/.",
+    )
+    parser.add_argument(
+        "--skip-individual", action="store_true",
+        help="Skip rendering individual card images from decks/individual_cards.csv.",
     )
     args = parser.parse_args()
 
@@ -127,6 +150,13 @@ def main():
         except SystemExit as e:
             print(f"  ERROR: {e}")
             failed.append(prefix)
+
+    if not args.skip_individual:
+        try:
+            process_individual_cards()
+        except SystemExit as e:
+            print(f"  ERROR: {e}")
+            failed.append("individual_cards")
 
     print("\n" + "=" * 40)
     if failed:
