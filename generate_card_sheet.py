@@ -147,8 +147,15 @@ def generate_latex(cards: list[str], bleed: float, cols: int, rows: int,
     cards_per_sheet = cols * rows
     num_sheets = math.ceil(len(cards) / cards_per_sheet)
 
+    # Per-row slack must exceed LaTeX's per-page overhead (~5pt/0.18cm from
+    # baselineskip/strut depth around each row's content), or a sheet with few
+    # rows comes out "Overfull" and pdflatex silently inserts a spurious blank
+    # page before the very first sheet, shifting every card by one page. Every
+    # existing multi-row deck has enough slack to hide this; single-row sheets
+    # (e.g. one-card-per-page renders) do not.
+    row_slack_cm = 0.2
     page_width  = cols * CARD_WIDTH_CM  + (cols - 1) * bleed
-    page_height = rows * (CARD_HEIGHT_CM + 0.14) + (rows - 1) * bleed
+    page_height = rows * (CARD_HEIGHT_CM + row_slack_cm) + (rows - 1) * bleed
 
     w = f"{CARD_WIDTH_CM:.4f}"
     h = f"{CARD_HEIGHT_CM:.4f}"

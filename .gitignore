@@ -225,6 +225,9 @@ TSWLatexianTemp*
 *.jpeg
 *.xcf
 
+# individual card renders from generate_card_images.py are checked in
+!CardImages/*.png
+
 build
 .idea
 
