@@ -16,10 +16,10 @@ Net Speed,,Wunderkid,5,0,This frame gets 2 \fullstimmed and 2 \fullboosted,0,Wun
 Portal,,Wunderkid,3,3,Create a portal at the start and end of this move. Those tiles are connected.,0,Wunderkid_1.png,proxy_background.png,,,1,GoodBoy
 Ace Reflexes,,Wunderkid,8,1,"Whenever this frame is attacked this turn, move 2 after the attack",0,Wunderkid_1.png,proxy_background.png,,,1,GoodBoy
 Battlefield Repairs,,Engineer,4,-2,Repair 3 damage from an allied frame within 3,0,Engineer_1.png,proxy_background.png,,,1,GoodBoy
-Barricade,,Engineer,6,-3,Put up to 3 barricade tokens on unoccupied locations within 3: those locations becomes impassible,0,Engineer_1.png,proxy_background.png,,,1,GoodBoy
+Barricade,,Engineer,4,-3,Put up to 3 barricade tokens on unoccupied locations within 3: those locations becomes impassible,0,Engineer_1.png,proxy_background.png,,,1,GoodBoy
 Gravity Well,,Engineer,3,-2,Create a gravity well. Its an obstacle that adds an extra 1 movement penalty to any step away from it within 5,0,Engineer_1.png,proxy_background.png,,,1,GoodBoy
 Precision Tuning,,Engineer,4,-3,This frame gets 4 \fullboosted,0,Engineer_1.png,proxy_background.png,,,1,GoodBoy
 Combo strike,,Specialist,8,-2,"When resolving the next attack from this frame, reveal the top 4 cards of its deck and choose up to 1 attack from the same weapon: add it's attacks to the attack\\\fullcommitted",0,Specialist_1.png,proxy_background.png,,,1,GoodBoy
 Snipers aim,,Specialist,7,-3,"Ranged attacks this turn can ignore obstacles, get + 4 range and deal 1 extra damage\\\fullcommitted",0,Specialist_1.png,proxy_background.png,,,1,GoodBoy
-Master duelist,,Specialist,*3,*,For the next 3 turns: Enemies targeted by melee attacks get \revealed and you choose which card blocks,3,Specialist_1.png,proxy_background.png,,,1,GoodBoy
+Master duelist,,Specialist,3,-2,For the next 3 turns: Enemies targeted by melee attacks get \revealed and you choose which card blocks,3,Specialist_1.png,proxy_background.png,,,1,GoodBoy
 Practiced Technique,,Specialist,5,-1,\fulllucid \\ Next turn: attacks deal 1 extra damage for each other attack played from the same weapon,1,Specialist_1.png,proxy_background.png,,,1,GoodBoy
