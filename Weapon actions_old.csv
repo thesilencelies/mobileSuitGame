@@ -6,7 +6,7 @@ Sweep,,Spear,7,0,0,0,1,pierce,pierce,impact,0,0,0,0,1,0,On Hit: target gets 2 \f
 Lunge,,Sword,7,1,0,0,1,cut,cut,cut,0,0,1,0,0,0,\fullcommitted,0,weapon_pictures/Sword_Lunge_t.png,backgrounds/Sword_bg.png,,,1,Stephen Lilico
 Feint,,Sword,7,1,0,1,0,cut,cut,cut,1,0,0,0,0,0,\fullfeint,0,weapon_pictures/Sword_Feint_t.png,backgrounds/Sword_bg.png,,,1,Stephen Lilico
 Slice,,Sword,5,-2,0,0,1,cut,cut,cut,1,0,1,0,0,0,,0,weapon_pictures/Sword_Slice_t.png,backgrounds/Sword_bg.png,,,1,Stephen Lilico
-Parry,,Sword,7,0,1,1,0,cut,cut,cut,0,0,0,0,0,0,If blocks: deals mid \smallcut,0,weapon_pictures/Sword_Parry_t.png,backgrounds/Sword_bg.png,,,1,Stephen Lilico
+Parry,,Sword,7,0,1,1,0,cut,cut,cut,0,0,0,0,0,0,On Block: deals mid \smallcut,0,weapon_pictures/Sword_Parry_t.png,backgrounds/Sword_bg.png,,,1,Stephen Lilico
 Bash,,Shield,5,0,0,1,0,impact,impact,impact,1,0,0,0,0,0,On Hit: target gets 2 \fulldazed,0,weapon_pictures/Shield_Bash_t.png,backgrounds/Shield_bg.png,,,1,Stephen Lilico
 Full Guard,,Shield,2,-1,1,1,1,,,,0,0,0,0,0,0,,0,weapon_pictures/Shield_Full_Guard_t.png,backgrounds/Shield_bg.png,,,1,Stephen Lilico
 Push on,,Shield,8,0,0,1,1,,,,0,0,0,0,0,0,,0,weapon_pictures/Shield_Push_on_t.png,backgrounds/Shield_bg.png,,,1,Stephen Lilico
@@ -47,7 +47,7 @@ Missile Rack 1,Guild,Missile Rack,2,-1,1,0,0,projectile,projectile,projectile,2,
 Missile Rack 2,Guild,Missile Rack,2,-1,1,0,0,projectile,projectile,projectile,0,0,2,12,2,12,\fullguardbreak \\ Can only be used by J7R-Salryman,0,weapon_pictures/Missile_Rack_Missile_Rack_2_t.png,backgrounds/Missile_Rack_bg.png,,,1,Stephen Lilico
 Missile Rack 3,Guild,Missile Rack,2,-1,1,0,0,projectile,projectile,projectile,2,12,0,0,2,12,\guardbreak \\ Can only be used by J7R-Salryman,0,weapon_pictures/Missile_Rack_Missile_Rack_3_t.png,backgrounds/Missile_Rack_bg.png,,,1,Stephen Lilico
 Cleave,,Greatsword,4,-2,0,1,0,cut,cut,cut,2,0,2,0,0,0,,0,weapon_pictures/Greatsword_Cleave_t.png,backgrounds/Greatsword_bg.png,,,1,Stephen Lilico
-Parry,,Greatsword,4,-1,0,1,1,cut,cut,cut,0,0,0,0,0,0,If blocks:  deals mid \smallcut,0,weapon_pictures/Greatsword_Parry_t.png,backgrounds/Greatsword_bg.png,,,1,Stephen Lilico
+Parry,,Greatsword,4,-1,0,1,1,cut,cut,cut,0,0,0,0,0,0,On Block:  deals mid \smallcut,0,weapon_pictures/Greatsword_Parry_t.png,backgrounds/Greatsword_bg.png,,,1,Stephen Lilico
 Grand Sweep,,Greatsword,4,-2,0,1,0,cut,cut,cut,0,0,2,0,0,0,Hits all adjacent enemies,0,weapon_pictures/Greatsword_Grand_Sweep_t.png,backgrounds/Greatsword_bg.png,,,1,Stephen Lilico
 Rising Cut,,Greatsword,4,-1,1,1,0,cut,cut,cut,0,0,0,0,2,0,,0,weapon_pictures/Greatsword_Rising_Cut_t.png,backgrounds/Greatsword_bg.png,,,1,Stephen Lilico
 Slam,,Kinetic Hammer,4,-3,0,0,1,impact,impact,impact,0,0,0,0,2,0,Also hits any enemies adjacent to the target,0,weapon_pictures/Kinetic_Hammer_Slam_t.png,backgrounds/Kinetic_Hammer_bg.png,,,1,Stephen Lilico

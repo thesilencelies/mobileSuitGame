@@ -18,6 +18,7 @@ CARD_CSVS = [
     "Basic actions.csv",
     "Booster actions.csv",
     "Pilot actions.csv",
+    "Drone actions.csv"
 ]
 
 DECKS_DIR = "decks"
