@@ -476,7 +476,7 @@ def make_card_from_row(row, card_type, group_capability=None):
             set_info_content = "\\footnotesize{" + set_info_content + "}"
         else:
             set_info_center_x, set_info_width = 4, 5.8
-        card_text = card_text + "\\node[rectangle, fill = white, opacity = 0.75, minimum width=6cm, minimum height =0.8cm, " \
+        card_text = card_text + f"\\node[rectangle, fill = white, opacity = 0.75, minimum width={set_info_width}cm, minimum height =0.8cm, " \
                 + f"rounded corners = 0.1cm, text width = {set_info_width}cm]  at ({set_info_center_x}, 0.7){{" \
                 + set_info_content + "};\n"
 
@@ -484,8 +484,8 @@ def make_card_from_row(row, card_type, group_capability=None):
         # attack/block across all its cards, not just this one -- pinned to the
         # true bottom-left corner of the card
         if group_capability is not None:
-            card_text = card_text + "\\node[anchor=south west, inner sep=0pt] at (0.95, 0.65){\\input{" \
-                    + "group_indicator_" + row['Group'] + ".tex}};\n"
+            card_text = card_text + "\\node[anchor=south west, inner sep=0pt] at (0.55, 0.25){\\input{" \
+                    + "../build/group_indicator_" + row['Group'] + ".tex}};\n"
 
         # Foreground overlay rendered above all other elements (optional; use PNG for transparency)
         if row.get("ForegroundImg"):
