@@ -149,8 +149,12 @@ def createMacros():
     with open(cardoutputfolder + 'macros.tex', 'w') as ofile:
         # Single source of truth for shared colours; card_all.tex embeds this
         # return value and rules.tex \inputs the generated card_macros.tex.
-        card_text = "\\definecolor{cityblue}{RGB}{18,70,220}\n" \
-                    "\\definecolor{citysteel}{RGB}{148,156,162}\n"
+        # Elevation ramp endpoints: low elevation = dark, desaturated slate
+        # (citysteel); high elevation = light, saturated azure (cityblue). The
+        # e1/e2/e3 styles mix between them so the ramp climbs in both saturation
+        # and lightness with height.
+        card_text = "\\definecolor{cityblue}{RGB}{96,156,255}\n" \
+                    "\\definecolor{citysteel}{RGB}{58,66,78}\n"
 
         for t, img in damage_type_dict.items():
             card_text += "\n\\newcommand{\\" + t + "}{"
