@@ -147,7 +147,10 @@ rules_dict = {
 
 def createMacros():
     with open(cardoutputfolder + 'macros.tex', 'w') as ofile:
-        card_text = ""
+        # Single source of truth for shared colours; card_all.tex embeds this
+        # return value and rules.tex \inputs the generated card_macros.tex.
+        card_text = "\\definecolor{cityblue}{RGB}{18,70,220}\n" \
+                    "\\definecolor{citysteel}{RGB}{148,156,162}\n"
 
         for t, img in damage_type_dict.items():
             card_text += "\n\\newcommand{\\" + t + "}{"
@@ -686,26 +689,30 @@ elif TERRAIN_STYLE == "corner":
     }
 
 elif TERRAIN_STYLE == "full":
-    ## styles for other options
+    ## Elevation ramp: low elevation reads as low-saturation steel-grey blue,
+    ## climbing to a vivid "city" blue at the top so taller tiles pop like
+    ## glass high-rises. The base border is kept thin -- the impression of
+    ## looking onto a building's side comes from the per-edge walls drawn
+    ## below (see ELEVATION_WALL_PER_LEVEL_PT and _tikz_square_lines).
     ELEVATION_1_STYLE: TileStyle = {
-        "color":       "blue",
-        "thickness":   "line width=3pt",
+        "color":       "cityblue!30!citysteel",
+        "thickness":   "semithick",
         "icon":        "e1.png",
-        "fill":        "blue"
+        "fill":        "cityblue!30!citysteel",
     }
 
     ELEVATION_2_STYLE: TileStyle = {
-        "color":       "blue!50",
-        "thickness":   "line width=4pt",
+        "color":       "cityblue!60!citysteel",
+        "thickness":   "semithick",
         "icon":        "e2.png",
-        "fill":        "blue!50",
+        "fill":        "cityblue!60!citysteel",
     }
 
     ELEVATION_3_STYLE: TileStyle = {
-        "color":       "blue!20",
-        "thickness":   "line width=4pt",
+        "color":       "cityblue",
+        "thickness":   "semithick",
         "icon":        "e3.png",
-        "fill":        "blue!20",
+        "fill":        "cityblue",
     }
     # too high to access
     IMPASSIBLE_STYLE: TileStyle = {
@@ -750,6 +757,24 @@ STYLE_DICT = {
     "obj": OBJECTIVE_STYLE,
     "tkn": TOKEN_STYLE
 }
+
+# Extra border width (in pt) added to a tile edge per level of elevation *drop*
+# across that edge. A tile one level above its neighbour gets one increment of
+# wall; a tile three levels above ground (an e3 next to the card edge) gets the
+# thickest wall. This is what fakes the perspective onto a building's side.
+ELEVATION_WALL_PER_LEVEL_PT = 3.5
+
+# Which tile element codes count as elevation, and the height they represent.
+_ELEVATION_LEVELS = {"e1": 1, "e2": 2, "e3": 3}
+
+
+def _tile_elevation(elements: str) -> int:
+    """Return the elevation level (1-3) encoded in a tile's element string.
+
+    Tiles with no elevation code are ground level (0); the card edge is also
+    treated as ground level by the caller."""
+    toks = elements.split(" ")
+    return max((_ELEVATION_LEVELS.get(t, 0) for t in toks), default=0)
 
 # ---------------------------------------------------------------------------
 # Line-width conversion
@@ -919,9 +944,17 @@ def _tikz_hex_lines(col: int, row: int, size: float, s: TileStyle, offset: Tuple
 
 
 
-def _tikz_square_lines(col: int, row: int, size: float, s: TileStyle, offset: Tuple[float,float]) -> List[str]:
-    """Return the TikZ for the given tile
+def _tikz_square_lines(col: int, row: int, size: float, s: TileStyle, offset: Tuple[float,float],
+                       side_drops: Optional[Dict[str, int]] = None) -> List[str]:
+    """Return the TikZ for the given tile.
+
+    ``side_drops`` maps 'bottom'/'top'/'left'/'right' to the number of elevation
+    levels this tile stands *above* the neighbour across that edge (0 if the
+    neighbour is level or higher). Edges with a positive drop are drawn as a
+    thicker wall so the tile reads like a building seen from above.
     """
+    if side_drops is None:
+        side_drops = {}
     cx, cy = square_center(col, row, size, offset)
 
     thickness  = _first_valid(s["thickness"],   DEFAULT_STYLE["thickness"])
@@ -931,11 +964,9 @@ def _tikz_square_lines(col: int, row: int, size: float, s: TileStyle, offset: Tu
 
     # Full-size path for fill/hatch (covers the whole cell)
     cs_full  = create_square(cx, cy, size)
-    # Inset path for the stroke (border stays inside the cell)
+    # Inset path used for any dashed postaction outline (kept at base width)
     cx_inset, cy_inset, r_inset  = inset_size_square(cx, cy, size, thickness)
     cs_inset = create_square(cx_inset, cy_inset, r_inset)
-
-    draw_opts = [thickness, f"draw={color}", "fill opacity=0.5", postaction]
 
     hatch_val = s.get("hatch", "")
     hatches   = hatch_val if isinstance(hatch_val, list) else ([hatch_val] if hatch_val else [])
@@ -944,15 +975,36 @@ def _tikz_square_lines(col: int, row: int, size: float, s: TileStyle, offset: Tu
 
     lines: List[str] = []
 
-    if hatches:
-        if fill != "none":
-            lines.append(f"  \\fill[fill={fill}, fill opacity=0.5] {cs_full};")
-        for hatch, hc in zip(hatches, hatch_colors):
-            lines.append(f"  \\fill[pattern={hatch}, fill opacity=0.5, pattern color={hc or color}] {cs_full};")
-    else:
-        draw_opts.append(f"fill={fill}")
+    # Fill / hatch first, so the borders sit on top of it.
+    if fill != "none":
+        lines.append(f"  \\fill[fill={fill}, fill opacity=0.5] {cs_full};")
+    for hatch, hc in zip(hatches, hatch_colors):
+        lines.append(f"  \\fill[pattern={hatch}, fill opacity=0.5, pattern color={hc or color}] {cs_full};")
 
-    lines.append(f"  \\draw[{', '.join(draw_opts)}] {cs_inset};\n")
+    # Borders, drawn one edge at a time so each side can carry its own width.
+    # base_pt is the tile's normal border width; drop edges add scaled walls.
+    base_pt = _thickness_to_cm(thickness) / _PT_TO_CM
+    # (p1, p2, inward-unit-vector) for each named edge, corners bottom-left origin.
+    edges = {
+        "bottom": ((cx,        cy),        (cx + size, cy),        (0.0,  1.0)),
+        "top":    ((cx,        cy + size), (cx + size, cy + size), (0.0, -1.0)),
+        "left":   ((cx,        cy),        (cx,        cy + size), (1.0,  0.0)),
+        "right":  ((cx + size, cy),        (cx + size, cy + size), (-1.0, 0.0)),
+    }
+    for name, (p1, p2, (dx, dy)) in edges.items():
+        drop = side_drops.get(name, 0)
+        edge_pt = base_pt + drop * ELEVATION_WALL_PER_LEVEL_PT
+        inset = (edge_pt * _PT_TO_CM) / 2  # keep the stroke inside the cell
+        x1, y1 = p1[0] + dx * inset, p1[1] + dy * inset
+        x2, y2 = p2[0] + dx * inset, p2[1] + dy * inset
+        lines.append(f"  \\draw[line width={edge_pt:.2f}pt, draw={color}] "
+                     f"({x1:.4f},{y1:.4f}) -- ({x2:.4f},{y2:.4f});")
+
+    # Preserve any dashed postaction outline (e.g. obstacles).
+    if postaction:
+        lines.append(f"  \\path[{postaction}] {cs_inset};")
+
+    lines.append("")
     # icons
     icon_val = s.get("icon", "")
     icons = icon_val if isinstance(icon_val, list) else ([icon_val] if icon_val else [])
@@ -993,6 +1045,12 @@ def create_terrain_card(row):
         col_range = range(0, cols)
         row_range = range(0, rows)
 
+        # Elevation of each in-grid tile; anything off the card is ground (0).
+        def elev_at(cc: int, rr: int) -> int:
+            if 0 <= cc < cols and 0 <= rr < rows:
+                return _tile_elevation(row[f"tile_{rr}_{cc}"])
+            return 0
+
         hex_lines: List[str] = []
         for c in col_range:
             for r in row_range:
@@ -1000,8 +1058,17 @@ def create_terrain_card(row):
                 if 0 <= c < cols and 0 <= r < rows:
                     for element in row[f"tile_{r}_{c}"].split(" "):
                         _merge_style(style, STYLE_DICT.get(element, {}))
+                # Thicken the edges that look down onto lower neighbours, scaled
+                # by how far the drop is, to fake perspective onto building sides.
+                e = elev_at(c, r)
+                side_drops = {
+                    "bottom": max(e - elev_at(c,     r - 1), 0),
+                    "top":    max(e - elev_at(c,     r + 1), 0),
+                    "left":   max(e - elev_at(c - 1, r),     0),
+                    "right":  max(e - elev_at(c + 1, r),     0),
+                }
                 # hex_lines.append("\n".join(_tikz_hex_lines(c, r + 1, hex_size, style, (hoffset, voffset))))
-                hex_lines.append("\n".join(_tikz_square_lines(c, r, hex_size, style, (hoffset, voffset))))
+                hex_lines.append("\n".join(_tikz_square_lines(c, r, hex_size, style, (hoffset, voffset), side_drops)))
 
 
         inner_body = "\n".join(hex_lines)
