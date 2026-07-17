@@ -43,6 +43,12 @@ Victory points are obtained in two key ways:
 \item Points equal to the attacker score for each objective they successfully attacked  
 \end{itemize}
 
+\begin{figure}[htbp]
+  \centering
+\includegraphics[width=\linewidth]{../pictures/bg2.jpg}
+\end{figure}
+
+
 \section{The battlefield}
 
 Terrain blocks movement and line of sight. Terrain that can be stood upon is classified as being on different levels. 
@@ -147,8 +153,18 @@ It takes 1 movement to move up per level difference, and you cannot stop halfway
 \subsection{Effect}
 After movement is done, any effect on the card is applied. Effects are applied in printed order.
 
+
+\begin{figure}[htbp]
+  \centering
+\includegraphics[width=\linewidth]{../pictures/garden_2-2.jpg}
+\end{figure}
+
+
 \subsection{Attack}
-If the card has any attack listed, one target frame within any of the ranges may be chosen. For attacks without a range value, the target must be adjacent, and this attack is a melee attack. They are then the defender for this attack.
+If the card has any attack listed, one target frame within any of the ranges may be chosen. They are then the defender for this attack.
+Attacks without a listed range are melee attacks, and the target must be adjacent.
+Else the attack is a ranged attack and the target cannot be adjacent.
+If an attack has multiple ranges, only the sectors that are in range count for the attack.
 
 \subsubsection{Line of sight}
 To select a target for a ranged attack the target must be:
@@ -199,6 +215,14 @@ Low &
 \subsection{Post-combat Movement}
 If the frame did not move before applying effects and attacking it may move after finishing the attack.
 
+
+\begin{figure}[htbp]
+  \centering
+\includegraphics[width=\linewidth]{../pictures/ground_zero.png}
+\end{figure}
+
+
+
 \section{Cleanup}
 Cards without a persistence marker and any cards with a persistence marker whos effects have finished are put into their respective discard piles.
 Cards with a persistence marker that are still active are set aside clearly distinct from the turn's chosen actions ( they do not have active blocks). 
@@ -246,6 +270,55 @@ The drone, like other tokens, cannot block.
 \begin{figure}[htbp]
   \centering
 \input{../build/card_Swarm_Swarm.tex}
+\end{figure}
+
+
+
+\section{Deck Construction}
+Each mobile suit must have a deck.
+To construct a deck, you first choose the frame.
+That frame has a stats card with the following information:
+
+\begin{figure}[htbp]
+  \centering
+\input{../build/frame_RipperSmasher.tex}
+\end{figure}
+
+\begin{itemize}
+\item Base movement
+\item Faction
+\item Armor values at each location
+\item Deck size \includegraphics[width=0.4cm]{../icons/deckImg.png}
+\item Weapon count \includegraphics[width=0.4cm]{../icons/weapon.png}
+\item Booster count \includegraphics[width=0.4cm]{../icons/boosterImg.png}
+\item Frame ability (if any)
+\end{itemize}
+
+The frame's deck must have exactly the numnber of cards in its deck size count in it.
+To build the deck, you can have:
+
+\begin{itemize}
+\item Max 4 pilot cards, all from the same pilot, no duplicates
+\item Max X booster cards, where X is the frame's booster count (duplicates allowed)
+\item Up to N weapons where N is the frame's weapon count. Each weapon is a set of 4 attack cards. For each weapon slot you can include up to 1 of each card in that weapon.
+\item 1 of each of the generic cards 
+\end{itemize}
+
+If any card has a faction logo on it, it can only be in a deck for a frame of that faction.
+
+
+\begin{figure}[htbp]
+  \centering
+Example Frame deck for RipperSmasher (20 cards, 3 weapons, 2 boosters): 
+\begin{tabular}{l l l p{3cm}}
+count & type & group & cards \\
+3& pilot & bruiser & Relentless Assault, Intimidate, Net Strength\\
+2 &booster& & Accelerate, Accelerate \\
+4&weapon & Chainsaw & Rip, Grind, Tear, Disembowel \\
+4&weapon & Cannon & Fullbore, Airburst, Cannon, Pummel \\
+4&weapon & Cannon & Fullbore, Airburst, Cannon, Pummel \\
+3&Generic& & Block, Block, Dodge \\
+\end{tabular}
 \end{figure}
 
 
@@ -320,52 +393,7 @@ The drone, like other tokens, cannot block.
 
 
 
-\section{Deck Construction}
-Each mobile suit must have a deck.
-To construct a deck, you first choose the frame.
-That frame has a stats card with the following information:
 
-\begin{figure}[htbp]
-  \centering
-\input{../build/frame_RipperSmasher.tex}
-\end{figure}
-
-\begin{itemize}
-\item Base movement
-\item Faction
-\item Armor values at each location
-\item Deck size \includegraphics[width=0.4cm]{../icons/deckImg.png}
-\item Weapon count \includegraphics[width=0.4cm]{../icons/weapon.png}
-\item Booster count \includegraphics[width=0.4cm]{../icons/boosterImg.png}
-\item Frame ability (if any)
-\end{itemize}
-
-The frame's deck must have exactly the numnber of cards in its deck size count in it.
-To build the deck, you can have:
-
-\begin{itemize}
-\item Max 4 pilot cards, all from the same pilot, no duplicates
-\item Max X booster cards, where X is the frame's booster count (duplicates allowed)
-\item Up to N weapons where N is the frame's weapon count. Each weapon is a set of 4 attack cards. For each weapon slot you can include up to 1 of each card in that weapon.
-\item 1 of each of the generic cards 
-\end{itemize}
-
-If any card has a faction logo on it, it can only be in a deck for a frame of that faction.
-
-
-\begin{figure}[htbp]
-  \centering
-Example Frame deck for RipperSmasher (20 cards, 3 weapons, 2 boosters): 
-\begin{tabular}{l l l p{3cm}}
-count & type & group & cards \\
-3& pilot & bruiser & Relentless Assault, Intimidate, Net Strength\\
-2 &booster& & Accelerate, Accelerate \\
-4&weapon & Chainsaw & Rip, Grind, Tear, Disembowel \\
-4&weapon & Cannon & Fullbore, Airburst, Cannon, Pummel \\
-4&weapon & Cannon & Fullbore, Airburst, Cannon, Pummel \\
-3&Generic& & Block, Block, Dodge \\
-\end{tabular}
-\end{figure}
 
 \section{Ability Keywords}
 
@@ -374,15 +402,15 @@ count & type & group & cards \\
   Guard Break & This attack consumes a block for each zone. Zones that are not blocked deal damage. \\
   Committed & this attack is consumed after it resolves \\
   Feint & if this attack is not blocked, it deals no damage \\
-  on strike: (X) & if this attack hits (is not blocked), then X happens \\
+  Close Quarters & This attack cannot be blocked by attacks that have already been resolved \\
   Flying & This frame does not spend movement to cross obstacles or move between floors.
-   Terrain of less than 1 level height does not block LoS to or from this frame. \\
+   Obstacles do not block LoS to or from this frame. \\
   Shield (X) & When a card with shield (X) resolves, or a frame with shield (X) starts,
    put X shield counters on the frame card. A frame can only have 1 more shield than it's shield value. The next time the frame would take any amount of damage,
     instead remove one shield counter from the frame. \\
   Deathstrike & When this frame would be destroyed, they continue to fight until the end of the next turn,
   after which they are removed from play if they are still dead (they can be repaired)\\
-  Knockback (X) & Move the target frame X steps in any direction away from the source (ignore descent) \\
+  Knockback (X) & Move the target frame X steps in any direction away from the source (cannot move up elevation) \\
 \end{tabular}
 
 \end{document}
