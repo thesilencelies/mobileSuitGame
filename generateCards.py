@@ -98,7 +98,7 @@ move_icon_outline = [
 header_text = "\\documentclass[a4paper, landscape]{article}\n \\usepackage[left =2cm, right = 2cm, " \
             + "top = 1.4cm, bottom =1.4cm]{geometry} \n \\usepackage{tikz} \n \\usepackage[export]{adjustbox}" \
             + "\n \\usetikzlibrary{positioning} \n \\usetikzlibrary{patterns} \n \\usetikzlibrary{calc} \n" + \
-            "\\usepackage{contour}\n\\contourlength{0.8pt}\n"
+            "\\usepackage[none]{hyphenat} \n\\usepackage{contour}\n\\contourlength{0.8pt}\n"
 
 begin_doc = "\\begin{document}\n\\noindent\n"
 
@@ -473,14 +473,10 @@ def make_card_from_row(row, card_type, group_capability=None):
                 card_text = card_text + "\\node[rectangle, fill = white, opacity = 0.75, minimum height =1.5cm, rounded corners = 0.1cm, " \
                     + "text width = 3.5cm]  at (2.75, 3.5){\\small{" + row['Text'] +"}};\n"
 
-        # set info: deckbuilding info (Faction/Type/Group/Flavor) is narrower and
-        # shifted right, and its font shrunk, for weapon cards to leave room for
-        # the group zone-capability indicator down in the bottom-left corner
         set_info_content = row["Faction"] + " " + getTypeName(card_type) +  " \\hfill " + row['Group'] + "\\\\" + \
-                "\\footnotesize{\\emph{" + row["Flavor"] + "}}"
+                "\\scriptsize{\\emph{" + row["Flavor"] + "}\\par}"
         if group_capability is not None:
             set_info_center_x, set_info_width = 4.45, 4.9
-            set_info_content = "\\footnotesize{" + set_info_content + "}"
         else:
             set_info_center_x, set_info_width = 4, 5.8
         card_text = card_text + f"\\node[rectangle, fill = white, opacity = 0.75, minimum width={set_info_width}cm, minimum height =0.8cm, " \
@@ -501,7 +497,7 @@ def make_card_from_row(row, card_type, group_capability=None):
 
         # artist credit -- kept aligned under the (possibly shifted) set info box
         if row.get("Artist"):
-            card_text = card_text + f"\\node at ({set_info_center_x}, 0.3){{\\footnotesize{{\\copyright  LiliCo 2026 \\emph{{ Art: " + row["Artist"] + "}}};\n"
+            card_text = card_text + f"\\node at ({set_info_center_x}, 0.3){{\\scriptsize{{\\copyright  LiliCo 2026 \\emph{{ Art: " + row["Artist"] + "}}};\n"
 
         card_text = card_text + "\\end{tikzpicture}\n"
         # ofile.write(header_text)
@@ -547,7 +543,7 @@ def create_frame_sheet(frame):
                 '\\includegraphics[' + inline_iconwidth + ']{' + icons_folder + weaponImg + '} \\large{ : ' + str(frame["Weapon Slots"]) +  \
                 '} ~\\includegraphics[' + inline_iconwidth + ']{' + icons_folder + boosterImg + '}\\large{  : ' + str(frame["Boosters"]) + \
                 '} ~\\includegraphics[' + inline_iconwidth + ']{' + icons_folder + deckImg + '}\\large{  : ' + str(frame["Deck size"]) + \
-                 "} \\\\\\emph{\\footnotesize{" + frame["Flavor"] +  "}}};\n"
+                 "} \\\\\\scriptsize{\\emph{" + frame["Flavor"] +  "}\\par}};\n"
 
         # Foreground overlay rendered above all other elements (optional; use PNG for transparency)
         if frame.get("ForegroundImg"):
@@ -555,7 +551,7 @@ def create_frame_sheet(frame):
 
         # artist credit
         if frame.get("Artist"):
-            frame_text = frame_text + "\\node at (4, 0.3){\\footnotesize{\\copyright LiliCo 2026 \\emph{Art: " + frame["Artist"] + "}}};\n"
+            frame_text = frame_text + "\\node at (4, 0.3){\\scriptsize{\\copyright LiliCo 2026 \\emph{Art: " + frame["Artist"] + "}}};\n"
 
         #finish the tikzpicture
         frame_text = frame_text + "\\end{tikzpicture}\n"
