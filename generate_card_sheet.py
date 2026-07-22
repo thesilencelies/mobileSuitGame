@@ -43,6 +43,7 @@ CARD_HEIGHT_CM = 8.9
 # ---------------------------------------------------------------------------
 
 PREAMBLE = r"""\documentclass{{article}}
+\usepackage[none]{{hyphenat}}
 \usepackage{{tikz}}
  \usepackage[export]{{adjustbox}}
 \usepackage{{geometry}}
