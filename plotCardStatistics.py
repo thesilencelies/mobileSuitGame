@@ -137,7 +137,7 @@ overall_row.name = 'All (overall)'
 group_atk = pd.concat([group_atk, overall_row.to_frame().T])
 
 fig2, ax2 = plt.subplots(figsize=(10, 7))
-fig2.suptitle(f'Average Attack Dice by Zone per Group{attack_suffix}', fontsize=14, fontweight='bold')
+fig2.suptitle(f'Average Attack by Zone per Group{attack_suffix}', fontsize=14, fontweight='bold')
 
 y = np.arange(len(group_atk))
 zone_cols   = ['HighAttack', 'MidAttack', 'LowAttack']

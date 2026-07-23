@@ -18,6 +18,7 @@ decks/*.csv → generate_card_sheet.py → card_sheet.tex → card_sheet.pdf
 
 ### generateCards.py
 Reads all card CSVs; outputs individual `build/card_<Group>_<Name>.tex` files, a combined `build/card_all.tex`, frame datasheets (`build/frame_*.tex`), and terrain tiles (`build/terrain_*.tex`). For weapon cards it also writes `build/group_indicator_<Group>.tex` — a small red-triangle/blue-square grid showing which High/Mid/Low zones that weapon *group* can attack/block across all its cards, `\input` by each card in the group at the bottom left.
+It also emits the rules-reference set: one representative card per type annotated with labelled leader lines — bare `\input`-able fragments `build/rules_<type>.tex` (melee weapon, ranged weapon, drone, pilot, frame), a standalone `build/rules_<type>_doc.tex` per fragment, and a combined preview `build/rules.tex`.
 Run: `python generateCards.py`
 
 ### generate_card_sheet.py
@@ -26,8 +27,8 @@ Run: `python generate_card_sheet.py --csv decks/deck_percival.csv --output card_
 Key args: `--cols`, `--rows`, `--bleed`, `--add_back`, `--back_text`, `--back_color`, `--repeat`
 
 ### generate_all_decks.py
-Batch-runs the full front+back sheet→PDF→PNG pipeline for all (or specified) decks.
-Run: `python generate_all_decks.py [deck_prefix ...]`
+Batch-runs the full front+back sheet→PDF→PNG pipeline for all (or specified) decks. Also renders the annotated rules-reference cards (`build/rules_*_doc.tex`) to trimmed PNGs in `RulesImages/`.
+Run: `python generate_all_decks.py [deck_prefix ...]` (`--skip-individual`, `--skip-rules`)
 
 ### plotCardStatistics.py
 Generates balance analysis visualisations (stat trade-offs, attack distributions, group meta-stats, correlation heatmaps, power budgets).
@@ -38,7 +39,7 @@ Reports how many times each defined card appears across all action decks; flags 
 Run: `python check_deck_coverage.py [--by-group]`
 
 ### weapon_fingerprint_report.py
-Generates a scrollable HTML report (`build/weapon_fingerprint.html`), one row per weapon Group: average attack/block dice by zone, which ability/status keywords appear in that group's card text, and the Initiative/Movement spread across its cards.
+Generates a scrollable HTML report (`build/weapon_fingerprint.html`), one row per weapon Group: average attack/block by zone, which ability/status keywords appear in that group's card text, and the Initiative/Movement spread across its cards.
 Run: `python weapon_fingerprint_report.py [--output build/weapon_fingerprint.html] [--open]`
 
 ## image_generation/
@@ -78,4 +79,5 @@ Key columns: `Name`, `Group`, `Initiative`, `Movement`, `High/Mid/Low Attack+Blo
 - `terrain/` — terrain tile PNGs
 - `backs/` — card back designs
 - `decks/` — per-faction deck CSVs (one `.tex` filename per row)
+- `RulesImages/` — annotated rules-reference card PNGs (one per card type), rendered by `generate_all_decks.py`
 - `build/` — all generated output; do not edit by hand

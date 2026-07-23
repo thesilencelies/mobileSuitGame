@@ -3,7 +3,7 @@
 weapon_fingerprint_report.py
 
 Generates a single scrollable HTML page with one row per weapon Group, showing:
-  - average attack/block dice by zone (High/Mid/Low)
+  - average attack/block by zone (High/Mid/Low)
   - which ability/status keywords appear anywhere in that group's card text
   - the spread (min-mean-max) of Initiative and Movement across the group's cards
 
@@ -129,7 +129,7 @@ def render_single_series_chart(zone_stats, global_max, key, cls, label):
         y = BASELINE_Y - h
         path = _rounded_top_rect(x, y, BAR_W, h)
         if path:
-            parts.append(f'<path d="{path}" class="{cls}"><title>{zone} {label}: {val:.2f} avg dice</title></path>')
+            parts.append(f'<path d="{path}" class="{cls}"><title>{zone} {label}: {val:.2f} avg atk</title></path>')
             if val >= 0.05:
                 parts.append(f'<text x="{x + BAR_W / 2:.2f}" y="{y - 2:.2f}" class="bar-label">{val:.1f}</text>')
         parts.append(f'<text x="{x + BAR_W / 2:.2f}" y="{BASELINE_Y + 11}" class="zone-label">{zone[0]}</text>')
@@ -261,8 +261,8 @@ PAGE_TEMPLATE = """<!doctype html>
   <h1>Weapon Fingerprint Report</h1>
   <p class="subtitle">One row per weapon group &mdash; {n_groups} groups, {n_cards} printed cards. Bar heights share one scale across every row.</p>
   <div class="legend">
-    <span class="legend-item"><span class="swatch" style="background:var(--attack)"></span>Attack (avg dice)</span>
-    <span class="legend-item"><span class="swatch" style="background:var(--block)"></span>Block (avg dice)</span>
+    <span class="legend-item"><span class="swatch" style="background:var(--attack)"></span>Attack (avg)</span>
+    <span class="legend-item"><span class="swatch" style="background:var(--block)"></span>Block (avg)</span>
     <span class="legend-item"><span class="swatch line" style="background:var(--initiative)"></span>Initiative spread</span>
     <span class="legend-item"><span class="swatch line" style="background:var(--movement)"></span>Movement spread</span>
     <span class="legend-item"><span class="kw-badge" style="padding:1px 6px;">keyword</span>Ability keyword present</span>
