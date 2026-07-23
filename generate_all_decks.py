@@ -12,6 +12,9 @@ Batch-processes every deck_*.csv in decks/, running the full TTS image pipeline:
 
 Adding a new deck only requires adding deck_<name>.csv to decks/ and
 generating the card files (generateCards.py creates back_<name>.tex in build/).
+
+It also renders the annotated rules-reference cards (build/rules_*_doc.tex,
+written by generateCards.py) to trimmed PNGs in RulesImages/.
 """
 
 import argparse
@@ -28,6 +31,7 @@ BUILD = WORKSPACE / "build"
 DECKS_DIR = WORKSPACE / "decks"
 TTS_IMAGES = WORKSPACE / "TTSImages"
 CARD_IMAGES = WORKSPACE / "CardImages"
+RULES_IMAGES = WORKSPACE / "RulesImages"
 INDIVIDUAL_CARDS_CSV = DECKS_DIR / "individual_cards.csv"
 
 COLS = 7
@@ -46,14 +50,20 @@ def run(cmd, cwd=None, label=""):
         sys.exit(f"FAILED: {display}")
 
 
-def pdf_to_png(stem):
-    TTS_IMAGES.mkdir(exist_ok=True)
-    out = TTS_IMAGES / f"{stem}.png"
-    run(
-        ["convert", "-density", "150", f"{stem}.pdf", "-compress", "lzw", str(out)],
-        cwd=BUILD,
-        label=f"convert {stem}.pdf → TTSImages/{stem}.png",
-    )
+def pdf_to_png(stem, out_dir=TTS_IMAGES, trim=False, out_name=None, background=None):
+    out_dir.mkdir(exist_ok=True)
+    name = out_name or stem
+    out = out_dir / f"{name}.png"
+    cmd = ["convert", "-density", "150", f"{stem}.pdf"]
+    if background:
+        # a PDF page renders transparent; flatten it onto a solid colour first so
+        # any later trim crops against that colour rather than the alpha channel
+        cmd += ["-background", background, "-alpha", "remove", "-alpha", "off"]
+    if trim:
+        # crop the a4 page down to the card + its callouts
+        cmd += ["-trim", "+repage"]
+    cmd += ["-compress", "lzw", str(out)]
+    run(cmd, cwd=BUILD, label=f"convert {stem}.pdf → {out.relative_to(WORKSPACE)}")
 
 
 def process_deck(prefix):
@@ -118,6 +128,27 @@ def process_individual_cards():
     )
 
 
+def process_rules_images():
+    """Renders a standalone trimmed PNG for each annotated rules-reference card.
+
+    generateCards.py writes one build/rules_<type>_doc.tex per card type (melee
+    weapon, ranged weapon, drone, pilot, frame); each is compiled and cropped to
+    its own PNG in RulesImages/."""
+    docs = sorted(BUILD.glob("rules_*_doc.tex"))
+    if not docs:
+        print("\n(no build/rules_*_doc.tex found - run generateCards.py first; skipping rules images)")
+        return
+
+    print(f"\n=== rules reference images ({len(docs)}) ===")
+    for doc in docs:
+        stem = doc.stem                     # e.g. rules_frame_doc
+        img_name = stem[:-len("_doc")]      # e.g. rules_frame
+        run(["pdflatex", "-interaction=nonstopmode", doc.name], cwd=BUILD,
+            label=f"pdflatex {doc.name}")
+        pdf_to_png(stem, out_dir=RULES_IMAGES, trim=True, out_name=img_name,
+                   background="white")
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Generate TTS card sheet images for all (or specified) decks."
@@ -130,6 +161,10 @@ def main():
     parser.add_argument(
         "--skip-individual", action="store_true",
         help="Skip rendering individual card images from decks/individual_cards.csv.",
+    )
+    parser.add_argument(
+        "--skip-rules", action="store_true",
+        help="Skip rendering the annotated rules-reference card images.",
     )
     args = parser.parse_args()
 
@@ -157,6 +192,13 @@ def main():
         except SystemExit as e:
             print(f"  ERROR: {e}")
             failed.append("individual_cards")
+
+    if not args.skip_rules:
+        try:
+            process_rules_images()
+        except SystemExit as e:
+            print(f"  ERROR: {e}")
+            failed.append("rules_images")
 
     print("\n" + "=" * 40)
     if failed:

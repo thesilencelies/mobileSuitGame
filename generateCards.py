@@ -394,8 +394,152 @@ def create_group_indicator(group, capability):
     return text
 
 
-def make_card_from_row(row, card_type, group_capability=None):
-    with open(cardoutputfolder + row['Group'] + "_" + row['Name'] + '.tex', 'w') as ofile:
+# ---------------------------------------------------------------------------
+# Rules annotation
+#
+# Each card/frame element is given a TikZ node name (e.g. (initbox), (nameplate))
+# so a separate rules diagram can point callouts at it. Naming a node changes
+# nothing in the rendered card. When a card is built with annotate=True the
+# callouts below are appended inside the same tikzpicture: a short labelled text
+# box in the left/right gutter with a thin leader line to the named element.
+# ---------------------------------------------------------------------------
+
+def _aim_node(aim):
+    """Return the node name an aim string points at, or None if it is a bare
+    coordinate like ``(6.2,7.5)`` (which is always available)."""
+    inner = aim.strip("()")
+    if inner and (inner[0].isalpha() or inner[0] == "_"):
+        return inner.split(".")[0]
+    return None
+
+def _render_callouts(callouts, present):
+    """Draw labelled leader lines for every callout whose target node exists.
+
+    ``callouts`` is a list of dicts (x, y, side, title, desc, aim). ``present``
+    is the set of node names actually emitted for this card, so callouts for
+    optional elements (persistence, faction logo, ...) are skipped when absent."""
+    out = ""
+    for i, c in enumerate(callouts):
+        node = _aim_node(c["aim"])
+        if node is not None and node not in present:
+            continue
+        anchor = "east" if c["side"] == "left" else "west"
+        align = "right" if c["side"] == "left" else "left"
+        name = f"callout{i}"
+        body = "\\textbf{" + c["title"] + "}"
+        if c.get("desc"):
+            body += "\\\\" + c["desc"]
+        out += (f"\\node[anchor={anchor}, align={align}, text width=3.5cm, font=\\small] "
+                f"({name}) at ({c['x']},{c['y']}) {{{body}}};\n")
+        out += f"\\draw[thick, gray!60] ({name}.{anchor}) -- {c['aim']};\n"
+    return out
+
+# Gutters the callout labels sit in, kept close to the card so each fragment
+# stays compact when \input into the rules document.
+LEFT_GUTTER = -0.4
+RIGHT_GUTTER = 8.2
+
+# Callouts for a weapon action card. atk_aim/block_aim/range_aim are coordinates
+# emitted at build time on the first zone that has that feature (see the annotate
+# block in make_card_from_row); the guard in _render_callouts drops any that the
+# chosen card lacks.
+WEAPON_CALLOUTS = [
+    {"x": LEFT_GUTTER, "y": 9.2, "side": "left",  "title": "Initiative",
+     "desc": "Turn priority; higher acts first.", "aim": "(initbox)"},
+    {"x": LEFT_GUTTER, "y": 7.5, "side": "left",  "title": "Movement",
+     "desc": "Steps granted; green gains, red loses.", "aim": "(movebox)"},
+    {"x": LEFT_GUTTER, "y": 6.0, "side": "left",  "title": "Faction Logo",
+     "desc": "", "aim": "(factionlogo)"},
+    {"x": LEFT_GUTTER, "y": 4.2, "side": "left",  "title": "Card text",
+     "desc": "Abilities and status effects applied.", "aim": "(textbox)"},
+    {"x": LEFT_GUTTER, "y": 1.6, "side": "left",  "title": "Group zones",
+     "desc": "Zones the whole weapon group can attack (red triangle) or block (blue square).", "aim": "(groupindicator)"},
+    {"x": RIGHT_GUTTER, "y": 9.4, "side": "right", "title": "Name / faction",
+     "desc": "", "aim": "(nameplate)"},
+    {"x": RIGHT_GUTTER, "y": 8.3, "side": "right", "title": "Persistence",
+     "desc": "Turns this card stays in play once committed.", "aim": "(persistence)"},
+    {"x": RIGHT_GUTTER, "y": 7.0, "side": "right", "title": "Attack",
+     "desc": "Damage that would be dealt to this zone.", "aim": "(atk_aim)"},
+    {"x": RIGHT_GUTTER, "y": 5.3, "side": "right", "title": "Block",
+     "desc": "Attacks to this zone are blocked.", "aim": "(block_aim)"},
+    {"x": RIGHT_GUTTER, "y": 3.6, "side": "right", "title": "Range",
+     "desc": "Range of this zone's attack.", "aim": "(range_aim)"},
+    {"x": RIGHT_GUTTER, "y": 1.5, "side": "right", "title": "Set info",
+     "desc": "Faction, card type, weapon group, flavour text.", "aim": "(setinfo)"},
+]
+
+# Callouts for a pilot card (no attack zones).
+PILOT_CALLOUTS = [
+    {"x": LEFT_GUTTER, "y": 9.0, "side": "left",  "title": "Initiative",
+     "desc": "Turn priority; higher acts first.", "aim": "(initbox)"},
+    {"x": LEFT_GUTTER, "y": 7.3, "side": "left",  "title": "Movement",
+     "desc": "Steps granted; green gains, red loses.", "aim": "(movebox)"},
+    {"x": LEFT_GUTTER, "y": 5.6, "side": "left",  "title": "Faction Logo",
+     "desc": "", "aim": "(factionlogo)"},
+    {"x": LEFT_GUTTER, "y": 3.4, "side": "left",  "title": "Card text",
+     "desc": "Effect applied by this card.", "aim": "(textbox)"},
+    {"x": RIGHT_GUTTER, "y": 9.2, "side": "right", "title": "Name / faction",
+     "desc": "", "aim": "(nameplate)"},
+    {"x": RIGHT_GUTTER, "y": 7.6, "side": "right", "title": "Persistence",
+     "desc": "Turns this card stays in play once committed.", "aim": "(persistence)"},
+    {"x": RIGHT_GUTTER, "y": 2.0, "side": "right", "title": "Set info",
+     "desc": "Faction, card type and flavour.", "aim": "(setinfo)"},
+]
+
+# Callouts for a frame datasheet. Armour rows are drawn right-to-left from x=7,
+# so the aim points at the rightmost (first) bar of each row.
+FRAME_CALLOUTS = [
+    {"x": LEFT_GUTTER, "y": 9.2, "side": "left",  "title": "Name / faction",
+     "desc": "", "aim": "(frame_name)"},
+    {"x": LEFT_GUTTER, "y": 7.3, "side": "left",  "title": "Faction Logo",
+     "desc": "", "aim": "(frame_logo)"},
+    {"x": LEFT_GUTTER, "y": 4.4, "side": "left",  "title": "Abilities",
+     "desc": "The frame's innate special ability.", "aim": "(frame_ability)"},
+    {"x": LEFT_GUTTER, "y": 1.4, "side": "left",  "title": "Loadout",
+     "desc": "Weapon slots, booster slots and deck size.", "aim": "(bottom_box.west)"},
+    {"x": RIGHT_GUTTER, "y": 9.0, "side": "right", "title": "Movement",
+     "desc": "Base movement of the frame.", "aim": "(frame_move)"},
+    {"x": RIGHT_GUTTER, "y": 7.0, "side": "right", "title": "Top armour",
+     "desc": "Health in top zone; last bar shows the -1 Init penalty.", "aim": "(7.3,8.05)"},
+    {"x": RIGHT_GUTTER, "y": 5.0, "side": "right", "title": "Side armour",
+     "desc": "Health in mid zone; last bar shows the -1 Card penalty.", "aim": "(7.3,6.55)"},
+    {"x": RIGHT_GUTTER, "y": 3.0, "side": "right", "title": "Low armour",
+     "desc": "Health in low zone; last bar shows the -1 Move penalty.", "aim": "(7.3,5.05)"},
+]
+
+# Callouts for a drone card: a weapon-style card that also fields a persistent
+# unit with its own health bar (drone_health) and movement (drone_move).
+DRONE_CALLOUTS = [
+    {"x": LEFT_GUTTER, "y": 9.3, "side": "left",  "title": "Initiative",
+     "desc": "Turn priority; higher acts first.", "aim": "(initbox)"},
+    {"x": LEFT_GUTTER, "y": 8.0, "side": "left",  "title": "Movement",
+     "desc": "Steps granted when played.", "aim": "(movebox)"},
+    {"x": LEFT_GUTTER, "y": 6.7, "side": "left",  "title": "Faction Logo",
+     "desc": "", "aim": "(factionlogo)"},
+    {"x": LEFT_GUTTER, "y": 5.4, "side": "left",  "title": "Drone health",
+     "desc": "The drone's hit points.", "aim": "(drone_health)"},
+    {"x": LEFT_GUTTER, "y": 4.1, "side": "left",  "title": "Drone movement",
+     "desc": "The drone's move each turn.", "aim": "(drone_move)"},
+    {"x": LEFT_GUTTER, "y": 2.4, "side": "left",  "title": "Card text",
+     "desc": "Abilities and effects applied.", "aim": "(textbox)"},
+    {"x": RIGHT_GUTTER, "y": 9.4, "side": "right", "title": "Name / faction",
+     "desc": "", "aim": "(nameplate)"},
+    {"x": RIGHT_GUTTER, "y": 8.2, "side": "right", "title": "Persistence",
+     "desc": "Rounds it persists in play.", "aim": "(persistence)"},
+    {"x": RIGHT_GUTTER, "y": 6.8, "side": "right", "title": "Attack",
+     "desc": "Damage the drone deals to this zone.", "aim": "(atk_aim)"},
+    {"x": RIGHT_GUTTER, "y": 5.2, "side": "right", "title": "Block",
+     "desc": "Attacks to this zone are blocked when the card is played.", "aim": "(block_aim)"},
+    {"x": RIGHT_GUTTER, "y": 3.6, "side": "right", "title": "Range",
+     "desc": "Range of the drone's attack.", "aim": "(range_aim)"},
+    {"x": RIGHT_GUTTER, "y": 1.8, "side": "right", "title": "Set info",
+     "desc": "Faction, card type, group, flavour.", "aim": "(setinfo)"},
+]
+
+
+def make_card_from_row(row, card_type, group_capability=None, annotate=False, annotate_outfile=None):
+    outname = (annotate_outfile or 'build/rules_card.tex') if annotate else cardoutputfolder + row['Group'] + "_" + row['Name'] + '.tex'
+    with open(outname, 'w') as ofile:
         # art and card edge
         card_text = f"\\begin{{tikzpicture}}[scale={card_scale}, backbox/.style= {{rectangle, minimum height=2.0cm," \
                    + " minimum width =2.0cm, rounded corners = 0.3cm, fill opacity=0.75}]\n "
@@ -420,7 +564,7 @@ def make_card_from_row(row, card_type, group_capability=None):
             # TODO - create drone frame
             card_text += draw_armor(int(row["Drone_Health"]), 7.1, horizontal_pos=1.4, hori_step=0.7)
             drone_mv_pos = "(1.7, 5.5)"
-            card_text += '\\node at ' + drone_mv_pos + '{\\includegraphics[' + iconwidth + ']{' + icons_folder + framemvImg + '}};\n'
+            card_text += '\\node (drone_move) at ' + drone_mv_pos + '{\\includegraphics[' + iconwidth + ']{' + icons_folder + framemvImg + '}};\n'
             card_text += " \\node at " + drone_mv_pos + "{\\Large{\\textbf{" + row['Drone_MV'] +"}}};\n"
 
             pass
@@ -434,24 +578,24 @@ def make_card_from_row(row, card_type, group_capability=None):
         card_text = card_text + move_icon_outline_fill(move_pos, movement_color(row['Movement']))
 
         # default symbols
-        card_text = card_text + '\\node at ' + init_pos + '{\\includegraphics[' + init_iconwidth + ']{' + icons_folder + initImg + '}};\n'
+        card_text = card_text + '\\node (initbox) at ' + init_pos + '{\\includegraphics[' + init_iconwidth + ']{' + icons_folder + initImg + '}};\n'
         card_text = card_text + "\\node at " + init_pos + "{\\huge{\\textbf{\\contour{white}{" + row['Initiative'] +"}}}};\n"
-        card_text = card_text + '\\node at ' + move_pos + '{\\includegraphics[' + iconwidth + ']{' + icons_folder + mvImg + '}};\n'
+        card_text = card_text + '\\node (movebox) at ' + move_pos + '{\\includegraphics[' + iconwidth + ']{' + icons_folder + mvImg + '}};\n'
         card_text = card_text + " \\node at " + move_pos + "{\\Large{\\textbf{" + row['Movement'] +"}}};\n"
 
         # name and faction
-        card_text = card_text + "\\node [rectangle, minimum width=4cm, minimum height = 0.6cm,rounded corners = 0.1cm," +\
+        card_text = card_text + "\\node (nameplate) [rectangle, minimum width=4cm, minimum height = 0.6cm,rounded corners = 0.1cm," +\
                 "fill=white, opacity=0.75, text width=4cm] at (4.3, 9.2){\\large{" + row["Name"]
         if row["Faction"]:
             card_text = card_text +  "}\\\\\n\\small{\\emph{~" + row["Faction"] + "}"
         card_text = card_text +  "}};\n"
 
         if row["Faction"]:
-            card_text += "\\node[opacity=0.7] at (2.2, 7.9) {\\includegraphics[" + logo_width + "]{" + images_folder + light_logos_dict[row["Faction"]] + "}};\n"
+            card_text += "\\node[opacity=0.7] (factionlogo) at (2.2, 7.9) {\\includegraphics[" + logo_width + "]{" + images_folder + light_logos_dict[row["Faction"]] + "}};\n"
 
 
         if row["Persistence"] != "0":
-             card_text = card_text + "\\node at (7,9.2)[circle, fill = red]{\\large{\\textbf{$" + row["Persistence"] + "$}}};\n"
+             card_text = card_text + "\\node (persistence) at (7,9.2)[circle, fill = red]{\\large{\\textbf{$" + row["Persistence"] + "$}}};\n"
 
         try:
             if card_type is CardTypeEnum.PILOT:
@@ -466,11 +610,11 @@ def make_card_from_row(row, card_type, group_capability=None):
 
         # textbox
         if card_type is CardTypeEnum.PILOT:
-            card_text = card_text + "\\node[rectangle, fill = white, opacity = 0.75, minimum height =2.5cm, rounded corners = 0.1cm, " \
+            card_text = card_text + "\\node (textbox) [rectangle, fill = white, opacity = 0.75, minimum height =2.5cm, rounded corners = 0.1cm, " \
                     + "text width = 5.4cm]  at (4, 3.5){\\small{" + row['Text'] +"}};\n"
         else:
             if row["Text"]:
-                card_text = card_text + "\\node[rectangle, fill = white, opacity = 0.75, minimum height =1.5cm, rounded corners = 0.1cm, " \
+                card_text = card_text + "\\node (textbox) [rectangle, fill = white, opacity = 0.75, minimum height =1.5cm, rounded corners = 0.1cm, " \
                     + "text width = 3.5cm]  at (2.75, 3.5){\\small{" + row['Text'] +"}};\n"
 
         set_info_content = row["Faction"] + " " + getTypeName(card_type) +  " \\hfill " + row['Group'] + "\\\\" + \
@@ -480,14 +624,14 @@ def make_card_from_row(row, card_type, group_capability=None):
         else:
             set_info_center_x, set_info_width = 4, 5.8
         card_text = card_text + f"\\node[rectangle, fill = white, opacity = 0.75, minimum width={set_info_width}cm, minimum height =0.8cm, " \
-                + f"rounded corners = 0.1cm, text width = {set_info_width}cm]  at ({set_info_center_x}, 0.7){{" \
+                + f"rounded corners = 0.1cm, text width = {set_info_width}cm] (setinfo) at ({set_info_center_x}, 0.7){{" \
                 + set_info_content + "};\n"
 
         # group zone-capability indicator: which zones this weapon group can
         # attack/block across all its cards, not just this one -- pinned to the
         # true bottom-left corner of the card
         if group_capability is not None:
-            card_text = card_text + "\\node[anchor=south west, inner sep=0pt] at (0.55, 0.25){\\input{" \
+            card_text = card_text + "\\node[anchor=south west, inner sep=0pt] (groupindicator) at (0.55, 0.25){\\input{" \
                     + "../build/group_indicator_" + row['Group'] + ".tex}};\n"
 
         # Foreground overlay rendered above all other elements (optional; use PNG for transparency)
@@ -499,15 +643,59 @@ def make_card_from_row(row, card_type, group_capability=None):
         if row.get("Artist"):
             card_text = card_text + f"\\node at ({set_info_center_x}, 0.3){{\\scriptsize{{\\copyright  LiliCo 2026 \\emph{{ Art: " + row["Artist"] + "}}};\n"
 
+        if annotate:
+            present = {"initbox", "movebox", "nameplate", "setinfo"}
+            if row["Faction"]:
+                present.add("factionlogo")
+            if row["Persistence"] != "0":
+                present.add("persistence")
+            if card_type is CardTypeEnum.PILOT:
+                present.add("textbox")
+                callouts = PILOT_CALLOUTS
+            else:
+                if row["Text"]:
+                    present.add("textbox")
+                if group_capability is not None:
+                    present.add("groupindicator")
+                # Representative anchors for the attack/block/range labels.
+                zone_pos = {"High": 7.5, "Mid": 5.0, "Low": 2.5}
+                def first_zone(feat, order):
+                    for z in order:
+                        if parse_int_safe(row.get(f"{z}{feat}")):
+                            return z
+                    return None
+                atk_z = first_zone("Attack", ["High", "Mid", "Low"])
+                blk_z = first_zone("Block", ["Mid", "High", "Low"])
+                rng_z = first_zone("Range", ["Low", "Mid", "High"])
+                if atk_z:
+                    card_text += f"\\coordinate (atk_aim) at (7.0,{zone_pos[atk_z] + 0.5});\n"
+                    present.add("atk_aim")
+                if blk_z:
+                    card_text += f"\\coordinate (block_aim) at (7.2,{zone_pos[blk_z]});\n"
+                    present.add("block_aim")
+                if rng_z:
+                    card_text += f"\\coordinate (range_aim) at (6.2,{zone_pos[rng_z] - 0.3});\n"
+                    present.add("range_aim")
+                if card_type is CardTypeEnum.DRONE:
+                    # west end of the drone health bar row (drawn from x=1.4 right)
+                    card_text += "\\coordinate (drone_health) at (1.1,6.65);\n"
+                    present.add("drone_health")
+                    present.add("drone_move")
+                    callouts = DRONE_CALLOUTS
+                else:
+                    callouts = WEAPON_CALLOUTS
+            card_text = card_text + _render_callouts(callouts, present)
+
         card_text = card_text + "\\end{tikzpicture}\n"
         # ofile.write(header_text)
         ofile.write(card_text)
         # ofile.write("\\end{document}\n")
         return card_text + "~"
     
-def create_frame_sheet(frame):
+def create_frame_sheet(frame, annotate=False, annotate_outfile=None):
     """creates the frames datasheet procedurally from the given data"""
-    with open(frameoutputfolder + frame["Name"] + '.tex', 'w') as ofile:
+    outname = (annotate_outfile or 'build/rules_frame.tex') if annotate else frameoutputfolder + frame["Name"] + '.tex'
+    with open(outname, 'w') as ofile:
         #load the initial image
         frame_text = "\\begin{tikzpicture}[scale=0.86, backbox/.style= {rectangle, minimum height = 2.2cm," \
                 + " minimum width =2.2cm, rounded corners = 0.3cm, fill=white, opacity=0.75}]\n "
@@ -517,15 +705,15 @@ def create_frame_sheet(frame):
             frame_text = frame_text + '\\node at (4,5){\\includegraphics[width=6cm, max height = 8.3cm, keepaspectratio]{' + frame_images_folder + frame["BackgroundLayer"] + '}};\n'
         frame_text = frame_text + '\\node at (4,5){\\includegraphics[width=6cm, max height = 8.3cm, keepaspectratio]{' + frame_images_folder + frame["CardImg"] + '}};\n'
         # name
-        frame_text = frame_text + "\\node [rectangle, minimum width=4.3cm, minimum height = 1cm,rounded corners = 0.1cm, fill=white, opacity=0.75, text width=4.1cm]" +\
+        frame_text = frame_text + "\\node (frame_name) [rectangle, minimum width=4.3cm, minimum height = 1cm,rounded corners = 0.1cm, fill=white, opacity=0.75, text width=4.1cm]" +\
                             "at (3.3, 9){\\large{" + frame["Name"] + "}\\\\\n\\small{\\emph{~" + frame["Faction"] + "}}};\n"
-        
+
         # movement
-        frame_text = frame_text + '\\node at (7,9){\\includegraphics[' + iconwidth + ']{' + icons_folder + framemvImg + '}};\n'
+        frame_text = frame_text + '\\node (frame_move) at (7,9){\\includegraphics[' + iconwidth + ']{' + icons_folder + framemvImg + '}};\n'
         frame_text = frame_text + " \\node at (7,9){\\Large{\\textbf{" + frame['Movement'] +"}}};\n"
         
         if frame["Faction"]:
-            frame_text += "\\node[opacity=0.7] at (1.5, 7.7) {\\includegraphics[" + logo_width + "]{" + images_folder + light_logos_dict[frame["Faction"]] + "}};\n"
+            frame_text += "\\node[opacity=0.7] (frame_logo) at (1.5, 7.7) {\\includegraphics[" + logo_width + "]{" + images_folder + light_logos_dict[frame["Faction"]] + "}};\n"
 
         # armor
         frame_text = frame_text + draw_armor(int(frame["Top armour"]), 8.5, "-1Init")
@@ -533,7 +721,7 @@ def create_frame_sheet(frame):
         frame_text = frame_text + draw_armor(int(frame["Low armour"]), 5.5, "-1Mv")
         
         # ability
-        frame_text = frame_text + "\\node[rectangle, fill = white, opacity = 0.75, minimum height =1.5cm, rounded corners = 0.1cm, " \
+        frame_text = frame_text + "\\node (frame_ability) [rectangle, fill = white, opacity = 0.75, minimum height =1.5cm, rounded corners = 0.1cm, " \
                     + "text width = 5cm]  at (4, 3.5){\\small{" + frame['Abilities'] +"}};\n"
 
         # weapons
@@ -552,6 +740,12 @@ def create_frame_sheet(frame):
         # artist credit
         if frame.get("Artist"):
             frame_text = frame_text + "\\node at (4, 0.3){\\scriptsize{\\copyright LiliCo 2026 \\emph{Art: " + frame["Artist"] + "}}};\n"
+
+        if annotate:
+            present = {"frame_name", "frame_move", "frame_ability", "bottom_box"}
+            if frame["Faction"]:
+                present.add("frame_logo")
+            frame_text = frame_text + _render_callouts(FRAME_CALLOUTS, present)
 
         #finish the tikzpicture
         frame_text = frame_text + "\\end{tikzpicture}\n"
@@ -810,27 +1004,6 @@ def _thickness_to_cm(thickness: str) -> float:
         return _TIKZ_LW_PT["thin"] * _PT_TO_CM
 
 
-
-
-# # ---------------------------------------------------------------------------
-# # Geometry helpers  (flat-top hexagons)
-# # ---------------------------------------------------------------------------
- 
-# def hex_center(col: int, row: int, size: float) -> Tuple[float, float]:
-#     """Return the (x, y) centre of hex (col, row) in cm."""
-#     x = size * 3/2 * col + 3/4
-#     y = size* math.sqrt(3) * (row + 0.5 * (col % 2)) + math.sqrt(3) / 2
-#     return x, y
- 
- 
-# def hex_corners(cx: float, cy: float, size: float):
-#     """Return the 6 corner (x, y) pairs of a flat-top hexagon."""
-#     return [
-#         (cx + size * math.cos(math.radians(60 * i)),
-#          cy + size * math.sin(math.radians(60 * i)))
-#         for i in range(6)
-#     ]
- 
 
 # ---------------------------------------------------------------------------
 # Geometry helpers  (pointy-top / flat-sided hexagons)
@@ -1134,6 +1307,99 @@ def create_back(frame, background):
         ofile.write(frame_text)
         return frame_text + "~"
 
+def _weapon_is_ranged(row):
+    """True if any zone of this weapon has a positive range."""
+    return any(parse_int_safe(row.get(f"{z}Range")) for z in zones_order)
+
+
+def _annotation_score(row, zones=False):
+    """Rank a card by how many *distinct* labels it would exercise, so the
+    chosen example shows the widest variety of callouts (e.g. a melee weapon
+    with attack + block + text beats one that only stacks blocks). Raw damage
+    counts are a small tie-breaker."""
+    distinct = 0
+    raw = 0
+    if row.get("Persistence", "0") != "0":
+        distinct += 1
+    if row.get("Text"):
+        distinct += 1
+    if row.get("Faction"):
+        distinct += 1
+    if zones:
+        for feat in ("Attack", "Block", "Range"):
+            vals = [parse_int_safe(row.get(f"{z}{feat}")) for z in zones_order]
+            if any(vals):
+                distinct += 1
+            raw += sum(v for v in vals if v)
+    return distinct * 100 + raw
+
+
+def _pick(rows, key):
+    """max() that tolerates an empty candidate list."""
+    return max(rows, key=key) if rows else None
+
+
+def create_rules_fragments(weapon_rows, weapon_caps, pilot_rows, drone_rows, frame_row):
+    """Writes one \\input-able annotated fragment per card type:
+        build/rules_weapon_melee.tex, rules_weapon_ranged.tex,
+        rules_drone.tex, rules_pilot.tex, rules_frame.tex
+    plus build/rules.tex, a standalone preview document that \\inputs them all
+    (compile from build/ with: pdflatex rules.tex)."""
+    melee_rows  = [r for r in weapon_rows if not _weapon_is_ranged(r)]
+    ranged_rows = [r for r in weapon_rows if _weapon_is_ranged(r)]
+
+    fragments = []  # (label, filename) in preview order
+    melee = _pick(melee_rows or weapon_rows, lambda r: _annotation_score(r, zones=True))
+    if melee is not None:
+        make_card_from_row(melee, CardTypeEnum.WEAPON, weapon_caps.get(melee["Group"]),
+                           annotate=True, annotate_outfile="build/rules_weapon_melee.tex")
+        fragments.append(("Melee weapon", "rules_weapon_melee.tex"))
+
+    ranged = _pick(ranged_rows, lambda r: _annotation_score(r, zones=True))
+    if ranged is not None:
+        make_card_from_row(ranged, CardTypeEnum.WEAPON, weapon_caps.get(ranged["Group"]),
+                           annotate=True, annotate_outfile="build/rules_weapon_ranged.tex")
+        fragments.append(("Ranged weapon", "rules_weapon_ranged.tex"))
+
+    drone = _pick(drone_rows, lambda r: _annotation_score(r, zones=True))
+    if drone is not None:
+        make_card_from_row(drone, CardTypeEnum.DRONE, None,
+                           annotate=True, annotate_outfile="build/rules_drone.tex")
+        fragments.append(("Drone", "rules_drone.tex"))
+
+    pilot = _pick(pilot_rows, _annotation_score)
+    if pilot is not None:
+        make_card_from_row(pilot, CardTypeEnum.PILOT, None,
+                           annotate=True, annotate_outfile="build/rules_pilot.tex")
+        fragments.append(("Pilot", "rules_pilot.tex"))
+
+    if frame_row is not None:
+        create_frame_sheet(frame_row, annotate=True, annotate_outfile="build/rules_frame.tex")
+        fragments.append(("Frame", "rules_frame.tex"))
+
+    with open("build/rules.tex", "w") as ofile:
+        ofile.write(header_text)
+        ofile.write("\\input{card_macros.tex}\n")
+        ofile.write(begin_doc)
+        for label, fname in fragments:
+            ofile.write("\\begin{center}\n{\\Large\\textbf{" + label + "}}\\par\\vspace{0.6cm}\n")
+            ofile.write("\\input{" + fname + "}\n")
+            ofile.write("\\end{center}\n\\newpage\n\\noindent\n")
+        ofile.write("\\end{document}\n")
+
+    # One standalone single-card document per fragment (build/<stem>_doc.tex) so
+    # generate_all_decks can pdflatex+convert each into its own PNG.
+    for label, fname in fragments:
+        stem = fname[:-len(".tex")]
+        with open(f"build/{stem}_doc.tex", "w") as ofile:
+            ofile.write(header_text)
+            ofile.write("\\input{card_macros.tex}\n")
+            ofile.write("\\pagestyle{empty}\n")  # no page number, so -trim crops tight
+            ofile.write(begin_doc)
+            ofile.write("\\input{" + fname + "}\n")
+            ofile.write("\\end{document}\n")
+
+
 #the actual run
 if __name__ == "__main__":
     with open(cardoutputfolder + "all.tex", "w") as allfile:
@@ -1160,16 +1426,20 @@ if __name__ == "__main__":
         for row in weapon_rows:
             allfile.write(make_card_from_row(row, CardTypeEnum.WEAPON, weapon_group_caps[row["Group"]]))
 
+        drone_rows = []
         with open(drone_actions_file, "r") as facsvfile:
             reader = csv.DictReader(facsvfile)
             for row in reader:
                 if int(row["PrintID"]) > 0:
+                        drone_rows.append(row)
                         allfile.write(make_card_from_row(row, CardTypeEnum.DRONE))
 
+        pilot_rows = []
         with open(pilot_actions_file, "r") as facsvfile:
             reader = csv.DictReader(facsvfile)
             for row in reader:
                 if int(row["PrintID"]) > 0:
+                        pilot_rows.append(row)
                         allfile.write(make_card_from_row(row, CardTypeEnum.PILOT))
 
         with open(general_action_file, "r") as gencsvfile:
@@ -1177,11 +1447,14 @@ if __name__ == "__main__":
             for row in reader:
                 if int(row["PrintID"]) > 0:
                     allfile.write(make_card_from_row(row, CardTypeEnum.BASIC))
+        rules_frame_row = None
         with open(frames_file, "r") as fcsvfile:
             reader = csv.DictReader(fcsvfile)
             allfile.write("\\newpage \n\\noindent\n")
             for row in reader:
                 if int(row["PrintID"]) > 0:
+                    if rules_frame_row is None:
+                        rules_frame_row = row
                     allfile.write(create_frame_sheet(row))
         # terrain doesnt have names yet
         with open(terrain_file, "r") as tcsvfile:
@@ -1201,3 +1474,7 @@ if __name__ == "__main__":
             allfile.write(create_back(frame, background))
 
         allfile.write("\\end{document}\n")
+
+    # Rules reference: one annotated \input-able fragment per card type
+    # (melee weapon, ranged weapon, drone, pilot, frame).
+    create_rules_fragments(weapon_rows, weapon_group_caps, pilot_rows, drone_rows, rules_frame_row)

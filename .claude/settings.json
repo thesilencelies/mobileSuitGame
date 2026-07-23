@@ -69,7 +69,21 @@
       "Bash(python3 /tmp/add_artist_column.py)",
       "Bash(git checkout *)",
       "Bash(python3 /tmp/add_artist_column2.py)",
-      "Bash(python3 generateCards.py)"
+      "Bash(python3 generateCards.py)",
+      "Bash(pdftoppm -png -r 90 rules.pdf rules_preview)",
+      "Bash(rm -f /home/stephen/mobileSuitGame/build/rules_preview-*.png /home/stephen/mobileSuitGame/build/rules_compile.log; echo done)",
+      "Bash(pdfinfo rules.pdf)",
+      "Bash(pdftoppm -png -r 90 rules.pdf rprev)",
+      "Bash(rm -f /home/stephen/mobileSuitGame/build/rprev-*.png /home/stephen/mobileSuitGame/build/rules_compile.log; echo done)",
+      "Bash(pdftoppm -png -r 90 -f 2 -l 2 rules.pdf rprev)",
+      "Bash(rm -f /home/stephen/mobileSuitGame/build/rprev-*.png; echo done)",
+      "Bash(pdftoppm -png -r 100 -f 4 -l 4 rules.pdf rprev)",
+      "Bash(pdftoppm -png -r 100 -f 3 -l 3 rules.pdf rprev)",
+      "Bash(pdftoppm -png -r 96 rules.pdf rprev)",
+      "Bash(python generate_all_decks.py --skip-individual nonexistent_deck)",
+      "Bash(python -c \"import generate_all_decks as g; g.process_rules_images\\(\\)\")",
+      "Bash(python generate_all_decks.py --help)",
+      "Bash(identify -format \"%f: channels=%[channels] alpha=%A\\\\n\" RulesImages/*.png)"
     ],
     "additionalDirectories": [
       "/tmp/cardtest",
