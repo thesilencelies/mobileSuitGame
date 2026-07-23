@@ -5,6 +5,7 @@
  \usepackage[export]{adjustbox}
 \usepackage{wallpaper}
 \usepackage{makecell}
+\usepackage{graphicx}
 
  \usetikzlibrary{positioning}
  \usetikzlibrary{patterns}
@@ -43,12 +44,38 @@ Victory points are obtained in two key ways:
 \item Points equal to the attacker score for each objective they successfully attacked  
 \end{itemize}
 
-\begin{figure}[htbp]
+\section{Card anatomy}
+
+\begin{figure}[htb]
   \centering
-\includegraphics[width=\linewidth]{../pictures/bg2.jpg}
+  \resizebox{\textwidth/2}{!}{\input{../build/rules_weapon_ranged.tex}}
+    \par A ranged Weapon Card
 \end{figure}
 
+\begin{figure}[htb]
+  \centering
+    \resizebox{\textwidth/2}{!}{\input{../build/rules_weapon_melee.tex}}
+    \par A melee Weapon Card
+\end{figure}
 
+\begin{figure}[htb]
+    \centering
+      \resizebox{\textwidth/2}{!}{\input{../build/rules_pilot.tex}}
+    \par A Pilot Card
+\end{figure}
+
+\renewcommand{\arraystretch}{1.0}
+\begin{tabular}{p{2.7cm} | p{4.5cm}}
+  \makecell[cl]{Initiative:\\  \includegraphics[width=0.5cm]{../icons/initImg.png} }&Marks when the card will resolve. Higher numbers resolve before lower numbers\\ \hline
+  \makecell[cl]{Movement:\\ \includegraphics[width=0.5cm]{../icons/mvimg_old.png}}&How much to add (or subtract if its negative) to the movement for the action with this card\\\hline
+  \makecell[cl]{Attack marks:\\ \smallprojectile \smallpierce \smallcut \smallimpact \smallenergy }& How much damage to deal at this location if this attack hits (symbol indicates damage type)\\\hline
+  \makecell[cl]{Attack range:\\ \includegraphics[width=0.5cm]{../icons/rangeImg.png}} &Range of ranged attack\\\hline
+  \makecell[cl]{Block mark:\\ \tikz{\filldraw[draw=black, line width=0.8pt, fill=black!15, rounded corners=0.02cm] (-0.25,0.25) -- (0,0.2) -- (0.25,0.25) -- (0.25,-0.125) -- (0,-0.325) -- (-0.25,-0.125) -- cycle;}} &Region that this card blocks for indicated with this shield shape instead of a box\\\hline
+  \makecell[cl]{Persistence mark:\\ \tikz{\node [circle, fill = red]{{\textbf{2}}}; }} &Indicates that the card stays on the field after resolving until its effects finish. N indicates how many turns that is.\\\hline
+  Ability text: &Effects that happen when this card is played or resolved.\\\hline
+  \makecell[cl]{Type info:\\\emph{(bottom)}} & What type of card it is, and categorisation information. Used for deckbuilding.\\
+\end{tabular}
+\renewcommand{\arraystretch}{1.0}
 \section{The battlefield}
 
 Terrain blocks movement and line of sight. Terrain that can be stood upon is classified as being on different levels. 
@@ -104,40 +131,6 @@ Each player takes it in turns to put one of their frames in their deployment zon
 (The nearest edge of the row of terrain cards nearest them if using, else anwyhere more than 7 from the center line).
 After all frames are deplyed this way, shuffle the decks, and the player who deployed first receives the priority marker. 
 
-\section{Card anatomy}
-
-\renewcommand{\arraystretch}{1.0}
-\begin{tabular}{p{2.7cm} | p{4.5cm}}
-\makecell[cl]{Initiative:\\  \includegraphics[width=0.5cm]{../icons/initImg.png} }&Marks when the card will resolve. Higher numbers resolve before lower numbers\\ \hline
-\makecell[cl]{Movement:\\ \includegraphics[width=0.5cm]{../icons/mvimg_old.png}}&How much to add (or subtract if its negative) to the movement for the action with this card\\\hline
-\makecell[cl]{Attack marks:\\ \smallprojectile \smallpierce \smallcut \smallimpact \smallenergy }& How much damage to deal at this location if this attack hits (symbol indicates damage type)\\\hline
-\makecell[cl]{Attack range:\\ \includegraphics[width=0.5cm]{../icons/rangeImg.png}} &Range of ranged attack\\\hline
-\makecell[cl]{Block mark:\\ \tikz{\filldraw[draw=black, line width=0.8pt, fill=black!15, rounded corners=0.02cm] (-0.25,0.25) -- (0,0.2) -- (0.25,0.25) -- (0.25,-0.125) -- (0,-0.325) -- (-0.25,-0.125) -- cycle;}} &Region that this card blocks for indicated with this shield shape instead of a box\\\hline
-\makecell[cl]{Persistence mark:\\ \tikz{\node [circle, fill = red]{{\textbf{2}}}; }} &Indicates that the card stays on the field after resolving until its effects finish. N indicates how many turns that is.\\\hline
-Ability text: &Effects that happen when this card is played or resolved.\\\hline
-\makecell[cl]{Type info:\\\emph{(bottom)}} & What type of card it is, and categorisation information. Used for deckbuilding.\\
-\end{tabular}
-\renewcommand{\arraystretch}{1.0}
-
-\begin{figure*}[htbp]
-  \centering
-\input{../build/rules_weapon_ranged.tex}
-\par A ranged Weapon Card
-\end{figure*}
-
-\begin{figure*}[htbp]
-  \centering
-\input{../build/rules_weapon_melee.tex}
-\par A melee Weapon Card
-\end{figure*}
-
-
-\begin{figure}[htbp]
-  \centering
-\input{../build/rules_pilot.tex}
-\par A Pilot Card
-\end{figure}
-
 \section{The turn}
 On each turn of the game there are 3 phases: planning, action and cleanup. 
 
@@ -149,6 +142,12 @@ If a frame has been defeated, at the end of the planning phase the player can re
 
 \subsection{Status update}
 At the end of the planning phase, one status token of each type is removed from each frame.
+
+
+\begin{figure}[htbp]
+  \centering
+\includegraphics[width=\linewidth]{../pictures/bg2.jpg}
+\end{figure}
 
 \section{Action}
 Each players declares the highest remaining initiaive amongst the initiatives of their remaining cards. 
@@ -281,9 +280,10 @@ Some attacks summon drones. A drone is a token that will take the action on the 
 The drone has a health stat indicated on the card that summoned it, which should stay in play until the drone is destroyed.
 The drone, like other tokens, cannot block.
 
-\begin{figure*}[htbp]
+\begin{figure*}[htb]
   \centering
-\input{../build/rules_drone.tex}
+  \resizebox{\textwidth/2}{!}{\input{../build/rules_drone.tex}}
+  \par Drone Card
 \end{figure*}
 
 
@@ -293,9 +293,9 @@ Each mobile suit must have a deck.
 To construct a deck, you first choose the frame.
 That frame has a stats card with the following information:
 
-\begin{figure*}[htbp]
+\begin{figure*}[htb]
   \centering
-\input{../build/rules_frame.tex}
+  \resizebox{\textwidth/2}{!}{\input{../build/rules_frame.tex}}
 \end{figure*}
 
 \begin{itemize}
