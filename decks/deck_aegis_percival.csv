@@ -1,20 +1,20 @@
-card_Shield_Bash.tex
-card_Shield_Full Guard.tex
-card_Shield_Push on.tex
-card_Shield_Lock down.tex
-card_Greatsword_Cleave.tex
-card_Greatsword_Parry.tex
-card_Greatsword_Grand Sweep.tex
-card_Stun Baton_Overcharge.tex
-card_Stun Baton_Shock.tex
-card_Stun Baton_Zap.tex
-card_Stun Baton_Strike.tex
-card_Assault Rifle_Burst Fire.tex
-card_Assault Rifle_Aimed Fire.tex
-card_Assault Rifle_From the hip.tex
-card_Engineer_Gravity Well.tex
-card_Engineer_Battlefield Repairs.tex
-card_Engineer_Barricade.tex
-card_Engineer_Precision Tuning.tex
-card_Booster_Quick Step.tex
-card_Booster_Accelerate.tex
+card/Shield_Bash
+card/Shield_Full Guard
+card/Shield_Push on
+card/Shield_Lock down
+card/Greatsword_Cleave
+card/Greatsword_Parry
+card/Greatsword_Grand Sweep
+card/Stun Baton_Overcharge
+card/Stun Baton_Shock
+card/Stun Baton_Zap
+card/Stun Baton_Strike
+card/Assault Rifle_Burst Fire
+card/Assault Rifle_Aimed Fire
+card/Assault Rifle_From the hip
+card/Engineer_Gravity Well
+card/Engineer_Battlefield Repairs
+card/Engineer_Barricade
+card/Engineer_Precision Tuning
+card/Booster_Quick Step
+card/Booster_Accelerate

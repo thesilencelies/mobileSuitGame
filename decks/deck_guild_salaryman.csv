@@ -1,24 +1,24 @@
-card_Cannon_Fullbore.tex
-card_Cannon_Airburst.tex
-card_Cannon_Cannon.tex
-card_Cannon_Pummel.tex
-card_Plasma Rifle_Charged Shot.tex
-card_Plasma Rifle_Single Shot.tex
-card_Plasma Rifle_Plasma Stream.tex
-card_Plasma Rifle_Vent.tex
-card_Missile Rack_Missile Rack 1.tex
-card_Missile Rack_Missile Rack 2.tex
-card_Missile Rack_Missile Rack 3.tex
-card_Engineer_Battlefield Repairs.tex
-card_Engineer_Barricade.tex
-card_Engineer_Precision Tuning.tex
-card_Engineer_Gravity Well.tex
-card_Booster_Full speed ahead.tex
-card_Knife_Stab.tex
-card_Knife_Cut.tex
-card_Knife_Slit.tex
-card_Knife_Lunge.tex
-card_Stun Bow_Rapid fire.tex
-card_Stun Bow_Arc shot.tex
-card_Stun Bow_Straight shot.tex
-card_Stun Bow_Low blow.tex
+card/Cannon_Fullbore
+card/Cannon_Airburst
+card/Cannon_Cannon
+card/Cannon_Pummel
+card/Plasma Rifle_Charged Shot
+card/Plasma Rifle_Single Shot
+card/Plasma Rifle_Plasma Stream
+card/Plasma Rifle_Vent
+card/Missile Rack_Missile Rack 1
+card/Missile Rack_Missile Rack 2
+card/Missile Rack_Missile Rack 3
+card/Engineer_Battlefield Repairs
+card/Engineer_Barricade
+card/Engineer_Precision Tuning
+card/Engineer_Gravity Well
+card/Booster_Full speed ahead
+card/Knife_Stab
+card/Knife_Cut
+card/Knife_Slit
+card/Knife_Lunge
+card/Stun Bow_Rapid fire
+card/Stun Bow_Arc shot
+card/Stun Bow_Straight shot
+card/Stun Bow_Low blow

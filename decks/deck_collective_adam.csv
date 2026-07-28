@@ -1,15 +1,15 @@
-card_Spear_Thrust.tex
-card_Spear_Jab.tex
-card_Spear_Impale.tex
-card_Spear_Sweep.tex
-card_Frame_Bio-regen.tex
-card_Frame_Call of Nature.tex
-card_Stun Bow_Rapid fire.tex
-card_Stun Bow_Arc shot.tex
-card_Stun Bow_Straight shot.tex
-card_Stun Bow_Low blow.tex
-card_Basic_Block.tex
-card_Specialist_Combo strike.tex
-card_Specialist_Snipers aim.tex
-card_Specialist_Master duelist.tex
-card_Specialist_Practiced Technique.tex
+card/Spear_Thrust
+card/Spear_Jab
+card/Spear_Impale
+card/Spear_Sweep
+card/Frame_Bio-regen
+card/Frame_Call of Nature
+card/Stun Bow_Rapid fire
+card/Stun Bow_Arc shot
+card/Stun Bow_Straight shot
+card/Stun Bow_Low blow
+card/Basic_Block
+card/Specialist_Combo strike
+card/Specialist_Snipers aim
+card/Specialist_Master duelist
+card/Specialist_Practiced Technique

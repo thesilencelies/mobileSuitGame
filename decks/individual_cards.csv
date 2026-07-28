@@ -1,17 +1,17 @@
-card_Basic_Kick.tex
-card_Basic_Throw.tex
-card_Axe_Hook.tex
-card_Assault Rifle_Aimed Fire.tex
-card_Booster_Accelerate.tex
-frame_Adam.tex
-card_Swarm_Swarm.tex
-card_Mystic_Teleport.tex
-terrain_Helpcard.tex
-terrain_Fugitive.tex
-frame_RipperSmasher.tex
-frame_Kamikiri.tex
-terrain_Twin Peaks.tex
-terrain_The Egg.tex
-card_Stun Bow_Arc shot.tex
-card_Kinetic Hammer_Batter.tex
-card_Engineer_Barricade.tex
+card/Basic_Kick
+card/Basic_Throw
+card/Axe_Hook
+card/Assault Rifle_Aimed Fire
+card/Booster_Accelerate
+frame_Adam
+card/Swarm_Swarm
+card/Mystic_Teleport
+terrain/Helpcard
+terrain/Fugitive
+frame_RipperSmasher
+frame_Kamikiri
+terrain/Twin Peaks
+terrain/The Egg
+card/Stun Bow_Arc shot
+card/Kinetic Hammer_Batter
+card/Engineer_Barricade

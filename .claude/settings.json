@@ -83,7 +83,14 @@
       "Bash(python generate_all_decks.py --skip-individual nonexistent_deck)",
       "Bash(python -c \"import generate_all_decks as g; g.process_rules_images\\(\\)\")",
       "Bash(python generate_all_decks.py --help)",
-      "Bash(identify -format \"%f: channels=%[channels] alpha=%A\\\\n\" RulesImages/*.png)"
+      "Bash(identify -format \"%f: channels=%[channels] alpha=%A\\\\n\" RulesImages/*.png)",
+      "Bash(grep -v \"^\\\\s*$\")",
+      "Bash(grep -vE \"^[0-9]+:\\\\s*$\")",
+      "Bash(python check_deck_coverage.py)",
+      "Bash(python check_terrain_decks.py)",
+      "Bash(python generate_card_sheet.py --csv decks/deck_aegis_hector.csv --output /tmp/claude-1000/-home-stephen-mobileSuitGame/74959018-5f53-4d49-af9a-b2d21c87147b/scratchpad/test_sheet.tex)",
+      "Bash(bc)",
+      "Bash(echo \"=== exit: $? ===\")"
     ],
     "additionalDirectories": [
       "/tmp/cardtest",
