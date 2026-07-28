@@ -45,12 +45,12 @@ Three sub-commands:
     tournament  round-robin over a deck set, rendered as an HTML heatmap
 
 Run:
-    python simulation/simulate.py match --team-a all_attack_mid.csv \
-                                        --team-b all_block_mid.csv
+    python simulation/simulate.py match --team-a only_attack_high.csv \
+                                        --team-b only_block_mid.csv
     python simulation/simulate.py scale --deck-a even_mix.csv \
                                         --deck-b only_attack_high.csv
     python simulation/simulate.py tournament --decks-dir simulation/decks \
-                                        --n 1 --output build/tournament.html
+                                        --sizes 1 2 3 --output build/tournament.html
 """
 
 from __future__ import annotations
@@ -141,8 +141,9 @@ def load_deck(deck_path: str, cards: dict) -> list:
     """Read a deck CSV (one `card/{group}_{name}` per line) into a list of Cards."""
     path = Path(deck_path)
     if not path.is_absolute() and not path.exists():
-        # Test decks live in simulation/decks/; fall back there, then the repo root.
-        for base in (ROOT / "simulation" / "decks", ROOT):
+        # Balance decks live in simulation/decks/, demo decks in simulation/test/;
+        # fall back through those, then the repo root.
+        for base in (ROOT / "simulation" / "decks", ROOT / "simulation" / "test", ROOT):
             if (base / deck_path).exists():
                 path = base / deck_path
                 break
@@ -308,7 +309,7 @@ def build_team(deck_paths: list, team_name: str, cards: dict, target_index: int,
 @dataclass
 class SimConfig:
     """Everything a matchup needs besides the decks themselves."""
-    games: int = 2000
+    games: int = 2500
     hand: int = 2
     health: int = 4
     max_rounds: int = 200
@@ -427,33 +428,35 @@ def cmd_tournament(args) -> None:
         raise SystemExit("tournament needs at least 2 decks "
                          "(via --decks and/or --decks-dir)")
     names = [Path(p).stem for p in deck_paths]
-    n = args.n
+    d = len(deck_paths)
 
-    print(f"Round-robin: {len(deck_paths)} decks, {n}v{n}, "
-          f"{args.games} games/cell ({len(deck_paths) ** 2} matchups) ...")
+    total = d * d * len(args.sizes)
+    print(f"Round-robin: {d} decks x sizes {args.sizes}, "
+          f"{args.games} games/cell ({total} matchups) ...")
 
-    # grid[i][j] = stats for row-deck i (team A) vs col-deck j (team B)
-    grid = []
-    for i, a in enumerate(deck_paths):
-        row = []
-        for j, b in enumerate(deck_paths):
-            row.append(run_matchup([a] * n, [b] * n, cards, cfg, rng))
-        grid.append(row)
-        print(f"  {names[i]} done")
+    # grids[size][i][j] = stats for row-deck i (team A) vs col-deck j (team B).
+    grids = {}
+    for n in args.sizes:
+        grid = [[run_matchup([a] * n, [b] * n, cards, cfg, rng)
+                 for b in deck_paths] for a in deck_paths]
+        grids[n] = grid
+        print(f"  {n}v{n} done")
 
-    html = render_tournament_html(names, grid, cfg, n)
+    html = render_tournament_html(names, grids, cfg)
     out = Path(args.output)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(html, encoding="utf-8")
     print(f"\nWrote visual report -> {out}")
 
-    # Text ranking by mean A-win% across opponents.
-    print("\nRanking (mean win% as team A across all opponents):")
-    scored = sorted(
-        ((sum(grid[i][j]["rate"]["A"] for j in range(len(names))) / len(names), names[i])
-         for i in range(len(names))), reverse=True)
-    for rate, name in scored:
-        print(f"  {rate:5.1f}%  {name}")
+    # Text ranking per size by mean A-win% across opponents.
+    for n in args.sizes:
+        grid = grids[n]
+        print(f"\nRanking at {n}v{n} (mean win% as team A across all opponents):")
+        scored = sorted(
+            ((sum(grid[i][j]["rate"]["A"] for j in range(d)) / d, names[i])
+             for i in range(d)), reverse=True)
+        for rate, name in scored:
+            print(f"  {rate:5.1f}%  {name}")
 
 
 def _diverging(pct: float) -> tuple:
@@ -474,40 +477,50 @@ def _ink_on(rgb: tuple) -> str:
     return "#0b0b0b" if lum > 0.6 else "#ffffff"
 
 
-def render_tournament_html(names: list, grid: list, cfg: SimConfig, n: int) -> str:
-    """Build a self-contained HTML win-rate heatmap. Cell (i, j) is deck i's win
-    rate as team A against deck j as team B; the numbers are in every cell, so
-    meaning never rides on colour alone."""
-    row_avg = [sum(grid[i][j]["rate"]["A"] for j in range(len(names))) / len(names)
-               for i in range(len(names))]
+def _render_heatmap(names: list, grid: list, n: int) -> str:
+    """One <section> containing the win-rate heatmap table for team size n."""
+    d = len(names)
+    row_avg = [sum(grid[i][j]["rate"]["A"] for j in range(d)) / d for i in range(d)]
 
     head_cells = "".join(f"<th class='col'><div>{escape(nm)}</div></th>" for nm in names)
     body_rows = []
     for i, nm in enumerate(names):
         cells = []
-        for j in range(len(names)):
+        for j in range(d):
             st = grid[i][j]
             pct = st["rate"]["A"]
             rgb = _diverging(pct)
-            bg = f"rgb({rgb[0]},{rgb[1]},{rgb[2]})"
             ar = st["avg_rounds"]["A"]
-            tip = (f"{names[i]} (A) vs {names[j]} (B)\n"
+            tip = (f"{names[i]} (A) vs {names[j]} (B) @ {n}v{n}\n"
                    f"A wins {st['rate']['A']:.1f}%  |  B wins {st['rate']['B']:.1f}%"
-                   f"  |  draws {st['rate']['draw']:.1f}%\n"
-                   f"avg rounds to kill: {ar:.1f}" if ar is not None
-                   else f"{names[i]} (A) vs {names[j]} (B)\n"
-                        f"A wins {st['rate']['A']:.1f}%  |  B wins {st['rate']['B']:.1f}%"
-                        f"  |  draws {st['rate']['draw']:.1f}%")
+                   f"  |  draws {st['rate']['draw']:.1f}%"
+                   + (f"\navg rounds to kill: {ar:.1f}" if ar is not None else ""))
             diag = " diag" if i == j else ""
-            cells.append(f"<td class='cell{diag}' style='background:{bg};color:{_ink_on(rgb)}' "
-                         f"title='{escape(tip)}'>{pct:.0f}</td>")
+            cells.append(f"<td class='cell{diag}' style='background:rgb{rgb};"
+                         f"color:{_ink_on(rgb)}' title='{escape(tip)}'>{pct:.0f}</td>")
         avg_rgb = _diverging(row_avg[i])
-        cells.append(f"<td class='cell avg' style='background:rgb({avg_rgb[0]},{avg_rgb[1]},"
-                     f"{avg_rgb[2]});color:{_ink_on(avg_rgb)}'>{row_avg[i]:.0f}</td>")
+        cells.append(f"<td class='cell avg' style='background:rgb{avg_rgb};"
+                     f"color:{_ink_on(avg_rgb)}'>{row_avg[i]:.0f}</td>")
         body_rows.append(f"<tr><th class='row'>{escape(nm)}</th>{''.join(cells)}</tr>")
 
-    subtitle = (f"{len(names)} decks &middot; {n}v{n} &middot; {cfg.games} games/cell "
-                f"&middot; hand {cfg.hand} &middot; {cfg.health} HP/zone")
+    return f"""<section>
+    <h2>{n}v{n}</h2>
+    <div class="scroll"><table>
+      <thead><tr><th class="corner"></th>{head_cells}
+        <th class="col avghead"><div>row avg</div></th></tr></thead>
+      <tbody>{''.join(body_rows)}</tbody>
+    </table></div>
+  </section>"""
+
+
+def render_tournament_html(names: list, grids: dict, cfg: SimConfig) -> str:
+    """Self-contained HTML with one win-rate heatmap per team size. Cell (i, j) is
+    deck i's win rate as team A against deck j as team B; every cell shows its
+    number, so meaning never rides on colour alone."""
+    sections = "\n".join(_render_heatmap(names, grids[n], n) for n in sorted(grids))
+    subtitle = (f"{len(names)} decks &middot; sizes {', '.join(f'{n}v{n}' for n in sorted(grids))} "
+                f"&middot; {cfg.games} games/cell &middot; hand {cfg.hand} "
+                f"&middot; {cfg.health} HP/zone")
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -521,7 +534,8 @@ def render_tournament_html(names: list, grid: list, cfg: SimConfig, n: int) -> s
   body {{ margin:0; padding:2rem 1.5rem 3rem; background:var(--surface); color:var(--ink);
          font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }}
   h1 {{ font-size:1.35rem; margin:0 0 .25rem; }}
-  .sub {{ color:var(--muted); margin:0 0 1.5rem; font-size:.9rem; }}
+  h2 {{ font-size:1rem; margin:2rem 0 .75rem; color:var(--muted); }}
+  .sub {{ color:var(--muted); margin:0 0 .5rem; font-size:.9rem; }}
   .scroll {{ overflow-x:auto; }}
   table {{ border-collapse:separate; border-spacing:2px; }}
   th, td {{ padding:0; }}
@@ -529,27 +543,21 @@ def render_tournament_html(names: list, grid: list, cfg: SimConfig, n: int) -> s
                padding:.4rem .1rem; color:var(--muted); font-weight:600; font-size:.8rem; }}
   th.row {{ text-align:right; padding-right:.6rem; color:var(--muted); font-weight:600;
            white-space:nowrap; font-size:.85rem; }}
-  th.corner {{ }}
   td.cell {{ width:44px; height:38px; text-align:center; vertical-align:middle;
             font-variant-numeric:tabular-nums; font-weight:600; border-radius:4px;
             font-size:.85rem; }}
   td.cell.diag {{ outline:2px solid var(--surface); outline-offset:-2px; opacity:.85; }}
   td.cell.avg {{ font-weight:800; }}
   th.avghead div {{ color:var(--ink); }}
-  .legend {{ display:flex; align-items:center; gap:.6rem; margin-top:1.5rem; font-size:.82rem;
+  .legend {{ display:flex; align-items:center; gap:.6rem; margin:1.25rem 0 .5rem; font-size:.82rem;
             color:var(--muted); flex-wrap:wrap; }}
   .bar {{ width:220px; height:12px; border-radius:6px;
          background:linear-gradient(90deg, rgb(208,59,59), rgb(240,239,236), rgb(42,120,214)); }}
-  .note {{ margin-top:1rem; color:var(--muted); font-size:.82rem; max-width:52ch; }}
+  .note {{ margin-top:.5rem; color:var(--muted); font-size:.82rem; max-width:56ch; }}
 </style></head>
 <body>
   <h1>mobileSuitGame — deck tournament</h1>
   <p class="sub">{subtitle}</p>
-  <div class="scroll"><table>
-    <thead><tr><th class="corner"></th>{head_cells}
-      <th class="col avghead"><div>row avg</div></th></tr></thead>
-    <tbody>{''.join(body_rows)}</tbody>
-  </table></div>
   <div class="legend">
     <span>row deck loses</span>
     <span class="bar"></span>
@@ -561,6 +569,7 @@ def render_tournament_html(names: list, grid: list, cfg: SimConfig, n: int) -> s
   an even matchup; the diagonal is a deck against itself. <em>row&nbsp;avg</em> is the
   mean across all opponents — a rough power ranking. Hover any cell for the full
   A/B/draw split.</p>
+  {sections}
 </body></html>
 """
 
@@ -570,9 +579,9 @@ def main() -> None:
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="command", required=True)
 
-    def add_common(p, default_games=2000):
+    def add_common(p, default_games=2500):
         p.add_argument("--games", type=int, default=default_games,
-                       help="games to simulate per matchup")
+                       help="games/matchup (2500 keeps run-to-run win%% variance ~1%%)")
         p.add_argument("--hand", type=int, default=2,
                        help="actions chosen per frame per turn")
         p.add_argument("--health", type=int, default=4, help="HP per zone")
@@ -602,9 +611,10 @@ def main() -> None:
     t = sub.add_parser("tournament", help="round-robin over a deck set -> HTML report")
     t.add_argument("--decks", nargs="*", default=[], help="deck CSVs to include")
     t.add_argument("--decks-dir", help="also include every *.csv in this folder")
-    t.add_argument("--n", type=int, default=1, help="team size for every matchup (default 1)")
+    t.add_argument("--sizes", type=int, nargs="+", default=[1, 2, 3],
+                   help="team sizes, one heatmap each (default 1 2 3)")
     t.add_argument("--output", default="build/tournament.html", help="HTML report path")
-    add_common(t, default_games=500)
+    add_common(t, default_games=2500)
     t.set_defaults(func=cmd_tournament)
 
     args = parser.parse_args()
