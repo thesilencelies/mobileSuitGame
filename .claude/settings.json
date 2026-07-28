@@ -123,7 +123,14 @@
       "Bash(python3 simulation/simulate.py match --team-a only_init_high.csv --team-b only_init_low.csv --games 2000 --seed 1)",
       "Bash(python3 simulation/simulate.py match --team-a only_init_high.csv --team-b only_init_low.csv --games 2000 --seed 1 --intelligent)",
       "Bash(python3 simulation/simulate.py match --team-a only_attack_high.csv --team-b even_mix.csv --games 2000 --seed 1 --intelligent)",
-      "Bash(python3 simulation/simulate.py match --team-a only_attack_high.csv --team-b even_mix.csv --intelligent --pool 99 --defense-b 4 --concentration-b 0 --games 1500 --seed 1)"
+      "Bash(python3 simulation/simulate.py match --team-a only_attack_high.csv --team-b even_mix.csv --intelligent --pool 99 --defense-b 4 --concentration-b 0 --games 1500 --seed 1)",
+      "Bash(pdflatex -interaction=nonstopmode -halt-on-error -output-directory=/tmp/claude-1000/-home-stephen-mobileSuitGame/164abc89-2116-413c-b95d-a1e2684da912/scratchpad /tmp/claude-1000/-home-stephen-mobileSuitGame/164abc89-2116-413c-b95d-a1e2684da912/scratchpad/spacetest.tex)",
+      "Bash(echo \"exit=$?\")",
+      "Bash(pdflatex -interaction=nonstopmode -halt-on-error rules.tex)",
+      "Bash(git check-ignore *)",
+      "Bash(magick pg-08.png -crop 100%x22%+0+52% +repage tab08.png)",
+      "Bash(convert pg-08.png -crop 100%x22%+0+52% +repage tab08.png)",
+      "Bash(identify tab08.png)"
     ],
     "additionalDirectories": [
       "/tmp/cardtest",
