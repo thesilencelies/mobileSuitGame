@@ -97,34 +97,37 @@ def main():
     cards = load_cards()
     attackers = [c for c in cards if c["azones"]]
 
+    # Every test deck should both attack and block (the requested preference),
+    # so balancing never pulls in a do-nothing pure-block or pure-move card.
+    both = [c for c in cards if c["azones"] and c["blk"]]
+    by_init = lambda c: c["init"]  # exact initiative, so decks span the full range
+
     # Attack-zone-constrained: fix the (single) attacked zone; balance initiative
     # and block zone across the rest.
     for zone in ZONES:
-        pool = [c for c in attackers if c["azones"] == (zone,)]
+        pool = [c for c in both if c["azones"] == (zone,)]
         write_deck(f"only_attack_{zone.lower()}",
-                   balanced_pick(pool, [init_bucket, lambda c: c["blk"]], DECK_SIZE))
+                   balanced_pick(pool, [by_init, lambda c: c["blk"]], DECK_SIZE))
 
     # Block-zone-constrained: fix the (single) blocked zone; balance initiative
-    # and attacked zone. All qualifying cards here also attack.
+    # and attacked zone. Restricted to cards that also attack.
     for zone in ZONES:
-        pool = [c for c in cards if c["blk"] == (zone,)]
+        pool = [c for c in both if c["blk"] == (zone,)]
         write_deck(f"only_block_{zone.lower()}",
-                   balanced_pick(pool, [init_bucket, lambda c: c["azones"]], DECK_SIZE))
+                   balanced_pick(pool, [by_init, lambda c: c["azones"]], DECK_SIZE))
 
-    # Initiative-constrained attackers: fix low/high initiative; balance attack
-    # and block zones.
-    lo = [c for c in attackers if c["init"] <= 3]
-    hi = [c for c in attackers if c["init"] >= 6]
+    # Initiative-constrained: fix low/high initiative; balance attack and block
+    # zones (and still spread initiative within the band).
+    lo = [c for c in both if c["init"] <= 3]
+    hi = [c for c in both if c["init"] >= 6]
     write_deck("only_init_low",
-               balanced_pick(lo, [lambda c: c["azones"], lambda c: c["blk"]], DECK_SIZE))
+               balanced_pick(lo, [by_init, lambda c: c["azones"], lambda c: c["blk"]], DECK_SIZE))
     write_deck("only_init_high",
-               balanced_pick(hi, [lambda c: c["azones"], lambda c: c["blk"]], DECK_SIZE))
+               balanced_pick(hi, [by_init, lambda c: c["azones"], lambda c: c["blk"]], DECK_SIZE))
 
-    # Even mix: balanced across initiative, attack zone and block zone at once,
-    # from cards that both attack and block.
-    both = [c for c in cards if c["azones"] and c["blk"]]
+    # Even mix: balanced across initiative, attack zone and block zone at once.
     write_deck("even_mix",
-               balanced_pick(both, [init_bucket, lambda c: c["azones"],
+               balanced_pick(both, [by_init, lambda c: c["azones"],
                                     lambda c: c["blk"]], DECK_SIZE))
 
 
