@@ -30,6 +30,12 @@
 
 \maketitle
 
+\section{Welcome to NetFrame}
+In netframe you TODO
+
+
+
+
 
 These rules set out a method of handling movement and combat between Mobile Suits. The game is played across 5 turns, after which the team with the most victory points wins.
 Each player brings the same number of Frames, each with their own deck. A good default number is 3 per player, although with teams 2 each can be smoother.
@@ -46,23 +52,23 @@ Victory points are obtained in two key ways:
 
 \section{Card anatomy}
 
-\begin{figure}[htb]
+\begin{figure*}[htb]
   \centering
-  \resizebox{\textwidth/2}{!}{\input{../build/rules_weapon_ranged.tex}}
+  \resizebox{\textwidth}{!}{\input{../build/rules_weapon_ranged.tex}}
     \par A ranged Weapon Card
-\end{figure}
+\end{figure*}
 
-\begin{figure}[htb]
+\begin{figure*}[htb]
   \centering
-    \resizebox{\textwidth/2}{!}{\input{../build/rules_weapon_melee.tex}}
+    \resizebox{\textwidth}{!}{\input{../build/rules_weapon_melee.tex}}
     \par A melee Weapon Card
-\end{figure}
+\end{figure*}
 
-\begin{figure}[htb]
+\begin{figure*}[htb]
     \centering
-      \resizebox{\textwidth/2}{!}{\input{../build/rules_pilot.tex}}
+      \resizebox{\textwidth}{!}{\input{../build/rules_pilot.tex}}
     \par A Pilot Card
-\end{figure}
+\end{figure*}
 
 \renewcommand{\arraystretch}{1.0}
 \begin{tabular}{p{2.7cm} | p{4.5cm}}
@@ -98,14 +104,14 @@ Tiles that contain obstacles have a yellow dashing on their border and yellow di
 \begin{figure}[htbp]
   \centering
   \textbf{Terrain cards}\par\medskip
-  \input{../build/terrain_Fugitive.tex}
+  \input{../build/terrain/Fugitive.tex}
   \par example of a terrain card\par\medskip
 \end{figure}
 
 \begin{figure}[htbp]
   \centering
   \textbf{Terrain cards}\par\medskip
-  \input{../build/terrain_Helpcard.tex}
+  \input{../build/terrain/Helpcard.tex}
   \par explaination of terrain card symbols \par\medskip
 \end{figure}
 
@@ -213,6 +219,7 @@ Ranged attacks are not affected by elevation in this way.
 
 \subsubsection{Damage}
 Each frame can endure a number of hits on each zone indicated on the character card (default 4) after which they are destroyed. 
+recieving damage beyond that hit limit on any one zone is sufficent to destroy the frame.
 Destroyed frame are removed from the battlefield and can no longer contribute to the fight. 
 Additionally any frame that has endured 2 or more damage in any location faces the following penalty corresponding to the location: 
 
@@ -280,11 +287,23 @@ Some attacks summon drones. A drone is a token that will take the action on the 
 The drone has a health stat indicated on the card that summoned it, which should stay in play until the drone is destroyed.
 The drone, like other tokens, cannot block.
 
-\begin{figure*}[htb]
+\begin{figure}[htb]
   \centering
   \resizebox{\textwidth/2}{!}{\input{../build/rules_drone.tex}}
   \par Drone Card
-\end{figure*}
+\end{figure}
+
+
+\section{Play Example}
+TOOD - needs grahics showing terrain and dudes
+
+Should cover - frame movement
+- melee attacks
+- elevation
+- ranged attacks and line of sight
+- damage
+- destruction
+
 
 
 
@@ -293,10 +312,6 @@ Each mobile suit must have a deck.
 To construct a deck, you first choose the frame.
 That frame has a stats card with the following information:
 
-\begin{figure*}[htb]
-  \centering
-  \resizebox{\textwidth/2}{!}{\input{../build/rules_frame.tex}}
-\end{figure*}
 
 \begin{itemize}
 \item Base movement
@@ -307,6 +322,12 @@ That frame has a stats card with the following information:
 \item Booster count \includegraphics[width=0.4cm]{../icons/boosterImg.png}
 \item Frame ability (if any)
 \end{itemize}
+
+
+\begin{figure}[htb]
+  \centering
+  \resizebox{\textwidth/2}{!}{\input{../build/rules_frame.tex}}
+\end{figure}
 
 The frame's deck must have exactly the numnber of cards in its deck size count in it.
 To build the deck, you can have:
@@ -426,5 +447,9 @@ count & type & group & cards \\
   after which they are removed from play if they are still dead (they can be repaired)\\
   Knockback (X) & Move the target frame X steps in any direction away from the source (cannot move up elevation) \\
 \end{tabular}
+
+\section{Ackniowledgments}
+Art: Goodboy
+TTS: Chara
 
 \end{document}

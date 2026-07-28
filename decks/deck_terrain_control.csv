@@ -1,16 +1,16 @@
 
-terrain_Triangle.tex
-terrain_Fugitive.tex
-terrain_Warehouse.tex
-terrain_Box.tex
-terrain_High Tower.tex
-terrain_Helipad.tex
-terrain_Slum road.tex
-terrain_Suburb L.tex
-terrain_Cross Junction.tex
-terrain_Split Offices.tex
-terrain_The Pit.tex
-terrain_Stadium.tex
-terrain_Two pads.tex
-terrain_Twin Peaks.tex
-terrain_Steps.tex
+terrain/Triangle
+terrain/Fugitive
+terrain/Warehouse
+terrain/Box
+terrain/High Tower
+terrain/Helipad
+terrain/Slum road
+terrain/Suburb L
+terrain/Cross Junction
+terrain/Split Offices
+terrain/The Pit
+terrain/Stadium
+terrain/Two pads
+terrain/Twin Peaks
+terrain/Steps

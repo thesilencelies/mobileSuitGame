@@ -6,8 +6,8 @@ Renders individual cards to standalone PNG images (e.g. for previews, a
 rulebook, or a website) rather than a TTS grid sheet.
 
 Reads a single-column CSV listing card .tex filenames -- the same format as
-the deck CSVs in decks/, one build/card_*.tex (or frame_*/back_*/terrain_*)
-filename per line, no header. Each card is placed on its own page via
+the deck CSVs in decks/, one build/card/*.tex (or build/terrain/*.tex,
+frame_*/back_*) filename per line, no header. Each card is placed on its own page via
 generate_card_sheet.py --cols 1 --rows 1, which takes care of pulling in
 build/card_macros.tex (the icon/ability macros) alongside the card itself.
 The resulting multi-page PDF is compiled once, then each page is rasterised
@@ -53,7 +53,10 @@ def read_card_list(csv_path: Path) -> list[str]:
         reader = csv.reader(fh)
         for row in reader:
             if row and row[0].strip():
-                cards.append(row[0].strip())
+                filename = row[0].strip()
+                if not filename.endswith(".tex"):
+                    filename += ".tex"
+                cards.append(filename)
 
     if not cards:
         sys.exit("Error: No card filenames found in the CSV.")

@@ -121,7 +121,11 @@ POSTAMBLE = r"""\end{document}
 # ---------------------------------------------------------------------------
 
 def read_card_list(csv_path: str) -> list[str]:
-    """Read a single-column CSV (no header) and return a list of filenames."""
+    """Read a single-column CSV (no header) and return a list of .tex filenames.
+
+    CSV entries list card base names without the .tex extension; it is appended
+    here so the generated \\input picks up the right file.
+    """
     if not os.path.isfile(csv_path):
         sys.exit(f"Error: CSV file not found: {csv_path}")
 
@@ -132,6 +136,8 @@ def read_card_list(csv_path: str) -> list[str]:
             if row:  # skip completely blank lines
                 filename = row[0].strip()
                 if filename:
+                    if not filename.endswith(".tex"):
+                        filename += ".tex"
                     cards.append(filename)
 
     if not cards:

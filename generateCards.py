@@ -14,11 +14,18 @@ booster_actions_file = 'Booster actions.csv'
 terrain_file = "Terrain_square.csv"
 frames_file = 'Frames.csv'
 
-cardoutputfolder='build/card_'
-frameoutputfolder='build/frame_'
-backsoutputfolder='build/back_'
-terrianoutputfolder='build/terrain_'
-groupindicatoroutputfolder='build/group_indicator_'
+buildfolder='build/'
+# Per-card and terrain tiles live in their own subfolders (build/card/<Group>_<Name>.tex,
+# build/terrain/<Name>.tex) rather than using card_/terrain_ filename prefixes.
+cardoutputfolder=buildfolder+'card/'
+frameoutputfolder=buildfolder+'frame_'
+backsoutputfolder=buildfolder+'back_'
+terrianoutputfolder=buildfolder+'terrain/'
+groupindicatoroutputfolder=buildfolder+'group_indicator_'
+
+# Create output folders up front so writes never fail on a fresh/cleared build/.
+for _folder in (buildfolder, cardoutputfolder, terrianoutputfolder):
+    os.makedirs(_folder, exist_ok=True)
 
 #icon names
 cutAtkImg = 'attackImg.png'
@@ -146,7 +153,7 @@ rules_dict = {
 
 
 def createMacros():
-    with open(cardoutputfolder + 'macros.tex', 'w') as ofile:
+    with open(buildfolder + 'card_macros.tex', 'w') as ofile:
         # Single source of truth for shared colours; card_all.tex embeds this
         # return value and rules.tex \inputs the generated card_macros.tex.
         # Elevation ramp endpoints: low elevation = dark, desaturated slate
@@ -1402,7 +1409,7 @@ def create_rules_fragments(weapon_rows, weapon_caps, pilot_rows, drone_rows, fra
 
 #the actual run
 if __name__ == "__main__":
-    with open(cardoutputfolder + "all.tex", "w") as allfile:
+    with open(buildfolder + "card_all.tex", "w") as allfile:
         allfile.write(header_text)
 
         allfile.write(createMacros())

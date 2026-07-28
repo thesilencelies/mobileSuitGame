@@ -43,9 +43,11 @@ def load_deck(path):
         for row in csv.reader(f):
             for cell in row:
                 cell = cell.strip()
-                # Entries look like: terrain_<Name>.tex
-                if cell.startswith("terrain_") and cell.endswith(".tex"):
-                    name = cell[len("terrain_"):-len(".tex")]
+                # Entries look like: terrain/<Name> (optionally with a .tex suffix)
+                if cell.startswith("terrain/"):
+                    name = cell[len("terrain/"):]
+                    if name.endswith(".tex"):
+                        name = name[:-len(".tex")]
                     names.add(name)
     return names
 

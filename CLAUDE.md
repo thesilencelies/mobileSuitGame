@@ -5,7 +5,7 @@ A data-driven card game toolkit that generates printable cards and Tabletop Simu
 ## Core pipeline
 
 ```
-CSV files → generateCards.py → build/card_*.tex → build/card_all.pdf
+CSV files → generateCards.py → build/card/*.tex → build/card_all.pdf
 
 decks/*.csv → generate_card_sheet.py → card_sheet.tex → card_sheet.pdf
                                                               ↓
@@ -17,7 +17,7 @@ decks/*.csv → generate_card_sheet.py → card_sheet.tex → card_sheet.pdf
 ## Scripts
 
 ### generateCards.py
-Reads all card CSVs; outputs individual `build/card_<Group>_<Name>.tex` files, a combined `build/card_all.tex`, frame datasheets (`build/frame_*.tex`), and terrain tiles (`build/terrain_*.tex`). For weapon cards it also writes `build/group_indicator_<Group>.tex` — a small red-triangle/blue-square grid showing which High/Mid/Low zones that weapon *group* can attack/block across all its cards, `\input` by each card in the group at the bottom left.
+Reads all card CSVs; outputs individual `build/card/<Group>_<Name>.tex` files, a combined `build/card_all.tex`, frame datasheets (`build/frame_*.tex`), and terrain tiles (`build/terrain/<Name>.tex`). Creates the `build/card/` and `build/terrain/` subfolders if they don't exist. For weapon cards it also writes `build/group_indicator_<Group>.tex` — a small red-triangle/blue-square grid showing which High/Mid/Low zones that weapon *group* can attack/block across all its cards, `\input` by each card in the group at the bottom left.
 It also emits the rules-reference set: one representative card per type annotated with labelled leader lines — bare `\input`-able fragments `build/rules_<type>.tex` (melee weapon, ranged weapon, drone, pilot, frame), a standalone `build/rules_<type>_doc.tex` per fragment, and a combined preview `build/rules.tex`.
 Run: `python generateCards.py`
 
