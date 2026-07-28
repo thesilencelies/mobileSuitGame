@@ -1,7 +1,7 @@
 Name,Faction,Group,Initiative,Movement,HighBlock,MidBlock,LowBlock,HighDType,MidDType,LowDType,HighAttack,HighRange,MidAttack,MidRange,LowAttack,LowRange,Text,Persistence,CardImg,BackgroundLayer,ForegroundImg,Flavor,PrintID,Artist
 Punch,,Basic,6,0,0,1,0,,impact,,0,0,1,0,0,0,,0,Punch.png,backgrounds/Basic_bg.png,,,1,GoodBoy
 Kick,,Basic,6,0,0,0,1,,,impact,0,0,0,0,1,0,,0,Kick.png,backgrounds/Basic_bg.png,,,1,GoodBoy
-Block,,Basic,3,-1,1,1,0,,,,0,0,0,0,0,0,,0,Block.png,backgrounds/Basic_bg.png,,,1,GoodBoy
+Block,,Basic,3,-1,1,1,1,,,,0,0,0,0,0,0,,0,Block.png,backgrounds/Basic_bg.png,,,1,GoodBoy
 Dodge,,Basic,8,2,0,0,0,,,,0,0,0,0,0,0,Ranged attacks target at -8 range,0,Dodge.png,backgrounds/Basic_bg.png,,,1,GoodBoy
 Throw,,Basic,4,-2,0,1,0,impact,,,1,6,0,0,0,0,,0,Throw.png,backgrounds/Basic_bg.png,,,1,GoodBoy
 Sprint,,Basic,1,2,0,0,1,,,,0,0,0,0,0,0,,0,Sprint.png,backgrounds/Basic_bg.png,,,1,GoodBoy

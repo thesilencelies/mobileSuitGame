@@ -58,8 +58,10 @@ from __future__ import annotations
 import argparse
 import csv
 import random
+from bisect import bisect_left, bisect_right
 from dataclasses import dataclass, field
 from html import escape
+from itertools import combinations
 from pathlib import Path
 
 ZONES = ("High", "Mid", "Low")
@@ -182,12 +184,13 @@ class Pile:
         self.rng.shuffle(self._pile)
 
     def draw(self, n: int) -> list:
-        hand = []
-        for _ in range(n):
-            if not self._pile:
-                self.reset()
-            hand.append(self._pile.pop())
-        return hand
+        # Never span a reshuffle mid-draw: that could deal the same card twice in
+        # one hand. Cap at the deck size (a pool larger than the deck just means
+        # "the whole deck"), and reshuffle first if the pile can't cover the draw.
+        n = min(n, len(self.deck))
+        if n > len(self._pile):
+            self.reset()
+        return [self._pile.pop() for _ in range(n)]
 
 
 @dataclass(eq=False)  # identity-based, so Frames are hashable dict keys
@@ -200,6 +203,8 @@ class Frame:
     pile: Pile
     damage: dict = field(default_factory=lambda: {z: 0 for z in ZONES})
     is_target: bool = False
+    opp_profile: dict = None  # opposing team's aggregate profile (intelligent mode)
+    strategy: tuple = None    # (defense_weight, concentration_weight); None = defaults
 
     def reset(self) -> None:
         self.damage = {z: 0 for z in ZONES}
@@ -222,9 +227,122 @@ class Play:
         self.consumed = False   # has it been spent as a block?
 
 
+def deck_profile(cards_list: list) -> dict:
+    """Aggregate a deck (or team's decks) into the tendencies used to pick cards
+    intelligently: how often it blocks each zone, how much attack it throws at
+    each zone (average points per card), and its initiative spread (so 'high/low
+    initiative' is judged relative to THIS opponent, not an absolute scale)."""
+    n = len(cards_list) or 1
+    block_freq = {z: 0.0 for z in ZONES}
+    atk_weight = {z: 0.0 for z in ZONES}
+    for c in cards_list:
+        for z in c.blocks:
+            block_freq[z] += 1
+        for z, a in zip(ZONES, c.attacks):
+            atk_weight[z] += a
+    atk_count = {z: 0 for z in ZONES}
+    for c in cards_list:
+        for z in c.attack_zones:
+            atk_count[z] += 1
+    return {"block_freq": {z: block_freq[z] / n for z in ZONES},
+            "atk_weight": {z: atk_weight[z] / n for z in ZONES},
+            "atk_freq": {z: atk_count[z] / n for z in ZONES},  # cards attacking z
+            "inits": sorted(c.initiative for c in cards_list),
+            "n": n}
+
+
+def _rel_init(card: Card, prof: dict) -> float:
+    """Where the card's initiative sits within the opponent's deck: ~0 = slower
+    than all their cards (resolves last, blocks cost it its attack), ~1 = faster
+    than all (resolves first, then blocks for free)."""
+    inits, n = prof["inits"], prof["n"]
+    lo = bisect_left(inits, card.initiative)
+    hi = bisect_right(inits, card.initiative)
+    return (lo + hi) / (2 * n) if n else 0.5
+
+
+# Relative weights of the scoring terms (tune to taste).
+DEFENSE_WEIGHT = 1.0
+CONCENTRATION_WEIGHT = 0.6
+
+
+def score_hand(cards: list, prof: dict, defense_weight: float = None,
+               concentration_weight: float = None) -> float:
+    """Rate a *combination* of cards chosen as one turn's actions, against the
+    opponent's profile. `defense_weight` / `concentration_weight` override the
+    module defaults (used for per-team strategy). Follows the requested logic:
+
+      * Attacks — an attack is always credited for the damage it is likely to
+        land (zones the opponent rarely blocks). A card that resolves BEFORE most
+        of the opponent's cards gets an ADDITIONAL bonus for hitting zones they DO
+        block, because it forces them to spend a card to block and lose that
+        card's own attack. So low-initiative cards chase unblocked zones, while
+        high-initiative cards are happy to hit blocked zones too.
+      * Low-initiative cards prefer NOT to block (their block would cost them
+        their attack) so they can land damage; high-initiative blocks are free.
+      * Concentration — two attacks on the SAME zone stack toward overwhelming
+        that zone's HP, so shared attack zones get a bonus.
+      * Coverage — blocks are valued per zone up to how many attacks the opponent
+        actually throws at that zone. Against a spread attacker one block each on
+        several zones wins; against a deck that CONCENTRATES on one zone, a second
+        (and third) block on that zone is credited too, because each incoming
+        attack must be blocked separately."""
+    if prof is None:
+        return 0.0
+    dw = DEFENSE_WEIGHT if defense_weight is None else defense_weight
+    cw = CONCENTRATION_WEIGHT if concentration_weight is None else concentration_weight
+    bf, aw, af = prof["block_freq"], prof["atk_weight"], prof["atk_freq"]
+
+    offense = 0.0
+    landing = {z: 0.0 for z in ZONES}       # attack expected to land, per zone
+    hitters = {z: 0 for z in ZONES}         # how many chosen cards attack each zone
+    block_avails = {z: [] for z in ZONES}   # availability of every block per zone
+    for c in cards:
+        t = _rel_init(c, prof)
+        for z, a in zip(ZONES, c.attacks):
+            if a:
+                # base = damage likely to land; + high-init bonus for forcing a
+                # block on zones they cover. hit_value = 1 - bf*(1-t).
+                offense += a * (1 - bf[z] * (1 - t))
+                landing[z] += a * (1 - bf[z])
+                hitters[z] += 1
+        # A low-init attacker is reluctant to block (it would lose its attack);
+        # a pure block or a high-init card blocks essentially for free.
+        avail = 1.0 if not c.is_attack else t
+        for z in c.blocks:
+            block_avails[z].append(avail)
+
+    # Count only as many blocks per zone as the opponent is expected to attack it
+    # (they play len(cards) actions/turn, af[z] of them at zone z).
+    defense = 0.0
+    for z in ZONES:
+        need = max(1, round(af[z] * len(cards)))
+        defense += aw[z] * sum(sorted(block_avails[z], reverse=True)[:need])
+    defense *= dw
+
+    concentration = cw * sum(landing[z] for z in ZONES if hitters[z] >= 2)
+    return offense + defense + concentration
+
+
+def _choose_hand(frame: Frame, hand_size: int, intelligent: bool, pool: int,
+                 rng: random.Random) -> list:
+    """The cards a frame commits as actions this turn. Random by default; in
+    intelligent mode, draw a pool and keep the best-scoring COMBINATION of size
+    hand_size (so synergy between the chosen cards counts)."""
+    if intelligent and frame.opp_profile is not None:
+        dw, cw = frame.strategy or (None, None)
+        drawn = frame.pile.draw(max(pool, hand_size))
+        k = min(hand_size, len(drawn))
+        best = max(combinations(range(len(drawn)), k),
+                   key=lambda idx: (score_hand([drawn[i] for i in idx], frame.opp_profile, dw, cw),
+                                    rng.random()))
+        return [drawn[i] for i in best]
+    return frame.pile.draw(hand_size)
+
+
 def play_game(team_a: list, team_b: list, target_a: Frame, target_b: Frame,
               hand_size: int, health: int, max_rounds: int,
-              rng: random.Random) -> tuple:
+              rng: random.Random, intelligent: bool = False, pool: int = 5) -> tuple:
     """Play one game to destruction. Returns (winner, rounds).
 
     winner is "A", "B" (surviving team) or "draw" if max_rounds is hit."""
@@ -236,7 +354,8 @@ def play_game(team_a: list, team_b: list, target_a: Frame, target_b: Frame,
 
     for rnd in range(1, max_rounds + 1):
         # Everyone chooses their actions for the turn.
-        hands = {f: [Play(card, f) for card in f.pile.draw(hand_size)]
+        hands = {f: [Play(card, f) for card in
+                     _choose_hand(f, hand_size, intelligent, pool, rng)]
                  for f in all_frames}
         # Resolve highest initiative first; random tiebreak.
         events = sorted(
@@ -315,6 +434,14 @@ class SimConfig:
     max_rounds: int = 200
     target_a: int = 0
     target_b: int = 0
+    intelligent: bool = False  # pick cards vs the opponent profile instead of random
+    pool: int = 5              # cards drawn to choose from in intelligent mode
+    # Per-team scoring weights (None = module default). Lets each side play a
+    # different strategy, e.g. one turtling on defense while the other attacks.
+    defense_a: float = None
+    concentration_a: float = None
+    defense_b: float = None
+    concentration_b: float = None
 
 
 def run_matchup(deck_a: list, deck_b: list, cards: dict, cfg: SimConfig,
@@ -325,11 +452,24 @@ def run_matchup(deck_a: list, deck_b: list, cards: dict, cfg: SimConfig,
     team_a, target_a = build_team(deck_a, "A", cards, cfg.target_a, rng)
     team_b, target_b = build_team(deck_b, "B", cards, cfg.target_b, rng)
 
+    # In intelligent mode each frame plays against the opposing team's profile,
+    # using its own team's strategy weights.
+    if cfg.intelligent:
+        prof_a = deck_profile([c for f in team_a for c in f.pile.deck])
+        prof_b = deck_profile([c for f in team_b for c in f.pile.deck])
+        for f in team_a:
+            f.opp_profile = prof_b
+            f.strategy = (cfg.defense_a, cfg.concentration_a)
+        for f in team_b:
+            f.opp_profile = prof_a
+            f.strategy = (cfg.defense_b, cfg.concentration_b)
+
     wins = {"A": 0, "B": 0, "draw": 0}
     rounds_on_win = {"A": [], "B": []}
     for _ in range(cfg.games):
         winner, rnds = play_game(team_a, team_b, target_a, target_b,
-                                 cfg.hand, cfg.health, cfg.max_rounds, rng)
+                                 cfg.hand, cfg.health, cfg.max_rounds, rng,
+                                 cfg.intelligent, cfg.pool)
         wins[winner] += 1
         if winner in rounds_on_win:
             rounds_on_win[winner].append(rnds)
@@ -350,15 +490,42 @@ def run_matchup(deck_a: list, deck_b: list, cards: dict, cfg: SimConfig,
 # Sub-command: match  (explicit teams, the original behaviour)
 # --------------------------------------------------------------------------- #
 
+def _team_weights(args) -> tuple:
+    """(defense_a, conc_a, defense_b, conc_b): per-team overrides fall back to the
+    global --defense / --concentration, which fall back to the module defaults."""
+    g_def, g_conc = args.defense, args.concentration
+    return (
+        getattr(args, "defense_a", None) if getattr(args, "defense_a", None) is not None else g_def,
+        getattr(args, "concentration_a", None) if getattr(args, "concentration_a", None) is not None else g_conc,
+        getattr(args, "defense_b", None) if getattr(args, "defense_b", None) is not None else g_def,
+        getattr(args, "concentration_b", None) if getattr(args, "concentration_b", None) is not None else g_conc,
+    )
+
+
+def _mode_label(cfg: SimConfig) -> str:
+    """A compact ' [intelligent ...]' banner showing pool and effective weights."""
+    def w(d, c):
+        d = DEFENSE_WEIGHT if d is None else d
+        c = CONCENTRATION_WEIGHT if c is None else c
+        return f"def={d:g},conc={c:g}"
+    a, b = w(cfg.defense_a, cfg.concentration_a), w(cfg.defense_b, cfg.concentration_b)
+    inner = a if a == b else f"A({a}) B({b})"
+    return f" [intelligent pool={cfg.pool} {inner}]"
+
+
 def cmd_match(args) -> None:
     rng = random.Random(args.seed)
     cards = load_cards()
+    da, ca, db, cb = _team_weights(args)
     cfg = SimConfig(args.games, args.hand, args.health, args.max_rounds,
-                    args.target_a, args.target_b)
+                    args.target_a, args.target_b,
+                    intelligent=args.intelligent, pool=args.pool,
+                    defense_a=da, concentration_a=ca, defense_b=db, concentration_b=cb)
     stats = run_matchup(args.team_a, args.team_b, cards, cfg, rng)
 
     print("=" * 64)
-    print("mobileSuitGame balance simulation")
+    print("mobileSuitGame balance simulation"
+          + (_mode_label(cfg) if cfg.intelligent else ""))
     print("=" * 64)
     print(f"Team A: {[Path(d).stem for d in args.team_a]}  (target: {stats['target_a']})")
     print(f"Team B: {[Path(d).stem for d in args.team_b]}  (target: {stats['target_b']})")
@@ -390,11 +557,15 @@ def _print_stat_lines(stats: dict) -> None:
 def cmd_scale(args) -> None:
     rng = random.Random(args.seed)
     cards = load_cards()
-    cfg = SimConfig(args.games, args.hand, args.health, args.max_rounds)
+    da, ca, db, cb = _team_weights(args)
+    cfg = SimConfig(args.games, args.hand, args.health, args.max_rounds,
+                    intelligent=args.intelligent, pool=args.pool,
+                    defense_a=da, concentration_a=ca, defense_b=db, concentration_b=cb)
     a, b = args.deck_a, args.deck_b
 
     print("=" * 72)
-    print("mobileSuitGame team-size scaling")
+    print("mobileSuitGame team-size scaling"
+          + (_mode_label(cfg) if cfg.intelligent else ""))
     print("=" * 72)
     print(f"Team A deck: {Path(a).stem}     Team B deck: {Path(b).stem}")
     print(f"Games each: {args.games}   hand={args.hand}   health={args.health}   "
@@ -419,7 +590,13 @@ def cmd_scale(args) -> None:
 def cmd_tournament(args) -> None:
     rng = random.Random(args.seed)
     cards = load_cards()
-    cfg = SimConfig(args.games, args.hand, args.health, args.max_rounds)
+    # Each cell is row-deck (team A) vs column-deck (team B), so the A/B strategy
+    # weights apply to rows vs columns respectively. Give them different weights
+    # (e.g. --defense-a 0 --defense-b 4) to read attackers-vs-defenders off the grid.
+    da, ca, db, cb = _team_weights(args)
+    cfg = SimConfig(args.games, args.hand, args.health, args.max_rounds,
+                    intelligent=args.intelligent, pool=args.pool,
+                    defense_a=da, concentration_a=ca, defense_b=db, concentration_b=cb)
 
     deck_paths = list(args.decks)
     if args.decks_dir:
@@ -448,12 +625,12 @@ def cmd_tournament(args) -> None:
     out.write_text(html, encoding="utf-8")
     print(f"\nWrote visual report -> {out}")
 
-    # Text ranking per size by mean A-win% across opponents.
+    # Text ranking per size by mean head-to-head win-ratio (draws excluded).
     for n in args.sizes:
         grid = grids[n]
-        print(f"\nRanking at {n}v{n} (mean win% as team A across all opponents):")
+        print(f"\nRanking at {n}v{n} (mean win-ratio vs all opponents, draws excluded):")
         scored = sorted(
-            ((sum(grid[i][j]["rate"]["A"] for j in range(d)) / d, names[i])
+            ((sum(_win_ratio(grid[i][j]) for j in range(d)) / d, names[i])
              for i in range(d)), reverse=True)
         for rate, name in scored:
             print(f"  {rate:5.1f}%  {name}")
@@ -477,10 +654,19 @@ def _ink_on(rgb: tuple) -> str:
     return "#0b0b0b" if lum > 0.6 else "#ffffff"
 
 
+def _win_ratio(st: dict) -> float:
+    """Head-to-head ratio row-wins / (row-wins + col-wins), as a 0-100 percent,
+    ignoring draws. 50 when the two are equal OR every game drew."""
+    wa, wb = st["wins"]["A"], st["wins"]["B"]
+    return 100.0 * wa / (wa + wb) if (wa + wb) else 50.0
+
+
 def _render_heatmap(names: list, grid: list, n: int) -> str:
-    """One <section> containing the win-rate heatmap table for team size n."""
+    """One <section> with the heatmap for team size n. Each cell shows the row
+    deck's win count over the column deck's; colour is the win ratio (draws
+    excluded) so a decisive 50/50 and an all-draws cell read differently."""
     d = len(names)
-    row_avg = [sum(grid[i][j]["rate"]["A"] for j in range(d)) / d for i in range(d)]
+    row_avg = [sum(_win_ratio(grid[i][j]) for j in range(d)) / d for i in range(d)]
 
     head_cells = "".join(f"<th class='col'><div>{escape(nm)}</div></th>" for nm in names)
     body_rows = []
@@ -488,16 +674,17 @@ def _render_heatmap(names: list, grid: list, n: int) -> str:
         cells = []
         for j in range(d):
             st = grid[i][j]
-            pct = st["rate"]["A"]
-            rgb = _diverging(pct)
+            wa, wb, dr = st["wins"]["A"], st["wins"]["B"], st["wins"]["draw"]
+            rgb = _diverging(_win_ratio(st))
             ar = st["avg_rounds"]["A"]
             tip = (f"{names[i]} (A) vs {names[j]} (B) @ {n}v{n}\n"
-                   f"A wins {st['rate']['A']:.1f}%  |  B wins {st['rate']['B']:.1f}%"
-                   f"  |  draws {st['rate']['draw']:.1f}%"
+                   f"A wins {wa} ({st['rate']['A']:.1f}%)  |  B wins {wb} "
+                   f"({st['rate']['B']:.1f}%)  |  draws {dr} ({st['rate']['draw']:.1f}%)"
                    + (f"\navg rounds to kill: {ar:.1f}" if ar is not None else ""))
             diag = " diag" if i == j else ""
             cells.append(f"<td class='cell{diag}' style='background:rgb{rgb};"
-                         f"color:{_ink_on(rgb)}' title='{escape(tip)}'>{pct:.0f}</td>")
+                         f"color:{_ink_on(rgb)}' title='{escape(tip)}'>"
+                         f"<b>{wa}</b><span class='sl'>/</span>{wb}</td>")
         avg_rgb = _diverging(row_avg[i])
         cells.append(f"<td class='cell avg' style='background:rgb{avg_rgb};"
                      f"color:{_ink_on(avg_rgb)}'>{row_avg[i]:.0f}</td>")
@@ -518,9 +705,28 @@ def render_tournament_html(names: list, grids: dict, cfg: SimConfig) -> str:
     deck i's win rate as team A against deck j as team B; every cell shows its
     number, so meaning never rides on colour alone."""
     sections = "\n".join(_render_heatmap(names, grids[n], n) for n in sorted(grids))
+
+    def _w(d, c):
+        d = DEFENSE_WEIGHT if d is None else d
+        c = CONCENTRATION_WEIGHT if c is None else c
+        return f"def={d:g}, conc={c:g}"
+    if not cfg.intelligent:
+        play = "random play"
+        asym_note = ""
+    else:
+        wa, wb = _w(cfg.defense_a, cfg.concentration_a), _w(cfg.defense_b, cfg.concentration_b)
+        if wa == wb:
+            play = f"intelligent play ({wa}), pool {cfg.pool}"
+            asym_note = ""
+        else:
+            play = (f"intelligent play, pool {cfg.pool} &middot; "
+                    f"rows played as A [{wa}] &middot; columns played as B [{wb}]")
+            asym_note = (" Because the two sides use different strategies, the grid is "
+                         "<strong>not symmetric</strong> — cell (i,j) and (j,i) are different "
+                         "matchups, so both triangles are informative.")
     subtitle = (f"{len(names)} decks &middot; sizes {', '.join(f'{n}v{n}' for n in sorted(grids))} "
                 f"&middot; {cfg.games} games/cell &middot; hand {cfg.hand} "
-                f"&middot; {cfg.health} HP/zone")
+                f"&middot; {cfg.health} HP/zone &middot; {play}")
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -543,11 +749,13 @@ def render_tournament_html(names: list, grids: dict, cfg: SimConfig) -> str:
                padding:.4rem .1rem; color:var(--muted); font-weight:600; font-size:.8rem; }}
   th.row {{ text-align:right; padding-right:.6rem; color:var(--muted); font-weight:600;
            white-space:nowrap; font-size:.85rem; }}
-  td.cell {{ width:44px; height:38px; text-align:center; vertical-align:middle;
-            font-variant-numeric:tabular-nums; font-weight:600; border-radius:4px;
-            font-size:.85rem; }}
+  td.cell {{ min-width:58px; height:38px; padding:0 4px; text-align:center;
+            vertical-align:middle; font-variant-numeric:tabular-nums; font-weight:500;
+            border-radius:4px; font-size:.78rem; white-space:nowrap; }}
+  td.cell b {{ font-weight:800; }}
+  td.cell .sl {{ opacity:.5; margin:0 1px; font-weight:400; }}
   td.cell.diag {{ outline:2px solid var(--surface); outline-offset:-2px; opacity:.85; }}
-  td.cell.avg {{ font-weight:800; }}
+  td.cell.avg {{ font-weight:800; min-width:44px; }}
   th.avghead div {{ color:var(--ink); }}
   .legend {{ display:flex; align-items:center; gap:.6rem; margin:1.25rem 0 .5rem; font-size:.82rem;
             color:var(--muted); flex-wrap:wrap; }}
@@ -562,13 +770,15 @@ def render_tournament_html(names: list, grids: dict, cfg: SimConfig) -> str:
     <span>row deck loses</span>
     <span class="bar"></span>
     <span>row deck wins</span>
-    <span style="margin-left:.5rem">(0% &nbsp; 50% &nbsp; 100%)</span>
+    <span style="margin-left:.5rem">(head-to-head ratio, draws excluded)</span>
   </div>
-  <p class="note">Each cell is the <strong>row</strong> deck's win rate playing as
-  team&nbsp;A against the <strong>column</strong> deck as team&nbsp;B. 50% (gray) is
-  an even matchup; the diagonal is a deck against itself. <em>row&nbsp;avg</em> is the
-  mean across all opponents — a rough power ranking. Hover any cell for the full
-  A/B/draw split.</p>
+  <p class="note">Each cell shows <strong><b>row&nbsp;wins</b> / column&nbsp;wins</strong>
+  — the row deck (as team&nbsp;A) against the column deck (as team&nbsp;B). The colour
+  is the ratio between those two, <em>ignoring draws</em>, so a genuine 50/50 fight
+  (gray) is distinct from a cell that mostly drew (the two counts are both small).
+  The diagonal is a deck against itself; <em>row&nbsp;avg</em> is that deck's mean
+  win-ratio across all opponents — a rough power ranking. Hover any cell for the
+  exact win/draw split.{asym_note}</p>
   {sections}
 </body></html>
 """
@@ -589,6 +799,30 @@ def main() -> None:
                        help="round cap before a game is called a draw")
         p.add_argument("--seed", type=int, default=None,
                        help="RNG seed for reproducibility")
+        p.add_argument("--intelligent", action="store_true",
+                       help="pick the best actions vs the opponent's deck profile "
+                            "instead of playing random cards")
+        p.add_argument("--pool", type=int, default=5,
+                       help="cards seen to choose actions from in intelligent mode "
+                            "(default 5; capped at deck size, so a big value = the "
+                            "whole deck every turn)")
+        p.add_argument("--defense", type=float, default=None,
+                       help="intelligent defense weight for BOTH teams "
+                            f"(default {DEFENSE_WEIGHT})")
+        p.add_argument("--concentration", type=float, default=None,
+                       help="intelligent concentration weight for BOTH teams "
+                            f"(default {CONCENTRATION_WEIGHT})")
+
+    def add_per_team_strategy(p):
+        # Per-team overrides so each side can play a different strategy.
+        p.add_argument("--defense-a", type=float, default=None,
+                       help="override defense weight for team A only")
+        p.add_argument("--defense-b", type=float, default=None,
+                       help="override defense weight for team B only")
+        p.add_argument("--concentration-a", type=float, default=None,
+                       help="override concentration weight for team A only")
+        p.add_argument("--concentration-b", type=float, default=None,
+                       help="override concentration weight for team B only")
 
     m = sub.add_parser("match", help="one explicit matchup (team A vs team B)")
     m.add_argument("--team-a", nargs="+", required=True, help="deck CSV(s) for team A")
@@ -598,6 +832,7 @@ def main() -> None:
     m.add_argument("--target-b", type=int, default=0,
                    help="index of team B's focus-fired frame (default 0)")
     add_common(m)
+    add_per_team_strategy(m)
     m.set_defaults(func=cmd_match)
 
     s = sub.add_parser("scale", help="same deck-pair at 1v1, 2v2, 3v3 ...")
@@ -606,6 +841,7 @@ def main() -> None:
     s.add_argument("--sizes", type=int, nargs="+", default=[1, 2, 3],
                    help="team sizes to test (default 1 2 3)")
     add_common(s)
+    add_per_team_strategy(s)
     s.set_defaults(func=cmd_scale)
 
     t = sub.add_parser("tournament", help="round-robin over a deck set -> HTML report")
@@ -614,7 +850,8 @@ def main() -> None:
     t.add_argument("--sizes", type=int, nargs="+", default=[1, 2, 3],
                    help="team sizes, one heatmap each (default 1 2 3)")
     t.add_argument("--output", default="build/tournament.html", help="HTML report path")
-    add_common(t, default_games=2500)
+    add_common(t, default_games=250)
+    add_per_team_strategy(t)  # rows play the A-strategy, columns the B-strategy
     t.set_defaults(func=cmd_tournament)
 
     args = parser.parse_args()

@@ -154,14 +154,29 @@ rules_dict = {
 
 def createMacros():
     with open(buildfolder + 'card_macros.tex', 'w') as ofile:
-        # Single source of truth for shared colours; card_all.tex embeds this
-        # return value and rules.tex \inputs the generated card_macros.tex.
-        # Elevation ramp endpoints: low elevation = dark, desaturated slate
-        # (citysteel); high elevation = light, saturated azure (cityblue). The
-        # e1/e2/e3 styles mix between them so the ramp climbs in both saturation
-        # and lightness with height.
-        card_text = "\\definecolor{cityblue}{RGB}{96,156,255}\n" \
-                    "\\definecolor{citysteel}{RGB}{58,66,78}\n"
+        card_text = "\\definecolor{cityblue}{RGB}{105,156,255}\n" \
+                    "\\definecolor{citysteel}{RGB}{78,76,118}\n"
+        # The base shield is split into a fill and a stroke so the super-block
+        # variant can slip its inner emphasis line *between* them (on top of the
+        # fill, under the middle outline) -- otherwise the opaque fill would
+        # paint over the inner line. \blockshield composes both for normal use.
+        card_text += (
+            "\n\\newcommand{\\blockshieldpath}[4]{"
+            "(#1-#3,#2+#4) -- (#1,#2+#4-0.2) -- (#1+#3,#2+#4) -- "
+            "(#1+#3,#2-#4+0.5) -- (#1,#2-#4-0.3) -- (#1-#3,#2-#4+0.5) -- cycle}\n"
+            "\\newcommand{\\blockshieldfill}[3]{\\fill[#3!20, rounded corners=0.15cm] "
+            "\\blockshieldpath{#1}{#2}{1.0}{1.0};}\n"
+            "\\newcommand{\\blockshieldline}[3]{\\draw[draw=#3, line width=6pt, "
+            "rounded corners=0.15cm] \\blockshieldpath{#1}{#2}{1.0}{1.0};}\n"
+            "\\newcommand{\\blockshield}[3]{\\blockshieldfill{#1}{#2}{#3}\\blockshieldline{#1}{#2}{#3}}\n"
+            "\\newcommand{\\superblockshield}[3]{%\n"
+            "  \\draw[draw=#3!55!black, line width=4.7pt, rounded corners=0.15cm] "
+            "\\blockshieldpath{#1}{#2}{1.18}{1.18};%\n"
+            "  \\blockshieldfill{#1}{#2}{#3}%\n"
+            "  \\draw[draw=#3!55!black, line width=2.9pt, rounded corners=0.15cm] "
+            "\\blockshieldpath{#1}{#2}{0.82}{0.82};%\n"
+            "  \\blockshieldline{#1}{#2}{#3}}\n"
+        )
 
         for t, img in damage_type_dict.items():
             card_text += "\n\\newcommand{\\" + t + "}{"
@@ -249,30 +264,21 @@ def move_icon_outline_fill(pos: str, color: str) -> str:
     )
     return "\\fill[" + color + "] " + points + " -- cycle;\n"
 
-def block_shield_outline(pos, color):
-    """Bold shield-shaped background+outline for a blocked zone, replacing
-    the plain backbox rounded rectangle so a block reads as covering the
-    whole attack, not just a pip icon.
+def block_shield_outline(pos, color, super_block=False):
+    """Shield-shaped background+outline for a blocked zone, replacing the plain
+    backbox rounded rectangle so a block reads as covering the whole attack, not
+    just a pip icon. When ``super_block`` is set (a block value greater than 1)
+    the emphasised \\superblockshield variant is used instead, adding a larger
+    darker outer outline plus a thin inner line.
 
-    Footprint starts from the same 2cm square centred on (6.2, pos), but:
-    - the top edge gets a shallow V notch at its centre
-    - the bottom-left/right corners are raised 0.5cm
-    - a point continues down from those raised corners into the dead space
-      below the box (between this zone row and the next), which is where
-      the (now centred) range indicator sits
-    """
-    x, y = 6.2, pos
-    hw, hh = 1.0, 1.0
-    notch_depth = 0.2
-    tip_depth = 0.3
-    corner_raise = 0.5
-    tl = f"({x - hw}, {y + hh})"
-    top = f"({x}, {y + hh - notch_depth})"
-    tr = f"({x + hw}, {y + hh})"
-    br = f"({x + hw}, {y - hh + corner_raise})"
-    bl = f"({x - hw}, {y - hh + corner_raise})"
-    tip = f"({x}, {y - hh - tip_depth})"
-    return f"\\filldraw[draw={color}, line width=6pt, fill={color}!20, rounded corners=0.15cm] {tl} -- {top} -- {tr} -- {br} -- {tip} -- {bl} -- cycle;\n"
+    The shield shape itself lives in the \\blockshieldpath / \\blockshield /
+    \\superblockshield macros in card_macros.tex so cards and the rules
+    reference draw an identical marker from one definition. It is centred on
+    (6.2, pos): the top edge carries a shallow V notch, the bottom-left/right
+    corners are raised, and a point continues down into the dead space below the
+    box where the (centred) range indicator sits."""
+    macro = "\\superblockshield" if super_block else "\\blockshield"
+    return f"{macro}{{6.2}}{{{pos}}}{{{color}}}\n"
 
 def attack_box(atk, rng, block, pos, dmg_type, color):
     out_text = ""
@@ -282,7 +288,7 @@ def attack_box(atk, rng, block, pos, dmg_type, color):
     # the background, since the block applies to the whole attack in that
     # zone, not just the block pips
     if block:
-        out_text = out_text + block_shield_outline(pos, color)
+        out_text = out_text + block_shield_outline(pos, color, super_block=block > 1)
     elif atk:
         out_text = out_text + f"\\node[backbox, fill={color}!20] at (6.2, {pos}){{}};\n"
     # what graphic to use
@@ -467,9 +473,11 @@ WEAPON_CALLOUTS = [
      "desc": "Turns this card stays in play once committed.", "aim": "(persistence)"},
     {"x": RIGHT_GUTTER, "y": 7.0, "side": "right", "title": "Attack",
      "desc": "Damage that would be dealt to this zone.", "aim": "(atk_aim)"},
-    {"x": RIGHT_GUTTER, "y": 5.3, "side": "right", "title": "Block",
+    {"x": RIGHT_GUTTER, "y": 5.8, "side": "right", "title": "Block",
      "desc": "Attacks to this zone are blocked.", "aim": "(block_aim)"},
-    {"x": RIGHT_GUTTER, "y": 3.6, "side": "right", "title": "Range",
+    {"x": RIGHT_GUTTER, "y": 3.9, "side": "right", "title": "Super block",
+     "desc": "Stronger block: this card is not discarded when it blocks, so it keeps blocking this zone.", "aim": "(superblock_aim)"},
+    {"x": RIGHT_GUTTER, "y": 3.1, "side": "right", "title": "Range",
      "desc": "Range of this zone's attack.", "aim": "(range_aim)"},
     {"x": RIGHT_GUTTER, "y": 1.5, "side": "right", "title": "Set info",
      "desc": "Faction, card type, weapon group, flavour text.", "aim": "(setinfo)"},
@@ -537,7 +545,9 @@ DRONE_CALLOUTS = [
      "desc": "Damage the drone deals to this zone.", "aim": "(atk_aim)"},
     {"x": RIGHT_GUTTER, "y": 5.2, "side": "right", "title": "Block",
      "desc": "Attacks to this zone are blocked when the card is played.", "aim": "(block_aim)"},
-    {"x": RIGHT_GUTTER, "y": 3.6, "side": "right", "title": "Range",
+    {"x": RIGHT_GUTTER, "y": 4.1, "side": "right", "title": "Super block",
+     "desc": "The doubled outline marks a stronger block: this card is not discarded when it blocks, so it keeps blocking this zone.", "aim": "(superblock_aim)"},
+    {"x": RIGHT_GUTTER, "y": 3.0, "side": "right", "title": "Range",
      "desc": "Range of the drone's attack.", "aim": "(range_aim)"},
     {"x": RIGHT_GUTTER, "y": 1.8, "side": "right", "title": "Set info",
      "desc": "Faction, card type, group, flavour.", "aim": "(setinfo)"},
@@ -671,8 +681,17 @@ def make_card_from_row(row, card_type, group_capability=None, annotate=False, an
                         if parse_int_safe(row.get(f"{z}{feat}")):
                             return z
                     return None
+                def first_block_zone(pred, order=("Mid", "High", "Low")):
+                    for z in order:
+                        v = parse_int_safe(row.get(f"{z}Block"))
+                        if v is not None and pred(v):
+                            return z
+                    return None
                 atk_z = first_zone("Attack", ["High", "Mid", "Low"])
-                blk_z = first_zone("Block", ["Mid", "High", "Low"])
+                # normal block (value 1) and super block (value > 1) get separate
+                # anchors so each can carry its own callout on the rules cards
+                blk_z = first_block_zone(lambda v: v == 1)
+                sblk_z = first_block_zone(lambda v: v > 1)
                 rng_z = first_zone("Range", ["Low", "Mid", "High"])
                 if atk_z:
                     card_text += f"\\coordinate (atk_aim) at (7.0,{zone_pos[atk_z] + 0.5});\n"
@@ -680,6 +699,9 @@ def make_card_from_row(row, card_type, group_capability=None, annotate=False, an
                 if blk_z:
                     card_text += f"\\coordinate (block_aim) at (7.2,{zone_pos[blk_z]});\n"
                     present.add("block_aim")
+                if sblk_z:
+                    card_text += f"\\coordinate (superblock_aim) at (7.2,{zone_pos[sblk_z]});\n"
+                    present.add("superblock_aim")
                 if rng_z:
                     card_text += f"\\coordinate (range_aim) at (6.2,{zone_pos[rng_z] - 0.3});\n"
                     present.add("range_aim")
@@ -1346,6 +1368,20 @@ def _pick(rows, key):
     return max(rows, key=key) if rows else None
 
 
+def _block_values(row):
+    return [parse_int_safe(row.get(f"{z}Block")) or 0 for z in zones_order]
+
+def _pick_superblock(rows):
+    """Pick a weapon card that carries a super block (a zone with block > 1) to
+    stand as the labelled Super block example, preferring one that also has a
+    normal block so the rules card contrasts both markers side by side."""
+    cands = [r for r in rows if any(v > 1 for v in _block_values(r))]
+    if not cands:
+        return None
+    return max(cands, key=lambda r: _annotation_score(r, zones=True)
+               + (150 if any(v == 1 for v in _block_values(r)) else 0))
+
+
 def create_rules_fragments(weapon_rows, weapon_caps, pilot_rows, drone_rows, frame_row):
     """Writes one \\input-able annotated fragment per card type:
         build/rules_weapon_melee.tex, rules_weapon_ranged.tex,
@@ -1367,6 +1403,12 @@ def create_rules_fragments(weapon_rows, weapon_caps, pilot_rows, drone_rows, fra
         make_card_from_row(ranged, CardTypeEnum.WEAPON, weapon_caps.get(ranged["Group"]),
                            annotate=True, annotate_outfile="build/rules_weapon_ranged.tex")
         fragments.append(("Ranged weapon", "rules_weapon_ranged.tex"))
+
+    superblock = _pick_superblock(melee_rows or weapon_rows)
+    if superblock is not None:
+        make_card_from_row(superblock, CardTypeEnum.WEAPON, weapon_caps.get(superblock["Group"]),
+                           annotate=True, annotate_outfile="build/rules_weapon_superblock.tex")
+        fragments.append(("Super block", "rules_weapon_superblock.tex"))
 
     drone = _pick(drone_rows, lambda r: _annotation_score(r, zones=True))
     if drone is not None:

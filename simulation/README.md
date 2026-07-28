@@ -23,9 +23,21 @@ python simulation/simulate.py tournament \
 
 `scale` prints one row per team size; `tournament` runs every ordered deck pair
 (an N×N grid) **at each requested team size** and writes a self-contained report
-with **one heatmap per size** — cell = row deck's win rate as team A vs the column
-deck, with a *row avg* power-ranking column — plus per-size text rankings to
-stdout.
+with **one heatmap per size**. Each cell shows **row&nbsp;wins / column&nbsp;wins**
+(row deck as team A vs column deck as team B) and is coloured by the head-to-head
+ratio between them, **excluding draws** — so an all-draws cell (`0/0`, gray) is
+distinct from a decisive coin-flip (`250/250`, gray). A *row avg* column gives each
+deck's mean win-ratio across opponents; per-size text rankings also print to stdout.
+
+In `tournament`, rows play as team A and columns as team B, so you can give the
+two sides **different strategies** and read attackers-vs-defenders straight off
+the grid (the report labels it and flags that the grid is then not symmetric):
+
+```bash
+python simulation/simulate.py tournament --decks-dir simulation/decks --sizes 1 \
+    --intelligent --pool 8 --defense-a 0 --defense-b 4
+#   rows played offensively (def 0) vs columns played defensively (def 4)
+```
 
 **Games & variance.** Default is **2500 games/matchup**, which keeps run-to-run
 win-rate variance at roughly ±1% (worst case, near 50/50). Halve the games for ~4×
@@ -107,6 +119,54 @@ can never cover a high attack).
 outcomes (initiative-dependent draws/wins, multi-zone blocking) using synthetic
 cards.
 
+## Intelligent play (`--intelligent`)
+
+By default each frame plays 2 random cards. With `--intelligent`, a frame instead
+draws a pool of `--pool` cards (5) and keeps the best-scoring *combination* of 2
+for that turn, scored against the **opposing team's aggregate profile**: how often
+it blocks each zone, how much it attacks each zone, and its **initiative spread**
+— so "high/low initiative" is judged *relative to this opponent* (does my card
+resolve before or after theirs?), not on an absolute scale.
+
+* **Attacks** — an attack is always credited for the damage it is likely to land
+  (zones the opponent rarely blocks). A card that resolves *before* most of the
+  opponent's cards gets an extra bonus for hitting zones they *do* block (forcing
+  them to spend a card to block, losing that card's own attack). So low-init cards
+  chase unblocked zones; high-init cards are also happy to hit blocked ones.
+* **Blocks** — guarding the zones the opponent attacks most. A **low-initiative
+  card prefers not to block** (blocking would cost it its attack), so it leans on
+  landing damage instead; a high-initiative block is nearly free.
+* **Concentration** — two attacks on the *same* zone stack toward overwhelming
+  that zone's HP, so a pair sharing an attack zone scores a bonus.
+* **Coverage** — blocks are valued per zone *up to how many attacks the opponent
+  throws at that zone*. Against a spread attacker, one block on each attacked zone
+  wins; against a deck that concentrates on one zone, a second block on that zone
+  is credited too (each incoming attack must be blocked separately).
+
+Both teams play intelligently when the flag is set. It sharpens real advantages
+(`only_init_high` vs `only_init_low` goes from ~76% to ~94%) and exposes fragile
+decks (a predictable mono-zone attacker gets hard-countered by defenders that just
+block that one zone).
+
+**Tuning the strategy.** The two term weights default to `DEFENSE_WEIGHT`/
+`CONCENTRATION_WEIGHT` at the top of `simulate.py`. Override them per run with
+`--defense` / `--concentration` (both teams), or give each side its *own* strategy
+with `--defense-a/-b` and `--concentration-a/-b` — e.g. make one deck turtle while
+the other attacks. And `--pool` is how many cards a frame chooses its 2 actions
+from (capped at deck size, so a big value means "see the whole deck every turn").
+
+Bigger pools let a deck reliably assemble the answer to a concentrated attacker.
+For example, a balanced deck can't out-*attack* `only_attack_high` (its High hits
+cap at 2 vs 4), but it *can* out-*defend* it — with a defensive tilt and full-deck
+access it always fields the two High-blocks needed and wins:
+
+```bash
+python simulation/simulate.py match \
+    --team-a only_attack_high.csv --team-b even_mix.csv \
+    --intelligent --pool 99 --defense-b 4 --concentration-b 0
+# team B (even_mix) turtles vs team A's normal offense -> ~100% by pool ~8+
+```
+
 ## What is intentionally ignored
 
 Range, movement, terrain, line of sight, frame abilities/health, damage types,
@@ -123,6 +183,10 @@ Common to every sub-command:
 | `--health` | `4` | HP per zone |
 | `--max-rounds` | `200` | round cap before a game is scored a draw |
 | `--seed` | none | RNG seed for reproducible runs |
+| `--intelligent` | off | pick best actions vs the opponent profile (see below) |
+| `--pool` | `5` | cards a frame chooses its actions from (capped at deck size; big = whole deck) |
+| `--defense` | module default | intelligent defense weight for both teams |
+| `--concentration` | module default | intelligent concentration weight for both teams |
 
 Per sub-command:
 
@@ -130,6 +194,7 @@ Per sub-command:
 |---|---|---|---|
 | `match` | `--team-a` / `--team-b` | required | one or more deck CSVs per team |
 | `match` | `--target-a` / `--target-b` | `0` | which frame index gets focus-fired |
+| `match`, `scale`, `tournament` | `--defense-a/-b`, `--concentration-a/-b` | global | per-team strategy override (in `tournament`, A = rows, B = columns) |
 | `scale` | `--deck-a` / `--deck-b` | required | the single deck every frame on that team uses |
 | `scale` | `--sizes` | `1 2 3` | team sizes to test |
 | `tournament` | `--decks` | — | deck CSVs to include (space-separated) |

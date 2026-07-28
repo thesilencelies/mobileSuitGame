@@ -31,16 +31,24 @@
 \maketitle
 
 \section{Welcome to NetFrame}
-In netframe you TODO
-
-
-
+In netframe you command a team of Frames, 10 meter tall fighting robots that amplify their pilots connection to the
+reality warping power of the Net. You'll fight other factions Frames to try to gain 
+control of the districts of the city that extends as far as anyone knows and leave your 
+mark on this world where the didgital is real.
 
 
 These rules set out a method of handling movement and combat between Mobile Suits. The game is played across 5 turns, after which the team with the most victory points wins.
 Each player brings the same number of Frames, each with their own deck. A good default number is 3 per player, although with teams 2 each can be smoother.
  With many players teams are recommended over battle royale, though the rules support either playstyle.
 All frames a player brings should be from the same faction.
+
+
+
+\begin{figure}[htbp]
+  \centering
+\includegraphics[width=\linewidth]{../pictures/bg2.jpg}
+\end{figure}
+
 
 \section{Victory Points}
 Victory points are obtained in two key ways:
@@ -49,39 +57,6 @@ Victory points are obtained in two key ways:
 \item Points equal to the defender score for each objective they successfully defended 
 \item Points equal to the attacker score for each objective they successfully attacked  
 \end{itemize}
-
-\section{Card anatomy}
-
-\begin{figure*}[htb]
-  \centering
-  \resizebox{\textwidth}{!}{\input{../build/rules_weapon_ranged.tex}}
-    \par A ranged Weapon Card
-\end{figure*}
-
-\begin{figure*}[htb]
-  \centering
-    \resizebox{\textwidth}{!}{\input{../build/rules_weapon_melee.tex}}
-    \par A melee Weapon Card
-\end{figure*}
-
-\begin{figure*}[htb]
-    \centering
-      \resizebox{\textwidth}{!}{\input{../build/rules_pilot.tex}}
-    \par A Pilot Card
-\end{figure*}
-
-\renewcommand{\arraystretch}{1.0}
-\begin{tabular}{p{2.7cm} | p{4.5cm}}
-  \makecell[cl]{Initiative:\\  \includegraphics[width=0.5cm]{../icons/initImg.png} }&Marks when the card will resolve. Higher numbers resolve before lower numbers\\ \hline
-  \makecell[cl]{Movement:\\ \includegraphics[width=0.5cm]{../icons/mvimg_old.png}}&How much to add (or subtract if its negative) to the movement for the action with this card\\\hline
-  \makecell[cl]{Attack marks:\\ \smallprojectile \smallpierce \smallcut \smallimpact \smallenergy }& How much damage to deal at this location if this attack hits (symbol indicates damage type)\\\hline
-  \makecell[cl]{Attack range:\\ \includegraphics[width=0.5cm]{../icons/rangeImg.png}} &Range of ranged attack\\\hline
-  \makecell[cl]{Block mark:\\ \tikz{\filldraw[draw=black, line width=0.8pt, fill=black!15, rounded corners=0.02cm] (-0.25,0.25) -- (0,0.2) -- (0.25,0.25) -- (0.25,-0.125) -- (0,-0.325) -- (-0.25,-0.125) -- cycle;}} &Region that this card blocks for indicated with this shield shape instead of a box\\\hline
-  \makecell[cl]{Persistence mark:\\ \tikz{\node [circle, fill = red]{{\textbf{2}}}; }} &Indicates that the card stays on the field after resolving until its effects finish. N indicates how many turns that is.\\\hline
-  Ability text: &Effects that happen when this card is played or resolved.\\\hline
-  \makecell[cl]{Type info:\\\emph{(bottom)}} & What type of card it is, and categorisation information. Used for deckbuilding.\\
-\end{tabular}
-\renewcommand{\arraystretch}{1.0}
 \section{The battlefield}
 
 Terrain blocks movement and line of sight. Terrain that can be stood upon is classified as being on different levels. 
@@ -130,18 +105,20 @@ Deployment zones are 7 units away from the midline.
 
 \section{Setup}
 If using the terrain decks, each player deals out their terrain cards from their terrain deck in 2 rows of (nframes + 2) to make a grid.
-(for 2 players with 3 frames each that makes a 4x5 grid). Any relevant tokens are placed on the terrain cards.
+(for 2 players with 3 frames each that makes a 4x5 grid). Any relevant tokens are placed on the terrain cards. Objective cards are only dealt to the back row - they are a separate deck.
 All objectives on these terrain cards are valid for this battle - you are defending any objectives that are on your teams terrain cards.
+
+For each frame the players choose their starting hand of 7 then shuffle the decks,
 
 Each player takes it in turns to put one of their frames in their deployment zone 
 (The nearest edge of the row of terrain cards nearest them if using, else anwyhere more than 7 from the center line).
-After all frames are deplyed this way, shuffle the decks, and the player who deployed first receives the priority marker. 
+After all frames are deplyed this way the player who deployed first receives the priority marker.
 
 \section{The turn}
 On each turn of the game there are 3 phases: planning, action and cleanup. 
 
 \section{Planning}
-in the planning phase, simultaneously for each frame 5 cards are drawn from it's deck, and from those 2 are chosen and placed facedown. The rest of the cards are put in that decks discard pile (if you are short of space, you can put the cards face up at the bottom of the deck). When the deck runs out, the discard pile is shuffled back in.
+in the planning phase, simultaneously for each frame 7 cards are drawn from it's deck, and from those 2 are chosen and placed facedown. The rest of the cards are put in that decks discard pile (if you are short of space, you can put the cards face up at the bottom of the deck). When the deck runs out, the discard pile is shuffled back in.
 
 \subsection{Echos of the fallen}
 If a frame has been defeated, at the end of the planning phase the player can reveal the top card of that frame's deck and put it sideways with the actions of a surviving frame. That card can also be used to block attacks this turn.
@@ -149,11 +126,6 @@ If a frame has been defeated, at the end of the planning phase the player can re
 \subsection{Status update}
 At the end of the planning phase, one status token of each type is removed from each frame.
 
-
-\begin{figure}[htbp]
-  \centering
-\includegraphics[width=\linewidth]{../pictures/bg2.jpg}
-\end{figure}
 
 \section{Action}
 Each players declares the highest remaining initiaive amongst the initiatives of their remaining cards. 
@@ -177,7 +149,6 @@ After movement is done, any effect on the card is applied. Effects are applied i
   \centering
 \includegraphics[width=\linewidth]{../pictures/garden_2-2.jpg}
 \end{figure}
-
 
 \subsection{Attack}
 If the card has any attack listed, one target frame within any of the ranges may be chosen. They are then the defender for this attack.
@@ -247,6 +218,49 @@ If the frame did not move before applying effects and attacking it may move afte
 Cards without a persistence marker and any cards with a persistence marker whos effects have finished are put into their respective discard piles.
 Cards with a persistence marker that are still active are set aside clearly distinct from the turn's chosen actions ( they do not have active blocks). 
 The priority marker then moves one step anticlockwise. 
+
+\section{Card anatomy}
+
+\begin{figure*}[htbp]
+  \centering
+  \resizebox{\textwidth}{!}{\input{../build/rules_weapon_ranged.tex}}
+    \par A ranged Weapon Card
+\end{figure*}
+
+\begin{figure*}[htbp]
+  \centering
+    \resizebox{\textwidth}{!}{\input{../build/rules_weapon_melee.tex}}
+    \par A melee Weapon Card
+\end{figure*}
+
+\begin{figure*}[htbp]
+  \centering
+    \resizebox{\textwidth}{!}{\input{../build/rules_weapon_superblock.tex}}
+    \par A Weapon Card with a super block (note the doubled shield outline)
+\end{figure*}
+
+\begin{figure*}[htbp]
+    \centering
+      \resizebox{\textwidth}{!}{\input{../build/rules_pilot.tex}}
+    \par A Pilot Card
+\end{figure*}
+
+\renewcommand{\arraystretch}{1.0}
+\begin{tabular}{p{2.7cm} | p{4.5cm}}
+  \makecell[cl]{Initiative:\\  \includegraphics[width=0.5cm]{../icons/initImg.png} }&Marks when the card will resolve. Higher numbers resolve before lower numbers\\ \hline
+  \makecell[cl]{Movement:\\ \includegraphics[width=0.5cm]{../icons/mvimg_old.png}}&How much to add (or subtract if its negative) to the movement for the action with this card\\\hline
+  \makecell[cl]{Attack marks:\\ \smallprojectile \smallpierce \smallcut \smallimpact \smallenergy }& How much damage to deal at this location if this attack hits (symbol indicates damage type)\\\hline
+  \makecell[cl]{Attack range:\\ \includegraphics[width=0.5cm]{../icons/rangeImg.png}} &Range of ranged attack\\\hline
+  \makecell[cl]{Block mark:\\ \resizebox{0.7cm}{!}{\begin{tikzpicture}\blockshield{0}{0}{gray}\end{tikzpicture}}} & This zone has a block. \\\hline
+  \makecell[cl]{Super block mark:\\ \resizebox{0.95cm}{!}{\begin{tikzpicture}\superblockshield{0}{0}{gray}\end{tikzpicture}}} &Same as a block but the blocking card is not discarded when it blocks.\\\hline
+  \makecell[cl]{Persistence mark:\\ \tikz{\node [circle, fill = red]{{\textbf{2}}}; }} &Indicates that the card stays on the field after resolving until its effects finish. N indicates how many turns that is.\\\hline
+  Ability text: &Effects that happen when this card is played or resolved.\\\hline
+  \makecell[cl]{Type info:\\\emph{(bottom)}} & What type of card it is, and categorisation information. Used for deckbuilding.\\
+\end{tabular}
+\renewcommand{\arraystretch}{1.0}
+
+
+
 
 \section{Status}
 Various cards apply certain status effects to frames. These status effects are marked with a counter added to the frame.
@@ -384,8 +398,10 @@ count & type & group & cards \\
     \large{\textbf{The Aegis}}\\[0.5em]
     \includegraphics[width=\linewidth/3]{../pictures/AegisLogo_light.png}
     \includegraphics[width=\linewidth/3]{../pictures/AegisLogo.png}\\[0.5em]
-    The Aegis see themselves as the last bastion against disorder. TODO
-
+    The Aegis see themselves as the last bastion against disorder, the thin blue line that holds scoiety together.
+    They strongly believe in the rule of (their) law, and are quick to enforce it.
+    Some may see them as little more than self-agrandising thugs, but the Aegis have
+    thick skin and are willing to weather any storm.
 
     ~\\[0.5em]
     \end{minipage}
@@ -395,6 +411,10 @@ count & type & group & cards \\
     \large{\textbf{The Guild}}\\[0.5em]
     \includegraphics[width=\linewidth/3]{../pictures/GuildLogo_light.png}
     \includegraphics[width=\linewidth/3]{../pictures/GuildLogo.png}\\[0.5em]
+    Buisnessmen at the highest eschelons, the Guild know that money is power and
+    progress is inevitable. They use whatever means is necessary to get the returns
+    for their stakeholders, and if that means is the barrel of a Frame's rifle than so be it.
+
     ~\\[0.5em]
   \end{minipage}
 
@@ -406,6 +426,11 @@ count & type & group & cards \\
     \large{\textbf{The Church of the Net}}\\[0.5em]
     \includegraphics[width=\linewidth/3]{../pictures/CotNLogo_light.png}
     \includegraphics[width=\linewidth/3]{../pictures/CotNLogo.png}\\[0.5em]
+    The Church of the Net believe that the coming of the Net heralds the arrival of the next stage of
+    Humanity, one where person and machine become tightly bound in cyberspace and man is at last freed
+    of his fleshly bonds. Their Angels come as heralds of this new future, and judges for all
+    who would oppose it.
+    
     ~\\[0.5em]
   \end{minipage}
   \hfill
@@ -414,6 +439,7 @@ count & type & group & cards \\
     \large{\textbf{The Revolution}}\\[0.5em]
     \includegraphics[width=\linewidth/3]{../pictures/RevLogo_light.png}
     \includegraphics[width=\linewidth/3]{../pictures/RevLogo.png}\\[0.5em]
+    Based in Ground Zero, the Revolution consits of the people who  TODO
     ~\\[0.5em]
   \end{minipage}
   \hfill
