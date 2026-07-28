@@ -24,8 +24,8 @@ Arc shot,,Stun Bow,3,-2,0,1,0,pierce,pierce,pierce,1,12,0,0,0,0,On Hit: target g
 Straight shot,,Stun Bow,5,-1,0,1,0,pierce,pierce,pierce,0,0,1,12,0,0,On Hit: target gets 2 \fullstunned,0,weapon_pictures/Stun_Bow_Straight_shot_t.png,backgrounds/Stun_Bow_bg.png,,,1,Stephen Lilico
 Low blow,,Stun Bow,5,-1,0,1,0,pierce,pierce,pierce,0,0,0,0,1,12,On Hit: target gets 2 \fullstunned,0,weapon_pictures/Stun_Bow_Low_blow_t.png,backgrounds/Stun_Bow_bg.png,,,1,Stephen Lilico
 Fullbore,,Cannon,2,-3,0,1,0,projectile,projectile,projectile,0,0,3,12,0,0,,0,weapon_pictures/Cannon_Fullbore_t.png,backgrounds/Cannon_bg.png,,,1,Stephen Lilico
-Airburst,,Cannon,2,-2,0,1,0,projectile,projectile,projectile,2,12,1,12,0,0,\guardbreak,0,weapon_pictures/Cannon_Airburst_t.png,backgrounds/Cannon_bg.png,,,1,Stephen Lilico
-Cannon,,Cannon,2,-3,0,1,0,projectile,projectile,projectile,0,0,1,12,2,12,\guardbreak,0,weapon_pictures/Cannon_Cannon_t.png,backgrounds/Cannon_bg.png,,,1,Stephen Lilico
+Airburst,,Cannon,2,-2,0,1,0,projectile,projectile,projectile,2,12,1,12,0,0,\fullguardbreak,0,weapon_pictures/Cannon_Airburst_t.png,backgrounds/Cannon_bg.png,,,1,Stephen Lilico
+Cannon,,Cannon,2,-3,0,1,0,projectile,projectile,projectile,0,0,1,12,2,12,\fullguardbreak,0,weapon_pictures/Cannon_Cannon_t.png,backgrounds/Cannon_bg.png,,,1,Stephen Lilico
 Pummel,,Cannon,2,-3,0,1,0,projectile,projectile,projectile,0,0,0,0,3,12,,0,weapon_pictures/Cannon_Pummel_t.png,backgrounds/Cannon_bg.png,,,1,Stephen Lilico
 Crush,,Halberd,4,-2,0,0,1,impact,impact,impact,3,0,0,0,0,0,,0,weapon_pictures/Halberd_Crush_t.png,backgrounds/Halberd_bg.png,,,1,Stephen Lilico
 Eviscerate,,Halberd,4,-2,1,0,0,cut,cut,cut,0,0,3,0,0,0,,0,weapon_pictures/Halberd_Eviscerate_t.png,backgrounds/Halberd_bg.png,,,1,Stephen Lilico
@@ -71,6 +71,6 @@ Hook,,Axe,6,0,0,0,1,cut,cut,cut,0,0,1,0,0,0,On Hit: target gets 2 \fulldazed,0,w
 Split,,Axe,6,-1,0,1,0,cut,cut,cut,2,0,0,0,0,0,,0,weapon_pictures/Axe_Split_t.png,backgrounds/Axe_bg.png,,,1,Stephen Lilico
 Throw,,Axe,5,0,0,1,0,cut,cut,cut,0,0,2,8,0,0,\fullcommitted,0,weapon_pictures/Axe_Throw_t.png,backgrounds/Axe_bg.png,,,1,Stephen Lilico
 Cleave,,Great Axe,4,-2,0,0,1,cut,cut,cut,2,0,3,0,0,0,,0,weapon_pictures/Great_Axe_Cleave_t.png,backgrounds/Great_Axe_bg.png,,,1,Stephen Lilico
-Split,,Great Axe,3,-2,0,1,0,cut,cut,cut,3,0,2,0,0,0,,0,weapon_pictures/Great_Axe_Split_t.png,backgrounds/Great_Axe_bg.png,,,1,Stephen Lilico
+Split,,Great Axe,3,-2,0,1,0,cut,cut,cut,2,0,2,0,0,0,\fullguardbreak,0,weapon_pictures/Great_Axe_Split_t.png,backgrounds/Great_Axe_bg.png,,,1,Stephen Lilico
 Whirl,,Great Axe,4,-2,0,1,0,cut,cut,cut,0,0,2,0,1,0,Hits all adjacent enemies,0,weapon_pictures/Great_Axe_Whirl_t.png,backgrounds/Great_Axe_bg.png,,,1,Stephen Lilico
 Eviscerate,,Great Axe,3,-3,0,0,1,cut,cut,cut,0,0,2,0,3,0,,0,weapon_pictures/Great_Axe_Eviscerate_t.png,backgrounds/Great_Axe_bg.png,,,1,Stephen Lilico

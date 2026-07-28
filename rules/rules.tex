@@ -6,6 +6,7 @@
 \usepackage{wallpaper}
 \usepackage{makecell}
 \usepackage{graphicx}
+\usepackage{caption}
 
  \usetikzlibrary{positioning}
  \usetikzlibrary{patterns}
@@ -25,7 +26,97 @@
 
 
 \input{../build/card_macros.tex}
- 
+
+\usetikzlibrary{arrows.meta}
+\usetikzlibrary{shapes.geometric}
+\usetikzlibrary{decorations.pathmorphing}
+
+% ---- Play-example helpers -------------------------------------------------
+% A standee: a frame's art on a coloured disc, used to mark a frame's position
+% on a terrain card. #1,#2 = centre (in the terrain card's own coordinates),
+% #3 = art, #4 = ring colour identifying the frame.
+\newcommand{\standee}[4]{%
+  \fill[white] (#1,#2) circle (0.60);
+  \fill[#4!22!white] (#1,#2) circle (0.60);
+  \begin{scope}
+    \clip (#1,#2) circle (0.57);
+    \node at (#1,#2) {\includegraphics[height=1.55cm]{#3}};
+  \end{scope}
+  \draw[line width=3pt, #4] (#1,#2) circle (0.60);
+}
+\newcommand{\kstandee}[2]{\standee{#1}{#2}{../pictures/foreground/ouwa_kuwagata.png}{purple!55!black}}
+\newcommand{\rstandee}[2]{\standee{#1}{#2}{../pictures/foreground/revolution_ripper.png}{yellow!75!black}}
+% a faded "was here" ghost marker
+\newcommand{\ghost}[3]{\draw[line width=1.2pt, #3, densely dotted, opacity=0.8] (#1,#2) circle (0.60);}
+% an impact / damage burst with a label
+\newcommand{\burst}[3]{% x, y, label
+  \node[star, star points=9, star point ratio=0.5, fill=orange!85!red, draw=red!60!black,
+        line width=0.5pt, minimum size=1.05cm, inner sep=0pt] at (#1,#2){};
+  \node[font=\bfseries\footnotesize] at (#1,#2){#3};
+}
+% a small block-shield marker placed beside a frame that blocked
+\newcommand{\blockmark}[3]{% x, y, colour
+  \node at (#1,#2){\resizebox{0.65cm}{!}{\begin{tikzpicture}\blockshield{0}{0}{#3}\end{tikzpicture}}};
+}
+% a numbered step / note label pinned to a movement route
+\newcommand{\steplabel}[3]{% x, y, text
+  \node[fill=white, draw=black, rounded corners=1.5pt, font=\scriptsize\bfseries,
+        inner sep=2pt, align=center] at (#1,#2){#3};}
+\tikzset{
+  moveline/.style={line width=2pt, dash pattern=on 3.5pt off 2.5pt, -{Stealth[length=3.2mm,width=3mm]}},
+  attackline/.style={line width=2.4pt, red!75!black, -{Latex[length=3.6mm]}},
+  shotline/.style={line width=1.7pt, red!70!black, densely dotted, -{Latex[length=3mm]}},
+}
+% ---- The face-down / face-up / discarded card tableau ---------------------
+% Tracks the four chosen cards (2 per frame) through the round.
+\newlength{\tabcardh}\setlength{\tabcardh}{3.7cm}
+\newcommand{\cardfacedown}{\includegraphics[height=\tabcardh]{../backs/normal_back.png}}
+\newcommand{\cardfaceup}[1]{\resizebox{!}{\tabcardh}{\input{#1}}}
+\newsavebox{\dcardbox}
+\newcommand{\carddiscarded}[1]{% a resolved card that has been spent as a block
+  % typeset the card in normal context first (so its \maxheight background resolves
+  % correctly), then overlay the strike-out inside a tikz node.
+  \sbox{\dcardbox}{\resizebox{!}{\tabcardh}{\input{#1}}}%
+  \begin{tikzpicture}
+    \node[inner sep=0, opacity=0.30] (c) at (0,0) {\usebox{\dcardbox}};
+    \draw[red!80!black, line width=2pt] (c.south west)--(c.north east) (c.north west)--(c.south east);
+    \node[fill=red!80!black, text=white, font=\scriptsize\bfseries, rounded corners=1.5pt,
+          inner sep=2.5pt] at (c.center){DISCARDED};
+  \end{tikzpicture}%
+}
+% frame name tag with its standee ring colour
+\newcommand{\frametag}[2]{\tikz[baseline=-0.5ex]{\fill[#2] (0,0) circle (3.2pt);}~\textbf{#1}}
+% Lay out the four cards: #1 #2 = Ripper's slots, #3 #4 = Kuwagata's slots.
+\newcommand{\cardtableau}[4]{%
+  \begin{tikzpicture}[slot/.style={inner sep=0, anchor=south}]
+    \node[slot] (a) at (0,0) {#1};
+    \node[slot, right=0.28cm of a] (b) {#2};
+    \node[slot, right=1.5cm of b] (cc) {#3};
+    \node[slot, right=0.28cm of cc] (d) {#4};
+    \draw[gray!70, line width=0.9pt]
+      ($(b.north east)!0.5!(cc.north west)+(0,0.55)$) --
+      ($(b.south east)!0.5!(cc.south west)+(0,-0.15)$);
+    \node[anchor=south] at ($(a.north)!0.5!(b.north)+(0,0.18)$) {\frametag{RipperSmasher}{yellow!75!black}};
+    \node[anchor=south] at ($(cc.north)!0.5!(d.north)+(0,0.18)$) {\frametag{Kuwagata}{purple!55!black}};
+  \end{tikzpicture}%
+}
+% Wrap a terrain card so standees / arrows can be drawn on it in the terrain
+% card's own coordinates. #1 is the terrain card .tex. A terrain tikzpicture uses
+% a \maxheight background image, which is shifted out of place if the card is
+% \input directly inside a tikz node. So we first typeset the card into a save box
+% (normal context, where \maxheight resolves correctly) and then place that finished
+% box in the node -- no re-typesetting, no shift. The box carries the card's own
+% coordinates, so terrain-internal coordinates map straight through, offset only by
+% the card's bottom-left corner (0.05, 0.025).
+\newsavebox{\terraincardbox}
+\newenvironment{terrainscene}[1]
+  {\sbox{\terraincardbox}{\input{#1}}%
+   \begin{tikzpicture}
+     \node[anchor=south west, inner sep=0pt] (T) at (0,0){\usebox{\terraincardbox}};
+     \begin{scope}[shift={($(T.south west)+(-0.05,-0.025)$)}]}
+  {\end{scope}\end{tikzpicture}}
+% ---------------------------------------------------------------------------
+
 \begin{document}
 
 \maketitle
@@ -207,10 +298,6 @@ Low &
 If the frame did not move before applying effects and attacking it may move after finishing the attack.
 
 
-\begin{figure}[htbp]
-  \centering
-\includegraphics[width=\linewidth]{../pictures/ground_zero.png}
-\end{figure}
 
 
 
@@ -219,6 +306,8 @@ Cards without a persistence marker and any cards with a persistence marker whos 
 Cards with a persistence marker that are still active are set aside clearly distinct from the turn's chosen actions ( they do not have active blocks). 
 The priority marker then moves one step anticlockwise. 
 
+
+\onecolumn
 \section{Card anatomy}
 
 \begin{figure*}[htbp]
@@ -260,6 +349,143 @@ The priority marker then moves one step anticlockwise.
 \renewcommand{\arraystretch}{1.0}
 
 
+\section{Play Example}
+% Covers: movement, melee, elevation, ranged + line of sight, melee between
+% elevations, damage, and attacking terrain.
+
+The battle for \emph{The Tower} pits \textbf{Kuwagata} (Ouwa, \emph{purple ring}, defending the
+objective) against \textbf{RipperSmasher} (Revolution, \emph{yellow ring}, attacking it). A wall of
+raised terrain (elevation~1) runs up the left of the board, and the objective tower stands to the
+right at elevation~3. Kuwagata's base movement is 4 and Ripper's is 3; each card then adds or
+subtracts movement. In the planning phase each frame drew 5 cards and set 2 face down:
+
+\begin{itemize}
+\item \textbf{Kuwagata} chose \emph{Rising Cut} (Greatsword, initiative~4) and \emph{Split} (Great Axe, initiative~3).
+\item \textbf{RipperSmasher} chose \emph{From the Hip} (Assault Rifle, initiative~5) and \emph{Fullbore} (Cannon, initiative~2).
+\end{itemize}
+
+Cards resolve from the highest initiative down, so the four play out in the order \emph{From the Hip}~(5),
+\emph{Rising Cut}~(4), \emph{Split}~(3), with \emph{Fullbore}~(2) never reaching its own turn --- it is spent
+as a block first, as we will see. The card strip under each scene tracks all four: they begin face down,
+flip face up as they resolve, and are struck out when they are spent as a block.
+
+\begin{figure*}[htbp]
+  \centering
+  \cardtableau{\cardfacedown}{\cardfacedown}{\cardfacedown}{\cardfacedown}
+  \caption*{\textbf{Before the action phase.} Each frame's two chosen cards wait face down.}
+\end{figure*}
+
+\begin{figure*}[htbp]
+  \centering
+  \begin{minipage}[c]{0.46\textwidth}
+    \centering
+    \begin{terrainscene}{../build/terrain/The Tower.tex}
+      % Kuwagata tucked behind the raised terrain, top left
+      \kstandee{1.13}{7.415}
+      % Ripper drops back two tiles to open the range on the tower
+      \ghost{3.19}{5.355}{yellow!75!black}
+      \draw[moveline, yellow!70!black] (3.19,5.0) -- (3.19,1.65);
+      \steplabel{3.85}{3.29}{2 steps}
+      \rstandee{3.19}{1.23}
+      % ... and fires on the tower
+      \draw[shotline] (3.45,1.75) -- (4.95,5.05);
+      \burst{5.25}{5.355}{$-1$}
+    \end{terrainscene}
+  \end{minipage}\hfill
+  \begin{minipage}[c]{0.50\textwidth}
+    \small\textbf{Scene 1 --- Ripper opens fire}\par\smallskip
+    \footnotesize
+    With the highest initiative on the board (5), RipperSmasher resolves his ranged \emph{From the Hip}
+    first. A ranged attack cannot target an adjacent tile, so he moves \textbf{2 steps} back to the
+    middle of the bottom row to open up the range. From there the raised terrain still blocks his line
+    of sight to Kuwagata, who is tucked behind it top-left --- so he fires on the tower instead, which
+    loses 1 of its 4 hit points. \emph{From the Hip} stays on the field turned sideways: it has resolved,
+    but its \textbf{mid block} is now live and can still stop an attack.\par
+  \end{minipage}
+  \par\medskip
+  \cardtableau{\cardfaceup{../build/card/Assault Rifle_From the hip.tex}}{\cardfacedown}%
+    {\cardfacedown}{\cardfacedown}
+  \caption*{\textbf{Scene 1.} A ranged attack and line of sight. \emph{Purple ring:} Kuwagata.
+  \emph{Yellow ring:} RipperSmasher. The dotted circle marks where Ripper started; the dashed arrow is
+  his movement. \emph{From the Hip} is now face up.}
+\end{figure*}
+
+\begin{figure*}[htbp]
+  \centering
+  \begin{minipage}[c]{0.46\textwidth}
+    \centering
+    \begin{terrainscene}{../build/terrain/The Tower.tex}
+      % Ripper still on the middle-bottom tile
+      \rstandee{3.19}{1.23}
+      % Kuwagata moves down the wall and climbs onto the raised terrain beside Ripper
+      \ghost{1.13}{7.415}{purple!55!black}
+      \draw[moveline, purple!45!black] (1.13,7.1) -- (1.13,3.9);
+      \steplabel{2.2}{5.5}{3 steps\\(incl.\ +1 climb)}
+      \kstandee{1.13}{3.29}
+      % attacks down into Ripper; the shield shows the block
+      \draw[attackline] (1.6,2.9) -- (2.7,1.65);
+      \blockmark{3.95}{2.1}{blue}
+    \end{terrainscene}
+  \end{minipage}\hfill
+  \begin{minipage}[c]{0.50\textwidth}
+    \small\textbf{Scene 2 --- Kuwagata takes the high ground}\par\smallskip
+    \footnotesize
+    Next, at initiative 4, Kuwagata moves onto the raised terrain right beside Ripper. That costs
+    \textbf{3 movement} --- two tiles down the wall and one extra to climb \emph{up} to elevation~1 ---
+    exactly what \emph{Rising Cut} leaves him (base 4, card $-1$). Now one level above his target, he plays
+    \emph{Rising Cut}. Its single \textbf{low} attack strikes a defender one level lower, so by the
+    melee-between-levels rule it is moved \emph{up} one bracket to \textbf{mid}. That matches the mid
+    block still live on Ripper's \emph{From the Hip}: Ripper must reveal it to block (blue shield), the
+    attack deals no damage, and the blocking card --- \emph{From the Hip} --- is discarded.\par
+  \end{minipage}
+  \par\medskip
+  \cardtableau{\carddiscarded{../build/card/Assault Rifle_From the hip.tex}}{\cardfacedown}%
+    {\cardfaceup{../build/card/Greatsword_Rising Cut.tex}}{\cardfacedown}
+  \caption*{\textbf{Scene 2.} Melee between elevations, and blocking. Spending a block to stop the
+  attack discards \emph{From the Hip}. \emph{Rising Cut} has resolved and stays on the field (its own
+  high/mid blocks are now available to Kuwagata).}
+\end{figure*}
+
+\begin{figure*}[htbp]
+  \centering
+  \begin{minipage}[c]{0.46\textwidth}
+    \centering
+    \begin{terrainscene}{../build/terrain/The Tower.tex}
+      \rstandee{3.19}{1.23}
+      % Kuwagata steps down off the terrain and circles around Ripper to his far side
+      \ghost{1.13}{3.29}{purple!55!black}
+      \draw[moveline, purple!45!black]
+        (1.6,3.45) .. controls (2.6,4.1) and (3.9,3.9) .. (4.85,1.75);
+      \steplabel{3.19}{4.25}{2 steps\\(step down is free)}
+      \kstandee{5.25}{1.23}
+      % guard-break attack into Ripper
+      \draw[attackline] (4.6,1.23) -- (3.8,1.23);
+      \burst{3.19}{2.25}{$-2$}
+    \end{terrainscene}
+  \end{minipage}\hfill
+  \begin{minipage}[c]{0.50\textwidth}
+    \small\textbf{Scene 3 --- Guard break}\par\smallskip
+    \footnotesize
+    Last, at initiative 3, Kuwagata steps down off the terrain (moving \emph{down} costs no extra
+    movement) and circles \textbf{2 steps} around Ripper to his far side, ending level with him. He
+    plays \emph{Split} --- a \textbf{Guard Break} attack that hits \textbf{high} and \textbf{mid}.
+    Guard break spends a block in each attacked zone: Ripper's mid is already open (\emph{From the Hip}
+    is gone), so he reveals his last face-down card, \emph{Fullbore}, and its mid block soaks Split's
+    mid --- consuming \emph{Fullbore}. Nothing blocks the high attack, which lands for 2. Both of
+    Ripper's cards are now spent --- \emph{Fullbore} (initiative 2) never got to resolve as its own
+    attack --- so he has no actions left this round.\par
+  \end{minipage}
+  \par\medskip
+  \cardtableau{\carddiscarded{../build/card/Assault Rifle_From the hip.tex}}%
+    {\carddiscarded{../build/card/Cannon_Fullbore.tex}}%
+    {\cardfaceup{../build/card/Greatsword_Rising Cut.tex}}%
+    {\cardfaceup{../build/card/Great Axe_Split.tex}}
+  \caption*{\textbf{Scene 3.} Guard break spends the defender's last block (\emph{Fullbore}, struck
+  out) while the unblocked high zone still deals damage. Kuwagata ends the round with both of his
+  cards resolved and on the field.}
+\end{figure*}
+
+\twocolumn
 
 
 \section{Status}
@@ -285,6 +511,11 @@ instead remove that many of the counters it already has before applying the diff
 The number of status counters on the frame indicate the duration of the effect.
 Each turn, after the planning phase finishes one of each status counter is removed.
 
+\begin{figure}[htbp]
+  \centering
+\includegraphics[width=\linewidth]{../pictures/ground_zero.png}
+\end{figure}
+
 \section{Tokens}
 Terrain and various card effects create tokens. These can normally be indicated by anything you have around, 
 coins, dice, whatever, as long as it is clear to everyone what it is. Dedicated token pieces are also manufactured
@@ -306,18 +537,6 @@ The drone, like other tokens, cannot block.
   \resizebox{\textwidth/2}{!}{\input{../build/rules_drone.tex}}
   \par Drone Card
 \end{figure}
-
-
-\section{Play Example}
-TOOD - needs grahics showing terrain and dudes
-
-Should cover - frame movement
-- melee attacks
-- elevation
-- ranged attacks and line of sight
-- damage
-- destruction
-
 
 
 
