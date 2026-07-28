@@ -114,7 +114,16 @@
       "Bash(google-chrome --headless --disable-gpu --no-sandbox --screenshot=/tmp/claude-1000/-home-stephen-mobileSuitGame/01f42046-f152-40b0-830e-671f7b688ef1/scratchpad/tourney3.png --window-size=1100,1900 --hide-scrollbars build/tournament.html)",
       "Bash(python3 -c \"from PIL import Image; print\\('size', Image.open\\('/tmp/claude-1000/-home-stephen-mobileSuitGame/01f42046-f152-40b0-830e-671f7b688ef1/scratchpad/tourney3.png'\\).size\\)\")",
       "Bash(python3 simulation/simulate.py match --team-a all_attack_high.csv --team-b all_block_mid.csv --games 500 --seed 1)",
-      "Bash(python3 simulation/simulate.py scale --deck-a all_attack_high.csv --deck-b even_mix.csv --games 1000 --seed 1)"
+      "Bash(python3 simulation/simulate.py scale --deck-a all_attack_high.csv --deck-b even_mix.csv --games 1000 --seed 1)",
+      "Bash(python3 simulation/simulate.py match --team-a all_attack_high.csv --team-b even_mix.csv --games 1500 --seed 1)",
+      "Bash(python3 simulation/simulate.py match --team-a all_attack_high.csv --team-b even_mix.csv --games 1500 --seed 1 --intelligent)",
+      "Bash(python3 simulation/simulate.py match --team-a only_attack_high.csv --team-b even_mix.csv --games 1500 --seed 1)",
+      "Bash(python3 simulation/simulate.py match --team-a only_attack_high.csv --team-b even_mix.csv --games 1500 --seed 1 --intelligent)",
+      "Bash(python3 simulation/simulate.py match --team-a even_mix.csv --team-b even_mix.csv --games 2000 --seed 1 --intelligent)",
+      "Bash(python3 simulation/simulate.py match --team-a only_init_high.csv --team-b only_init_low.csv --games 2000 --seed 1)",
+      "Bash(python3 simulation/simulate.py match --team-a only_init_high.csv --team-b only_init_low.csv --games 2000 --seed 1 --intelligent)",
+      "Bash(python3 simulation/simulate.py match --team-a only_attack_high.csv --team-b even_mix.csv --games 2000 --seed 1 --intelligent)",
+      "Bash(python3 simulation/simulate.py match --team-a only_attack_high.csv --team-b even_mix.csv --intelligent --pool 99 --defense-b 4 --concentration-b 0 --games 1500 --seed 1)"
     ],
     "additionalDirectories": [
       "/tmp/cardtest",
