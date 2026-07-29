@@ -130,7 +130,9 @@
       "Bash(git check-ignore *)",
       "Bash(magick pg-08.png -crop 100%x22%+0+52% +repage tab08.png)",
       "Bash(convert pg-08.png -crop 100%x22%+0+52% +repage tab08.png)",
-      "Bash(identify tab08.png)"
+      "Bash(identify tab08.png)",
+      "Bash(python generate_all_decks.py --skip-individual)",
+      "Bash(echo \"exit $?\")"
     ],
     "additionalDirectories": [
       "/tmp/cardtest",

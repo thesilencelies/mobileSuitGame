@@ -174,13 +174,13 @@ def createMacros():
             "\\newcommand{\\blockshieldfill}[3]{\\fill[#3!20, rounded corners=0.15cm] "
             "\\blockshieldpath{#1}{#2}{1.0}{1.0};}\n"
             "\\newcommand{\\blockshieldline}[3]{\\draw[draw=#3, line width=6pt, "
-            "rounded corners=0.15cm] \\blockshieldpath{#1}{#2}{1.0}{1.0};}\n"
+            "rounded corners=0.18cm] \\blockshieldpath{#1}{#2}{1.0}{1.0};}\n"
             "\\newcommand{\\blockshield}[3]{\\blockshieldfill{#1}{#2}{#3}\\blockshieldline{#1}{#2}{#3}}\n"
             "\\newcommand{\\superblockshield}[3]{%\n"
             "  \\draw[draw=#3!55!black, line width=4.7pt, rounded corners=0.15cm] "
             "\\blockshieldpath{#1}{#2}{1.18}{1.18};%\n"
             "  \\blockshieldfill{#1}{#2}{#3}%\n"
-            "  \\draw[draw=#3!55!black, line width=2.9pt, rounded corners=0.15cm] "
+            "  \\draw[draw=#3!55!black, line width=3.5pt, rounded corners=0.17cm] "
             "\\blockshieldpath{#1}{#2}{0.82}{0.82};%\n"
             "  \\blockshieldline{#1}{#2}{#3}}\n"
         )
@@ -432,32 +432,53 @@ def _aim_node(aim):
         return inner.split(".")[0]
     return None
 
+# Vertical layout of the callout labels. Rather than pinning each label to a
+# fixed y next to its target, the labels are spread evenly down each gutter with
+# a fixed pitch, centred on the card. A side with many labels therefore spills
+# above and below the card edges instead of being crammed alongside it, which
+# keeps the diagram far less cluttered and leaves room for larger text.
+CALLOUT_PITCH = 1.9       # cm between successive labels on one side
+CALLOUT_CENTER_Y = 5.0    # card vertical centre the stacks are balanced around
+
 def _render_callouts(callouts, present):
     """Draw labelled leader lines for every callout whose target node exists.
 
     ``callouts`` is a list of dicts (x, y, side, title, desc, aim). ``present``
     is the set of node names actually emitted for this card, so callouts for
-    optional elements (persistence, faction logo, ...) are skipped when absent."""
+    optional elements (persistence, faction logo, ...) are skipped when absent.
+    The per-callout ``y`` is only an ordering hint: labels are re-spaced evenly
+    down each gutter (extending past the card top and bottom when a side is
+    busy) so the leader lines stay legible."""
+    # Keep only callouts whose target exists, preserving the listed order.
+    shown = [c for c in callouts
+             if _aim_node(c["aim"]) is None or _aim_node(c["aim"]) in present]
+
+    # Assign an evenly spaced y per side, centred on the card so a busy side
+    # overflows symmetrically above and below the card rather than bunching up.
+    ys = {}
+    for side in ("left", "right"):
+        col = [c for c in shown if c["side"] == side]
+        top = CALLOUT_CENTER_Y + (len(col) - 1) * CALLOUT_PITCH / 2.0
+        for j, c in enumerate(col):
+            ys[id(c)] = top - j * CALLOUT_PITCH
+
     out = ""
-    for i, c in enumerate(callouts):
-        node = _aim_node(c["aim"])
-        if node is not None and node not in present:
-            continue
+    for i, c in enumerate(shown):
         anchor = "east" if c["side"] == "left" else "west"
         align = "right" if c["side"] == "left" else "left"
         name = f"callout{i}"
-        body = "\\textbf{" + c["title"] + "}"
+        body = "{\\large\\bfseries " + c["title"] + "}"
         if c.get("desc"):
             body += "\\\\" + c["desc"]
-        out += (f"\\node[anchor={anchor}, align={align}, text width=3.5cm, font=\\small] "
-                f"({name}) at ({c['x']},{c['y']}) {{{body}}};\n")
+        out += (f"\\node[anchor={anchor}, align={align}, text width=4cm, font=\\normalsize] "
+                f"({name}) at ({c['x']},{ys[id(c)]}) {{{body}}};\n")
         out += f"\\draw[thick, gray!60] ({name}.{anchor}) -- {c['aim']};\n"
     return out
 
-# Gutters the callout labels sit in, kept close to the card so each fragment
-# stays compact when \input into the rules document.
-LEFT_GUTTER = -0.4
-RIGHT_GUTTER = 8.2
+# Gutters the callout labels sit in. Pushed a little further out than the card
+# edge so the larger label text has breathing room from the artwork.
+LEFT_GUTTER = -0.7
+RIGHT_GUTTER = 8.6
 
 # Callouts for a weapon action card. atk_aim/block_aim/range_aim are coordinates
 # emitted at build time on the first zone that has that feature (see the annotate
@@ -465,47 +486,47 @@ RIGHT_GUTTER = 8.2
 # chosen card lacks.
 WEAPON_CALLOUTS = [
     {"x": LEFT_GUTTER, "y": 9.2, "side": "left",  "title": "Initiative",
-     "desc": "Turn priority; higher acts first.", "aim": "(initbox)"},
+     "desc": "Higher acts first.", "aim": "(initbox)"},
     {"x": LEFT_GUTTER, "y": 7.5, "side": "left",  "title": "Movement",
-     "desc": "Steps granted; green gains, red loses.", "aim": "(movebox)"},
+     "desc": "Steps: green gains, red loses.", "aim": "(movebox)"},
     {"x": LEFT_GUTTER, "y": 6.0, "side": "left",  "title": "Faction Logo",
      "desc": "", "aim": "(factionlogo)"},
     {"x": LEFT_GUTTER, "y": 4.2, "side": "left",  "title": "Card text",
-     "desc": "Abilities and status effects applied.", "aim": "(textbox)"},
+     "desc": "Abilities and status effects.", "aim": "(textbox)"},
     {"x": LEFT_GUTTER, "y": 1.6, "side": "left",  "title": "Group zones",
-     "desc": "Zones the whole weapon group can attack (red triangle) or block (blue square).", "aim": "(groupindicator)"},
+     "desc": "Zones the group can attack (red) or block (blue).", "aim": "(groupindicator)"},
     {"x": RIGHT_GUTTER, "y": 9.4, "side": "right", "title": "Name / faction",
      "desc": "", "aim": "(nameplate)"},
     {"x": RIGHT_GUTTER, "y": 8.3, "side": "right", "title": "Persistence",
-     "desc": "Turns this card stays in play once committed.", "aim": "(persistence)"},
+     "desc": "Turns it stays in play.", "aim": "(persistence)"},
     {"x": RIGHT_GUTTER, "y": 7.0, "side": "right", "title": "Attack",
-     "desc": "Damage that would be dealt to this zone.", "aim": "(atk_aim)"},
+     "desc": "Damage dealt to this zone.", "aim": "(atk_aim)"},
     {"x": RIGHT_GUTTER, "y": 5.8, "side": "right", "title": "Block",
-     "desc": "Attacks to this zone are blocked.", "aim": "(block_aim)"},
+     "desc": "Blocks attacks to this zone.", "aim": "(block_aim)"},
     {"x": RIGHT_GUTTER, "y": 3.9, "side": "right", "title": "Super block",
-     "desc": "Stronger block: this card is not discarded when it blocks, so it keeps blocking this zone.", "aim": "(superblock_aim)"},
+     "desc": "Blocks without discarding; keeps blocking.", "aim": "(superblock_aim)"},
     {"x": RIGHT_GUTTER, "y": 3.1, "side": "right", "title": "Range",
-     "desc": "Range of this zone's attack.", "aim": "(range_aim)"},
+     "desc": "This zone's attack range.", "aim": "(range_aim)"},
     {"x": RIGHT_GUTTER, "y": 1.5, "side": "right", "title": "Set info",
-     "desc": "Faction, card type, weapon group, flavour text.", "aim": "(setinfo)"},
+     "desc": "Faction, type, group, flavour.", "aim": "(setinfo)"},
 ]
 
 # Callouts for a pilot card (no attack zones).
 PILOT_CALLOUTS = [
     {"x": LEFT_GUTTER, "y": 9.0, "side": "left",  "title": "Initiative",
-     "desc": "Turn priority; higher acts first.", "aim": "(initbox)"},
+     "desc": "Higher acts first.", "aim": "(initbox)"},
     {"x": LEFT_GUTTER, "y": 7.3, "side": "left",  "title": "Movement",
-     "desc": "Steps granted; green gains, red loses.", "aim": "(movebox)"},
+     "desc": "Steps: green gains, red loses.", "aim": "(movebox)"},
     {"x": LEFT_GUTTER, "y": 5.6, "side": "left",  "title": "Faction Logo",
      "desc": "", "aim": "(factionlogo)"},
     {"x": LEFT_GUTTER, "y": 3.4, "side": "left",  "title": "Card text",
-     "desc": "Effect applied by this card.", "aim": "(textbox)"},
+     "desc": "This card's effect.", "aim": "(textbox)"},
     {"x": RIGHT_GUTTER, "y": 9.2, "side": "right", "title": "Name / faction",
      "desc": "", "aim": "(nameplate)"},
     {"x": RIGHT_GUTTER, "y": 7.6, "side": "right", "title": "Persistence",
-     "desc": "Turns this card stays in play once committed.", "aim": "(persistence)"},
+     "desc": "Turns it stays in play.", "aim": "(persistence)"},
     {"x": RIGHT_GUTTER, "y": 2.0, "side": "right", "title": "Set info",
-     "desc": "Faction, card type and flavour.", "aim": "(setinfo)"},
+     "desc": "Faction, type, flavour.", "aim": "(setinfo)"},
 ]
 
 # Callouts for a frame datasheet. Armour rows are drawn right-to-left from x=7,
@@ -516,48 +537,48 @@ FRAME_CALLOUTS = [
     {"x": LEFT_GUTTER, "y": 7.3, "side": "left",  "title": "Faction Logo",
      "desc": "", "aim": "(frame_logo)"},
     {"x": LEFT_GUTTER, "y": 4.4, "side": "left",  "title": "Abilities",
-     "desc": "The frame's innate special ability.", "aim": "(frame_ability)"},
+     "desc": "Innate special ability.", "aim": "(frame_ability)"},
     {"x": LEFT_GUTTER, "y": 1.4, "side": "left",  "title": "Loadout",
-     "desc": "Weapon slots, booster slots and deck size.", "aim": "(bottom_box.west)"},
+     "desc": "Weapon/booster slots and deck size.", "aim": "(bottom_box.west)"},
     {"x": RIGHT_GUTTER, "y": 9.0, "side": "right", "title": "Movement",
-     "desc": "Base movement of the frame.", "aim": "(frame_move)"},
+     "desc": "Base movement.", "aim": "(frame_move)"},
     {"x": RIGHT_GUTTER, "y": 7.0, "side": "right", "title": "Top armour",
-     "desc": "Health in top zone; last bar shows the -1 Init penalty.", "aim": "(7.3,8.05)"},
+     "desc": "Top-zone health; last bar = -1 Init.", "aim": "(7.3,8.05)"},
     {"x": RIGHT_GUTTER, "y": 5.0, "side": "right", "title": "Side armour",
-     "desc": "Health in mid zone; last bar shows the -1 Card penalty.", "aim": "(7.3,6.55)"},
+     "desc": "Mid-zone health; last bar = -1 Card.", "aim": "(7.3,6.55)"},
     {"x": RIGHT_GUTTER, "y": 3.0, "side": "right", "title": "Low armour",
-     "desc": "Health in low zone; last bar shows the -1 Move penalty.", "aim": "(7.3,5.05)"},
+     "desc": "Low-zone health; last bar = -1 Move.", "aim": "(7.3,5.05)"},
 ]
 
 # Callouts for a drone card: a weapon-style card that also fields a persistent
 # unit with its own health bar (drone_health) and movement (drone_move).
 DRONE_CALLOUTS = [
     {"x": LEFT_GUTTER, "y": 9.3, "side": "left",  "title": "Initiative",
-     "desc": "Turn priority; higher acts first.", "aim": "(initbox)"},
+     "desc": "Higher acts first.", "aim": "(initbox)"},
     {"x": LEFT_GUTTER, "y": 8.0, "side": "left",  "title": "Movement",
-     "desc": "Steps granted when played.", "aim": "(movebox)"},
+     "desc": "Steps when played.", "aim": "(movebox)"},
     {"x": LEFT_GUTTER, "y": 6.7, "side": "left",  "title": "Faction Logo",
      "desc": "", "aim": "(factionlogo)"},
     {"x": LEFT_GUTTER, "y": 5.4, "side": "left",  "title": "Drone health",
-     "desc": "The drone's hit points.", "aim": "(drone_health)"},
+     "desc": "Drone hit points.", "aim": "(drone_health)"},
     {"x": LEFT_GUTTER, "y": 4.1, "side": "left",  "title": "Drone movement",
-     "desc": "The drone's move each turn.", "aim": "(drone_move)"},
+     "desc": "Drone move per turn.", "aim": "(drone_move)"},
     {"x": LEFT_GUTTER, "y": 2.4, "side": "left",  "title": "Card text",
-     "desc": "Abilities and effects applied.", "aim": "(textbox)"},
+     "desc": "Abilities and effects.", "aim": "(textbox)"},
     {"x": RIGHT_GUTTER, "y": 9.4, "side": "right", "title": "Name / faction",
      "desc": "", "aim": "(nameplate)"},
     {"x": RIGHT_GUTTER, "y": 8.2, "side": "right", "title": "Persistence",
-     "desc": "Rounds it persists in play.", "aim": "(persistence)"},
+     "desc": "Rounds it persists.", "aim": "(persistence)"},
     {"x": RIGHT_GUTTER, "y": 6.8, "side": "right", "title": "Attack",
-     "desc": "Damage the drone deals to this zone.", "aim": "(atk_aim)"},
+     "desc": "Damage dealt to this zone.", "aim": "(atk_aim)"},
     {"x": RIGHT_GUTTER, "y": 5.2, "side": "right", "title": "Block",
-     "desc": "Attacks to this zone are blocked when the card is played.", "aim": "(block_aim)"},
+     "desc": "Blocks attacks to this zone.", "aim": "(block_aim)"},
     {"x": RIGHT_GUTTER, "y": 4.1, "side": "right", "title": "Super block",
-     "desc": "The doubled outline marks a stronger block: this card is not discarded when it blocks, so it keeps blocking this zone.", "aim": "(superblock_aim)"},
+     "desc": "Doubled outline: blocks without discarding.", "aim": "(superblock_aim)"},
     {"x": RIGHT_GUTTER, "y": 3.0, "side": "right", "title": "Range",
-     "desc": "Range of the drone's attack.", "aim": "(range_aim)"},
+     "desc": "Drone's attack range.", "aim": "(range_aim)"},
     {"x": RIGHT_GUTTER, "y": 1.8, "side": "right", "title": "Set info",
-     "desc": "Faction, card type, group, flavour.", "aim": "(setinfo)"},
+     "desc": "Faction, type, group, flavour.", "aim": "(setinfo)"},
 ]
 
 
