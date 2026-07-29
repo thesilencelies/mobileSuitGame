@@ -326,11 +326,11 @@ The priority marker then moves one step anticlockwise.
     \par A melee Weapon Card
 \end{figure*}
 
-\begin{figure*}[htbp]
-  \centering
-    \resizebox{\textwidth}{!}{\input{../build/rules_weapon_superblock.tex}}
-    \par A Weapon Card with a super block (note the doubled shield outline)
-\end{figure*}
+% \begin{figure*}[htbp]
+%   \centering
+%     \resizebox{\textwidth}{!}{\input{../build/rules_weapon_superblock.tex}}
+%     \par A Weapon Card with a super block (note the doubled shield outline)
+% \end{figure*}
 
 \begin{figure*}[htbp]
     \centering
@@ -385,7 +385,6 @@ In the planning phase each frame drew 5 cards and set 2 face down:
     \end{terrainscene}
   \end{minipage}\hfill
   \begin{minipage}[c]{0.50\textwidth}
-    \small\textbf{Scene 1 --- Ripper opens fire}\par\smallskip
     With the highest initiative on the board (5), RipperSmasher resolves his ranged \emph{From the Hip}
     first. He moves \textbf{2 steps} (base 3 - 1) to the
     middle of the bottom row. From there the raised terrain on the left blocks his line
@@ -414,8 +413,6 @@ In the planning phase each frame drew 5 cards and set 2 face down:
     \end{terrainscene}
   \end{minipage}\hfill
   \begin{minipage}[c]{0.50\textwidth}
-    \small\textbf{Scene 2 --- Kuwagata takes the high ground}\par\smallskip
-    \footnotesize
     Next, at initiative 4, Kuwagata resolves \emph{Rising Cut}, with which he can move 3 (base 4 - 1). He moves onto the raised terrain  beside Ripper. That costs
     \textbf{3 movement}: two tiles down the wall and one extra to climb up to elevation~1. \emph{Rising Cut}'s single
      \textbf{low} \smallcut attack strikes a defender one level lower, so it is moved \emph{up} one bracket to \textbf{mid}.
@@ -442,8 +439,7 @@ In the planning phase each frame drew 5 cards and set 2 face down:
     \end{terrainscene}
   \end{minipage}\hfill
   \begin{minipage}[c]{0.50\textwidth}
-    \small\textbf{Scene 3 --- Guard break}\par\smallskip
-    \footnotesize
+
     Next, at initiative 3, Kuwagata resolves \emph{Split} which has -2mv so he can move 2. He steps down off the terrain (moving \emph{down} costs no extra
     movement) and circles \textbf{2 steps} around Ripper to his far side, ending level with him.
     \emph{Split} hits \textbf{high} and \textbf{mid}. RipperSmasher has to reveal his face down \emph{Fullbore} to block this, and it is then discarded and will not resolve this round.
@@ -505,16 +501,16 @@ Some attacks summon drones. A drone is a token that will take the action on the 
 The drone has a health stat indicated on the card that summoned it, which should stay in play until the drone is destroyed.
 The drone, like other tokens, cannot block.
 
-\begin{figure}[htb]
+\begin{figure*}[htb]
   \centering
   \resizebox{\textwidth/2}{!}{\input{../build/rules_drone.tex}}
   \par Drone Card
-\end{figure}
+\end{figure*}
 
 
 
 \section{Deck Construction}
-Each mobile suit must have a deck.
+Each frame must have a deck.
 To construct a deck, you first choose the frame.
 That frame has a stats card with the following information:
 
@@ -541,8 +537,11 @@ To build the deck, you can have:
 \begin{itemize}
 \item Max 4 pilot cards, all from the same pilot, no duplicates
 \item Max X booster cards, where X is the frame's booster count (duplicates allowed)
-\item Up to N weapons where N is the frame's weapon count. Each weapon is a set of 4 attack cards. For each weapon slot you can include up to 1 of each card in that weapon.
-\item 1 of each of the generic cards 
+\item Up to N weapons where N is the frame's weapon count. Each weapon is a set of up to 4 attack cards.
+ For each weapon slot you can include up to 1 of each card in that weapon.
+ Drones take up a weapon slot
+\item Any number of the basic cards
+\item 1 of each of the frame cards for your faction 
 \end{itemize}
 
 If any card has a faction logo on it, it can only be in a deck for a frame of that faction.
@@ -631,7 +630,11 @@ count & type & group & cards \\
     \large{\textbf{The Revolution}}\\[0.5em]
     \includegraphics[width=\linewidth/3]{../pictures/RevLogo_light.png}
     \includegraphics[width=\linewidth/3]{../pictures/RevLogo.png}\\[0.5em]
-    Based in Ground Zero, the Revolution consits of the people who  TODO
+    Based in Ground Zero, the Revolution consits of the dregs of society that others would ignore.
+    Mutants and backfires from dodgy Net-connectivity are common sights, and they are tired of
+    society turning a blind eye. They'll make sure that they are seen, and they'll burn down this
+    rotten society to make a space where everone can benefit from the net - if there is anything left 
+    of it after they are done.
     ~\\[0.5em]
   \end{minipage}
   \hfill
@@ -640,6 +643,12 @@ count & type & group & cards \\
     \large{\textbf{The Collective}}\\[0.5em]
     \includegraphics[width=\linewidth/3]{../pictures/CollectiveLogo_light.png}
     \includegraphics[width=\linewidth/3]{../pictures/CollectiveLogo.png}\\[0.5em]
+    The Collective believe that the Net is a departure from Humanity's rooots, and that what people need
+    is to reconnect to nature, rejecting the modification so common elsewhere, preferring to be Natural. 
+    Their Gardens are wonders of biotechnology, oasises in the concrete jungle.
+    They defend their needs with giant biotech marvels that fuse directly with the pilot and can stand toe to
+    toe with any frame. There is a question as to how they made such sudden advances in biotech, however.
+    
     ~\\[0.5em]
   \end{minipage}
 \end{figure*}
