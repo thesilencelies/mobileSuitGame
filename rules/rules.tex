@@ -7,6 +7,7 @@
 \usepackage{makecell}
 \usepackage{graphicx}
 \usepackage{caption}
+\usepackage{xcolor}
 
  \usetikzlibrary{positioning}
  \usetikzlibrary{patterns}
@@ -72,13 +73,9 @@
 \newlength{\tabcardh}\setlength{\tabcardh}{3.7cm}
 \newcommand{\cardfacedown}{\includegraphics[height=\tabcardh]{../backs/normal_back.png}}
 \newcommand{\cardfaceup}[1]{\resizebox{!}{\tabcardh}{\input{#1}}}
-\newsavebox{\dcardbox}
 \newcommand{\carddiscarded}[1]{% a resolved card that has been spent as a block
-  % typeset the card in normal context first (so its \maxheight background resolves
-  % correctly), then overlay the strike-out inside a tikz node.
-  \sbox{\dcardbox}{\resizebox{!}{\tabcardh}{\input{#1}}}%
   \begin{tikzpicture}
-    \node[inner sep=0, opacity=0.30] (c) at (0,0) {\usebox{\dcardbox}};
+    \node[inner sep=0, opacity=0.30] (c) {\resizebox{!}{\tabcardh}{\input{#1}}};
     \draw[red!80!black, line width=2pt] (c.south west)--(c.north east) (c.north west)--(c.south east);
     \node[fill=red!80!black, text=white, font=\scriptsize\bfseries, rounded corners=1.5pt,
           inner sep=2.5pt] at (c.center){DISCARDED};
@@ -87,12 +84,19 @@
 % frame name tag with its standee ring colour
 \newcommand{\frametag}[2]{\tikz[baseline=-0.5ex]{\fill[#2] (0,0) circle (3.2pt);}~\textbf{#1}}
 % Lay out the four cards: #1 #2 = Ripper's slots, #3 #4 = Kuwagata's slots.
+% Each card carries a \maxheight background image that recomputes to the wrong
+% size if tikz re-typesets the node content during its layout passes, shifting
+% the card's contents out of place. So we typeset each slot into a save box in
+% normal outer context first (where \maxheight resolves correctly), then drop
+% the finished boxes into the nodes with \usebox -- no re-typesetting, no shift.
+\newsavebox{\slotAbox}\newsavebox{\slotBbox}\newsavebox{\slotCbox}\newsavebox{\slotDbox}
 \newcommand{\cardtableau}[4]{%
+  \sbox{\slotAbox}{#1}\sbox{\slotBbox}{#2}\sbox{\slotCbox}{#3}\sbox{\slotDbox}{#4}%
   \begin{tikzpicture}[slot/.style={inner sep=0, anchor=south}]
-    \node[slot] (a) at (0,0) {#1};
-    \node[slot, right=0.28cm of a] (b) {#2};
-    \node[slot, right=1.5cm of b] (cc) {#3};
-    \node[slot, right=0.28cm of cc] (d) {#4};
+    \node[slot] (a) at (0,0) {\usebox{\slotAbox}};
+    \node[slot, right=0.28cm of a] (b) {\usebox{\slotBbox}};
+    \node[slot, right=1.5cm of b] (cc) {\usebox{\slotCbox}};
+    \node[slot, right=0.28cm of cc] (d) {\usebox{\slotDbox}};
     \draw[gray!70, line width=0.9pt]
       ($(b.north east)!0.5!(cc.north west)+(0,0.55)$) --
       ($(b.south east)!0.5!(cc.south west)+(0,-0.15)$);
@@ -219,7 +223,7 @@ At the end of the planning phase, one status token of each type is removed from 
 
 
 \section{Action}
-Each players declares the highest remaining initiaive amongst the initiatives of their remaining cards. 
+Each players declares the highest remaining initiative amongst the initiatives of their remaining cards. 
 
 Cards are resolved in order of the initiative value, starting with the highest. In the event of a tie, players take it in turns to choose one card at the current intiative to resolve, starting with the player with the priority marker and moving clockwise.
 
@@ -335,7 +339,7 @@ The priority marker then moves one step anticlockwise.
 \end{figure*}
 
 \renewcommand{\arraystretch}{1.0}
-\begin{tabular}{p{2.7cm} | p{4.5cm}}
+\begin{tabular}{p{0.3\textwidth} | p{0.7\textwidth}}
   \makecell[cl]{Initiative:\\  \includegraphics[width=0.5cm]{../icons/initImg.png} }&Marks when the card will resolve. Higher numbers resolve before lower numbers\\ \hline
   \makecell[cl]{Movement:\\ \includegraphics[width=0.5cm]{../icons/mvimg_old.png}}&How much to add (or subtract if its negative) to the movement for the action with this card\\\hline
   \makecell[cl]{Attack marks:\\ \smallprojectile \smallpierce \smallcut \smallimpact \smallenergy }& How much damage to deal at this location if this attack hits (symbol indicates damage type)\\\hline
@@ -352,31 +356,19 @@ The priority marker then moves one step anticlockwise.
 \section{Play Example}
 % Covers: movement, melee, elevation, ranged + line of sight, melee between
 % elevations, damage, and attacking terrain.
-
-The battle for \emph{The Tower} pits \textbf{Kuwagata} (Ouwa, \emph{purple ring}, defending the
-objective) against \textbf{RipperSmasher} (Revolution, \emph{yellow ring}, attacking it). A wall of
-raised terrain (elevation~1) runs up the left of the board, and the objective tower stands to the
-right at elevation~3. Kuwagata's base movement is 4 and Ripper's is 3; each card then adds or
-subtracts movement. In the planning phase each frame drew 5 cards and set 2 face down:
+At \emph{The Tower} \textcolor{purple}{\textbf{Kuwagata}} defending the
+objective comes up against \textcolor{yellow}{\textbf{RipperSmasher}}.
+In the planning phase each frame drew 5 cards and set 2 face down:
 
 \begin{itemize}
 \item \textbf{Kuwagata} chose \emph{Rising Cut} (Greatsword, initiative~4) and \emph{Split} (Great Axe, initiative~3).
 \item \textbf{RipperSmasher} chose \emph{From the Hip} (Assault Rifle, initiative~5) and \emph{Fullbore} (Cannon, initiative~2).
 \end{itemize}
 
-Cards resolve from the highest initiative down, so the four play out in the order \emph{From the Hip}~(5),
-\emph{Rising Cut}~(4), \emph{Split}~(3), with \emph{Fullbore}~(2) never reaching its own turn --- it is spent
-as a block first, as we will see. The card strip under each scene tracks all four: they begin face down,
-flip face up as they resolve, and are struck out when they are spent as a block.
-
-\begin{figure*}[htbp]
-  \centering
   \cardtableau{\cardfacedown}{\cardfacedown}{\cardfacedown}{\cardfacedown}
-  \caption*{\textbf{Before the action phase.} Each frame's two chosen cards wait face down.}
-\end{figure*}
 
-\begin{figure*}[htbp]
-  \centering
+  \textbf{Before the action phase.}
+
   \begin{minipage}[c]{0.46\textwidth}
     \centering
     \begin{terrainscene}{../build/terrain/The Tower.tex}
@@ -394,24 +386,18 @@ flip face up as they resolve, and are struck out when they are spent as a block.
   \end{minipage}\hfill
   \begin{minipage}[c]{0.50\textwidth}
     \small\textbf{Scene 1 --- Ripper opens fire}\par\smallskip
-    \footnotesize
     With the highest initiative on the board (5), RipperSmasher resolves his ranged \emph{From the Hip}
-    first. A ranged attack cannot target an adjacent tile, so he moves \textbf{2 steps} back to the
-    middle of the bottom row to open up the range. From there the raised terrain still blocks his line
-    of sight to Kuwagata, who is tucked behind it top-left --- so he fires on the tower instead, which
+    first. He moves \textbf{2 steps} (base 3 - 1) to the
+    middle of the bottom row. From there the raised terrain on the left blocks his line
+    of sight to Kuwagata so he fires on the tower instead, which
     loses 1 of its 4 hit points. \emph{From the Hip} stays on the field turned sideways: it has resolved,
-    but its \textbf{mid block} is now live and can still stop an attack.\par
+    but it can still block.\par
   \end{minipage}
   \par\medskip
+
   \cardtableau{\cardfaceup{../build/card/Assault Rifle_From the hip.tex}}{\cardfacedown}%
     {\cardfacedown}{\cardfacedown}
-  \caption*{\textbf{Scene 1.} A ranged attack and line of sight. \emph{Purple ring:} Kuwagata.
-  \emph{Yellow ring:} RipperSmasher. The dotted circle marks where Ripper started; the dashed arrow is
-  his movement. \emph{From the Hip} is now face up.}
-\end{figure*}
 
-\begin{figure*}[htbp]
-  \centering
   \begin{minipage}[c]{0.46\textwidth}
     \centering
     \begin{terrainscene}{../build/terrain/The Tower.tex}
@@ -430,24 +416,16 @@ flip face up as they resolve, and are struck out when they are spent as a block.
   \begin{minipage}[c]{0.50\textwidth}
     \small\textbf{Scene 2 --- Kuwagata takes the high ground}\par\smallskip
     \footnotesize
-    Next, at initiative 4, Kuwagata moves onto the raised terrain right beside Ripper. That costs
-    \textbf{3 movement} --- two tiles down the wall and one extra to climb \emph{up} to elevation~1 ---
-    exactly what \emph{Rising Cut} leaves him (base 4, card $-1$). Now one level above his target, he plays
-    \emph{Rising Cut}. Its single \textbf{low} attack strikes a defender one level lower, so by the
-    melee-between-levels rule it is moved \emph{up} one bracket to \textbf{mid}. That matches the mid
-    block still live on Ripper's \emph{From the Hip}: Ripper must reveal it to block (blue shield), the
-    attack deals no damage, and the blocking card --- \emph{From the Hip} --- is discarded.\par
+    Next, at initiative 4, Kuwagata resolves \emph{Rising Cut}, with which he can move 3 (base 4 - 1). He moves onto the raised terrain  beside Ripper. That costs
+    \textbf{3 movement}: two tiles down the wall and one extra to climb up to elevation~1. \emph{Rising Cut}'s single
+     \textbf{low} \smallcut attack strikes a defender one level lower, so it is moved \emph{up} one bracket to \textbf{mid}.
+    Ripper must block it if able. He chooses to use th already resolved \emph{From the Hip} to block it - is discarded, and no damage is dealt.\par
   \end{minipage}
   \par\medskip
   \cardtableau{\carddiscarded{../build/card/Assault Rifle_From the hip.tex}}{\cardfacedown}%
     {\cardfaceup{../build/card/Greatsword_Rising Cut.tex}}{\cardfacedown}
-  \caption*{\textbf{Scene 2.} Melee between elevations, and blocking. Spending a block to stop the
-  attack discards \emph{From the Hip}. \emph{Rising Cut} has resolved and stays on the field (its own
-  high/mid blocks are now available to Kuwagata).}
-\end{figure*}
 
-\begin{figure*}[htbp]
-  \centering
+
   \begin{minipage}[c]{0.46\textwidth}
     \centering
     \begin{terrainscene}{../build/terrain/The Tower.tex}
@@ -466,24 +444,19 @@ flip face up as they resolve, and are struck out when they are spent as a block.
   \begin{minipage}[c]{0.50\textwidth}
     \small\textbf{Scene 3 --- Guard break}\par\smallskip
     \footnotesize
-    Last, at initiative 3, Kuwagata steps down off the terrain (moving \emph{down} costs no extra
-    movement) and circles \textbf{2 steps} around Ripper to his far side, ending level with him. He
-    plays \emph{Split} --- a \textbf{Guard Break} attack that hits \textbf{high} and \textbf{mid}.
-    Guard break spends a block in each attacked zone: Ripper's mid is already open (\emph{From the Hip}
-    is gone), so he reveals his last face-down card, \emph{Fullbore}, and its mid block soaks Split's
-    mid --- consuming \emph{Fullbore}. Nothing blocks the high attack, which lands for 2. Both of
-    Ripper's cards are now spent --- \emph{Fullbore} (initiative 2) never got to resolve as its own
-    attack --- so he has no actions left this round.\par
+    Next, at initiative 3, Kuwagata resolves \emph{Split} which has -2mv so he can move 2. He steps down off the terrain (moving \emph{down} costs no extra
+    movement) and circles \textbf{2 steps} around Ripper to his far side, ending level with him.
+    \emph{Split} hits \textbf{high} and \textbf{mid}. RipperSmasher has to reveal his face down \emph{Fullbore} to block this, and it is then discarded and will not resolve this round.
+    Normally that would be the end of the attack (any block that lines up blocks the whole attack), but \emph{Split} has
+    \textbf{Guard Break} so each zone needds to be blocked separately (and must be blocked if able), Ripper is out of cards
+    to block with and takes 2 damage high, leaving him 2 high damage away from destruction.
+    \par
   \end{minipage}
   \par\medskip
   \cardtableau{\carddiscarded{../build/card/Assault Rifle_From the hip.tex}}%
     {\carddiscarded{../build/card/Cannon_Fullbore.tex}}%
     {\cardfaceup{../build/card/Greatsword_Rising Cut.tex}}%
     {\cardfaceup{../build/card/Great Axe_Split.tex}}
-  \caption*{\textbf{Scene 3.} Guard break spends the defender's last block (\emph{Fullbore}, struck
-  out) while the unblocked high zone still deals damage. Kuwagata ends the round with both of his
-  cards resolved and on the field.}
-\end{figure*}
 
 \twocolumn
 

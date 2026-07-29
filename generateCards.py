@@ -86,8 +86,15 @@ terrain_iconwidth_value = 0.6
 terarin_iconwidth = f"width={terrain_iconwidth_value}cm"
 logo_width = "width=1.2cm"
 
-# tikzpicture [scale=...] used by make_card_from_row; offsets given in physical cm
-# (e.g. move_icon_outline) need to be divided by this to land at the right size
+# Coordinate unit (in cm) for the card/frame tikzpictures. We set the picture's
+# x/y unit vectors to this rather than using [scale=...]: a `scale` key applies a
+# pgf canvas transform that is re-evaluated when the picture is nested inside
+# another box/node, which makes the `max height` background \includegraphics
+# recompute at a different size and shifts the whole layout. Setting x=/y= fixes
+# the units at typeset time, so the card renders identically whether standalone,
+# \resizebox'd, or nested -- the geometry is exactly the same as scale=card_scale.
+# Offsets given in physical cm (e.g. move_icon_outline) are divided by this to
+# land at the right size, just as before.
 card_scale = 0.86
 
 # outline of mvImg (a right-pointing block arrow), as (dx, dy) cm offsets from its
@@ -558,7 +565,7 @@ def make_card_from_row(row, card_type, group_capability=None, annotate=False, an
     outname = (annotate_outfile or 'build/rules_card.tex') if annotate else cardoutputfolder + row['Group'] + "_" + row['Name'] + '.tex'
     with open(outname, 'w') as ofile:
         # art and card edge
-        card_text = f"\\begin{{tikzpicture}}[scale={card_scale}, backbox/.style= {{rectangle, minimum height=2.0cm," \
+        card_text = f"\\begin{{tikzpicture}}[x={card_scale}cm, y={card_scale}cm, backbox/.style= {{rectangle, minimum height=2.0cm," \
                    + " minimum width =2.0cm, rounded corners = 0.3cm, fill opacity=0.75}]\n "
         card_text = card_text + "\\node [rectangle, minimum width = 6.2cm, minimum height = 8.5cm, fill=black] at (4,5){};\n"
         # background
@@ -726,7 +733,7 @@ def create_frame_sheet(frame, annotate=False, annotate_outfile=None):
     outname = (annotate_outfile or 'build/rules_frame.tex') if annotate else frameoutputfolder + frame["Name"] + '.tex'
     with open(outname, 'w') as ofile:
         #load the initial image
-        frame_text = "\\begin{tikzpicture}[scale=0.86, backbox/.style= {rectangle, minimum height = 2.2cm," \
+        frame_text = f"\\begin{{tikzpicture}}[x={card_scale}cm, y={card_scale}cm, backbox/.style= {{rectangle, minimum height = 2.2cm," \
                 + " minimum width =2.2cm, rounded corners = 0.3cm, fill=white, opacity=0.75}]\n "
         frame_text = frame_text + "\\node [rectangle, minimum width = 6.2cm, minimum height = 8.5cm, fill=black!70!white!30] at (4,5){};\n"
         # background
