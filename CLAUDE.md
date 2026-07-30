@@ -77,7 +77,7 @@ Key columns: `Name`, `Group`, `Initiative`, `Movement`, `High/Mid/Low Attack+Blo
 - `pictures/` — card images; subdirs: `backgrounds/`, `foreground/`, `weapons/`, `weapon_pictures/`, `booster_pictures/`
 - `icons/` — mechanic icons
 - `terrain/` — terrain tile PNGs
-- `backs/` — card back designs
+- `tts_assets/` — card back designs and tokens for tts
 - `decks/` — per-faction deck CSVs (one bare card name per row; `deck_terrain_*` list terrain tiles, other `deck_*` list cards — `generate_all_decks.py` picks the `--type` from the filename). `frames_deck.csv` lists bare frame names and is rendered with `--type frame` (see `.vscode/launch.json`). The root `individual_cards.csv` is a mixed deck that lists explicit folder-prefixed paths instead (no `--type`)
 - `RulesImages/` — annotated rules-reference card PNGs (one per card type), rendered by `generate_all_decks.py`
 - `build/` — all generated output; do not edit by hand

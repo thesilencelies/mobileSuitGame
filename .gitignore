@@ -229,6 +229,8 @@ TSWLatexianTemp*
 !CardImages/*.png
 !RulesImages/*.png
 
+!tts_assets/*.png
+
 build
 .idea
 
