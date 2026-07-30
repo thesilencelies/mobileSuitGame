@@ -23,8 +23,8 @@ Run: `python generateCards.py`
 
 ### generate_card_sheet.py
 Arranges card `.tex` files into a printable grid (default 10×7) for TTS; generates multi-page output as needed.
-Run: `python generate_card_sheet.py --csv decks/deck_percival.csv --output card_sheet.tex`
-Key args: `--cols`, `--rows`, `--bleed`, `--add_back`, `--back_text`, `--back_color`, `--repeat`
+Run: `python generate_card_sheet.py --csv decks/deck_percival.csv --type card --output card_sheet.tex`
+Key args: `--type` (`card`/`terrain`/`frame` — prepends the matching `build/` subfolder to bare CSV entries), `--cols`, `--rows`, `--bleed`, `--add_back`, `--back_text`, `--back_color`, `--repeat`
 
 ### generate_all_decks.py
 Batch-runs the full front+back sheet→PDF→PNG pipeline for all (or specified) decks. Also renders the annotated rules-reference cards (`build/rules_*_doc.tex`) to trimmed PNGs in `RulesImages/`.
@@ -78,6 +78,6 @@ Key columns: `Name`, `Group`, `Initiative`, `Movement`, `High/Mid/Low Attack+Blo
 - `icons/` — mechanic icons
 - `terrain/` — terrain tile PNGs
 - `backs/` — card back designs
-- `decks/` — per-faction deck CSVs (one `.tex` filename per row)
+- `decks/` — per-faction deck CSVs (one bare card name per row; `deck_terrain_*` list terrain tiles, other `deck_*` list cards — `generate_all_decks.py` picks the `--type` from the filename). `frames_deck.csv` lists bare frame names and is rendered with `--type frame` (see `.vscode/launch.json`). The root `individual_cards.csv` is a mixed deck that lists explicit folder-prefixed paths instead (no `--type`)
 - `RulesImages/` — annotated rules-reference card PNGs (one per card type), rendered by `generate_all_decks.py`
 - `build/` — all generated output; do not edit by hand

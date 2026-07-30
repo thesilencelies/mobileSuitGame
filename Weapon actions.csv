@@ -1,17 +1,17 @@
 Name,Faction,Group,Initiative,Movement,HighBlock,MidBlock,LowBlock,HighDType,MidDType,LowDType,HighAttack,HighRange,MidAttack,MidRange,LowAttack,LowRange,Text,Persistence,CardImg,BackgroundLayer,ForegroundImg,Flavor,PrintID,Artist
 Thrust,,Spear,7,0,0,1,0,pierce,pierce,pierce,0,0,1,0,0,0,,0,weapon_pictures/Spear_Thrust_t.png,backgrounds/Spear_bg.png,,,1,Stephen Lilico
-Jab,,Spear,8,0,1,0,0,pierce,pierce,pierce,1,0,0,0,0,0,\fullcommitted,0,weapon_pictures/Spear_Jab_t.png,backgrounds/Spear_bg.png,,,1,Stephen Lilico
+Jab,,Spear,8,0,1,0,0,pierce,pierce,pierce,1,0,1,0,0,0,\fullfeint,0,weapon_pictures/Spear_Jab_t.png,backgrounds/Spear_bg.png,,,1,Stephen Lilico
 Impale,,Spear,5,-2,1,0,0,pierce,pierce,pierce,2,0,2,0,0,0,,0,weapon_pictures/Spear_Impale_t.png,backgrounds/Spear_bg.png,,,1,Stephen Lilico
 Sweep,,Spear,7,0,0,0,1,pierce,pierce,impact,0,0,0,0,1,0,On Hit: target gets 2 \fullslowed ,0,weapon_pictures/Spear_Sweep_t.png,backgrounds/Spear_bg.png,,,1,Stephen Lilico
 Lunge,,Sword,7,1,0,0,1,cut,cut,cut,0,0,1,0,0,0,\fullcommitted,0,weapon_pictures/Sword_Lunge_t.png,backgrounds/Sword_bg.png,,,1,Stephen Lilico
-Feint,,Sword,7,1,0,1,0,cut,cut,cut,1,0,0,0,0,0,\fullfeint,0,weapon_pictures/Sword_Feint_t.png,backgrounds/Sword_bg.png,,,1,Stephen Lilico
+Feint,,Sword,7,1,0,1,0,cut,cut,cut,1,0,1,0,0,0,\fullfeint,0,weapon_pictures/Sword_Feint_t.png,backgrounds/Sword_bg.png,,,1,Stephen Lilico
 Slice,,Sword,5,-2,0,0,1,cut,cut,cut,1,0,1,0,0,0,,0,weapon_pictures/Sword_Slice_t.png,backgrounds/Sword_bg.png,,,1,Stephen Lilico
 Parry,,Sword,3,0,1,2,0,cut,cut,cut,0,0,0,0,0,0,On Block: deals mid \smallcut,0,weapon_pictures/Sword_Parry_t.png,backgrounds/Sword_bg.png,,,1,Stephen Lilico
 Bash,,Shield,5,-1,0,2,0,impact,impact,impact,1,0,0,0,0,0,On Hit: target gets 2 \fulldazed,0,weapon_pictures/Shield_Bash_t.png,backgrounds/Shield_bg.png,,,1,Stephen Lilico
 Full Guard,,Shield,4,-2,2,2,1,,,,0,0,0,0,0,0,,1,weapon_pictures/Shield_Full_Guard_t.png,backgrounds/Shield_bg.png,,,1,Stephen Lilico
 Push on,,Shield,8,-1,0,2,2,,,,0,0,0,0,0,0,,0,weapon_pictures/Shield_Push_on_t.png,backgrounds/Shield_bg.png,,,1,Stephen Lilico
 Lock down,,Shield,6,-1,2,1,0,impact,impact,impact,1,0,1,0,0,0,\fullfeint,0,weapon_pictures/Shield_Lock_down_t.png,backgrounds/Shield_bg.png,,,1,Stephen Lilico
-Overcharge,,Stun Baton,3,-2,0,1,0,energy,energy,energy,1,0,1,0,1,0,\fullguardbreak \\ On Hit: target gets 2 \fullstunned,0,weapon_pictures/Stun_Baton_Overcharge_t.png,backgrounds/Stun_Baton_bg.png,,,1,Stephen Lilico
+Overcharge,,Stun Baton,3,-2,0,1,0,energy,energy,energy,1,0,1,0,1,0,\guardbreak \\ On Hit: target gets 2 \fullstunned \\ \fullreload,\infty,weapon_pictures/Stun_Baton_Overcharge_t.png,backgrounds/Stun_Baton_bg.png,,,1,Stephen Lilico
 Shock,,Stun Baton,6,0,0,0,1,energy,energy,energy,0,0,1,0,0,0,On Hit: target gets 2 \fullstunned,0,weapon_pictures/Stun_Baton_Shock_t.png,backgrounds/Stun_Baton_bg.png,,,1,Stephen Lilico
 Zap,,Stun Baton,7,-1,0,0,1,energy,energy,energy,1,0,0,0,0,0,On Hit: target gets 2 \fullstunned,0,weapon_pictures/Stun_Baton_Zap_t.png,backgrounds/Stun_Baton_bg.png,,,1,Stephen Lilico
 Strike,,Stun Baton,5,-1,0,1,0,energy,energy,energy,0,0,0,0,1,0,On Hit: target gets 2 \fullstunned,0,weapon_pictures/Stun_Baton_Strike_t.png,backgrounds/Stun_Baton_bg.png,,,1,Stephen Lilico
@@ -23,10 +23,10 @@ Rapid fire,,Stun Bow,3,-3,0,1,0,pierce,pierce,pierce,1,6,1,10,0,0,On Hit: target
 Arc shot,,Stun Bow,3,-2,0,1,0,pierce,pierce,pierce,1,12,0,0,0,0,On Hit: target gets 2 \fullstunned,0,weapon_pictures/Stun_Bow_Arc_shot_t.png,backgrounds/Stun_Bow_bg.png,,I'll wipe that smile off your face,1,Stephen Lilico
 Straight shot,,Stun Bow,5,-1,0,1,0,pierce,pierce,pierce,0,0,1,12,0,0,On Hit: target gets 2 \fullstunned,0,weapon_pictures/Stun_Bow_Straight_shot_t.png,backgrounds/Stun_Bow_bg.png,,,1,Stephen Lilico
 Low blow,,Stun Bow,5,-1,0,1,0,pierce,pierce,pierce,0,0,0,0,1,12,On Hit: target gets 2 \fullstunned,0,weapon_pictures/Stun_Bow_Low_blow_t.png,backgrounds/Stun_Bow_bg.png,,,1,Stephen Lilico
-Fullbore,,Cannon,2,-3,0,1,0,projectile,projectile,projectile,0,0,3,12,0,0,,0,weapon_pictures/Cannon_Fullbore_t.png,backgrounds/Cannon_bg.png,,,1,Stephen Lilico
-Airburst,,Cannon,2,-2,0,1,0,projectile,projectile,projectile,2,12,1,12,0,0,\fullguardbreak,0,weapon_pictures/Cannon_Airburst_t.png,backgrounds/Cannon_bg.png,,,1,Stephen Lilico
-Cannon,,Cannon,2,-3,0,1,0,projectile,projectile,projectile,0,0,1,12,2,12,\fullguardbreak,0,weapon_pictures/Cannon_Cannon_t.png,backgrounds/Cannon_bg.png,,,1,Stephen Lilico
-Pummel,,Cannon,2,-3,0,1,0,projectile,projectile,projectile,0,0,0,0,3,12,,0,weapon_pictures/Cannon_Pummel_t.png,backgrounds/Cannon_bg.png,,,1,Stephen Lilico
+Fullbore,,Cannon,2,-3,0,1,0,projectile,projectile,projectile,0,0,3,12,0,0,\fullreload,\infty,weapon_pictures/Cannon_Fullbore_t.png,backgrounds/Cannon_bg.png,,,1,Stephen Lilico
+Airburst,,Cannon,2,-2,0,1,0,projectile,projectile,projectile,2,12,2,12,1,8,\fullguardbreak \fullreload,\infty,weapon_pictures/Cannon_Airburst_t.png,backgrounds/Cannon_bg.png,,,1,Stephen Lilico
+Cannon,,Cannon,2,-3,0,1,0,projectile,projectile,projectile,1,8,2,12,2,12,\fullguardbreak \fullreload,\infty,weapon_pictures/Cannon_Cannon_t.png,backgrounds/Cannon_bg.png,,,1,Stephen Lilico
+Pummel,,Cannon,2,-3,0,1,0,projectile,projectile,projectile,0,0,0,0,3,12,\fullreload,\infty,weapon_pictures/Cannon_Pummel_t.png,backgrounds/Cannon_bg.png,,,1,Stephen Lilico
 Crush,,Halberd,4,-2,0,0,1,impact,impact,impact,3,0,0,0,0,0,,0,weapon_pictures/Halberd_Crush_t.png,backgrounds/Halberd_bg.png,,,1,Stephen Lilico
 Eviscerate,,Halberd,4,-2,1,0,0,cut,cut,cut,0,0,3,0,0,0,,0,weapon_pictures/Halberd_Eviscerate_t.png,backgrounds/Halberd_bg.png,,,1,Stephen Lilico
 Thrust,,Halberd,7,1,0,1,0,pierce,pierce,pierce,1,0,0,0,0,0,\fullcommitted,0,weapon_pictures/Halberd_Thrust_t.png,backgrounds/Halberd_bg.png,,,1,Stephen Lilico
@@ -54,7 +54,7 @@ Slam,,Kinetic Hammer,4,-3,0,0,1,impact,impact,impact,0,0,0,0,2,0,Also hits any e
 Strike,,Kinetic Hammer,4,-2,0,0,1,impact,impact,impact,3,0,0,0,0,0,On Hit: target gets 2 \fulldazed,0,weapon_pictures/Kinetic_Hammer_Strike_t.png,backgrounds/Kinetic_Hammer_bg.png,,,1,Stephen Lilico
 Heavy Swing,,Kinetic Hammer,4,-3,0,0,1,impact,impact,impact,2,0,2,0,0,0,On Hit: target gets 2 \fulldazed,0,weapon_pictures/Kinetic_Hammer_Heavy_Swing_t.png,backgrounds/Kinetic_Hammer_bg.png,,,1,Stephen Lilico
 Batter,,Kinetic Hammer,6,-2,0,0,1,impact,impact,impact,1,0,1,0,0,0,\fullknockback{2},0,weapon_pictures/Kinetic_Hammer_Batter_t.png,backgrounds/Kinetic_Hammer_bg.png,,,1,Stephen Lilico
-Charged Shot,,Plasma Rifle,3,-3,0,1,0,energy,energy,energy,2,12,1,9,0,0,\fullguardbreak,0,weapon_pictures/Plasma_Rifle_Charged_Shot_t.png,backgrounds/Plasma_Rifle_bg.png,,,1,Stephen Lilico
+Charged Shot,,Plasma Rifle,3,-3,0,1,0,energy,energy,energy,2,12,1,9,0,0,\fullguardbreak \fullreload,\infty,weapon_pictures/Plasma_Rifle_Charged_Shot_t.png,backgrounds/Plasma_Rifle_bg.png,,,1,Stephen Lilico
 Single Shot,,Plasma Rifle,5,-2,0,1,0,energy,energy,energy,0,0,2,12,0,0,,0,weapon_pictures/Plasma_Rifle_Single_Shot_t.png,backgrounds/Plasma_Rifle_bg.png,,,1,Stephen Lilico
 Plasma Stream,,Plasma Rifle,4,-2,0,1,0,energy,energy,energy,0,0,1,8,1,8,\fullguardbreak,0,weapon_pictures/Plasma_Rifle_Plasma_Stream_t.png,backgrounds/Plasma_Rifle_bg.png,,,1,Stephen Lilico
 Vent,,Plasma Rifle,6,1,0,1,0,energy,energy,energy,1,0,1,0,0,0,\fullfeint,0,weapon_pictures/Plasma_Rifle_Vent_t.png,backgrounds/Plasma_Rifle_bg.png,,,1,Stephen Lilico

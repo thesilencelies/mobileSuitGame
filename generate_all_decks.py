@@ -32,7 +32,7 @@ DECKS_DIR = WORKSPACE / "decks"
 TTS_IMAGES = WORKSPACE / "TTSImages"
 CARD_IMAGES = WORKSPACE / "CardImages"
 RULES_IMAGES = WORKSPACE / "RulesImages"
-INDIVIDUAL_CARDS_CSV = DECKS_DIR / "individual_cards.csv"
+INDIVIDUAL_CARDS_CSV = WORKSPACE / "individual_cards.csv"
 
 COLS = 7
 ROWS = 4
@@ -73,6 +73,10 @@ def process_deck(prefix):
     back_tex = f"{prefix}_back_image.tex"
     has_back = os.path.exists(f"build/back_{prefix}.tex")
 
+    # deck_terrain_* list terrain tiles; every other deck lists weapon/pilot/etc.
+    # cards. The type tells generate_card_sheet which build/ subfolder to prepend.
+    deck_type = "terrain" if prefix == "terrain" or prefix.startswith("terrain_") else "card"
+
     cols = COLS
     rows = ROWS
 
@@ -86,6 +90,7 @@ def process_deck(prefix):
     deck_run = [sys.executable, "generate_card_sheet.py",
          f"--csv=decks/deck_{prefix}.csv",
          f"--output=build/{front_tex}",
+         f"--type={deck_type}",
          f"--cols={cols}", f"--rows={rows}"]
     run(
         deck_run,
@@ -114,7 +119,7 @@ def process_deck(prefix):
 
 
 def process_individual_cards():
-    """Renders standalone PNGs for the cards listed in decks/individual_cards.csv, if present."""
+    """Renders standalone PNGs for the cards listed in individual_cards.csv, if present."""
     if not INDIVIDUAL_CARDS_CSV.exists():
         print(f"\n(no {INDIVIDUAL_CARDS_CSV.relative_to(WORKSPACE)} found - skipping individual card images)")
         return
@@ -160,7 +165,7 @@ def main():
     )
     parser.add_argument(
         "--skip-individual", action="store_true",
-        help="Skip rendering individual card images from decks/individual_cards.csv.",
+        help="Skip rendering individual card images from individual_cards.csv.",
     )
     parser.add_argument(
         "--skip-rules", action="store_true",

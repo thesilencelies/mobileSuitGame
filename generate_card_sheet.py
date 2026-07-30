@@ -14,10 +14,14 @@ Usage:
     python generate_card_sheet.py --csv cards.csv --output card_sheet.tex
     python generate_card_sheet.py --csv cards.csv --cols 10 --rows 7
     python generate_card_sheet.py --csv cards.csv --cols 5 --rows 4 --bleed 0.1
+    python generate_card_sheet.py --csv decks/deck_x.csv --type card
 
 Arguments:
     --csv       Path to the CSV file listing card .tex filenames (required)
     --output    Path for the generated .tex file (default: card_sheet.tex)
+    --type      Deck type (card/terrain/frame); prepends that build/ subfolder to
+                bare CSV entries so decks can list plain names. Entries that already
+                name a folder (e.g. mixed decks) are left untouched. Default: none.
     --cols      Number of columns per sheet (default: 10)
     --rows      Number of rows per sheet (default: 7)
     --bleed     Gap between cards in cm (default: 0.0 — cards flush together)
@@ -37,6 +41,11 @@ DEFAULT_ROWS = 7
 
 CARD_WIDTH_CM  = 6.4
 CARD_HEIGHT_CM = 8.9
+
+# Maps a deck --type to the build/ subfolder its card .tex files live in.
+# Per-card, frame and terrain tiles live in their own subfolders (see generateCards.py),
+# so a typed deck can list bare names and have the folder prepended here.
+TYPE_PREFIXES = {"card": "card/", "terrain": "terrain/", "frame": "frame/"}
 
 # ---------------------------------------------------------------------------
 # LaTeX template pieces
@@ -120,11 +129,14 @@ POSTAMBLE = r"""\end{document}
 # Helpers
 # ---------------------------------------------------------------------------
 
-def read_card_list(csv_path: str) -> list[str]:
+def read_card_list(csv_path: str, prefix: str = "") -> list[str]:
     """Read a single-column CSV (no header) and return a list of .tex filenames.
 
     CSV entries list card base names without the .tex extension; it is appended
-    here so the generated \\input picks up the right file.
+    here so the generated \\input picks up the right file. When a ``prefix`` is
+    given (from a deck ``--type``), it is prepended to bare entries — entries that
+    already name a folder (e.g. mixed decks like individual_cards.csv) are left
+    untouched.
     """
     if not os.path.isfile(csv_path):
         sys.exit(f"Error: CSV file not found: {csv_path}")
@@ -136,6 +148,8 @@ def read_card_list(csv_path: str) -> list[str]:
             if row:  # skip completely blank lines
                 filename = row[0].strip()
                 if filename:
+                    if prefix and "/" not in filename:
+                        filename = prefix + filename
                     if not filename.endswith(".tex"):
                         filename += ".tex"
                     cards.append(filename)
@@ -225,6 +239,12 @@ def main():
         help="Output .tex filename (default: card_sheet.tex)."
     )
     parser.add_argument(
+        "--type", choices=sorted(TYPE_PREFIXES), default=None,
+        help="Deck type; prepends the matching build/ subfolder (card/, terrain/, "
+             "frame/) to bare CSV entries. Entries that already name a folder are "
+             "left as-is. Default: none (entries used verbatim)."
+    )
+    parser.add_argument(
         "--cols", type=int, default=DEFAULT_COLS,
         help=f"Number of card columns per sheet (default: {DEFAULT_COLS})."
     )
@@ -255,7 +275,7 @@ def main():
     if args.repeat:
         cards = [args.csv] * (args.cols * args.rows)
     else:
-        cards = read_card_list(args.csv)
+        cards = read_card_list(args.csv, prefix=TYPE_PREFIXES.get(args.type, ""))
 
     print(f"Grid: {args.cols}×{args.rows} ({cards_per_sheet} cards per sheet)")
     print(f"Found {len(cards)} card(s) → "
