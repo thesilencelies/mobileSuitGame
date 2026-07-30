@@ -51,8 +51,8 @@
 \newcommand{\ghost}[3]{\draw[line width=1.2pt, #3, densely dotted, opacity=0.8] (#1,#2) circle (0.60);}
 % an impact / damage burst with a label
 \newcommand{\burst}[3]{% x, y, label
-  \node[star, star points=9, star point ratio=0.5, fill=orange!85!red, draw=red!60!black,
-        line width=0.5pt, minimum size=1.05cm, inner sep=0pt] at (#1,#2){};
+  \node[star, star points=7, star point ratio=0.5, fill=orange!85!red, draw=red!60!black,
+        line width=0.5pt, minimum size=0.6cm, inner sep=0pt] at (#1,#2){};
   \node[font=\bfseries\footnotesize] at (#1,#2){#3};
 }
 % a small block-shield marker placed beside a frame that blocked
@@ -70,8 +70,8 @@
 }
 % ---- The face-down / face-up / discarded card tableau ---------------------
 % Tracks the four chosen cards (2 per frame) through the round.
-\newlength{\tabcardh}\setlength{\tabcardh}{3.7cm}
-\newcommand{\cardfacedown}{\includegraphics[height=\tabcardh]{../backs/normal_back.png}}
+\newlength{\tabcardh}\setlength{\tabcardh}{2.5cm}
+\newcommand{\cardfacedown}{\includegraphics[height=\tabcardh]{../tts_assets/normal_back.png}}
 \newcommand{\cardfaceup}[1]{\resizebox{!}{\tabcardh}{\input{#1}}}
 \newcommand{\carddiscarded}[1]{% a resolved card that has been spent as a block
   \begin{tikzpicture}
@@ -94,9 +94,9 @@
   \sbox{\slotAbox}{#1}\sbox{\slotBbox}{#2}\sbox{\slotCbox}{#3}\sbox{\slotDbox}{#4}%
   \begin{tikzpicture}[slot/.style={inner sep=0, anchor=south}]
     \node[slot] (a) at (0,0) {\usebox{\slotAbox}};
-    \node[slot, right=0.28cm of a] (b) {\usebox{\slotBbox}};
-    \node[slot, right=1.5cm of b] (cc) {\usebox{\slotCbox}};
-    \node[slot, right=0.28cm of cc] (d) {\usebox{\slotDbox}};
+    \node[slot, right=0.22cm of a] (b) {\usebox{\slotBbox}};
+    \node[slot, right=0.7cm of b] (cc) {\usebox{\slotCbox}};
+    \node[slot, right=0.22cm of cc] (d) {\usebox{\slotDbox}};
     \draw[gray!70, line width=0.9pt]
       ($(b.north east)!0.5!(cc.north west)+(0,0.55)$) --
       ($(b.south east)!0.5!(cc.south west)+(0,-0.15)$);
@@ -114,8 +114,8 @@
 % the card's bottom-left corner (0.05, 0.025).
 \newsavebox{\terraincardbox}
 \newenvironment{terrainscene}[1]
-  {\sbox{\terraincardbox}{\input{#1}}%
-   \begin{tikzpicture}
+  {\sbox{\terraincardbox}{\scalebox{0.8}{\input{#1}}}%
+   \begin{tikzpicture}[scale=0.8]
      \node[anchor=south west, inner sep=0pt] (T) at (0,0){\usebox{\terraincardbox}};
      \begin{scope}[shift={($(T.south west)+(-0.05,-0.025)$)}]}
   {\end{scope}\end{tikzpicture}}
@@ -227,9 +227,9 @@ At the end of the planning phase, one status token of each type is removed from 
 
 
 \section{Action}
-Each players declares the highest remaining initiative amongst the initiatives of their remaining cards. 
-
-Cards are resolved in order of the initiative value, starting with the highest. In the event of a tie, players take it in turns to choose one card at the current intiative to resolve, starting with the player with the priority marker and moving clockwise.
+Cards are resolved in order of the initiative value, starting with the highest. 
+In the event of a tie, players take it in turns to choose one card at the current intiative to resolve, starting with the player with the priority marker and moving clockwise.
+To work out which card has the highest initiative left, each player declares the highest remaining initiative amongst their remaining cards at the start of the phase and after each card resolution.
 
 Card resolution consists of 3 steps: movement, effect, and attack. Movement can happen first or last. 
 
@@ -286,6 +286,11 @@ The \smallcutx{2} high end up \smallcutx{2} low, and the \smallcutx{2} mid are o
 Conversely if Frame C at elevation 2 were to attack Frame A with Thrust (\smallpierce mid), it would be moved one stage up, resulting in \smallpierce high.
 
 Ranged attacks are not affected by elevation in this way.
+
+\begin{figure}[htbp]
+  \centering
+\includegraphics[width=\linewidth]{../pictures/ground_zero.png}
+\end{figure}
 
 \subsubsection{Damage}
 Each frame can endure a number of hits on each zone indicated on the character card (default 4) after which they are destroyed. 
@@ -352,6 +357,18 @@ The priority marker then moves one step anticlockwise.
 \end{tabular}
 \renewcommand{\arraystretch}{1.0}
 
+\begin{figure}[htbp]
+  \centering
+  \resizebox{\textwidth}{!}{\input{../build/rules_drone.tex}}
+  \par Drone Card
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \resizebox{\textwidth}{!}{\input{../build/rules_frame.tex}}
+\end{figure}
+
+
 
 \section{Play Example}
 % Covers: movement, melee, elevation, ranged + line of sight, melee between
@@ -360,24 +377,29 @@ At \emph{The Tower} \textcolor{purple}{\textbf{Kuwagata}} defending the
 objective comes up against \textcolor{yellow}{\textbf{RipperSmasher}}.
 In the planning phase each frame drew 7 cards and set 2 face down:
 
+\begin{minipage}[c]{0.46\textwidth}
 \begin{itemize}
 \item \textbf{Kuwagata} chose \emph{Rising Cut} (Greatsword, initiative~4) and \emph{Split} (Great Axe, initiative~3).
 \item \textbf{RipperSmasher} chose \emph{From the Hip} (Assault Rifle, initiative~5) and \emph{Fullbore} (Cannon, initiative~2).
 \end{itemize}
+\end{minipage}
+\begin{minipage}[c]{0.5\textwidth}
+\cardtableau{\cardfacedown}{\cardfacedown}{\cardfacedown}{\cardfacedown}
+\end{minipage}
 
-  \cardtableau{\cardfacedown}{\cardfacedown}{\cardfacedown}{\cardfacedown}
-
-  \textbf{Before the action phase.}
+\textbf{Before the action phase.}
 
   \begin{minipage}[c]{0.46\textwidth}
     \centering
     \begin{terrainscene}{../build/terrain/The Tower.tex}
+      % tower token
+      \node at (5.25, 5.355) {\includegraphics[height=1.25cm]{../tts_assets/Tower4.png}};
       % Kuwagata tucked behind the raised terrain, top left
       \kstandee{1.13}{7.415}
       % Ripper drops back two tiles to open the range on the tower
       \ghost{3.19}{5.355}{yellow!75!black}
       \draw[moveline, yellow!70!black] (3.19,5.0) -- (3.19,1.65);
-      \steplabel{3.85}{3.29}{2 steps}
+      % \steplabel{3.85}{3.29}{2 steps}
       \rstandee{3.19}{1.23}
       % ... and fires on the tower
       \draw[shotline] (3.45,1.75) -- (4.95,5.05);
@@ -391,21 +413,23 @@ In the planning phase each frame drew 7 cards and set 2 face down:
     of sight to Kuwagata so he fires on the tower instead, which
     loses 1 of its 4 hit points. \emph{From the Hip} stays on the field turned sideways: it has resolved,
     but it can still block.\par
+  \cardtableau{\cardfaceup{../build/card/Assault Rifle_From the hip.tex}}{\cardfacedown}%
+    {\cardfacedown}{\cardfacedown}
   \end{minipage}
   \par\medskip
 
-  \cardtableau{\cardfaceup{../build/card/Assault Rifle_From the hip.tex}}{\cardfacedown}%
-    {\cardfacedown}{\cardfacedown}
 
   \begin{minipage}[c]{0.46\textwidth}
     \centering
     \begin{terrainscene}{../build/terrain/The Tower.tex}
+      % tower token
+      \node at (5.25, 5.355) {\includegraphics[height=1.25cm]{../tts_assets/Tower3.png}};
       % Ripper still on the middle-bottom tile
       \rstandee{3.19}{1.23}
       % Kuwagata moves down the wall and climbs onto the raised terrain beside Ripper
       \ghost{1.13}{7.415}{purple!55!black}
       \draw[moveline, purple!45!black] (1.13,7.1) -- (1.13,3.9);
-      \steplabel{2.2}{5.5}{3 steps\\(incl.\ +1 climb)}
+      % \steplabel{2.2}{5.5}{3 steps\\(incl.\ +1 climb)}
       \kstandee{1.13}{3.29}
       % attacks down into Ripper; the shield shows the block
       \draw[attackline] (1.6,2.9) -- (2.7,1.65);
@@ -413,25 +437,27 @@ In the planning phase each frame drew 7 cards and set 2 face down:
     \end{terrainscene}
   \end{minipage}\hfill
   \begin{minipage}[c]{0.50\textwidth}
-    Next, at initiative 4, Kuwagata resolves \emph{Rising Cut}, with which he can move 3 (base 4 - 1). He moves onto the raised terrain  beside Ripper. That costs
+    At initiative 4, Kuwagata resolves \emph{Rising Cut}, with which he can move 3 (base 4 - 1). He moves onto the raised terrain  beside Ripper. That costs
     \textbf{3 movement}: two tiles down the wall and one extra to climb up to elevation~1. \emph{Rising Cut}'s single
-     \textbf{low} \smallcut attack strikes a defender one level lower, so it is moved \emph{up} one bracket to \textbf{mid}.
-    Ripper must block it if able. He chooses to use th already resolved \emph{From the Hip} to block it - is discarded, and no damage is dealt.\par
-  \end{minipage}
-  \par\medskip
+     \textbf{low} \smallcut attack strikes a defender one level lower, so it is moved up one bracket to \textbf{mid}.
+    Ripper must block it if able. He chooses to use the already resolved \emph{From the Hip} to block; it's discarded, and no damage is dealt.\par
+  
   \cardtableau{\carddiscarded{../build/card/Assault Rifle_From the hip.tex}}{\cardfacedown}%
     {\cardfaceup{../build/card/Greatsword_Rising Cut.tex}}{\cardfacedown}
-
+  \end{minipage}
+  \par\medskip
 
   \begin{minipage}[c]{0.46\textwidth}
     \centering
     \begin{terrainscene}{../build/terrain/The Tower.tex}
+      % tower token
+      \node at (5.25, 5.355) {\includegraphics[height=1.25cm]{../tts_assets/Tower3.png}};
       \rstandee{3.19}{1.23}
       % Kuwagata steps down off the terrain and circles around Ripper to his far side
       \ghost{1.13}{3.29}{purple!55!black}
       \draw[moveline, purple!45!black]
         (1.6,3.45) .. controls (2.6,4.1) and (3.9,3.9) .. (4.85,1.75);
-      \steplabel{3.19}{4.25}{2 steps\\(step down is free)}
+      % \steplabel{3.19}{4.25}{2 steps\\(step down is free)}
       \kstandee{5.25}{1.23}
       % guard-break attack into Ripper
       \draw[attackline] (4.6,1.23) -- (3.8,1.23);
@@ -439,22 +465,38 @@ In the planning phase each frame drew 7 cards and set 2 face down:
     \end{terrainscene}
   \end{minipage}\hfill
   \begin{minipage}[c]{0.50\textwidth}
-
-    Next, at initiative 3, Kuwagata resolves \emph{Split} which has -2mv so he can move 2. He steps down off the terrain (moving \emph{down} costs no extra
-    movement) and circles \textbf{2 steps} around Ripper to his far side, ending level with him.
-    \emph{Split} hits \textbf{high} and \textbf{mid}. RipperSmasher has to reveal his face down \emph{Fullbore} to block this, and it is then discarded and will not resolve this round.
+    Next, at initiative 3, Kuwagata resolves \emph{Split} which has -2mv so he can move 2. He steps down off the terrain (moving down costs no extra
+    movement) and circles \textbf{2 steps} around Ripper to his far side.
+    \emph{Split} hits \textbf{high} and \textbf{mid}. 
+    RipperSmasher has to reveal his face down \emph{Fullbore} to block this, and it is then discarded and will not resolve this round.
     Normally that would be the end of the attack (any block that lines up blocks the whole attack), but \emph{Split} has
-    \textbf{Guard Break} so each zone needds to be blocked separately (and must be blocked if able), Ripper is out of cards
-    to block with and takes 2 damage high, leaving him 2 high damage away from destruction.
+    \textbf{Guard Break} so each zone needs to be blocked separately (and must be blocked if able). Ripper is out of blocks and takes 2 damage high, 
+    leaving him 2 high damage away from destruction.
     \par
-  \end{minipage}
-  \par\medskip
   \cardtableau{\carddiscarded{../build/card/Assault Rifle_From the hip.tex}}%
     {\carddiscarded{../build/card/Cannon_Fullbore.tex}}%
     {\cardfaceup{../build/card/Greatsword_Rising Cut.tex}}%
     {\cardfaceup{../build/card/Great Axe_Split.tex}}
+  \end{minipage}
+  \par\medskip
 
 \twocolumn
+
+\section{Tokens}
+Terrain and various card effects create tokens. These can normally be indicated by anything you have around, 
+coins, dice, whatever, as long as it is clear to everyone what it is. Dedicated token pieces are also manufactured
+for players who wish to use them. 
+
+If a token has a specified health stat, then it can be attacked by an opposing team the same way as a frame can be.
+Tokens never block, and they only have one health stat, so all damage from all zones affects its health the same.
+If it takes damage past its health stat, it is destroyed. Unless a card says otherwise, tokens cannot be repaired.
+
+\subsection{Drones}
+Some attacks summon drones. A drone is a token that will take the action on the card that summoned it every turn
+(including the turn that it is summoned), except that it moves with its own movement value (the one next to its health bar).
+The drone has a health stat indicated on the card that summoned it, which should stay in play until the drone is destroyed.
+The drone, like other tokens, cannot block.
+
 
 
 \section{Status}
@@ -480,33 +522,6 @@ instead remove that many of the counters it already has before applying the diff
 The number of status counters on the frame indicate the duration of the effect.
 Each turn, after the planning phase finishes one of each status counter is removed.
 
-\begin{figure}[htbp]
-  \centering
-\includegraphics[width=\linewidth]{../pictures/ground_zero.png}
-\end{figure}
-
-\section{Tokens}
-Terrain and various card effects create tokens. These can normally be indicated by anything you have around, 
-coins, dice, whatever, as long as it is clear to everyone what it is. Dedicated token pieces are also manufactured
-for players who wish to use them. 
-
-If a token has a specified health stat, then it can be attacked by an opposing team the same way as a frame can be.
-Tokens never block, and they only have one health stat, so all damage from all zones affects its health the same.
-If it takes damage past its health stat, it is destroyed. Unless a card says otherwise, tokens cannot be repaired.
-
-
-\subsection{Drones}
-Some attacks summon drones. A drone is a token that will take the action on the card that summoned it every turn
-(including the turn that it is summoned), except that it moves with its own movement value (the one next to its health bar).
-The drone has a health stat indicated on the card that summoned it, which should stay in play until the drone is destroyed.
-The drone, like other tokens, cannot block.
-
-\begin{figure*}[htb]
-  \centering
-  \resizebox{\textwidth/2}{!}{\input{../build/rules_drone.tex}}
-  \par Drone Card
-\end{figure*}
-
 
 
 \section{Deck Construction}
@@ -525,11 +540,6 @@ That frame has a stats card with the following information:
 \item Frame ability (if any)
 \end{itemize}
 
-
-\begin{figure}[htb]
-  \centering
-  \resizebox{\textwidth/2}{!}{\input{../build/rules_frame.tex}}
-\end{figure}
 
 The frame's deck must have exactly the numnber of cards in its deck size count in it.
 To build the deck, you can have:

@@ -6,7 +6,7 @@ Reads a CSV file of card .tex filenames (one per line, no header) and generates
 a LaTeX file that lays them out in a grid suitable for Tabletop Simulator
 custom card sheets.
 
-Each card is a TikZ image of 6.4cm × 8.9cm, included via \input{}.
+Each card is a TikZ image of 6.4cm × 8.9cm, included via \\input{}.
 Cards fill left-to-right, top-to-bottom. If the final sheet has fewer cards
 than the grid, the remaining cells are left blank.
 
