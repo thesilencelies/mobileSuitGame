@@ -5,17 +5,18 @@ generate_card_images.py
 Renders individual cards to standalone PNG images (e.g. for previews, a
 rulebook, or a website) rather than a TTS grid sheet.
 
-Reads a single-column CSV listing card .tex filenames -- the same format as
-the deck CSVs in decks/, one build/card/*.tex (or build/terrain/*.tex,
-frame_*/back_*) filename per line, no header. Each card is placed on its own page via
+Reads a single-column CSV listing card .tex filenames -- one build/card/*.tex
+(or build/terrain/*.tex, build/frame/*.tex, back_*) filename per line, no header.
+individual_cards.csv is a mixed deck listing explicit folder-prefixed paths
+(unlike the typed decks in decks/, which list bare names). Each card is placed on its own page via
 generate_card_sheet.py --cols 1 --rows 1, which takes care of pulling in
 build/card_macros.tex (the icon/ability macros) alongside the card itself.
 The resulting multi-page PDF is compiled once, then each page is rasterised
 to its own PNG named after the card.
 
 Usage:
-    python generate_card_images.py --csv decks/individual_cards.csv
-    python generate_card_images.py --csv decks/individual_cards.csv --output-dir CardImages --density 300
+    python generate_card_images.py --csv individual_cards.csv
+    python generate_card_images.py --csv individual_cards.csv --output-dir CardImages --density 300
 """
 
 import argparse

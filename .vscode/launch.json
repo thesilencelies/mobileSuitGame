@@ -38,6 +38,7 @@
       "args": [
         "--csv=decks/frames_deck.csv",
         "--output=build/frames_image.tex",
+        "--type=frame",
         "--cols=6",
         "--rows=3",
         "--back_text=Frame",

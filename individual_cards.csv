@@ -3,13 +3,13 @@ card/Basic_Throw
 card/Axe_Hook
 card/Assault Rifle_Aimed Fire
 card/Booster_Accelerate
-frame_Adam
+frame/Adam
 card/Swarm_Swarm
 card/Mystic_Teleport
 terrain/Helpcard
 terrain/Fugitive
-frame_RipperSmasher
-frame_Kamikiri
+frame/RipperSmasher
+frame/Kamikiri
 terrain/Twin Peaks
 terrain/The Egg
 card/Stun Bow_Arc shot

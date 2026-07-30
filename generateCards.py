@@ -15,16 +15,17 @@ terrain_file = "Terrain_square.csv"
 frames_file = 'Frames.csv'
 
 buildfolder='build/'
-# Per-card and terrain tiles live in their own subfolders (build/card/<Group>_<Name>.tex,
-# build/terrain/<Name>.tex) rather than using card_/terrain_ filename prefixes.
+# Per-card, frame and terrain tiles live in their own subfolders
+# (build/card/<Group>_<Name>.tex, build/frame/<Name>.tex, build/terrain/<Name>.tex)
+# rather than using card_/frame_/terrain_ filename prefixes.
 cardoutputfolder=buildfolder+'card/'
-frameoutputfolder=buildfolder+'frame_'
+frameoutputfolder=buildfolder+'frame/'
 backsoutputfolder=buildfolder+'back_'
 terrianoutputfolder=buildfolder+'terrain/'
 groupindicatoroutputfolder=buildfolder+'group_indicator_'
 
 # Create output folders up front so writes never fail on a fresh/cleared build/.
-for _folder in (buildfolder, cardoutputfolder, terrianoutputfolder):
+for _folder in (buildfolder, cardoutputfolder, frameoutputfolder, terrianoutputfolder):
     os.makedirs(_folder, exist_ok=True)
 
 #icon names
@@ -134,6 +135,7 @@ damage_type_dict = {
     }
 
 ability_dict = {
+    "Reload": "This frames next action from this weapon deals no damage.",
     "Guard Break": "This attack consumes one block per zone",
     "Feint": "This attack deals no damage",
     "Close Quarters": "Cannot be blocked by higher initiative attacks",

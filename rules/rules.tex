@@ -126,10 +126,10 @@
 \maketitle
 
 \section{Welcome to NetFrame}
-In netframe you command a team of Frames, 10 meter tall fighting robots that amplify their pilots connection to the
+In Netframe you command a team of Frames, 10 meter tall fighting robots that amplify their pilots connection to the
 reality warping power of the Net. You'll fight other factions Frames to try to gain 
 control of the districts of the city that extends as far as anyone knows and leave your 
-mark on this world where the didgital is real.
+mark on this world where the digital is real.
 
 
 These rules set out a method of handling movement and combat between Mobile Suits. The game is played across 5 turns, after which the team with the most victory points wins.
@@ -169,7 +169,8 @@ light blue & elevation 3\\
 red & impassible \\
 \end{tabular}
 
-Tiles that contain obstacles have a yellow dashing on their border and yellow diagonal lines. Tiles that indicate objectives have green lines, tiles that need a token placed on them have hatching.
+Tiles that contain obstacles have a yellow dashing on their border and yellow diagonal lines.
+ Tiles that indicate objectives have green lines, tiles that need a token placed on them have hatching.
 
 \begin{figure}[htbp]
   \centering
@@ -213,7 +214,10 @@ After all frames are deplyed this way the player who deployed first receives the
 On each turn of the game there are 3 phases: planning, action and cleanup. 
 
 \section{Planning}
-in the planning phase, simultaneously for each frame 7 cards are drawn from it's deck, and from those 2 are chosen and placed facedown. The rest of the cards are put in that decks discard pile (if you are short of space, you can put the cards face up at the bottom of the deck). When the deck runs out, the discard pile is shuffled back in.
+in the planning phase, players simultaneously choose actions for their frames.
+One by one, for each frame they draw 7 cards from its deck, choose 2 and place them facedown. 
+The rest of the cards are put in that decks discard pile (if you are short of space, you can put the cards face up at the bottom of the deck). 
+When the deck runs out, the discard pile is shuffled back in. Then they choose for their next frame.
 
 \subsection{Echos of the fallen}
 If a frame has been defeated, at the end of the planning phase the player can reveal the top card of that frame's deck and put it sideways with the actions of a surviving frame. That card can also be used to block attacks this turn.
@@ -301,10 +305,6 @@ Low &
 \subsection{Post-combat Movement}
 If the frame did not move before applying effects and attacking it may move after finishing the attack.
 
-
-
-
-
 \section{Cleanup}
 Cards without a persistence marker and any cards with a persistence marker whos effects have finished are put into their respective discard piles.
 Cards with a persistence marker that are still active are set aside clearly distinct from the turn's chosen actions ( they do not have active blocks). 
@@ -358,7 +358,7 @@ The priority marker then moves one step anticlockwise.
 % elevations, damage, and attacking terrain.
 At \emph{The Tower} \textcolor{purple}{\textbf{Kuwagata}} defending the
 objective comes up against \textcolor{yellow}{\textbf{RipperSmasher}}.
-In the planning phase each frame drew 5 cards and set 2 face down:
+In the planning phase each frame drew 7 cards and set 2 face down:
 
 \begin{itemize}
 \item \textbf{Kuwagata} chose \emph{Rising Cut} (Greatsword, initiative~4) and \emph{Split} (Great Axe, initiative~3).
@@ -657,14 +657,21 @@ count & type & group & cards \\
 
 
 
-\section{Ability Keywords}
+\section{Keywords}
 
+\subsection{Attack Keywords}
 \begin{tabular}{l p{0.8\linewidth}}
   On Hit: & The ability text after the colon only applies if the attack hits (that is, is not blocked) \\ 
   Guard Break & This attack consumes a block for each zone. Zones that are not blocked deal damage. \\
   Committed & this attack is consumed after it resolves \\
   Feint & if this attack is not blocked, it deals no damage \\
   Close Quarters & This attack cannot be blocked by attacks that have already been resolved \\
+  Knockback (X) & Move the target frame X steps in any direction away from the source (cannot move up elevation) \\
+  Reload & This card persists until this frame next resolves an attack from this weapom. That attack deals now damage and this is now discarded \\
+\end{tabular}
+
+\subsection{Frame Keywords}
+\begin{tabular}{l p{0.8\linewidth}}
   Flying & This frame does not spend movement to cross obstacles or move between floors.
    Obstacles do not block LoS to or from this frame. \\
   Shield (X) & When a card with shield (X) resolves, or a frame with shield (X) starts,
@@ -672,8 +679,8 @@ count & type & group & cards \\
     instead remove one shield counter from the frame. \\
   Deathstrike & When this frame would be destroyed, they continue to fight until the end of the next turn,
   after which they are removed from play if they are still dead (they can be repaired)\\
-  Knockback (X) & Move the target frame X steps in any direction away from the source (cannot move up elevation) \\
 \end{tabular}
+
 
 \section{Ackniowledgments}
 Art: Goodboy
