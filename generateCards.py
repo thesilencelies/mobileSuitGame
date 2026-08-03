@@ -1258,8 +1258,8 @@ def create_terrain_card(row):
         #load the background image
         terrain_text = "\\begin{tikzpicture}[backbox/.style= {rectangle, minimum height = 8.9cm," \
                 + " minimum width =6.35cm, rounded corners = 0.3cm, fill=white, opacity=0.75}]\n "
-        terrain_text += "\\node [rectangle, minimum width = 6.4cm, minimum height = 8.7cm, fill=black!70!white!30] at (3.25,4.5){};\n"
-        terrain_text += '\\node at (3.25,4.45){\\includegraphics[width=6.35cm, max height = 8.85cm,' +\
+        terrain_text += "\\node [rectangle, minimum width = 6.4cm, minimum height = 8.7cm, fill=black!10!white!90] at (3.25,4.5){};\n"
+        terrain_text += '\\node [opacity=0.6] at (3.25,4.45){\\includegraphics[width=6.35cm, max height = 8.85cm,' +\
                 'keepaspectratio]{' + terrain_images_folder + row["CardImg"] + '}};\n'
 
         # terrain card size
