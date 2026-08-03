@@ -126,15 +126,15 @@
 \maketitle
 
 \section{Welcome to NetFrame}
-In Netframe you command a team of Frames, 10 meter tall fighting robots that amplify their pilots connection to the
+In NetFrame you command a team of Frames, 10 meter tall fighting robots that amplify their pilots connection to the
 reality warping power of the Net. You'll fight other factions Frames to try to gain 
 control of the districts of the city that extends as far as anyone knows and leave your 
 mark on this world where the digital is real.
 
 
-These rules set out a method of handling movement and combat between Mobile Suits. The game is played across 5 turns, after which the team with the most victory points wins.
+These rules set out a method of handling movement and combat between Frames. The game is played across 5 turns, after which the team with the most victory points wins.
 Each player brings the same number of Frames, each with their own deck. A good default number is 3 per player, although with teams 2 each can be smoother.
- With many players teams are recommended over battle royale, though the rules support either playstyle.
+ With many players teams are recommended over battle royale, though the rules support either.
 All frames a player brings should be from the same faction.
 
 
@@ -149,78 +149,80 @@ All frames a player brings should be from the same faction.
 Victory points are obtained in two key ways:
 \begin{itemize}
 \item 1 point per enemy frame defeated 
-\item Points equal to the defender score for each objective they successfully defended 
-\item Points equal to the attacker score for each objective they successfully attacked  
+\item points equal to the amount written on the objective for each objective you score. 
 \end{itemize}
-\section{The battlefield}
 
-Terrain blocks movement and line of sight. Terrain that can be stood upon is classified as being on different levels. 
+Objectives are terrain cards with two points numbers on the top left, and a text box that describes how the objective can be scored.
+The defending player is the player who brought that objective card, the other player is the attacker. The green score is what the defender
+scores, the red is what the attacker scores if they score the objective.
+
+
+\section{The Battlefield}
+
+Terrain blocks movement and line of sight. Terrain that can be stood upon is classified as being on different elevations. 
 
 \subsection{Terrain Cards}
-It is recommended for each player to bring a terrain deck of 15 cards, of which between 2 and 3 should be objectives.
+Each player must bring a terrain deck of 10 cards, and an objective deck of 5 cards.
+Objectives (terrain cards that indicate objective scores) can only be in the objectives deck.
 These cards are shuffled, dealt and construct the battlefield. On the card is a grid, on which the frames move and ranges are reckoned. 
-The border of the tiles indicate the elevation 
+The border of the tiles indicate the elevation.
 
 \begin{tabular}{c c}
-black & ground level \\
-dark blue & level 1 \\
-blue & level 2 \\ 
+black & ground/elevation 0 \\
+dark blue & elevation 1 \\
+blue & elevation 2 \\ 
 light blue & elevation 3\\
-red & impassible \\
+red & impassable \\
 \end{tabular}
 
 Tiles that contain obstacles have a yellow dashing on their border and yellow diagonal lines.
- Tiles that indicate objectives have green lines, tiles that need a token placed on them have hatching.
+Tiles that indicate objectives have green lines.
+Tiles where a token should be placed on them (explained in the rules text on the card) have orange hatching.
 
 \begin{figure}[htbp]
   \centering
-  \textbf{Terrain cards}\par\medskip
+  \textbf{Terrain card}\par\medskip
   \input{../build/terrain/Fugitive.tex}
   \par example of a terrain card\par\medskip
 \end{figure}
 
 \begin{figure}[htbp]
   \centering
-  \textbf{Terrain cards}\par\medskip
+  \textbf{Terrain helper}\par\medskip
   \input{../build/terrain/Helpcard.tex}
-  \par explaination of terrain card symbols \par\medskip
+  \par explanation of terrain card symbols \par\medskip
 \end{figure}
 
 
 Movement on these tiles is lateral and diagonal. The 8 tiles surrounding any one tile are all adjacent to it (so would count for melee attacks).
-Ranges are considered the same way (so you can consider the maximum range a square centered on the frame with sides of length twice the range).
+Ranges are considered the same way (so you can consider the maximum range a square centered on the frame with sides of length twice the range + 1).
+Movement is counted in steps.
 
-\subsection{Prebuilt Terrain}
-If you prefer, instead of using the terrain cards you can use whatever terrain setup you have at your gaming table. 
-Players should quickly agree at the start of the game what level each piece of terrain is,
-but as a quick rule of thumb, moving up one frame's height is roughly one level. The level indicates how much movement it takes to climb onto the terrain, and what can see what.
-In this case, for objectives you can either draw objective cards from the deck and place appropriate markers and tokens at a location of your choosing, or use pre agreed objectives,
-and the objectives on the cards can be used as reference.
-In this case, distances are measured with a tape measure and a fixed base unit should be established based on the scale of the miniatures. 
-Deployment zones are 7 units away from the midline.
 
 \section{Setup}
-If using the terrain decks, each player deals out their terrain cards from their terrain deck in 2 rows of (nframes + 2) to make a grid.
-(for 2 players with 3 frames each that makes a 4x5 grid). Any relevant tokens are placed on the terrain cards. Objective cards are only dealt to the back row - they are a separate deck.
-All objectives on these terrain cards are valid for this battle - you are defending any objectives that are on your teams terrain cards.
+Each player deals out their terrain cards from their terrain deck in 2 rows of (number of frames + 2) to make a grid.
+(for 2 players with 3 frames each that makes a 5x4 grid).
+Within this grid the player must deal one objective card in each row.
+Any relevant tokens are placed on the terrain cards.
+All objectives on these terrain cards are valid for this battle - you are defending any objectives that are on your team's terrain cards.
 
-For each frame the players choose their starting hand of 7 then shuffle the decks,
+For each frame the players choose their starting hand of 7, shuffle the deck then put those 7 on top.
 
-Each player takes it in turns to put one of their frames in their deployment zone 
-(The nearest edge of the row of terrain cards nearest them if using, else anwyhere more than 7 from the center line).
-After all frames are deplyed this way the player who deployed first receives the priority marker.
+Each player takes it in turns to put one of their frames on nearest edge of their terrain cards.
+After all frames are deployed this way the player who deployed first receives the priority marker.
 
 \section{The turn}
 On each turn of the game there are 3 phases: planning, action and cleanup. 
 
 \section{Planning}
 in the planning phase, players simultaneously choose actions for their frames.
-One by one, for each frame they draw 7 cards from its deck, choose 2 and place them facedown. 
-The rest of the cards are put in that decks discard pile (if you are short of space, you can put the cards face up at the bottom of the deck). 
+One by one, for each frame they draw 7 cards (modified by status effects) from its deck, choose 2 and place them facedown.
+If you would draw from an empty deck, shuffle that deck's discard pile and it becomes the deck.
+The rest of the cards are put in that decks discard pile face down (if you are short of space, you can put the cards face up at the bottom of the deck). 
 When the deck runs out, the discard pile is shuffled back in. Then they choose for their next frame.
 
-\subsection{Echos of the fallen}
-If a frame has been defeated, at the end of the planning phase the player can reveal the top card of that frame's deck and put it sideways with the actions of a surviving frame. That card can also be used to block attacks this turn.
+\subsection{Echoes of the fallen}
+If a frame has been defeated, at the end of the planning phase the player can reveal the top card of that frame's deck and put it sideways with the actions of a surviving frame. That card can also be used to block attacks against that frame this turn (ignore the rest of the card text).
 
 \subsection{Status update}
 At the end of the planning phase, one status token of each type is removed from each frame.
@@ -228,17 +230,16 @@ At the end of the planning phase, one status token of each type is removed from 
 
 \section{Action}
 Cards are resolved in order of the initiative value, starting with the highest. 
-In the event of a tie, players take it in turns to choose one card at the current intiative to resolve, starting with the player with the priority marker and moving clockwise.
 To work out which card has the highest initiative left, each player declares the highest remaining initiative amongst their remaining cards at the start of the phase and after each card resolution.
+In the event of a tie the cards are resolved alternately, moving clockwise from the player with the priority marker.
 
-Card resolution consists of 3 steps: movement, effect, and attack. Movement can happen first or last. 
+Card resolution consists of 3 steps: movement, effect, and attack. Movement can happen first or last but not both.
 
-\subsection{Pre-combat Movement}
+\subsection{Movement}
 The frame can move up to their base movement plus the movement modifier on the card currently being resolved steps in any direction.
-The frame can move either before or after attacking.
 
 \subsubsection{Movement penalties}
-It takes 1 movement to move up per level difference, and you cannot stop halfway up. It costs no additional movement to move down any number of levels. Obsacles cannot be moved through.
+It takes 1 movement to move up per elevation difference, and you cannot stop halfway up. It costs no additional movement to move down any number of elevations. Obstacles cannot be moved through.
 
 \subsection{Effect}
 After movement is done, any effect on the card is applied. Effects are applied in printed order.
@@ -253,37 +254,44 @@ After movement is done, any effect on the card is applied. Effects are applied i
 If the card has any attack listed, one target frame within any of the ranges may be chosen. They are then the defender for this attack.
 Attacks without a listed range are melee attacks, and the target must be adjacent.
 Else the attack is a ranged attack and the target cannot be adjacent.
-If an attack has multiple ranges, only the sectors that are in range count for the attack.
+If an attack has multiple ranges, only the zones that are in range count for the attack.
 
 \subsubsection{Line of sight}
 To select a target for a ranged attack the target must be:
 \begin{itemize}
-\item within the range of the target
+\item within the range of the attack
 \item not adjacent to the attacking frame
 \end{itemize}
-Then draw a line starting from anwyhere on the the attacking frame to anywhere on the target. If there are no obstructions on that line, the target is valid.
+Then draw a line starting from anywhere on the the attacking frame to anywhere on the target. If there are no obstructions on that line, the target is valid.
 
 The following count as an obstruction:
 \begin{itemize}
   \item Other Frames
-  \item Impassible terrain
-  \item Terrain at a higher level that the attacker
+  \item Impassable terrain
+  \item Terrain at a higher elevation than the attacker
   \item Obstacles adjacent to the target
   \item Terrain at a higher elevation than the target adjacent to the target
-\end{itemize} 
+\end{itemize}
 
- If the defender has a block on their remaining cards in the same zone as any of the attacks that are in range, they must choose one of those cards to block. The attack fails and that blocking card is discarded 
- (if its initiative hasn't been reached yet it never happens). Otherwise the attack succeeds, and the defender takes one damage per attack mark in the corresponding zone (high/mid/low).
+%TODO - needs diagram for LoS
+
+If the defender has a block on their remaining cards in the same zone as any of the attacks that are in range, they \textbf{must} choose one of those cards to block. 
+The attack fails and that blocking card is discarded (if the blocking card has not yet resolved it's action is forfeit).
+
+%TODO - needs diagram for this too
+
+Otherwise the attack succeeds, and the defender takes one damage per attack mark in the corresponding zone (high/mid/low).
 After finishing the attack the card resolution ends, and the card remains on the field to be used to block. (It can be helpful to turn it sideways to indicate that its been resolved)
+
 If the defender fails to reveal any valid blocks they did have face down, those cards cannot be activated later in the round and are instead discarded.
 
-\subsubsection{Melee between levels}
+\subsubsection{Melee between elevations}
 If the attack is a melee attack and the defender is at a different elevation to the attacker, the attacks are moved up one bracket per difference in elevation.
 Any attacks that are moved higher than High or lower than Low are considered out of range.
 
-So for example, Frame A at elevation 1 attacks Frame B at elevation 3 with cleave, which has \smallcutx{2} high and \smallcutx{2} mid. The attacker is 2 levels lower than the defender, so the attacks are moved 2 stages down.
+So for example, Frame A at elevation 1 attacks Frame B at elevation 3 with cleave, which has \smallcutx{2} high and \smallcutx{2} mid. The attacker is 2 elevations lower than the defender, so the attacks are moved 2 stages down.
 The \smallcutx{2} high end up \smallcutx{2} low, and the \smallcutx{2} mid are out of range.
-Conversely if Frame C at elevation 2 were to attack Frame A with Thrust (\smallpierce mid), it would be moved one stage up, resulting in \smallpierce high.
+Conversely if Frame C at elevation 2 were to attack Frame A with Thrust (\smallpierce mid), it would be moved one stage up, resulting in \smallpierce high. This would be blocked by a high block, not a mid block.
 
 Ranged attacks are not affected by elevation in this way.
 
@@ -293,10 +301,10 @@ Ranged attacks are not affected by elevation in this way.
 \end{figure}
 
 \subsubsection{Damage}
-Each frame can endure a number of hits on each zone indicated on the character card (default 4) after which they are destroyed. 
-recieving damage beyond that hit limit on any one zone is sufficent to destroy the frame.
-Destroyed frame are removed from the battlefield and can no longer contribute to the fight. 
-Additionally any frame that has endured 2 or more damage in any location faces the following penalty corresponding to the location: 
+If a frame takes more damage in any zone than the number indicated on the frame card for that zone they are destroyed.
+Destroyed frames are removed from the battlefield and can no longer contribute to the fight. Their remaining actions and abilities are discarded.
+Damage persists unless repaired using special frame actions.
+Additionally any frame that has one hit left in any zone faces the following penalty corresponding to the zone: 
 
 \begin{tabular}{c p{4cm}}
 High &
@@ -306,13 +314,19 @@ Mid &
 Low &
 -1 movement (reduce base movement by 1) \\
 \end{tabular}
+For example a \emph{Kuwagata} ( Armor 4 4 4) that has taken 3 damage high, 3 damage mid and 1 low draws 6 cards a turn and it's actions resolve
+at -1 initiative. If it took one more damage high or mid, or 3 more damage low it would be destroyed. 
 
-\subsection{Post-combat Movement}
-If the frame did not move before applying effects and attacking it may move after finishing the attack.
+
 
 \section{Cleanup}
-Cards without a persistence marker and any cards with a persistence marker whos effects have finished are put into their respective discard piles.
-Cards with a persistence marker that are still active are set aside clearly distinct from the turn's chosen actions ( they do not have active blocks). 
+Cards without a persistence marker are put into their respective discard piles.
+Cards with a persistence marker that are still active are set aside clearly distinct from the turn's chosen actions - 
+they do not resolve again or block, they exist only in conjunction with the card effect.
+
+Cards with a persistence marker who's effect has ended (for example a card that says Next Turn: that resolved last turn) are also discarded.
+
+
 The priority marker then moves one step anticlockwise. 
 
 
@@ -347,13 +361,13 @@ The priority marker then moves one step anticlockwise.
 \begin{tabular}{p{0.3\textwidth} | p{0.7\textwidth}}
   \makecell[cl]{Initiative:\\  \includegraphics[width=0.5cm]{../icons/initImg.png} }&Marks when the card will resolve. Higher numbers resolve before lower numbers\\ \hline
   \makecell[cl]{Movement:\\ \includegraphics[width=0.5cm]{../icons/mvimg_old.png}}&How much to add (or subtract if its negative) to the movement for the action with this card\\\hline
-  \makecell[cl]{Attack marks:\\ \smallprojectile \smallpierce \smallcut \smallimpact \smallenergy }& How much damage to deal at this location if this attack hits (symbol indicates damage type)\\\hline
+  \makecell[cl]{Attack marks:\\ \smallprojectile \smallpierce \smallcut \smallimpact \smallenergy }& How much damage to deal at this zone if this attack hits (symbol indicates damage type)\\\hline
   \makecell[cl]{Attack range:\\ \includegraphics[width=0.5cm]{../icons/rangeImg.png}} &Range of ranged attack\\\hline
   \makecell[cl]{Block mark:\\ \resizebox{0.7cm}{!}{\begin{tikzpicture}\blockshield{0}{0}{gray}\end{tikzpicture}}} & This zone has a block. \\\hline
   \makecell[cl]{Super block mark:\\ \resizebox{0.95cm}{!}{\begin{tikzpicture}\superblockshield{0}{0}{gray}\end{tikzpicture}}} &Same as a block but the blocking card is not discarded when it blocks.\\\hline
   \makecell[cl]{Persistence mark:\\ \tikz{\node [circle, fill = red]{{\textbf{2}}}; }} &Indicates that the card stays on the field after resolving until its effects finish. N indicates how many turns that is.\\\hline
   Ability text: &Effects that happen when this card is played or resolved.\\\hline
-  \makecell[cl]{Type info:\\\emph{(bottom)}} & What type of card it is, and categorisation information. Used for deckbuilding.\\
+  \makecell[cl]{Type info:\\\emph{(bottom)}} & What type of card it is, and categorization information. Used for deck building.\\
 \end{tabular}
 \renewcommand{\arraystretch}{1.0}
 
@@ -396,7 +410,7 @@ In the planning phase each frame drew 7 cards and set 2 face down:
       \node at (5.25, 5.355) {\includegraphics[height=1.25cm]{../tts_assets/Tower4.png}};
       % Kuwagata tucked behind the raised terrain, top left
       \kstandee{1.13}{7.415}
-      % Ripper drops back two tiles to open the range on the tower
+      % Ripper drops back two steps to open the range on the tower
       \ghost{3.19}{5.355}{yellow!75!black}
       \draw[moveline, yellow!70!black] (3.19,5.0) -- (3.19,1.65);
       % \steplabel{3.85}{3.29}{2 steps}
@@ -438,8 +452,8 @@ In the planning phase each frame drew 7 cards and set 2 face down:
   \end{minipage}\hfill
   \begin{minipage}[c]{0.50\textwidth}
     At initiative 4, Kuwagata resolves \emph{Rising Cut}, with which he can move 3 (base 4 - 1). He moves onto the raised terrain  beside Ripper. That costs
-    \textbf{3 movement}: two tiles down the wall and one extra to climb up to elevation~1. \emph{Rising Cut}'s single
-     \textbf{low} \smallcut attack strikes a defender one level lower, so it is moved up one bracket to \textbf{mid}.
+    \textbf{3 movement}: two steps down the wall and one extra to climb up to elevation~1. \emph{Rising Cut}'s single
+     \textbf{low} \smallcut attack strikes a defender one elevation lower, so it is moved up one bracket to \textbf{mid}.
     Ripper must block it if able. He chooses to use the already resolved \emph{From the Hip} to block; it's discarded, and no damage is dealt.\par
   
   \cardtableau{\carddiscarded{../build/card/Assault Rifle_From the hip.tex}}{\cardfacedown}%
@@ -501,11 +515,9 @@ The drone, like other tokens, cannot block.
 
 \section{Status}
 Various cards apply certain status effects to frames. These status effects are marked with a counter added to the frame.
-As long as the frame has any amount of the status marker on it, the frame's stats are modified according to the status.
+As long as the frame has any quantity of a status counter on it, the frame's stats are modified according to the status.
 The modification amount is the same regardless of the quantity of status counters.
 
-Status:
-Various cards say that a frame will recieve one of the below status. As long as they have any amount of that status token on them, the noted effect applies.
 \begin{tabular}{p{4cm}| p{4cm}}
 Debuff & Buff \\
 \fullstunned & \fullstimmed \\
@@ -516,8 +528,7 @@ Debuff & Buff \\
 
 \subsection{Status annihilation}
 If a frame would receives the opposite status to the status it already has,
-instead remove that many of the counters it already has before applying the difference.
-
+the counters cancel each other out, leaving the difference. For example, if a frame with \slowed gets 2 \boosted 
 \subsection{Status application}
 The number of status counters on the frame indicate the duration of the effect.
 Each turn, after the planning phase finishes one of each status counter is removed.
@@ -533,7 +544,7 @@ That frame has a stats card with the following information:
 \begin{itemize}
 \item Base movement
 \item Faction
-\item Armor values at each location
+\item Armor values at each zone
 \item Deck size \includegraphics[width=0.4cm]{../icons/deckImg.png}
 \item Weapon count \includegraphics[width=0.4cm]{../icons/weapon.png}
 \item Booster count \includegraphics[width=0.4cm]{../icons/boosterImg.png}
@@ -541,7 +552,7 @@ That frame has a stats card with the following information:
 \end{itemize}
 
 
-The frame's deck must have exactly the numnber of cards in its deck size count in it.
+The frame's deck must have exactly the number of cards in its deck size count in it.
 To build the deck, you can have:
 
 \begin{itemize}
@@ -567,7 +578,7 @@ count & type & group & cards \\
 4&weapon & Chainsaw & Rip, Grind, Tear, Disembowel \\
 4&weapon & Cannon & Fullbore, Airburst, Cannon, Pummel \\
 4&weapon & Cannon & Fullbore, Airburst, Cannon, Pummel \\
-3&Generic& & Block, Block, Dodge \\
+3&Basic& & Block, Block, Dodge \\
 \end{tabular}
 \end{figure}
 
@@ -601,9 +612,9 @@ count & type & group & cards \\
     \includegraphics[width=\linewidth/3]{../pictures/AegisLogo.png}\\[0.5em]
     The Aegis see themselves as the last bastion against disorder, the thin blue line that holds scoiety together.
     They strongly believe in the rule of (their) law, and are quick to enforce it.
-    Some may see them as little more than self-agrandising thugs, but the Aegis have
+    Some may see them as little more than self-aggrandizing thugs, but the Aegis have
     thick skin and are willing to weather any storm.
-
+'
     ~\\[0.5em]
     \end{minipage}
   \hfill
@@ -612,7 +623,7 @@ count & type & group & cards \\
     \large{\textbf{The Guild}}\\[0.5em]
     \includegraphics[width=\linewidth/3]{../pictures/GuildLogo_light.png}
     \includegraphics[width=\linewidth/3]{../pictures/GuildLogo.png}\\[0.5em]
-    Buisnessmen at the highest eschelons, the Guild know that money is power and
+    Businessmen at the highest echelons, the Guild know that money is power and
     progress is inevitable. They use whatever means is necessary to get the returns
     for their stakeholders, and if that means is the barrel of a Frame's rifle than so be it.
 
@@ -640,10 +651,10 @@ count & type & group & cards \\
     \large{\textbf{The Revolution}}\\[0.5em]
     \includegraphics[width=\linewidth/3]{../pictures/RevLogo_light.png}
     \includegraphics[width=\linewidth/3]{../pictures/RevLogo.png}\\[0.5em]
-    Based in Ground Zero, the Revolution consits of the dregs of society that others would ignore.
+    Based in Ground Zero, the Revolution consists of the dregs of society that others would ignore.
     Mutants and backfires from dodgy Net-connectivity are common sights, and they are tired of
     society turning a blind eye. They'll make sure that they are seen, and they'll burn down this
-    rotten society to make a space where everone can benefit from the net - if there is anything left 
+    rotten society to make a space where everyone can benefit from the net - if there is anything left 
     of it after they are done.
     ~\\[0.5em]
   \end{minipage}
@@ -653,9 +664,9 @@ count & type & group & cards \\
     \large{\textbf{The Collective}}\\[0.5em]
     \includegraphics[width=\linewidth/3]{../pictures/CollectiveLogo_light.png}
     \includegraphics[width=\linewidth/3]{../pictures/CollectiveLogo.png}\\[0.5em]
-    The Collective believe that the Net is a departure from Humanity's rooots, and that what people need
+    The Collective believe that the Net is a departure from Humanity's roots, and that what people need
     is to reconnect to nature, rejecting the modification so common elsewhere, preferring to be Natural. 
-    Their Gardens are wonders of biotechnology, oasises in the concrete jungle.
+    Their Gardens are wonders of biotechnology, oases in the concrete jungle.
     They defend their needs with giant biotech marvels that fuse directly with the pilot and can stand toe to
     toe with any frame. There is a question as to how they made such sudden advances in biotech, however.
     
@@ -665,19 +676,17 @@ count & type & group & cards \\
 
 
 
-
-
 \section{Keywords}
 
 \subsection{Attack Keywords}
 \begin{tabular}{l p{0.8\linewidth}}
   On Hit: & The ability text after the colon only applies if the attack hits (that is, is not blocked) \\ 
   Guard Break & This attack consumes a block for each zone. Zones that are not blocked deal damage. \\
-  Committed & this attack is consumed after it resolves \\
-  Feint & if this attack is not blocked, it deals no damage \\
+  Committed & This attack is discarded after it resolves \\
+  Feint & If this attack is not blocked, it deals no damage. (Blocks are compulsory) \\
   Close Quarters & This attack cannot be blocked by attacks that have already been resolved \\
   Knockback (X) & Move the target frame X steps in any direction away from the source (cannot move up elevation) \\
-  Reload & This card persists until this frame next resolves an attack from this weapom. That attack deals now damage and this is now discarded \\
+  Reload & This card persists until this frame next resolves an attack from this weapon. That attack deals no damage, and then this card is discarded \\
 \end{tabular}
 
 \subsection{Frame Keywords}
@@ -685,14 +694,28 @@ count & type & group & cards \\
   Flying & This frame does not spend movement to cross obstacles or move between floors.
    Obstacles do not block LoS to or from this frame. \\
   Shield (X) & When a card with shield (X) resolves, or a frame with shield (X) starts,
-   put X shield counters on the frame card. A frame can only have 1 more shield than it's shield value. The next time the frame would take any amount of damage,
-    instead remove one shield counter from the frame. \\
+   put X shield counters on the frame card. A frame can only have up to 1 more shield than its intital shield value.
+    Whenever a frame with a shield counter would take any amount of damage, instead remove one shield counter from the frame. \\
   Deathstrike & When this frame would be destroyed, they continue to fight until the end of the next turn,
   after which they are removed from play if they are still dead (they can be repaired)\\
 \end{tabular}
 
 
-\section{Ackniowledgments}
+\section{Optional variations}
+
+\subsection{Prebuilt Terrain}
+Instead of using the terrain cards you can use whatever terrain setup you have at your gaming table. 
+Players should quickly agree at the start of the game what elevation each piece of terrain is,
+but as a quick rule of thumb, moving up one frame's height is roughly one elevation.
+In this case, for objectives you can either draw objective cards from the deck and place appropriate markers and tokens at a location of your choosing, 
+or use pre agreed objectives and the objectives on the cards can be used as reference.
+Distances are measured with a tape measure and a fixed base unit should be established based on the scale of the miniatures and terrain 
+(for example, 1" is one step is about correct for 28mm miniatures). 
+Deployment zones are 7 units away from the center line.
+
+
+
+\section{Acknowledgments}
 Art: Goodboy
 TTS: Chara
 
