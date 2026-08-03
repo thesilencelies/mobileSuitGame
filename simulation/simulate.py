@@ -39,10 +39,12 @@ moment any single zone takes *more than or equal* than HEALTH damage ( greater t
 Decks are the same one-`card/{Group}_{Name}`-per-line CSVs used elsewhere.
 Balance-test decks live in simulation/decks/ and can be named by basename.
 
-Three sub-commands:
+Five sub-commands:
     match       one explicit matchup (team A vs team B)
     scale       the same deck-pair at 1v1, 2v2, 3v3 (each team all one deck)
     tournament  round-robin over a deck set, rendered as an HTML heatmap
+    cards       every single card as a 1-card deck vs the chosen decks, as a table
+    pool        marginal win% each card adds to a base deck vs the chosen decks
 
 Run:
     python simulation/simulate.py match --team-a only_attack_high.csv \
@@ -51,6 +53,10 @@ Run:
                                         --deck-b only_attack_high.csv
     python simulation/simulate.py tournament --decks-dir simulation/decks \
                                         --sizes 1 2 3 --output build/tournament.html
+    python simulation/simulate.py cards --decks-dir simulation/decks \
+                                        --output build/card_sweep.html
+    python simulation/simulate.py pool --base even_mix.csv \
+                                        --decks-dir simulation/decks
 """
 
 from __future__ import annotations
@@ -444,26 +450,24 @@ class SimConfig:
     concentration_b: float = None
 
 
-def run_matchup(deck_a: list, deck_b: list, cards: dict, cfg: SimConfig,
-                rng: random.Random) -> dict:
-    """Play cfg.games between team A (deck_a paths) and team B (deck_b paths).
+def _apply_profiles(team_a: list, team_b: list, cfg: SimConfig) -> None:
+    """In intelligent mode each frame plays against the opposing team's profile,
+    using its own team's strategy weights."""
+    prof_a = deck_profile([c for f in team_a for c in f.pile.deck])
+    prof_b = deck_profile([c for f in team_b for c in f.pile.deck])
+    for f in team_a:
+        f.opp_profile = prof_b
+        f.strategy = (cfg.defense_a, cfg.concentration_a)
+    for f in team_b:
+        f.opp_profile = prof_a
+        f.strategy = (cfg.defense_b, cfg.concentration_b)
+
+
+def _collect_stats(team_a: list, target_a: Frame, team_b: list, target_b: Frame,
+                   cfg: SimConfig, rng: random.Random) -> dict:
+    """Play cfg.games between two already-built teams and aggregate the results.
 
     Returns a stats dict: win counts, win rates, avg rounds-to-kill, target names."""
-    team_a, target_a = build_team(deck_a, "A", cards, cfg.target_a, rng)
-    team_b, target_b = build_team(deck_b, "B", cards, cfg.target_b, rng)
-
-    # In intelligent mode each frame plays against the opposing team's profile,
-    # using its own team's strategy weights.
-    if cfg.intelligent:
-        prof_a = deck_profile([c for f in team_a for c in f.pile.deck])
-        prof_b = deck_profile([c for f in team_b for c in f.pile.deck])
-        for f in team_a:
-            f.opp_profile = prof_b
-            f.strategy = (cfg.defense_a, cfg.concentration_a)
-        for f in team_b:
-            f.opp_profile = prof_a
-            f.strategy = (cfg.defense_b, cfg.concentration_b)
-
     wins = {"A": 0, "B": 0, "draw": 0}
     rounds_on_win = {"A": [], "B": []}
     for _ in range(cfg.games):
@@ -484,6 +488,18 @@ def run_matchup(deck_a: list, deck_b: list, cards: dict, cfg: SimConfig,
         "target_b": target_b.name,
         "size": len(team_a),
     }
+
+
+def run_matchup(deck_a: list, deck_b: list, cards: dict, cfg: SimConfig,
+                rng: random.Random) -> dict:
+    """Play cfg.games between team A (deck_a paths) and team B (deck_b paths).
+
+    Returns a stats dict: win counts, win rates, avg rounds-to-kill, target names."""
+    team_a, target_a = build_team(deck_a, "A", cards, cfg.target_a, rng)
+    team_b, target_b = build_team(deck_b, "B", cards, cfg.target_b, rng)
+    if cfg.intelligent:
+        _apply_profiles(team_a, team_b, cfg)
+    return _collect_stats(team_a, target_a, team_b, target_b, cfg, rng)
 
 
 # --------------------------------------------------------------------------- #
@@ -636,6 +652,350 @@ def cmd_tournament(args) -> None:
             print(f"  {rate:5.1f}%  {name}")
 
 
+# --------------------------------------------------------------------------- #
+# Sub-command: cards  (every single card as a 1-card deck vs the chosen decks)
+# --------------------------------------------------------------------------- #
+
+def _card_label(card: Card) -> str:
+    return f"{card.group}/{card.name}"
+
+
+def _run_decks(deck_a: list, deck_b: list, cfg: SimConfig, rng: random.Random,
+               name_a: str = "A", name_b: str = "B") -> dict:
+    """Play cfg.games between two in-memory decks as a 1v1 (each a single frame).
+    `deck_a` / `deck_b` are lists of Card. Returns the usual stats dict."""
+    frame_a = Frame(name=name_a, team="A", pile=Pile(list(deck_a), rng), is_target=True)
+    frame_b = Frame(name=name_b, team="B", pile=Pile(list(deck_b), rng), is_target=True)
+    team_a, team_b = [frame_a], [frame_b]
+    if cfg.intelligent:
+        _apply_profiles(team_a, team_b, cfg)
+    return _collect_stats(team_a, frame_a, team_b, frame_b, cfg, rng)
+
+
+def cmd_cards(args) -> None:
+    """Run every defined card, each as a deck of just that one card, against each
+    of the chosen decks, and report the card's win rate as a table."""
+    rng = random.Random(args.seed)
+    cards = load_cards()
+    da, ca, db, cb = _team_weights(args)
+    cfg = SimConfig(args.games, args.hand, args.health, args.max_rounds,
+                    intelligent=args.intelligent, pool=args.pool,
+                    defense_a=da, concentration_a=ca, defense_b=db, concentration_b=cb)
+
+    deck_paths = list(args.decks)
+    if args.decks_dir:
+        deck_paths += sorted(str(p) for p in Path(args.decks_dir).glob("*.csv"))
+    if not deck_paths:
+        raise SystemExit("cards needs at least one opponent deck "
+                         "(via --decks and/or --decks-dir)")
+    deck_names = [Path(p).stem for p in deck_paths]
+    opp_decks = [load_deck(p, cards) for p in deck_paths]
+
+    card_list = sorted(cards.values(), key=lambda c: (c.group, c.name))
+    if args.attackers_only:
+        card_list = [c for c in card_list if c.is_attack]
+
+    total = len(card_list) * len(deck_paths) * cfg.games
+    print(f"Card sweep: {len(card_list)} cards x {len(deck_paths)} decks, "
+          f"{cfg.games} games/cell ({total} games) ...")
+
+    # rows[i] = (card, [win% vs each deck], mean win%). Each card is a 1v1 game as
+    # team A (a deck of just that card) against the chosen deck as team B.
+    rows = []
+    for c in card_list:
+        rates = []
+        for opp in opp_decks:
+            st = _run_decks([c], opp, cfg, rng, name_a=c.name, name_b="opp")
+            rates.append(st["rate"]["A"])
+        rows.append((c, rates, sum(rates) / len(rates)))
+    rows.sort(key=lambda r: r[2], reverse=True)
+
+    _print_card_table(rows, deck_names, cfg)
+
+    html = render_card_sweep_html(rows, deck_names, cfg)
+    out = Path(args.output)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(html, encoding="utf-8")
+    print(f"\nWrote visual report -> {out}")
+
+
+def _print_card_table(rows: list, deck_names: list, cfg: SimConfig) -> None:
+    """Text table: one row per card, one column per chosen deck (win% of the
+    single-card deck), plus a mean column. Rows are sorted strongest-first."""
+    label_w = max([len("Card")] + [len(_card_label(c)) for c, _, _ in rows])
+    col_w = 8
+    header = (f"  {'Card':<{label_w}}"
+              + "".join(f"{nm[:col_w - 1]:>{col_w}}" for nm in deck_names)
+              + f"{'mean':>{col_w}}")
+    print("=" * len(header))
+    print("mobileSuitGame card sweep — win% of a deck of just this card"
+          + (_mode_label(cfg) if cfg.intelligent else ""))
+    print("=" * len(header))
+    print(header)
+    print("-" * len(header))
+    for c, rates, mean in rows:
+        cells = "".join(f"{r:>{col_w}.1f}" for r in rates)
+        print(f"  {_card_label(c):<{label_w}}{cells}{mean:>{col_w}.1f}")
+    print("=" * len(header))
+
+
+def render_card_sweep_html(rows: list, deck_names: list, cfg: SimConfig) -> str:
+    """Self-contained HTML heatmap: rows are cards, columns are the chosen decks,
+    each cell the single-card deck's win rate (blue = the card wins), plus a mean
+    column. Every cell shows its number so meaning never rides on colour alone."""
+    head_cells = "".join(f"<th class='col'><div>{escape(nm)}</div></th>"
+                         for nm in deck_names)
+    body_rows = []
+    for c, rates, mean in rows:
+        cells = []
+        for nm, r in zip(deck_names, rates):
+            rgb = _diverging(r)
+            tip = f"{_card_label(c)} (init {c.initiative}) vs {nm}: {r:.1f}% win"
+            cells.append(f"<td class='cell' style='background:rgb{rgb};"
+                         f"color:{_ink_on(rgb)}' title='{escape(tip)}'>{r:.0f}</td>")
+        mrgb = _diverging(mean)
+        cells.append(f"<td class='cell avg' style='background:rgb{mrgb};"
+                     f"color:{_ink_on(mrgb)}'>{mean:.0f}</td>")
+        body_rows.append(f"<tr><th class='row'>{escape(_card_label(c))}</th>"
+                         f"{''.join(cells)}</tr>")
+
+    def _w(d, c):
+        d = DEFENSE_WEIGHT if d is None else d
+        c = CONCENTRATION_WEIGHT if c is None else c
+        return f"def={d:g}, conc={c:g}"
+    if not cfg.intelligent:
+        play = "random play"
+    else:
+        wa, wb = _w(cfg.defense_a, cfg.concentration_a), _w(cfg.defense_b, cfg.concentration_b)
+        play = (f"intelligent play ({wa}), pool {cfg.pool}" if wa == wb
+                else f"intelligent play, pool {cfg.pool} &middot; "
+                     f"cards played as A [{wa}] &middot; decks played as B [{wb}]")
+    subtitle = (f"{len(rows)} cards &middot; {len(deck_names)} decks "
+                f"&middot; {cfg.games} games/cell &middot; hand {cfg.hand} "
+                f"&middot; {cfg.health} HP/zone &middot; {play}")
+
+    return f"""<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>mobileSuitGame — card sweep</title>
+<style>
+  :root {{ --surface:#fcfcfb; --ink:#0b0b0b; --muted:#52514e; --line:#e7e6e2; }}
+  @media (prefers-color-scheme: dark) {{
+    :root {{ --surface:#1a1a19; --ink:#ffffff; --muted:#c3c2b7; --line:#33322f; }}
+  }}
+  * {{ box-sizing:border-box; }}
+  body {{ margin:0; padding:2rem 1.5rem 3rem; background:var(--surface); color:var(--ink);
+         font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }}
+  h1 {{ font-size:1.35rem; margin:0 0 .25rem; }}
+  .sub {{ color:var(--muted); margin:0 0 .5rem; font-size:.9rem; }}
+  .scroll {{ overflow-x:auto; }}
+  table {{ border-collapse:separate; border-spacing:2px; }}
+  th, td {{ padding:0; }}
+  thead th.col {{ position:sticky; top:0; }}
+  th.col div {{ writing-mode:vertical-rl; transform:rotate(180deg); white-space:nowrap;
+               padding:.4rem .1rem; color:var(--muted); font-weight:600; font-size:.8rem; }}
+  th.row {{ text-align:right; padding-right:.6rem; color:var(--muted); font-weight:600;
+           white-space:nowrap; font-size:.85rem; }}
+  td.cell {{ min-width:44px; height:30px; padding:0 4px; text-align:center;
+            vertical-align:middle; font-variant-numeric:tabular-nums; font-weight:600;
+            border-radius:4px; font-size:.78rem; white-space:nowrap; }}
+  td.cell.avg {{ font-weight:800; }}
+  .legend {{ display:flex; align-items:center; gap:.6rem; margin:1.25rem 0 .75rem; font-size:.82rem;
+            color:var(--muted); flex-wrap:wrap; }}
+  .bar {{ width:220px; height:12px; border-radius:6px;
+         background:linear-gradient(90deg, rgb(208,59,59), rgb(240,239,236), rgb(42,120,214)); }}
+</style></head>
+<body>
+  <h1>mobileSuitGame — card sweep</h1>
+  <p class="sub">{subtitle}</p>
+  <div class="legend">
+    <span>card loses</span>
+    <span class="bar"></span>
+    <span>card wins</span>
+    <span style="margin-left:.5rem">(win% of a deck of just that card, sorted by mean)</span>
+  </div>
+  <div class="scroll"><table>
+    <thead><tr><th class="corner"></th>{head_cells}
+      <th class="col"><div>mean</div></th></tr></thead>
+    <tbody>{''.join(body_rows)}</tbody>
+  </table></div>
+</body></html>
+"""
+
+
+# --------------------------------------------------------------------------- #
+# Sub-command: pool  (marginal value of adding each card to a base deck)
+# --------------------------------------------------------------------------- #
+
+def cmd_pool(args) -> None:
+    """For every card, measure how a base deck does WITH that card added versus
+    WITHOUT it, against each of the chosen opponent decks. The per-card delta is
+    that card's marginal contribution to the pool."""
+    rng = random.Random(args.seed)
+    cards = load_cards()
+    da, ca, db, cb = _team_weights(args)
+    cfg = SimConfig(args.games, args.hand, args.health, args.max_rounds,
+                    intelligent=args.intelligent, pool=args.pool,
+                    defense_a=da, concentration_a=ca, defense_b=db, concentration_b=cb)
+
+    deck_paths = list(args.decks)
+    if args.decks_dir:
+        deck_paths += sorted(str(p) for p in Path(args.decks_dir).glob("*.csv"))
+    if not deck_paths:
+        raise SystemExit("pool needs at least one opponent deck "
+                         "(via --decks and/or --decks-dir)")
+    deck_names = [Path(p).stem for p in deck_paths]
+    opp_decks = [load_deck(p, cards) for p in deck_paths]
+    base_deck = load_deck(args.base, cards)
+    base_name = Path(args.base).stem
+
+    card_list = sorted(cards.values(), key=lambda c: (c.group, c.name))
+    if args.attackers_only:
+        card_list = [c for c in card_list if c.is_attack]
+
+    total = (len(card_list) + 1) * len(deck_paths) * cfg.games
+    print(f"Pool test: base '{base_name}' + each of {len(card_list)} cards "
+          f"x {len(deck_paths)} decks, {cfg.games} games/cell ({total} games) ...")
+
+    # Baseline: the base deck (no addition) vs each opponent. Computed once.
+    baseline = [_run_decks(base_deck, opp, cfg, rng, name_a=base_name)["rate"]["A"]
+                for opp in opp_decks]
+
+    # rows[i] = (card, [with-card win% per deck], [delta per deck], mean delta).
+    rows = []
+    for c in card_list:
+        augmented = base_deck + [c]
+        withs, deltas = [], []
+        for opp, base_rate in zip(opp_decks, baseline):
+            wr = _run_decks(augmented, opp, cfg, rng, name_a=base_name)["rate"]["A"]
+            withs.append(wr)
+            deltas.append(wr - base_rate)
+        rows.append((c, withs, deltas, sum(deltas) / len(deltas)))
+    rows.sort(key=lambda r: r[3], reverse=True)
+
+    _print_pool_table(base_name, baseline, rows, deck_names, cfg)
+
+    html = render_pool_html(base_name, baseline, rows, deck_names, cfg)
+    out = Path(args.output)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(html, encoding="utf-8")
+    print(f"\nWrote visual report -> {out}")
+
+
+def _print_pool_table(base_name: str, baseline: list, rows: list,
+                      deck_names: list, cfg: SimConfig) -> None:
+    """Text table: one row per card showing the win% change (with the card minus
+    without) it brings to the base deck against each opponent, plus a mean. A
+    leading 'base' line gives the un-augmented win rates for reference."""
+    base_label = f"(base) {base_name}"
+    label_w = max([len("Card"), len(base_label)]
+                  + [len(_card_label(c)) for c, _, _, _ in rows])
+    col_w = 8
+    header = (f"  {'Card (Δ = with − without)':<{label_w}}"
+              + "".join(f"{nm[:col_w - 1]:>{col_w}}" for nm in deck_names)
+              + f"{'mean':>{col_w}}")
+    print("=" * len(header))
+    print("mobileSuitGame pool test — win% change from adding each card to the base deck"
+          + (_mode_label(cfg) if cfg.intelligent else ""))
+    print("=" * len(header))
+    print(header)
+    print("-" * len(header))
+    base_cells = "".join(f"{r:>{col_w}.1f}" for r in baseline)
+    base_mean = sum(baseline) / len(baseline)
+    print(f"  {base_label:<{label_w}}{base_cells}{base_mean:>{col_w}.1f}")
+    print("-" * len(header))
+    for c, _withs, deltas, md in rows:
+        cells = "".join(f"{d:>+{col_w}.1f}" for d in deltas)
+        print(f"  {_card_label(c):<{label_w}}{cells}{md:>+{col_w}.1f}")
+    print("=" * len(header))
+
+
+def render_pool_html(base_name: str, baseline: list, rows: list,
+                     deck_names: list, cfg: SimConfig) -> str:
+    """Self-contained HTML heatmap: rows are cards, columns the chosen decks, each
+    cell the win% change (blue = the card helps the base deck, red = it hurts) plus
+    a mean column. A muted top row shows the base deck's own win rates."""
+    span = max([5.0] + [abs(d) for _c, _w, ds, _m in rows for d in ds]
+               + [abs(m) for _c, _w, _ds, m in rows])
+
+    head_cells = "".join(f"<th class='col'><div>{escape(nm)}</div></th>"
+                         for nm in deck_names)
+
+    base_mean = sum(baseline) / len(baseline)
+    base_cells = "".join(f"<td class='cell base'>{r:.0f}</td>" for r in baseline)
+    base_cells += f"<td class='cell base'>{base_mean:.0f}</td>"
+    base_row = (f"<tr><th class='row'>(base) {escape(base_name)}</th>{base_cells}</tr>")
+
+    body_rows = [base_row]
+    for c, withs, deltas, md in rows:
+        cells = []
+        for nm, wr, d in zip(deck_names, withs, deltas):
+            rgb = _diverging_signed(d, span)
+            tip = (f"{_card_label(c)} added to {base_name} vs {nm}: "
+                   f"{wr:.1f}% win ({d:+.1f} vs base)")
+            cells.append(f"<td class='cell' style='background:rgb{rgb};"
+                         f"color:{_ink_on(rgb)}' title='{escape(tip)}'>{d:+.0f}</td>")
+        mrgb = _diverging_signed(md, span)
+        cells.append(f"<td class='cell avg' style='background:rgb{mrgb};"
+                     f"color:{_ink_on(mrgb)}'>{md:+.0f}</td>")
+        body_rows.append(f"<tr><th class='row'>{escape(_card_label(c))}</th>"
+                         f"{''.join(cells)}</tr>")
+
+    play = "random play" if not cfg.intelligent else f"intelligent play, pool {cfg.pool}"
+    subtitle = (f"base deck: {escape(base_name)} &middot; {len(rows)} candidate cards "
+                f"&middot; {len(deck_names)} decks &middot; {cfg.games} games/cell "
+                f"&middot; hand {cfg.hand} &middot; {cfg.health} HP/zone &middot; {play}")
+
+    return f"""<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>mobileSuitGame — pool test</title>
+<style>
+  :root {{ --surface:#fcfcfb; --ink:#0b0b0b; --muted:#52514e; --line:#e7e6e2; }}
+  @media (prefers-color-scheme: dark) {{
+    :root {{ --surface:#1a1a19; --ink:#ffffff; --muted:#c3c2b7; --line:#33322f; }}
+  }}
+  * {{ box-sizing:border-box; }}
+  body {{ margin:0; padding:2rem 1.5rem 3rem; background:var(--surface); color:var(--ink);
+         font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }}
+  h1 {{ font-size:1.35rem; margin:0 0 .25rem; }}
+  .sub {{ color:var(--muted); margin:0 0 .5rem; font-size:.9rem; }}
+  .scroll {{ overflow-x:auto; }}
+  table {{ border-collapse:separate; border-spacing:2px; }}
+  th, td {{ padding:0; }}
+  thead th.col {{ position:sticky; top:0; }}
+  th.col div {{ writing-mode:vertical-rl; transform:rotate(180deg); white-space:nowrap;
+               padding:.4rem .1rem; color:var(--muted); font-weight:600; font-size:.8rem; }}
+  th.row {{ text-align:right; padding-right:.6rem; color:var(--muted); font-weight:600;
+           white-space:nowrap; font-size:.85rem; }}
+  td.cell {{ min-width:44px; height:30px; padding:0 4px; text-align:center;
+            vertical-align:middle; font-variant-numeric:tabular-nums; font-weight:600;
+            border-radius:4px; font-size:.78rem; white-space:nowrap; }}
+  td.cell.avg {{ font-weight:800; }}
+  td.cell.base {{ background:var(--line); color:var(--muted); font-weight:700; }}
+  .legend {{ display:flex; align-items:center; gap:.6rem; margin:1.25rem 0 .75rem; font-size:.82rem;
+            color:var(--muted); flex-wrap:wrap; }}
+  .bar {{ width:220px; height:12px; border-radius:6px;
+         background:linear-gradient(90deg, rgb(208,59,59), rgb(240,239,236), rgb(42,120,214)); }}
+</style></head>
+<body>
+  <h1>mobileSuitGame — pool test</h1>
+  <p class="sub">{subtitle}</p>
+  <div class="legend">
+    <span>−{span:.0f}% (card hurts the deck)</span>
+    <span class="bar"></span>
+    <span>+{span:.0f}% (card helps the deck)</span>
+    <span style="margin-left:.5rem">(win% change vs the base deck, sorted by mean)</span>
+  </div>
+  <div class="scroll"><table>
+    <thead><tr><th class="corner"></th>{head_cells}
+      <th class="col"><div>mean</div></th></tr></thead>
+    <tbody>{''.join(body_rows)}</tbody>
+  </table></div>
+</body></html>
+"""
+
+
 def _diverging(pct: float) -> tuple:
     """Diverging blue<->red fill for a win%: 50% neutral gray, 100% blue (row
     deck winning), 0% red (row deck losing). Returns (r, g, b)."""
@@ -645,6 +1005,15 @@ def _diverging(pct: float) -> tuple:
     else:
         t, lo, hi = (50 - pct) / 50, gray, red
     return tuple(round(lo[k] + (hi[k] - lo[k]) * t) for k in range(3))
+
+
+def _diverging_signed(value: float, span: float) -> tuple:
+    """Diverging fill centred at 0: +span blue (helps), -span red (hurts), 0 gray.
+    `span` sets the saturation scale so the biggest swing reads as full colour."""
+    red, gray, blue = (0xD0, 0x3B, 0x3B), (0xF0, 0xEF, 0xEC), (0x2A, 0x78, 0xD6)
+    t = max(-1.0, min(1.0, value / span)) if span else 0.0
+    lo, hi, tt = (gray, blue, t) if t >= 0 else (gray, red, -t)
+    return tuple(round(lo[k] + (hi[k] - lo[k]) * tt) for k in range(3))
 
 
 def _ink_on(rgb: tuple) -> str:
@@ -853,6 +1222,34 @@ def main() -> None:
     add_common(t, default_games=250)
     add_per_team_strategy(t)  # rows play the A-strategy, columns the B-strategy
     t.set_defaults(func=cmd_tournament)
+
+    c = sub.add_parser("cards",
+                       help="every card as a deck of just that card vs the chosen decks -> table")
+    c.add_argument("--decks", nargs="*", default=[],
+                   help="opponent deck CSV(s) to test every card against")
+    c.add_argument("--decks-dir",
+                   help="also include every *.csv in this folder as an opponent deck")
+    c.add_argument("--attackers-only", action="store_true",
+                   help="skip cards with no attack (a block-only deck can never win)")
+    c.add_argument("--output", default="build/card_sweep.html", help="HTML report path")
+    add_common(c, default_games=300)  # cards x decks x games gets big; keep games modest
+    add_per_team_strategy(c)  # cards play the A-strategy, decks the B-strategy
+    c.set_defaults(func=cmd_cards)
+
+    p = sub.add_parser("pool",
+                       help="marginal win% each card adds to a base deck vs the chosen decks -> table")
+    p.add_argument("--base", required=True,
+                   help="base deck CSV; every card is tried added to this pool")
+    p.add_argument("--decks", nargs="*", default=[],
+                   help="opponent deck CSV(s) to test the base deck against")
+    p.add_argument("--decks-dir",
+                   help="also include every *.csv in this folder as an opponent deck")
+    p.add_argument("--attackers-only", action="store_true",
+                   help="only try adding cards that have an attack")
+    p.add_argument("--output", default="build/card_pool.html", help="HTML report path")
+    add_common(p, default_games=300)  # cards x decks x games gets big; keep games modest
+    add_per_team_strategy(p)  # base deck plays the A-strategy, opponents the B-strategy
+    p.set_defaults(func=cmd_pool)
 
     args = parser.parse_args()
     args.func(args)
