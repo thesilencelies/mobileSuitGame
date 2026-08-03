@@ -8,6 +8,7 @@
 \usepackage{graphicx}
 \usepackage{caption}
 \usepackage{xcolor}
+\usepackage{amssymb}
 
  \usetikzlibrary{positioning}
  \usetikzlibrary{patterns}
@@ -67,6 +68,27 @@
   moveline/.style={line width=2pt, dash pattern=on 3.5pt off 2.5pt, -{Stealth[length=3.2mm,width=3mm]}},
   attackline/.style={line width=2.4pt, red!75!black, -{Latex[length=3.6mm]}},
   shotline/.style={line width=1.7pt, red!70!black, densely dotted, -{Latex[length=3mm]}},
+}
+% ---- Line-of-sight diagram helpers ----------------------------------------
+% Attacker / target standees for the line-of-sight figures. A target carries a
+% green tick when it is in sight, a red cross when a blocked shot means it is not.
+\newcommand{\attackerframe}[2]{\standee{#1}{#2}{../pictures/foreground/revolution_ripper.png}{yellow!75!black}%
+  \node[circle, fill=yellow!75!black, text=white, font=\bfseries\footnotesize, inner sep=1.3pt] at (#1+0.42,#2+0.42){A};}
+\newcommand{\losok}[2]{\standee{#1}{#2}{../pictures/foreground/ouwa_kuwagata.png}{purple!55!black}%
+  \node[circle, fill=green!45!black, text=white, font=\bfseries\footnotesize, inner sep=1.1pt] at (#1+0.42,#2+0.42){\checkmark};}
+\newcommand{\losno}[2]{\standee{#1}{#2}{../pictures/foreground/ouwa_kuwagata.png}{purple!55!black}%
+  \node[circle, fill=red!80!black, text=white, font=\bfseries\footnotesize, inner sep=1.5pt] at (#1+0.42,#2+0.42){$\times$};}
+% a neutral third frame that merely sits in the way
+\newcommand{\otherframe}[2]{\standee{#1}{#2}{../pictures/foreground/guild_salaryman.png}{black!45!white}}
+% red marker placed on whatever breaks a line of sight
+\newcommand{\losx}[2]{\node[circle, fill=red!85!black, draw=white, line width=0.7pt,
+  minimum size=0.42cm, inner sep=0pt] at (#1,#2){\textcolor{white}{\footnotesize\bfseries$\times$}};}
+% small caption tag pinned inside a scene
+\newcommand{\lostag}[3]{\node[fill=white, draw=black!55, rounded corners=1.4pt,
+  font=\scriptsize\bfseries, inner sep=2.2pt, align=center] at (#1,#2){#3};}
+\tikzset{
+  clearlos/.style={line width=2.0pt, green!50!black, -{Latex[length=3.2mm]}},
+  blockedlos/.style={line width=1.9pt, red!75!black, densely dashed, -{Latex[length=2.8mm]}},
 }
 % ---- The face-down / face-up / discarded card tableau ---------------------
 % Tracks the four chosen cards (2 per frame) through the round.
@@ -273,7 +295,59 @@ The following count as an obstruction:
   \item Terrain at a higher elevation than the target adjacent to the target
 \end{itemize}
 
-%TODO - needs diagram for LoS
+In the figures below, \textcolor{yellow!75!black}{\textbf{A}} is the attacking frame and the purple discs are possible targets: a \textcolor{green!45!black}{green tick} marks a target in line of sight, a \textcolor{red!80!black}{red cross} one that is not. A red \textcolor{red!85!black}{$\otimes$} marks whatever breaks the line.
+
+\begin{figure}[htbp]
+  \centering
+  \resizebox{0.86\columnwidth}{!}{%
+  \begin{terrainscene}{../build/terrain/Sports Field.tex}
+    \draw[clearlos] (1.62,5.75) -- (4.75,7.12);
+    \draw[blockedlos] (1.72,5.35) -- (2.58,5.35);
+    \draw[blockedlos,opacity=0.4] (3.82,5.35) -- (4.7,5.35);
+    \draw[blockedlos] (1.62,5.0) -- (4.8,1.5);
+    \attackerframe{1.13}{5.35}
+    \otherframe{3.19}{5.35}
+    \losok{5.25}{7.41}
+    \losno{5.25}{5.35}
+    \losno{5.25}{1.23}
+    \losx{3.19}{3.29}
+    \lostag{3.19}{4.35}{another frame}
+    \lostag{4.05}{2.35}{higher than\\the attacker}
+  \end{terrainscene}}
+  \caption{Anything sitting on the line stops the shot. The top target is in sight. The middle target is blocked by another frame standing on the line, and the lower target by a tile that is raised higher than the attacker.}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \resizebox{0.86\columnwidth}{!}{%
+  \begin{terrainscene}{../build/terrain/Waste Camp.tex}
+    \draw[clearlos] (1.13,1.85) -- (1.13,6.75);
+    \draw[blockedlos] (1.7,1.45) -- (5.1,6.9);
+    \attackerframe{1.13}{1.23}
+    \losok{1.13}{7.41}
+    \losno{5.25}{7.41}
+    \losx{5.25}{5.35}
+    \lostag{2.75}{3.29}{on the line, but\\not by the target}
+    \lostag{3.5}{5.6}{by the target}
+  \end{terrainscene}}
+  \caption{An obstacle only blocks when it is next to the target. Both shots pass through an obstacle: the left target is still in sight because its obstacle is a tile away, while the right target is blocked because the obstacle it passes through sits right beside it.}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \resizebox{0.86\columnwidth}{!}{%
+  \begin{terrainscene}{../build/terrain/Warehouse.tex}
+    \draw[clearlos] (3.6,1.72) -- (5.05,6.85);
+    \draw[blockedlos] (2.75,1.72) -- (1.35,6.85);
+    \attackerframe{3.19}{1.23}
+    \losok{5.25}{7.41}
+    \losno{1.13}{7.41}
+    \losx{1.13}{5.35}
+    \lostag{4.55}{4.0}{higher than target,\\not by the target}
+    \lostag{2.15}{5.9}{by the target}
+  \end{terrainscene}}
+  \caption{Terrain higher than the target works the same way. Here \textbf{A} stands up on the raised block, firing at two targets down on the ground. Both shots cross a tile that is higher than the target (but not higher than \textbf{A}): the right target is in sight because that tile is not next to it, while the left target is blocked by the raised tile right beside it.}
+\end{figure}
 
 If the defender has a block on their remaining cards in the same zone as any of the attacks that are in range, they \textbf{must} choose one of those cards to block. 
 The attack fails and that blocking card is discarded (if the blocking card has not yet resolved it's action is forfeit).
