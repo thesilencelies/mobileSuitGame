@@ -133,6 +133,29 @@
   \zcard{5.0}{-0.25}{1.15}{3.1}{purple!8}{card 2}
   \node[font=\scriptsize\bfseries, text=black!70] at (4.475,-1.05){the defender's two remaining cards};
   \ztag{4.0}{3.45}{#1}}
+% ---- Board-setup diagram helpers ------------------------------------------
+% A full 5x4 grid of real terrain cards. Each card is pre-typeset into a named
+% save box in NORMAL context first (\prepcard) -- the card's \maxheight
+% background recomputes wrongly if \input inside a tikzpicture -- then dropped
+% into its grid cell (\usecard), optionally rotated 180 for the opponent rows.
+\def\Wd{6.5}   % terrain-card footprint width
+\def\Ht{9.0}   % terrain-card footprint height
+\newcommand{\prepcard}[2]{%
+  \expandafter\newsavebox\csname bc#1\endcsname
+  \expandafter\sbox\csname bc#1\endcsname{\input{#2}}}
+\newcommand{\usecard}[4][0]{% [rot]{boxname}{col}{row}
+  \pgfmathsetmacro{\bcx}{#3*\Wd+\Wd/2}%
+  \pgfmathsetmacro{\bcy}{#4*\Ht+\Ht/2}%
+  \node[anchor=center, inner sep=0pt, rotate=#1] at (\bcx,\bcy)
+    {\usebox{\csname bc#2\endcsname}};}
+\newcommand{\objring}[2]{% {col}{row} -- highlight an objective card
+  \pgfmathsetmacro{\bcx}{#1*\Wd+\Wd/2}%
+  \pgfmathsetmacro{\bcy}{#2*\Ht+\Ht/2}%
+  \draw[orange!85!red, line width=3pt, rounded corners=6pt]
+    (\bcx-3.15,\bcy-4.4) rectangle (\bcx+3.15,\bcy+4.4);}
+\newcommand{\myframe}[3]{\standee{#1}{#2}{../pictures/foreground/#3}{yellow!80!black}}
+\newcommand{\opframe}[3]{\standee{#1}{#2}{../pictures/foreground/#3}{purple!60!black}}
+\newcommand{\pptoken}[3]{\node at (#1,#2){\includegraphics[width=1.15cm]{../tts_assets/#3}};}
 % ---- The face-down / face-up / discarded card tableau ---------------------
 % Tracks the four chosen cards (2 per frame) through the round.
 \newlength{\tabcardh}\setlength{\tabcardh}{2.5cm}
@@ -265,9 +288,10 @@ Movement is counted in steps.
 
 
 \section{Setup}
-Each player deals out their terrain cards from their terrain deck in 2 rows of (number of frames + 2) to make a grid.
+Each player builds a grid of 2 rows of (number of frames + 2) from their terrain deck.
 (for 2 players with 3 frames each that makes a 5x4 grid).
-Within this grid the player must deal one objective card in each row.
+First, each player takes one objective card for each of their rows and chooses where to place it within that row --- one objective per row.
+The remaining slots in the grid are then filled by dealing out the rest of the terrain cards.
 Any relevant tokens are placed on the terrain cards.
 All objectives on these terrain cards are valid for this battle - you are defending any objectives that are on your team's terrain cards.
 
@@ -275,6 +299,69 @@ For each frame the players choose their starting hand of 7, shuffle the deck the
 
 Each player takes it in turns to put one of their frames on nearest edge of their terrain cards.
 After all frames are deployed this way the player who deployed first receives the priority marker.
+
+% Pre-typeset every terrain card (normal context; see \prepcard).
+\prepcard{r0c0}{../build/terrain/Church.tex}
+\prepcard{r0c1}{../build/terrain/U homes.tex}
+\prepcard{r0c2}{../build/terrain/Zig-zag.tex}
+\prepcard{r0c3}{../build/terrain/Cross Junction.tex}
+\prepcard{r0c4}{../build/terrain/Two pads.tex}
+\prepcard{r1c0}{../build/terrain/High Tower.tex}
+\prepcard{r1c1}{../build/terrain/Slum road.tex}
+\prepcard{r1c2}{../build/terrain/Park.tex}
+\prepcard{r1c3}{../build/terrain/Power Reactors.tex}
+\prepcard{r1c4}{../build/terrain/Crossings.tex}
+\prepcard{r2c0}{../build/terrain/Construction.tex}
+\prepcard{r2c1}{../build/terrain/The Tower.tex}
+\prepcard{r2c2}{../build/terrain/Split Offices.tex}
+\prepcard{r2c3}{../build/terrain/Suburb L.tex}
+\prepcard{r2c4}{../build/terrain/Stadium.tex}
+\prepcard{r3c0}{../build/terrain/Warehouse.tex}
+\prepcard{r3c1}{../build/terrain/Steps.tex}
+\prepcard{r3c2}{../build/terrain/Holo Spires.tex}
+\prepcard{r3c3}{../build/terrain/Helipad.tex}
+\prepcard{r3c4}{../build/terrain/Box.tex}
+\begin{figure*}[p]
+  \centering
+  \resizebox{\textwidth}{!}{%
+  \begin{tikzpicture}
+    % rows 0,1 = your terrain (upright); rows 2,3 = opponent (rotated 180)
+    \usecard{r0c0}{0}{0}\usecard{r0c1}{1}{0}\usecard{r0c2}{2}{0}\usecard{r0c3}{3}{0}\usecard{r0c4}{4}{0}
+    \usecard{r1c0}{0}{1}\usecard{r1c1}{1}{1}\usecard{r1c2}{2}{1}\usecard{r1c3}{3}{1}\usecard{r1c4}{4}{1}
+    \usecard[180]{r2c0}{0}{2}\usecard[180]{r2c1}{1}{2}\usecard[180]{r2c2}{2}{2}\usecard[180]{r2c3}{3}{2}\usecard[180]{r2c4}{4}{2}
+    \usecard[180]{r3c0}{0}{3}\usecard[180]{r3c1}{1}{3}\usecard[180]{r3c2}{2}{3}\usecard[180]{r3c3}{3}{3}\usecard[180]{r3c4}{4}{3}
+    % one objective ringed per row
+    \objring{0}{0}\objring{3}{1}\objring{1}{2}\objring{2}{3}
+    % tokens on the Power Reactors objective (cell 3,1); card centre (22.75,13.5)
+    % all four reactors get the P2 token (each reactor has 2 hitpoints)
+    \pptoken{20.63}{10.23}{PowerPlant2.png}
+    \pptoken{22.69}{14.35}{PowerPlant2.png}
+    \pptoken{24.75}{12.29}{PowerPlant2.png}
+    \pptoken{24.75}{16.41}{PowerPlant2.png}
+    % T4 token on The Tower objective (opponent cell 1,2, rotated 180); tower
+    % square centre (5.25,5.35) in card coords -> board (7.75,21.65)
+    \pptoken{7.75}{21.65}{Tower4.png}
+    % centre line (the two players' 2-row blocks meet here)
+    \draw[black!55, line width=2pt, dash pattern=on 10pt off 6pt] (-0.6,18) -- (33.1,18);
+    % frames deployed on the outer edges (kept clear of the objective columns)
+    \myframe{9.75}{0.85}{revolution_ripper.png}
+    \myframe{16.25}{0.85}{revolution_flamekin.png}
+    \myframe{29.25}{0.85}{revolution_ripper.png}
+    \opframe{3.25}{35.15}{ouwa_kuwagata.png}
+    \opframe{9.75}{35.15}{ouwa_kamikiri.png}
+    \opframe{29.25}{35.15}{ouwa_kuwagata.png}
+    % call-out to the objective tokens
+    \node[fill=white, draw=orange!85!red, rounded corners=3pt, font=\bfseries,
+          inner sep=3pt, text=orange!60!red] at (28.6,13.5){objective tokens};
+    \draw[orange!85!red, line width=1.4pt, -{Latex[length=2.4mm]}] (26.9,13.5) -- (25.4,12.4);
+    % labels
+    \node[font=\Large\bfseries, text=purple!60!black, anchor=south] at (16.25,36.2){Opponent's terrain --- two rows, dealt facing them (so they read upside-down to you)};
+    \node[font=\Large\bfseries, text=yellow!45!black, anchor=north] at (16.25,-0.4){Your terrain --- two rows};
+    \node[fill=white, draw=orange!85!red, rounded corners=3pt, font=\bfseries\small, inner sep=3pt, text=orange!60!red, anchor=west] at (-0.5,18.9){\raisebox{-0.2ex}{\tikz\draw[orange!85!red, line width=2pt, rounded corners=1.5pt](0,0)rectangle(0.35,0.24);}~one objective per row};
+  \end{tikzpicture}}
+  \caption{A 3-versus-3 game set up: each player deals their terrain deck into two rows of five (frames $+$ 2), so the battlefield is a $5\times4$ grid. Each player's two rows are dealt facing them, so one player's terrain reads upside-down to the other. Each player places one objective in each of their rows (orange outlines) and puts any tokens the objective calls for onto its card --- here the four Power Reactor tokens and The Tower's token. Frames are then deployed one at a time onto the nearest edge of their own terrain.}
+  \label{fig:board-setup}
+\end{figure*}
 
 \section{The turn}
 On each turn of the game there are 3 phases: planning, action and cleanup. 
