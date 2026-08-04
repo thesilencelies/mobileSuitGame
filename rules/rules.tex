@@ -227,7 +227,7 @@ All frames a player brings should be from the same faction.
 
 
 
-\begin{figure}[htbp]
+\begin{figure}[!ht]
   \centering
 \includegraphics[width=\linewidth]{../pictures/bg2.jpg}
 \end{figure}
@@ -267,14 +267,14 @@ Tiles that contain obstacles have a yellow dashing on their border and yellow di
 Tiles that indicate objectives have green lines.
 Tiles where a token should be placed on them (explained in the rules text on the card) have orange hatching.
 
-\begin{figure}[htbp]
+\begin{figure}[!ht]
   \centering
   \textbf{Terrain card}\par\medskip
   \input{../build/terrain/Fugitive.tex}
   \par example of a terrain card\par\medskip
 \end{figure}
 
-\begin{figure}[htbp]
+\begin{figure}[!ht]
   \centering
   \textbf{Terrain helper}\par\medskip
   \input{../build/terrain/Helpcard.tex}
@@ -321,7 +321,7 @@ After all frames are deployed this way the player who deployed first receives th
 \prepcard{r3c2}{../build/terrain/Holo Spires.tex}
 \prepcard{r3c3}{../build/terrain/Helipad.tex}
 \prepcard{r3c4}{../build/terrain/Box.tex}
-\begin{figure*}[p]
+\begin{figure*}[!t]
   \centering
   \resizebox{\textwidth}{!}{%
   \begin{tikzpicture}
@@ -397,7 +397,7 @@ It takes 1 movement to move up per elevation difference, and you cannot stop hal
 After movement is done, any effect on the card is applied. Effects are applied in printed order.
 
 
-\begin{figure}[htbp]
+\begin{figure}[!ht]
   \centering
 \includegraphics[width=\linewidth]{../pictures/garden_2-2.jpg}
 \end{figure}
@@ -427,7 +427,7 @@ The following count as an obstruction:
 
 In the figures below, \textcolor{yellow!75!black}{\textbf{A}} is the attacking frame and the purple discs are possible targets: a \textcolor{green!45!black}{green tick} marks a target in line of sight, a \textcolor{red!80!black}{red cross} one that is not. A red \textcolor{red!85!black}{$\otimes$} marks whatever breaks the line.
 
-\begin{figure}[htbp]
+\begin{figure}[!ht]
   \centering
   \resizebox{0.86\columnwidth}{!}{%
   \begin{terrainscene}{../build/terrain/Sports Field.tex}
@@ -447,7 +447,7 @@ In the figures below, \textcolor{yellow!75!black}{\textbf{A}} is the attacking f
   \caption{Anything sitting on the line stops the shot. The top target is in sight. The middle target is blocked by another frame standing on the line, and the lower target by a tile that is raised higher than the attacker.}
 \end{figure}
 
-\begin{figure}[htbp]
+\begin{figure}[!ht]
   \centering
   \resizebox{0.86\columnwidth}{!}{%
   \begin{terrainscene}{../build/terrain/Waste Camp.tex}
@@ -463,7 +463,7 @@ In the figures below, \textcolor{yellow!75!black}{\textbf{A}} is the attacking f
   \caption{An obstacle only blocks when it is next to the target. Both shots pass through an obstacle: the left target is still in sight because its obstacle is a tile away, while the right target is blocked because the obstacle it passes through sits right beside it.}
 \end{figure}
 
-\begin{figure}[htbp]
+\begin{figure}[!ht]
   \centering
   \resizebox{0.86\columnwidth}{!}{%
   \begin{terrainscene}{../build/terrain/Warehouse.tex}
@@ -484,7 +484,7 @@ The attack fails and that blocking card is discarded (if the blocking card has n
 
 In the figures below the three rows are the High, Mid and Low zones. The attacking card is on the left and the defender's two remaining cards on the right; a block stops the attack only when it sits in the same zone as an attack mark.
 
-\begin{figure}[htbp]
+\begin{figure}[!ht]
   \centering
   \resizebox{0.92\columnwidth}{!}{\begin{tikzpicture}
     \zscaffold{The Mid attack meets a Mid block, so it is blocked.}
@@ -505,7 +505,7 @@ In the figures below the three rows are the High, Mid and Low zones. The attacki
   \caption{A single-zone attack, here worth 2 damage. \emph{Top:} one remaining card has a block in the attacked zone (Mid), so the defender must block; the attack fails and that card is discarded --- a block stops the whole attack whatever its damage. \emph{Bottom:} neither remaining card blocks Mid, so the attack lands and the defender takes 2 damage.}
 \end{figure}
 
-\begin{figure}[htbp]
+\begin{figure}[!ht]
   \centering
   \resizebox{0.92\columnwidth}{!}{\begin{tikzpicture}
     \zscaffold{One matching block (High) stops the whole attack.}
@@ -532,7 +532,7 @@ In the figures below the three rows are the High, Mid and Low zones. The attacki
   \caption{A multi-zone attack only needs a block in \emph{one} of its zones. \emph{Top:} the High attack meets a High block, so the whole attack --- High and Mid --- is stopped and the blocking card is discarded. \emph{Bottom:} the defender has no High or Mid block, so both zones land.}
 \end{figure}
 
-\begin{figure}[htbp]
+\begin{figure}[!ht]
   \centering
   \resizebox{0.92\columnwidth}{!}{\begin{tikzpicture}
     \zscaffold{A super block blocks the same way, but is kept.}
@@ -560,7 +560,7 @@ Conversely if Frame C at elevation 2 were to attack Frame A with Thrust (\smallp
 
 Ranged attacks are not affected by elevation in this way.
 
-\begin{figure}[htbp]
+\begin{figure}[!ht]
   \centering
 \includegraphics[width=\linewidth]{../pictures/ground_zero.png}
 \end{figure}
@@ -598,25 +598,25 @@ The priority marker then moves one step anticlockwise.
 \onecolumn
 \section{Card anatomy}
 
-\begin{figure*}[htbp]
+\begin{figure*}[!ht]
   \centering
   \resizebox{\textwidth}{!}{\input{../build/rules_weapon_ranged.tex}}
     \par A ranged Weapon Card
 \end{figure*}
 
-\begin{figure*}[htbp]
+\begin{figure*}[!ht]
   \centering
     \resizebox{\textwidth}{!}{\input{../build/rules_weapon_melee.tex}}
     \par A melee Weapon Card
 \end{figure*}
 
-% \begin{figure*}[htbp]
+% \begin{figure*}[!ht]
 %   \centering
 %     \resizebox{\textwidth}{!}{\input{../build/rules_weapon_superblock.tex}}
 %     \par A Weapon Card with a super block (note the doubled shield outline)
 % \end{figure*}
 
-\begin{figure*}[htbp]
+\begin{figure*}[!ht]
     \centering
       \resizebox{\textwidth}{!}{\input{../build/rules_pilot.tex}}
     \par A Pilot Card
@@ -636,13 +636,13 @@ The priority marker then moves one step anticlockwise.
 \end{tabular}
 \renewcommand{\arraystretch}{1.0}
 
-\begin{figure}[htbp]
+\begin{figure}[!ht]
   \centering
   \resizebox{\textwidth}{!}{\input{../build/rules_drone.tex}}
   \par Drone Card
 \end{figure}
 
-\begin{figure}[htbp]
+\begin{figure}[!ht]
   \centering
   \resizebox{\textwidth}{!}{\input{../build/rules_frame.tex}}
 \end{figure}
@@ -833,7 +833,7 @@ To build the deck, you can have:
 If any card has a faction logo on it, it can only be in a deck for a frame of that faction.
 
 
-\begin{figure}[htbp]
+\begin{figure}[!ht]
   \centering
 Example Frame deck for RipperSmasher (20 cards, 3 weapons, 2 boosters): 
 \begin{tabular}{l l l p{3cm}}
