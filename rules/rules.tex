@@ -418,12 +418,13 @@ Then draw a line starting from anywhere on the the attacking frame to anywhere o
 
 The following count as an obstruction:
 \begin{itemize}
-  \item Other Frames
   \item Impassable terrain
   \item Terrain at a higher elevation than the attacker
   \item Obstacles adjacent to the target
   \item Terrain at a higher elevation than the target adjacent to the target
 \end{itemize}
+
+A tile with a frame on it counts as one elevation higher than it otherwise is when checking line of sight. So a frame blocks sight like terrain raised one level --- for example a frame standing on flat ground obstructs like an elevation-1 tile.
 
 In the figures below, \textcolor{yellow!75!black}{\textbf{A}} is the attacking frame and the purple discs are possible targets: a \textcolor{green!45!black}{green tick} marks a target in line of sight, a \textcolor{red!80!black}{red cross} one that is not. A red \textcolor{red!85!black}{$\otimes$} marks whatever breaks the line.
 
@@ -441,10 +442,10 @@ In the figures below, \textcolor{yellow!75!black}{\textbf{A}} is the attacking f
     \losno{5.25}{5.35}
     \losno{5.25}{1.23}
     \losx{3.19}{3.29}
-    \lostag{3.19}{4.35}{another frame}
+    \lostag{3.19}{4.35}{frame $=$ one\\elevation higher}
     \lostag{4.05}{2.35}{higher than\\the attacker}
   \end{terrainscene}}
-  \caption{Anything sitting on the line stops the shot. The top target is in sight. The middle target is blocked by another frame standing on the line, and the lower target by a tile that is raised higher than the attacker.}
+  \caption{Anything sitting on the line stops the shot. The top target is in sight. The middle target is blocked by another frame on the line --- a tile with a frame on it counts as one elevation higher, so the frame obstructs sight like a raised tile. The lower target is blocked by a tile that is raised higher than the attacker.}
 \end{figure}
 
 \begin{figure}[!ht]
@@ -984,4 +985,140 @@ Deployment zones are 7 units away from the center line.
 Art: Goodboy
 TTS: Chara
 
+% ===========================================================================
+% Quick reference (one page). \twocolumn[..] forces a fresh page and a
+% full-width spanning header, then resumes the two-column body.
+% ===========================================================================
+\newenvironment{qreflist}
+  {\begin{itemize}
+     \setlength{\topsep}{1pt}\setlength{\partopsep}{0pt}%
+     \setlength{\itemsep}{1pt}\setlength{\parsep}{0pt}%
+     \setlength{\leftmargin}{1.25em}}
+  {\end{itemize}}
+\newcommand{\qhead}[1]{\vspace{5pt}{\large\bfseries #1}\par\nobreak\vspace{1pt}%
+  {\color{black!45}\hrule height 0.7pt}\vspace{4pt}}
+% small block shield for the blocking mini-diagram
+\newcommand{\qshield}[3]{\node at (#1,#2){\resizebox{0.42cm}{!}{%
+  \begin{tikzpicture}\blockshield{0}{0}{#3}\end{tikzpicture}}};}
+
+\twocolumn[{\centering\LARGE\textbf{Quick Reference}\par\medskip}]
+\normalsize
+\setlength{\parindent}{0pt}
+\renewcommand{\labelitemii}{\textopenbullet}
+
+\qhead{Turn structure}
+Each turn: \textbf{Planning} $\to$ \textbf{Action} $\to$ \textbf{Cleanup}.
+\begin{qreflist}
+\item \textbf{Planning} (simultaneous): per frame, draw 7 ($\pm$ status), keep 2 face-down.
+  \begin{qreflist}\item then remove one of each status counter.\end{qreflist}
+\item \textbf{Action}: resolve by initiative, highest first.
+  \begin{qreflist}
+  \item ties: alternate clockwise from the priority marker;
+  \item each card $=$ Movement, Effect, Attack (move first \emph{or} last).
+  \end{qreflist}
+\item \textbf{Cleanup}: discard non-persistence cards; set active persistence cards aside.
+  \begin{qreflist}\item priority marker $\to$ one step anticlockwise.\end{qreflist}
+\end{qreflist}
+
+\qhead{Movement}
+\begin{qreflist}
+\item Base movement $+$ card modifier, any direction.
+\item Climb: 1 per elevation, no stopping mid-climb.
+\item Descend: free.
+\item Cannot cross obstacles or impassable tiles.
+\end{qreflist}
+
+\qhead{Attack}
+\begin{qreflist}
+\item One target in range:
+  \begin{qreflist}
+  \item melee (no range) $\to$ adjacent;
+  \item ranged $\to$ not adjacent $+$ line of sight.
+  \end{qreflist}
+\item Multi-range attack: only in-range zones count.
+\item Defender \textbf{must} block if a remaining card can --- see \emph{Blocking}.
+\item Unblocked: 1 damage per mark; attacker's card stays out (can block later).
+\item Melee vs elevation: shift zones 1 per level (lower $\to$ down, higher $\to$ up); off High/Low $=$ out of range. Ranged unaffected.
+\end{qreflist}
+
+\qhead{Blocking}
+\begin{qreflist}
+\item \textbf{Compulsory}: if a remaining card blocks \emph{any} attacked zone, you must block.
+\item One block stops the \emph{whole} attack --- every zone, even ones it doesn't cover.
+\item The blocking card is discarded afterwards (a \emph{super block} is kept).
+\end{qreflist}
+\par\smallskip
+{\centering
+\begin{tikzpicture}[scale=0.44, font=\scriptsize]
+  \foreach \p in {0,1}{
+    \begin{scope}[xshift=\p*7.4cm]
+      \foreach \y in {2,1,0}{\draw[black!12, line width=4pt] (0,\y)--(4.3,\y);}
+      \node[anchor=east, text=black!55, font=\tiny\bfseries] at (-0.15,2){H};
+      \node[anchor=east, text=black!55, font=\tiny\bfseries] at (-0.15,1){M};
+      \node[anchor=east, text=black!55, font=\tiny\bfseries] at (-0.15,0){L};
+      \node at (0.55,2){\smallcut};
+      \node at (0.55,1){\smallcut};
+    \end{scope}}
+  % panel 0: a single High block stops the whole (High+Mid) attack
+  \qshield{2.95}{2}{cityblue}
+  \draw[red!75!black, line width=1.7pt, -{Latex[length=2mm]}] (0.95,2)--(2.4,2);
+  \draw[red!75!black, line width=1.7pt, -{Latex[length=2mm]}] (0.95,1)--(2.4,1);
+  \draw[cityblue!55!black, line width=1.3pt, densely dashed] (2.5,0.55)--(2.5,2.45);
+  \node[font=\tiny\bfseries, text=black!70, anchor=north] at (2.1,-0.6){1 block $\to$ all zones};
+  % panel 1: only block is in an unattacked zone (Low) -> whole attack lands
+  \begin{scope}[xshift=7.4cm]
+    \qshield{2.95}{0}{cityblue}
+    \draw[red!75!black, line width=1.7pt, -{Latex[length=2mm]}] (0.95,2)--(3.7,2);
+    \draw[red!75!black, line width=1.7pt, -{Latex[length=2mm]}] (0.95,1)--(3.7,1);
+    \node[star, star points=7, star point ratio=0.5, fill=orange!85!red,
+          draw=red!60!black, line width=0.4pt, minimum size=0.4cm, inner sep=0pt] at (4.0,2){};
+    \node[star, star points=7, star point ratio=0.5, fill=orange!85!red,
+          draw=red!60!black, line width=0.4pt, minimum size=0.4cm, inner sep=0pt] at (4.0,1){};
+    \node[font=\tiny\bfseries, text=black!70, anchor=north] at (2.1,-0.6){Low block: no help $\to$ hits};
+  \end{scope}
+\end{tikzpicture}
+\par}
+
+\qhead{Damage}
+\begin{qreflist}
+\item More damage in a zone than its armour $\to$ frame destroyed.
+\item Last hit left in a zone gives a standing penalty:
+  \begin{qreflist}
+  \item High $\to -1$ initiative;
+  \item Mid $\to -1$ card drawn;
+  \item Low $\to -1$ movement.
+  \end{qreflist}
+\end{qreflist}
+
+\qhead{Line of sight (ranged)}
+\begin{qreflist}
+\item Target: in range, not adjacent.
+\item Clear line attacker $\to$ target $=$ valid.
+\item Blockers on the line:
+  \begin{qreflist}
+  \item impassable terrain;
+  \item terrain higher than the attacker;
+  \item an obstacle next to the target;
+  \item higher terrain next to the target.
+  \end{qreflist}
+\item A frame's tile counts as \textbf{one elevation higher} --- frames block sight like raised terrain.
+\end{qreflist}
+
+\qhead{Status effects}
+Applies while any counter remains; opposite status cancels one-for-one.
+\par\smallskip
+\begin{tabular}{@{}p{0.47\columnwidth}p{0.47\columnwidth}@{}}
+\textbf{Debuffs} & \textbf{Buffs}\\[2pt]
+\fullstunned & \fullstimmed\\
+\fulldazed & \fulllucid\\
+\fullslowed & \fullboosted\\
+\fullrevealed & \\
+\end{tabular}
+
+\qhead{Terrain}
+\begin{center}
+\resizebox{\columnwidth}{!}{\input{../build/terrain/Helpcard.tex}}
+\end{center}
+
+\normalsize
 \end{document}
