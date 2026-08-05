@@ -110,6 +110,74 @@ move_icon_outline = [
     (-0.45, -0.234),
 ]
 
+# ---------------------------------------------------------------------------
+# New card layout (2026 redesign)
+#
+# Coordinates are in tikzpicture units (x=y=card_scale cm). The card base
+# rectangle is centred at (4,5), 6.2cm x 8.5cm, so the usable field is roughly
+# x in [0.5, 7.5], y in [0.3, 9.3]. The layout is a top name row, a right-hand
+# column of three always-drawn zone boxes, a constrained art zone on the left,
+# and a full-width ability/rules box across the bottom.
+# ---------------------------------------------------------------------------
+
+# A/B flag: sharp box corners by default; flip to True to restore rounded ones.
+ROUNDED_CORNERS = False
+
+def rc():
+    """Corner-radius string for the current ROUNDED_CORNERS setting."""
+    return "0.12cm" if ROUNDED_CORNERS else "0pt"
+
+# Flat card background (the whole-card artwork background is gone; art is boxed).
+CARD_BG = "black!42!white"
+
+# Art zone (left). minimum width/height are physical cm; the centre is in tikz
+# units. The zone column is aligned to the art's vertical extent, so ART_TOP /
+# ART_BOT (tikz units) are derived here and reused for both. The card base is
+# 6.2cm wide; art/rules widths and positions leave a small border inside it.
+ART_CX, ART_CY = 2.81, 5.9
+ART_W_CM, ART_H_CM = 3.85, 4.2
+ART_TOP = ART_CY + (ART_H_CM / 2) / card_scale
+ART_BOT = ART_CY - (ART_H_CM / 2) / card_scale
+
+# Full-width bottom rules box: fixed width (inside the card border) and a fixed
+# bottom edge (tikz units); it grows upward by card type. Set info + copyright
+# sit in the compact band below it.
+RULES_W_CM = 5.9
+RULES_BOTTOM = 0.7
+
+# Name plate / initiative / movement (top row). Init and movement sit in the
+# top corners; the name plate spans from the init-circle centre to the
+# movement-chevron centre. NAME_H_CM also sizes the init circle and chevron.
+# Fixed height so a one- or two-line (faction) plate keeps its top a hair below
+# the card edge; the init circle and chevron are sized to match this height.
+NAME_CY = 9.26
+NAME_H_CM = 1.1
+INIT_POS = (1.15, NAME_CY)
+MOVE_POS = (6.58, NAME_CY)
+# half-length of the movement chevron (50% longer than the default chevron); the
+# centre above is chosen so the lengthened tip still lands just inside the corner
+MOVE_CHEVRON_W = 0.93
+# chevron half-height in tikz units so it matches the name-plate height
+CHEVRON_HALF_H = (NAME_H_CM / 2) / card_scale
+
+# Zone boxes (right column). Physical sizes in cm; centres in tikz units.
+ZONE_CX = 6.4
+ZONE_W_CM = 1.65
+ZONE_H_CM = 1.35
+# Half extents expressed in tikz units (physical cm / card_scale) for drawing
+# shields / positioning icons relative to a box centre.
+ZONE_HALF_W = (ZONE_W_CM / 2) / card_scale
+ZONE_HALF_H = (ZONE_H_CM / 2) / card_scale
+# The three zone boxes fill the art's vertical span: the High box's top edge
+# lines up with the top of the art, the Low box's bottom with the bottom.
+ZONE_CY = {"High": ART_TOP - ZONE_HALF_H, "Low": ART_BOT + ZONE_HALF_H}
+ZONE_CY["Mid"] = (ZONE_CY["High"] + ZONE_CY["Low"]) / 2
+# Pilot cards show a High block and normal Mid box, but a half-height Low box so
+# the rules box can rise higher into the freed space.
+PILOT_LOW_H_CM = ZONE_H_CM / 2
+# top edge kept where the normal Low box's top is; box shrinks downward from there
+PILOT_LOW_CY = (ZONE_CY["Low"] + ZONE_HALF_H) - (PILOT_LOW_H_CM / 2) / card_scale
+
 header_text = "\\documentclass[a4paper, landscape]{article}\n \\usepackage[left =2cm, right = 2cm, " \
             + "top = 1.4cm, bottom =1.4cm]{geometry} \n \\usepackage{tikz} \n \\usepackage[export]{adjustbox}" \
             + "\n \\usetikzlibrary{positioning} \n \\usetikzlibrary{patterns} \n \\usetikzlibrary{calc} \n" + \
@@ -169,22 +237,22 @@ def createMacros():
         # variant can slip its inner emphasis line *between* them (on top of the
         # fill, under the middle outline) -- otherwise the opaque fill would
         # paint over the inner line. \blockshield composes both for normal use.
+        # Shield-shaped block marker. The path is parameterised by centre
+        # (#1,#2) and half-width/half-height (#3,#4) so it can be fitted to the
+        # new fixed-size zone boxes (a top V-notch and a pointed bottom, kept
+        # inside the box). fill/line/blockshield take an extra colour arg (#3);
+        # the super-block variant is composed in Python (block_shield_outline)
+        # from these plus two concentric outline strokes.
         card_text += (
             "\n\\newcommand{\\blockshieldpath}[4]{"
-            "(#1-#3,#2+#4) -- (#1,#2+#4-0.2) -- (#1+#3,#2+#4) -- "
-            "(#1+#3,#2-#4+0.5) -- (#1,#2-#4-0.3) -- (#1-#3,#2-#4+0.5) -- cycle}\n"
-            "\\newcommand{\\blockshieldfill}[3]{\\fill[#3!20, rounded corners=0.15cm] "
-            "\\blockshieldpath{#1}{#2}{1.0}{1.0};}\n"
-            "\\newcommand{\\blockshieldline}[3]{\\draw[draw=#3, line width=6pt, "
-            "rounded corners=0.18cm] \\blockshieldpath{#1}{#2}{1.0}{1.0};}\n"
-            "\\newcommand{\\blockshield}[3]{\\blockshieldfill{#1}{#2}{#3}\\blockshieldline{#1}{#2}{#3}}\n"
-            "\\newcommand{\\superblockshield}[3]{%\n"
-            "  \\draw[draw=#3!55!black, line width=4.7pt, rounded corners=0.15cm] "
-            "\\blockshieldpath{#1}{#2}{1.18}{1.18};%\n"
-            "  \\blockshieldfill{#1}{#2}{#3}%\n"
-            "  \\draw[draw=#3!55!black, line width=3.5pt, rounded corners=0.17cm] "
-            "\\blockshieldpath{#1}{#2}{0.82}{0.82};%\n"
-            "  \\blockshieldline{#1}{#2}{#3}}\n"
+            "(#1-#3,#2+#4) -- (#1,#2+0.66*#4) -- (#1+#3,#2+#4) -- "
+            "(#1+0.8*#3,#2-0.35*#4) -- (#1,#2-#4) -- (#1-0.8*#3,#2-0.35*#4) -- cycle}\n"
+            "\\newcommand{\\blockshieldfill}[5]{\\fill[#3!25, rounded corners=0.08cm] "
+            "\\blockshieldpath{#1}{#2}{#4}{#5};}\n"
+            "\\newcommand{\\blockshieldline}[5]{\\draw[draw=#3, line width=4.5pt, "
+            "rounded corners=0.1cm] \\blockshieldpath{#1}{#2}{#4}{#5};}\n"
+            "\\newcommand{\\blockshield}[5]{\\blockshieldfill{#1}{#2}{#3}{#4}{#5}"
+            "\\blockshieldline{#1}{#2}{#3}{#4}{#5}}\n"
         )
 
         for t, img in damage_type_dict.items():
@@ -254,8 +322,11 @@ def movement_color(value: str) -> str:
     """Background circle color for the movement marker - red for negative movement, green for positive, tone scales with magnitude."""
     move_max_abs = 5
     parsed = parse_int_safe(value)
-    if parsed is None or parsed == 0:
+    if parsed is None:
         return "white"
+    if parsed == 0:
+        # yellow keeps a 0 chevron visible against the pale card/name plate
+        return "yellow"
     fraction = min(abs(parsed), move_max_abs) / move_max_abs
     pct = round(20 + fraction * 70)
     color_name = "green" if parsed > 0 else "red"
@@ -273,51 +344,137 @@ def move_icon_outline_fill(pos: str, color: str) -> str:
     )
     return "\\fill[" + color + "] " + points + " -- cycle;\n"
 
-def block_shield_outline(pos, color, super_block=False):
-    """Shield-shaped background+outline for a blocked zone, replacing the plain
-    backbox rounded rectangle so a block reads as covering the whole attack, not
-    just a pip icon. When ``super_block`` is set (a block value greater than 1)
-    the emphasised \\superblockshield variant is used instead, adding a larger
-    darker outer outline plus a thin inner line.
+def draw_chevron(cx, cy, color, text, w=0.62, h=0.44, point=0.28, fontsize="\\large", name=None):
+    """A right-pointing chevron/pennant marker (flat back with a concave left
+    notch, pointed right) filled with ``color`` and carrying ``text``. Replaces
+    the old loaded-arrow movement graphic; also reused for a drone's own
+    movement. ``name`` optionally emits a centre coordinate for rules callouts."""
+    pts = [
+        (cx - w, cy + h), (cx + w - point, cy + h), (cx + w, cy),
+        (cx + w - point, cy - h), (cx - w, cy - h), (cx - w + point, cy),
+    ]
+    path = " -- ".join(f"({x:.3f},{y:.3f})" for x, y in pts)
+    out = f"\\fill[{color}, draw=black, ultra thick] {path} -- cycle;\n"
+    out += f"\\node at ({cx - 0.09 * (point):.3f},{cy:.3f}){{{fontsize}\\textbf{{{text}}}}};\n"
+    if name:
+        # place the callout coordinate at the right-hand tip (the edge nearest the
+        # card's right edge, where the movement callout sits)
+        out += f"\\coordinate ({name}) at ({cx + w:.3f},{cy:.3f});\n"
+    return out
 
-    The shield shape itself lives in the \\blockshieldpath / \\blockshield /
-    \\superblockshield macros in card_macros.tex so cards and the rules
-    reference draw an identical marker from one definition. It is centred on
-    (6.2, pos): the top edge carries a shallow V notch, the bottom-left/right
-    corners are raised, and a point continues down into the dead space below the
-    box where the (centred) range indicator sits."""
-    macro = "\\superblockshield" if super_block else "\\blockshield"
-    return f"{macro}{{6.2}}{{{pos}}}{{{color}}}\n"
 
-def attack_box(atk, rng, block, pos, dmg_type, color):
+def draw_health_bars(n, cx, cy, half_h, name=None):
+    """A row of ``n`` red bars (styled like the frame armour bars) for a drone's
+    hit points, filled left-to-right from ``cx``. ``half_h`` sets the bar height,
+    matched to the drone movement chevron."""
+    bar_w = 0.28
+    pitch = 0.42
+    out = ""
+    for i in range(n):
+        x = cx + i * pitch
+        out += (f"\\draw[fill=red, draw=black, line width=0.5pt, rounded corners=0.06cm] "
+                f"({x:.3f},{cy - half_h:.3f}) rectangle ({x + bar_w:.3f},{cy + half_h:.3f});\n")
+    if name:
+        # left edge of the first bar (the callout for drone health is on the left)
+        out += f"\\coordinate ({name}) at ({cx:.3f},{cy:.3f});\n"
+    return out
+
+
+# Frame armour bars: tall, thin red pips filling a zone box left-to-right. Four
+# sit comfortably across the zone width; a fifth spills past the right edge on
+# purpose. Sizes are in tikz units (the zone box is ZONE_W_CM/ZONE_H_CM cm).
+ARMOR_BAR_PITCH = 0.44
+ARMOR_BAR_W = 0.30
+ARMOR_BAR_HALF_H = 0.62
+
+def draw_armor_bars(count, cx, cy, penalty="", name=None):
+    """Vertical red armour bars for a frame zone centred at (cx, cy). They are
+    right-justified (filled in from the zone's right edge leftwards) so a fifth
+    bar spills left into the art. The penalty label (e.g. -1Init) sits rotated
+    inside the last, leftmost bar, as the old datasheet showed it."""
+    right0 = cx + ZONE_HALF_W - 0.12  # right edge of the rightmost (first) bar
+    out = ""
+    last_cx = None
+    for i in range(count):
+        xr = right0 - i * ARMOR_BAR_PITCH
+        xl = xr - ARMOR_BAR_W
+        out += (f"\\draw[fill=red, draw=black, line width=0.5pt, rounded corners=0.06cm] "
+                f"({xl:.3f},{cy - ARMOR_BAR_HALF_H:.3f}) rectangle "
+                f"({xr:.3f},{cy + ARMOR_BAR_HALF_H:.3f});\n")
+        last_cx = (xl + xr) / 2
+    if penalty and last_cx is not None:
+        out += (f"\\node[rotate=90, font=\\tiny\\bfseries, text=white] "
+                f"at ({last_cx:.3f},{cy:.3f}){{{penalty}}};\n")
+    if name:
+        # right edge of the zone (the armour callouts sit in the right gutter)
+        out += f"\\coordinate ({name}) at ({cx + ZONE_HALF_W:.3f},{cy:.3f});\n"
+    return out
+
+
+def estimated_text_len(text):
+    """Rough rendered length of a card's text, accounting for ``\\full...`` ability
+    macros that expand to a much longer description. Used to pick a smaller font
+    for unusually busy weapon/drone cards whose bottom box is height-capped."""
+    length = len(text)
+    length += 45 * text.count("\\full")
+    return length
+
+
+def block_shield_outline(cx, cy, color, half_w, half_h, super_block=False):
+    """Shield-shaped background+outline for a blocked zone, drawn in place of the
+    plain zone rectangle so a block reads as covering the whole zone. When
+    ``super_block`` is set (a block value greater than 1) two concentric darker
+    outline strokes are added around the base shield.
+
+    The shield shape lives in the \\blockshieldpath / \\blockshield macros in
+    card_macros.tex so cards and the rules reference draw an identical marker.
+    It is fitted to the zone box: centre (cx,cy), half-width/half-height in tikz
+    units, a shallow top V-notch and a pointed bottom, all kept inside the box."""
+    if not super_block:
+        return f"\\blockshield{{{cx}}}{{{cy}}}{{{color}}}{{{half_w:.3f}}}{{{half_h:.3f}}}\n"
+    # super block: the same shield plus a concentric inner outline, both kept
+    # inside the box (no outer stroke that would spill into the zone below)
+    iw, ih = half_w - 0.16, half_h - 0.16
+    return (
+        f"\\blockshield{{{cx}}}{{{cy}}}{{{color}}}{{{half_w:.3f}}}{{{half_h:.3f}}}"
+        f"\\draw[draw={color}!55!black, line width=2.4pt, rounded corners=0.08cm] "
+        f"\\blockshieldpath{{{cx}}}{{{cy}}}{{{iw:.3f}}}{{{ih:.3f}}};\n"
+    )
+
+def attack_box(atk, rng, block, cy, dmg_type, color, cx=ZONE_CX,
+               half_w=ZONE_HALF_W, half_h=ZONE_HALF_H):
+    """Draw one always-present zone box centred at (cx, cy).
+
+    The box outline is a plain rectangle, or the shield shape when the zone is
+    blocked (doubled for a super block). Attack icons sit at the vertical middle
+    of the box filling in from the right; the range indicator (a 90-degree
+    rotated icon plus its number) sits at the left of the box."""
     out_text = ""
+    w_cm = half_w * 2 * card_scale
+    h_cm = half_h * 2 * card_scale
 
-    # background: a plain rounded rectangle when there's no block; when
-    # blocked, the shield shape itself (fill + bold outline) takes over as
-    # the background, since the block applies to the whole attack in that
-    # zone, not just the block pips
     if block:
-        out_text = out_text + block_shield_outline(pos, color, super_block=block > 1)
-    elif atk:
-        out_text = out_text + f"\\node[backbox, fill={color}!20] at (6.2, {pos}){{}};\n"
-    # what graphic to use
-    aimg = "\\" + dmg_type
+        out_text += block_shield_outline(cx, cy, color, half_w, half_h, super_block=block > 1)
+    else:
+        fill = f"{color}!20" if atk else "black!10!white"
+        out_text += (f"\\node[rectangle, draw=black!45, fill={fill}, rounded corners={rc()}, "
+                     f"minimum width={w_cm:.3f}cm, minimum height={h_cm:.3f}cm] at ({cx}, {cy}){{}};\n")
 
+    # attack icons: vertical middle, filling in from the right edge leftwards,
+    # at 70% size and packed tightly
+    aimg = "\\scalebox{0.7}{\\" + dmg_type + "}" if dmg_type else ""
+    start_x = cx + half_w - 0.34
     for d in range(0, atk):
-        out_text = out_text + "\\node at (" + str(
-            -(d / 2) + 7.0) + ', ' + str(pos + 0.5) + '){' + aimg + '};\n'
+        out_text += f"\\node[inner sep=0pt] at ({start_x - d * 0.34:.3f}, {cy}){{{aimg}}};\n"
 
-    # blocks -- the shield outline above is now the block indicator, so the
-    # individual block pip icons are no longer drawn
-    # for d in range(0, block):
-    #     out_text = out_text + "\\node at (" + str(
-    #         -(d / 2) + 7.0) + ', ' + str(pos - 0.5) + '){\\includegraphics[' + iconwidth + ']{' + icons_folder + \
-    #                blkImg + '}};\n'
-    # ranges
+    # range: the number at the centre-left of the box, the 90-degree rotated
+    # range icon just to its right, both on the box's vertical centre line
     if rng > 0:
-        out_text = out_text + '\\node at ( 6.2, ' + str(pos - 0.55) + '){\\includegraphics[' + iconwidth + ']{' + \
-                   icons_folder + rangeImg + '}};\n'
-        out_text = out_text + '\\node at (6.2, ' + str(pos - 0.1) + '){\\Large{' + str(rng) + '}};\n'
+        num_x = cx - half_w + 0.3
+        icon_x = num_x + 0.42
+        out_text += f'\\node at ({num_x:.3f}, {cy}){{\\large{{\\textbf{{{rng}}}}}}};\n'
+        out_text += (f'\\node at ({icon_x:.3f}, {cy}){{\\includegraphics[angle=90,{iconwidth}]{{'
+                     + icons_folder + rangeImg + '}};\n')
 
     return out_text
 
@@ -439,7 +596,7 @@ def _aim_node(aim):
 # a fixed pitch, centred on the card. A side with many labels therefore spills
 # above and below the card edges instead of being crammed alongside it, which
 # keeps the diagram far less cluttered and leaves room for larger text.
-CALLOUT_PITCH = 1.9       # cm between successive labels on one side
+CALLOUT_PITCH = 1.6       # cm between successive labels on one side
 CALLOUT_CENTER_Y = 5.0    # card vertical centre the stacks are balanced around
 
 def _render_callouts(callouts, present):
@@ -474,7 +631,15 @@ def _render_callouts(callouts, present):
             body += "\\\\" + c["desc"]
         out += (f"\\node[anchor={anchor}, align={align}, text width=4cm, font=\\normalsize] "
                 f"({name}) at ({c['x']},{ys[id(c)]}) {{{body}}};\n")
-        out += f"\\draw[thick, gray!60] ({name}.{anchor}) -- {c['aim']};\n"
+        # Aim at the target's edge nearest the card edge (the gutter side) so the
+        # leader stops at the element instead of crossing over it. Named targets
+        # (nodes and coordinates) take the .east/.west anchor; bare coordinates
+        # are already positioned as points.
+        aim = c["aim"]
+        if _aim_node(aim) is not None and "." not in aim:
+            edge = "east" if c["side"] == "right" else "west"
+            aim = f"({_aim_node(aim)}.{edge})"
+        out += f"\\draw[thick, gray!60] ({name}.{anchor}) -- {aim};\n"
     return out
 
 # Gutters the callout labels sit in. Pushed a little further out than the card
@@ -489,67 +654,69 @@ RIGHT_GUTTER = 8.6
 WEAPON_CALLOUTS = [
     {"x": LEFT_GUTTER, "y": 9.2, "side": "left",  "title": "Initiative",
      "desc": "Higher acts first.", "aim": "(initbox)"},
-    {"x": LEFT_GUTTER, "y": 7.5, "side": "left",  "title": "Movement",
-     "desc": "Steps: green gains, red loses.", "aim": "(movebox)"},
-    {"x": LEFT_GUTTER, "y": 6.0, "side": "left",  "title": "Faction Logo",
-     "desc": "", "aim": "(factionlogo)"},
-    {"x": LEFT_GUTTER, "y": 4.2, "side": "left",  "title": "Card text",
+    {"x": LEFT_GUTTER, "y": 4.0, "side": "left",  "title": "Persistence",
+     "desc": "Turns it stays in play.", "aim": "(persistence)"},
+    {"x": LEFT_GUTTER, "y": 3.0, "side": "left",  "title": "Card text",
      "desc": "Abilities and status effects.", "aim": "(textbox)"},
-    {"x": LEFT_GUTTER, "y": 1.6, "side": "left",  "title": "Group zones",
+    {"x": LEFT_GUTTER, "y": 2.2, "side": "left",  "title": "Faction Logo",
+     "desc": "", "aim": "(factionlogo)"},
+    {"x": LEFT_GUTTER, "y": 1.2, "side": "left",  "title": "Group zones",
      "desc": "Zones the group can attack (red) or block (blue).", "aim": "(groupindicator)"},
     {"x": RIGHT_GUTTER, "y": 9.4, "side": "right", "title": "Name / faction",
      "desc": "", "aim": "(nameplate)"},
-    {"x": RIGHT_GUTTER, "y": 8.3, "side": "right", "title": "Persistence",
-     "desc": "Turns it stays in play.", "aim": "(persistence)"},
+    {"x": RIGHT_GUTTER, "y": 8.0, "side": "right", "title": "Movement",
+     "desc": "Steps: green gains, red loses.", "aim": "(movebox)"},
     {"x": RIGHT_GUTTER, "y": 7.0, "side": "right", "title": "Attack",
      "desc": "Damage dealt to this zone.", "aim": "(atk_aim)"},
-    {"x": RIGHT_GUTTER, "y": 5.8, "side": "right", "title": "Block",
+    {"x": RIGHT_GUTTER, "y": 5.6, "side": "right", "title": "Block",
      "desc": "Blocks attacks to this zone.", "aim": "(block_aim)"},
-    {"x": RIGHT_GUTTER, "y": 3.9, "side": "right", "title": "Super block",
+    {"x": RIGHT_GUTTER, "y": 4.4, "side": "right", "title": "Super block",
      "desc": "Blocks without discarding; keeps blocking.", "aim": "(superblock_aim)"},
-    {"x": RIGHT_GUTTER, "y": 3.1, "side": "right", "title": "Range",
+    {"x": RIGHT_GUTTER, "y": 3.2, "side": "right", "title": "Range",
      "desc": "This zone's attack range.", "aim": "(range_aim)"},
     {"x": RIGHT_GUTTER, "y": 1.5, "side": "right", "title": "Set info",
      "desc": "Faction, type, group, flavour.", "aim": "(setinfo)"},
 ]
 
-# Callouts for a pilot card (no attack zones).
+# Callouts for a pilot card (no attack, but the three zone boxes still show).
 PILOT_CALLOUTS = [
     {"x": LEFT_GUTTER, "y": 9.0, "side": "left",  "title": "Initiative",
      "desc": "Higher acts first.", "aim": "(initbox)"},
-    {"x": LEFT_GUTTER, "y": 7.3, "side": "left",  "title": "Movement",
-     "desc": "Steps: green gains, red loses.", "aim": "(movebox)"},
-    {"x": LEFT_GUTTER, "y": 5.6, "side": "left",  "title": "Faction Logo",
-     "desc": "", "aim": "(factionlogo)"},
-    {"x": LEFT_GUTTER, "y": 3.4, "side": "left",  "title": "Card text",
+    {"x": LEFT_GUTTER, "y": 3.2, "side": "left",  "title": "Card text",
      "desc": "This card's effect.", "aim": "(textbox)"},
+    {"x": LEFT_GUTTER, "y": 2.0, "side": "left",  "title": "Faction Logo",
+     "desc": "", "aim": "(factionlogo)"},
     {"x": RIGHT_GUTTER, "y": 9.2, "side": "right", "title": "Name / faction",
      "desc": "", "aim": "(nameplate)"},
-    {"x": RIGHT_GUTTER, "y": 7.6, "side": "right", "title": "Persistence",
+    {"x": RIGHT_GUTTER, "y": 7.8, "side": "right", "title": "Movement",
+     "desc": "Steps: green gains, red loses.", "aim": "(movebox)"},
+    {"x": RIGHT_GUTTER, "y": 4.0, "side": "right", "title": "Persistence",
      "desc": "Turns it stays in play.", "aim": "(persistence)"},
-    {"x": RIGHT_GUTTER, "y": 2.0, "side": "right", "title": "Set info",
+    {"x": RIGHT_GUTTER, "y": 1.5, "side": "right", "title": "Set info",
      "desc": "Faction, type, flavour.", "aim": "(setinfo)"},
 ]
 
 # Callouts for a frame datasheet. Armour rows are drawn right-to-left from x=7,
 # so the aim points at the rightmost (first) bar of each row.
 FRAME_CALLOUTS = [
-    {"x": LEFT_GUTTER, "y": 9.2, "side": "left",  "title": "Name / faction",
-     "desc": "", "aim": "(frame_name)"},
-    {"x": LEFT_GUTTER, "y": 7.3, "side": "left",  "title": "Faction Logo",
+    {"x": LEFT_GUTTER, "y": 9.2, "side": "left",  "title": "Faction Logo",
      "desc": "", "aim": "(frame_logo)"},
-    {"x": LEFT_GUTTER, "y": 4.4, "side": "left",  "title": "Abilities",
+    {"x": LEFT_GUTTER, "y": 3.0, "side": "left",  "title": "Abilities",
      "desc": "Innate special ability.", "aim": "(frame_ability)"},
-    {"x": LEFT_GUTTER, "y": 1.4, "side": "left",  "title": "Loadout",
-     "desc": "Weapon/booster slots and deck size.", "aim": "(bottom_box.west)"},
-    {"x": RIGHT_GUTTER, "y": 9.0, "side": "right", "title": "Movement",
+    {"x": LEFT_GUTTER, "y": 1.2, "side": "left",  "title": "Flavour",
+     "desc": "", "aim": "(setinfo)"},
+    {"x": RIGHT_GUTTER, "y": 9.4, "side": "right", "title": "Name / faction",
+     "desc": "", "aim": "(frame_name)"},
+    {"x": RIGHT_GUTTER, "y": 8.2, "side": "right", "title": "Movement",
      "desc": "Base movement.", "aim": "(frame_move)"},
     {"x": RIGHT_GUTTER, "y": 7.0, "side": "right", "title": "Top armour",
-     "desc": "Top-zone health; last bar = -1 Init.", "aim": "(7.3,8.05)"},
-    {"x": RIGHT_GUTTER, "y": 5.0, "side": "right", "title": "Side armour",
-     "desc": "Mid-zone health; last bar = -1 Card.", "aim": "(7.3,6.55)"},
-    {"x": RIGHT_GUTTER, "y": 3.0, "side": "right", "title": "Low armour",
-     "desc": "Low-zone health; last bar = -1 Move.", "aim": "(7.3,5.05)"},
+     "desc": "Top-zone health.", "aim": "(armor_high)"},
+    {"x": RIGHT_GUTTER, "y": 5.6, "side": "right", "title": "Side armour",
+     "desc": "Mid-zone health.", "aim": "(armor_mid)"},
+    {"x": RIGHT_GUTTER, "y": 4.2, "side": "right", "title": "Low armour",
+     "desc": "Low-zone health.", "aim": "(armor_low)"},
+    {"x": RIGHT_GUTTER, "y": 2.4, "side": "right", "title": "Loadout",
+     "desc": "Weapon / booster slots and deck size.", "aim": "(loadout)"},
 ]
 
 # Callouts for a drone card: a weapon-style card that also fields a persistent
@@ -557,20 +724,20 @@ FRAME_CALLOUTS = [
 DRONE_CALLOUTS = [
     {"x": LEFT_GUTTER, "y": 9.3, "side": "left",  "title": "Initiative",
      "desc": "Higher acts first.", "aim": "(initbox)"},
-    {"x": LEFT_GUTTER, "y": 8.0, "side": "left",  "title": "Movement",
-     "desc": "Steps when played.", "aim": "(movebox)"},
-    {"x": LEFT_GUTTER, "y": 6.7, "side": "left",  "title": "Faction Logo",
-     "desc": "", "aim": "(factionlogo)"},
-    {"x": LEFT_GUTTER, "y": 5.4, "side": "left",  "title": "Drone health",
-     "desc": "Drone hit points.", "aim": "(drone_health)"},
-    {"x": LEFT_GUTTER, "y": 4.1, "side": "left",  "title": "Drone movement",
+    {"x": LEFT_GUTTER, "y": 4.6, "side": "left",  "title": "Drone movement",
      "desc": "Drone move per turn.", "aim": "(drone_move)"},
-    {"x": LEFT_GUTTER, "y": 2.4, "side": "left",  "title": "Card text",
+    {"x": LEFT_GUTTER, "y": 3.8, "side": "left",  "title": "Drone health",
+     "desc": "Drone hit points.", "aim": "(drone_health)"},
+    {"x": LEFT_GUTTER, "y": 3.0, "side": "left",  "title": "Persistence",
+     "desc": "Rounds it persists.", "aim": "(persistence)"},
+    {"x": LEFT_GUTTER, "y": 2.2, "side": "left",  "title": "Card text",
      "desc": "Abilities and effects.", "aim": "(textbox)"},
+    {"x": LEFT_GUTTER, "y": 1.4, "side": "left",  "title": "Faction Logo",
+     "desc": "", "aim": "(factionlogo)"},
     {"x": RIGHT_GUTTER, "y": 9.4, "side": "right", "title": "Name / faction",
      "desc": "", "aim": "(nameplate)"},
-    {"x": RIGHT_GUTTER, "y": 8.2, "side": "right", "title": "Persistence",
-     "desc": "Rounds it persists.", "aim": "(persistence)"},
+    {"x": RIGHT_GUTTER, "y": 8.2, "side": "right", "title": "Movement",
+     "desc": "Steps when played.", "aim": "(movebox)"},
     {"x": RIGHT_GUTTER, "y": 6.8, "side": "right", "title": "Attack",
      "desc": "Damage dealt to this zone.", "aim": "(atk_aim)"},
     {"x": RIGHT_GUTTER, "y": 5.2, "side": "right", "title": "Block",
@@ -586,109 +753,138 @@ DRONE_CALLOUTS = [
 
 def make_card_from_row(row, card_type, group_capability=None, annotate=False, annotate_outfile=None):
     outname = (annotate_outfile or 'build/rules_card.tex') if annotate else cardoutputfolder + row['Group'] + "_" + row['Name'] + '.tex'
+    is_pilot = card_type is CardTypeEnum.PILOT
     with open(outname, 'w') as ofile:
-        # art and card edge
-        card_text = f"\\begin{{tikzpicture}}[x={card_scale}cm, y={card_scale}cm, backbox/.style= {{rectangle, minimum height=2.0cm," \
-                   + " minimum width =2.0cm, rounded corners = 0.3cm, fill opacity=0.75}]\n "
-        card_text = card_text + "\\node [rectangle, minimum width = 6.2cm, minimum height = 8.5cm, fill=black] at (4,5){};\n"
-        # background
+        # --- card base (flat background; art no longer covers the card) -------
+        card_text = f"\\begin{{tikzpicture}}[x={card_scale}cm, y={card_scale}cm]\n "
+        card_text += f"\\node (cardbg)[rectangle, minimum width = 6.2cm, minimum height = 8.5cm, fill={CARD_BG}] at (4,5){{}};\n"
+        # Pin the picture's bounding box to the card and clip to it, so nothing can
+        # spill past the edge and change the card size on the sheet. Skipped when
+        # annotating, where the callouts deliberately extend into the gutters.
+        if not annotate:
+            card_text += "\\useasboundingbox (cardbg.south west) rectangle (cardbg.north east);\n"
+            card_text += "\\clip (cardbg.south west) rectangle (cardbg.north east);\n"
+
+        # --- art zone: art constrained to its own box (left of the zones) -----
+        card_text += (f"\\node (artbox)[rectangle, fill=white, draw=black!40, rounded corners={rc()}, "
+                      f"minimum width={ART_W_CM}cm, minimum height={ART_H_CM}cm] at ({ART_CX}, {ART_CY}){{}};\n")
+        card_text += "\\begin{scope}\n"
+        card_text += f"\\clip[rounded corners={rc()}] ($(artbox.south west)+(0.03,0.03)$) rectangle ($(artbox.north east)+(-0.03,-0.03)$);\n"
+        # background layer scaled to fill the whole art zone (clipped by the scope)
         if row.get("BackgroundLayer"):
-            card_text = card_text + '\\node at (4,5){\\includegraphics[width=6cm, max height = 8.3cm,' +\
-                  ' keepaspectratio]{' + images_folder + row["BackgroundLayer"] + '}};\n'
-        card_text = card_text + '\\node at (4,5){\\includegraphics[width=6cm, max height = 8.3cm,' +\
-              ' keepaspectratio]{' + images_folder + row["CardImg"] + '}};\n'
-        # frame style - these need designing
-        if card_type is CardTypeEnum.BOOSTER:
-            # TODO - create booster frame
-            pass
-        if card_type is CardTypeEnum.PILOT:
-            # TODO - create pilot frame
-            pass
-        if card_type is CardTypeEnum.WEAPON:
-            # TODO - create weapon frame
-            pass
-        if card_type is CardTypeEnum.DRONE:
-            # TODO - create drone frame
-            card_text += draw_armor(int(row["Drone_Health"]), 7.1, horizontal_pos=1.4, hori_step=0.7)
-            drone_mv_pos = "(1.7, 5.5)"
-            card_text += '\\node (drone_move) at ' + drone_mv_pos + '{\\includegraphics[' + iconwidth + ']{' + icons_folder + framemvImg + '}};\n'
-            card_text += " \\node at " + drone_mv_pos + "{\\Large{\\textbf{" + row['Drone_MV'] +"}}};\n"
+            card_text += (f'\\node at ({ART_CX},{ART_CY}){{\\includegraphics[width={ART_W_CM}cm,'
+                          ' keepaspectratio]{' + images_folder + row["BackgroundLayer"] + '}};\n')
+        # the art itself is fitted inside the zone (never cropped or stretched)
+        card_text += (f'\\node at ({ART_CX},{ART_CY}){{\\includegraphics[width={ART_W_CM - 0.1:.2f}cm, max height={ART_H_CM - 0.1:.2f}cm,'
+                      ' keepaspectratio]{' + images_folder + row["CardImg"] + '}};\n')
+        if row.get("ForegroundImg"):
+            card_text += (f'\\node at ({ART_CX},{ART_CY}){{\\includegraphics[width={ART_W_CM - 0.1:.2f}cm, max height={ART_H_CM - 0.1:.2f}cm,'
+                          ' keepaspectratio]{' + images_folder + row["ForegroundImg"] + '}};\n')
+        card_text += "\\end{scope}\n"
 
-            pass
-        
-        init_pos = "(1.2, 9.0)"
-        move_pos = "(1, 7.7)"
-
-        # background circles for the initiative and movement markers, drawn before the name plate
-        # so it sits on top of any overlap
-        card_text = card_text + "\\node[circle, fill=" + initiative_color(row['Initiative']) + ", minimum size=1.5cm] at " + init_pos + "{};\n"
-        card_text = card_text + move_icon_outline_fill(move_pos, movement_color(row['Movement']))
-
-        # default symbols
-        card_text = card_text + '\\node (initbox) at ' + init_pos + '{\\includegraphics[' + init_iconwidth + ']{' + icons_folder + initImg + '}};\n'
-        card_text = card_text + "\\node at " + init_pos + "{\\huge{\\textbf{\\contour{white}{" + row['Initiative'] +"}}}};\n"
-        card_text = card_text + '\\node (movebox) at ' + move_pos + '{\\includegraphics[' + iconwidth + ']{' + icons_folder + mvImg + '}};\n'
-        card_text = card_text + " \\node at " + move_pos + "{\\Large{\\textbf{" + row['Movement'] +"}}};\n"
-
-        # name and faction
-        card_text = card_text + "\\node (nameplate) [rectangle, minimum width=4cm, minimum height = 0.6cm,rounded corners = 0.1cm," +\
-                "fill=white, opacity=0.75, text width=4cm] at (4.3, 9.2){\\large{" + row["Name"]
+        # --- name plate with overlapping initiative circle + movement chevron -
+        # name plate spans from the init-circle centre to the chevron centre
+        name_cx = (INIT_POS[0] + MOVE_POS[0]) / 2
+        name_w_cm = (MOVE_POS[0] - INIT_POS[0]) * card_scale
+        # name box first so the init circle / chevron overlap its ends on top
+        card_text += (f"\\node (nameplate) [rectangle, minimum width={name_w_cm:.2f}cm, minimum height={NAME_H_CM}cm, "
+                      f"rounded corners={rc()}, fill=white, draw=black!40, text width={name_w_cm - 1.6:.2f}cm, align=center] "
+                      f"at ({name_cx:.2f}, {NAME_CY}){{\\large{{" + row["Name"])
         if row["Faction"]:
-            card_text = card_text +  "}\\\\\n\\small{\\emph{~" + row["Faction"] + "}"
-        card_text = card_text +  "}};\n"
+            card_text += "}\\\\\n\\small{\\emph{" + row["Faction"] + "}"
+        card_text += "}};\n"
 
-        if row["Faction"]:
-            card_text += "\\node[opacity=0.7] (factionlogo) at (2.2, 7.9) {\\includegraphics[" + logo_width + "]{" + images_folder + light_logos_dict[row["Faction"]] + "}};\n"
+        # initiative: a filled circle the height of the name plate, in the top-left
+        # corner, overlapping the plate's left end; a symbol sits over the circle
+        # behind the number
+        card_text += (f"\\node[circle, fill={initiative_color(row['Initiative'])}, draw=black!40, "
+                      f"minimum size={NAME_H_CM}cm] (initbox) at ({INIT_POS[0]}, {INIT_POS[1]}){{}};\n")
+        card_text += (f"\\node[opacity=0.7] at ({INIT_POS[0]}, {INIT_POS[1]}){{\\includegraphics[width=0.92cm]{{"
+                      + icons_folder + initImg + "}};\n")
+        card_text += (f"\\node at ({INIT_POS[0]}, {INIT_POS[1]}){{\\Large{{\\textbf{{\\contour{{white}}{{"
+                      + row['Initiative'] + "}}}};\n")
+        # movement: a chevron the height of the name plate, in the top-right corner,
+        # overlapping the plate's right end
+        card_text += draw_chevron(MOVE_POS[0], MOVE_POS[1], movement_color(row['Movement']),
+                                  row['Movement'], w=MOVE_CHEVRON_W, h=CHEVRON_HALF_H, point=0.5,
+                                  fontsize="\\LARGE", name="movebox")
 
-
-        if row["Persistence"] != "0":
-             card_text = card_text + "\\node (persistence) at (7,9.2)[circle, fill = red]{\\large{\\textbf{$" + row["Persistence"] + "$}}};\n"
-
+        # --- zone boxes (always three; boundary changes on block/super block) -
+        low_cy = PILOT_LOW_CY if is_pilot else ZONE_CY["Low"]
+        low_half_h = (PILOT_LOW_H_CM / 2) / card_scale if is_pilot else ZONE_HALF_H
         try:
-            if card_type is CardTypeEnum.PILOT:
-                card_text = card_text + attack_box(0, 0, 1, 7.5, "", "yellow")
+            if is_pilot:
+                card_text += attack_box(0, 0, 1, ZONE_CY["High"], "", "yellow")
+                card_text += attack_box(0, 0, 0, ZONE_CY["Mid"], "", "red")
+                card_text += attack_box(0, 0, 0, low_cy, "", "blue", half_h=low_half_h)
             else:
-                card_text = card_text + attack_box(int(row["HighAttack"]), int(row["HighRange"]), int(row["HighBlock"]), 7.5, row["HighDType"], "yellow")
-                card_text = card_text + attack_box(int(row["MidAttack"]), int(row["MidRange"]), int(row["MidBlock"]), 5.0, row["MidDType"], "red")
-                card_text = card_text + attack_box(int(row["LowAttack"]), int(row["LowRange"]), int(row["LowBlock"]), 2.5, row["LowDType"], "blue")
-        except:
-            print(f"exception for {row["Group"]} {row['Name']}")
+                card_text += attack_box(int(row["HighAttack"]), int(row["HighRange"]), int(row["HighBlock"]), ZONE_CY["High"], row["HighDType"], "yellow")
+                card_text += attack_box(int(row["MidAttack"]), int(row["MidRange"]), int(row["MidBlock"]), ZONE_CY["Mid"], row["MidDType"], "red")
+                card_text += attack_box(int(row["LowAttack"]), int(row["LowRange"]), int(row["LowBlock"]), ZONE_CY["Low"], row["LowDType"], "blue")
+        except Exception:
+            print(f"exception for {row['Group']} {row['Name']}")
             return ""
 
-        # textbox
-        if card_type is CardTypeEnum.PILOT:
-            card_text = card_text + "\\node (textbox) [rectangle, fill = white, opacity = 0.75, minimum height =2.5cm, rounded corners = 0.1cm, " \
-                    + "text width = 5.4cm]  at (4, 3.5){\\small{" + row['Text'] +"}};\n"
+        # --- full-width ability / rules box across the bottom -----------------
+        # Anchored by its bottom edge (fixed) and grown upward. A pilot's box
+        # rises into the space freed by its half-height Low zone; a weapon/drone
+        # box stops just below the full-height Low zone so it never overlaps it.
+        if is_pilot:
+            rules_h = 3.0
+            text_font = "\\small"
         else:
-            if row["Text"]:
-                card_text = card_text + "\\node (textbox) [rectangle, fill = white, opacity = 0.75, minimum height =1.5cm, rounded corners = 0.1cm, " \
-                    + "text width = 3.5cm]  at (2.75, 3.5){\\small{" + row['Text'] +"}};\n"
+            rules_h = 2.3
+            # weapons/drones share the bottom band with the zone column above, so
+            # the box height is capped; a smaller font keeps busy cards inside it
+            text_font = "\\scriptsize" if estimated_text_len(row["Text"]) > 100 else "\\footnotesize"
+        card_text += (f"\\node (rulesbox)[anchor=south, rectangle, fill=black!10!white, draw=black!40, rounded corners={rc()}, "
+                      f"minimum width={RULES_W_CM}cm, minimum height={rules_h}cm] at (4.0, {RULES_BOTTOM}){{}};\n")
 
-        set_info_content = row["Faction"] + " " + getTypeName(card_type) +  " \\hfill " + row['Group'] + "\\\\" + \
-                "\\scriptsize{\\emph{" + row["Flavor"] + "}\\par}"
+        # faction logo watermark sits above the box fill but behind the text
+        if row["Faction"]:
+            card_text += ("\\node[opacity=0.6] (factionlogo) at ($(rulesbox.center)+(0.5,0)$) "
+                          "{\\includegraphics[width=2.4cm]{" + images_folder + light_logos_dict[row["Faction"]] + "}};\n")
+
+        # rules text, offset right to clear the persistence / group-indicator
+        # column; a narrow right gutter lets it use most of the remaining width
+        if row["Text"]:
+            card_text += (f"\\node[anchor=west, align=left, text width=4.9cm, inner sep=1pt] (textbox) "
+                          f"at ($(rulesbox.west)+(0.98,0)$){{{text_font}{{" + row['Text'] + "}};\n")
+
+        # persistence: top-left of the rules box
+        if row["Persistence"] != "0":
+            card_text += ("\\node (persistence)[circle, fill=red, draw=black!30, minimum size=0.72cm] "
+                          "at ($(rulesbox.north west)+(0.42,-0.42)$){\\small{\\textbf{$" + row["Persistence"] + "$}}};\n")
+
+        # drone extras: movement chevron just above the persistence mark, with the
+        # health pips in a row to its right (rules box is the non-pilot one here)
+        if card_type is CardTypeEnum.DRONE:
+            # chevron shifted right so its leftmost edge lines up with the art's
+            # left edge (ART left edge in tikz units); health bars sit to its right
+            dch_w, dch_h = 0.55, 0.4
+            art_left = ART_CX - (ART_W_CM / 2) / card_scale
+            dch_cx = art_left + dch_w  # so the chevron's left edge sits on the art's left edge
+            card_text += draw_chevron(dch_cx, 3.9, "yellow!85!orange", row['Drone_MV'], h=dch_h, w=dch_w)
+            # drone-movement callout is on the left, so aim at the chevron's left edge
+            card_text += f"\\coordinate (drone_move) at ({dch_cx - dch_w:.3f}, 3.9);\n"
+            card_text += draw_health_bars(int(row["Drone_Health"]), dch_cx + dch_w + 0.28, 3.9, dch_h, name="drone_health")
+
+        # group zone-capability indicator: bottom-left of the rules box
         if group_capability is not None:
-            set_info_center_x, set_info_width = 4.45, 4.9
-        else:
-            set_info_center_x, set_info_width = 4, 5.8
-        card_text = card_text + f"\\node[rectangle, fill = white, opacity = 0.75, minimum width={set_info_width}cm, minimum height =0.8cm, " \
-                + f"rounded corners = 0.1cm, text width = {set_info_width}cm] (setinfo) at ({set_info_center_x}, 0.7){{" \
-                + set_info_content + "};\n"
+            card_text += ("\\node[anchor=south west, inner sep=1pt] (groupindicator) "
+                          "at ($(rulesbox.south west)+(0.15,0.13)$){\\input{"
+                          + "../build/group_indicator_" + row['Group'] + ".tex}};\n")
 
-        # group zone-capability indicator: which zones this weapon group can
-        # attack/block across all its cards, not just this one -- pinned to the
-        # true bottom-left corner of the card
-        if group_capability is not None:
-            card_text = card_text + "\\node[anchor=south west, inner sep=0pt] (groupindicator) at (0.55, 0.25){\\input{" \
-                    + "../build/group_indicator_" + row['Group'] + ".tex}};\n"
+        # --- set info + copyright: a tight band chained under the rules box ----
+        set_info_content = "{\\scriptsize " + row["Faction"] + "\\hfill " + getTypeName(card_type) + "\\hfill " + row['Group'] + "}"
+        if row["Flavor"]:
+            set_info_content += "\\\\{\\tiny\\emph{" + row["Flavor"] + "}}"
+        card_text += (f"\\node[anchor=north, text width={RULES_W_CM}cm, align=left, inner sep=1pt] (setinfo) "
+                      f"at ($(rulesbox.south)+(0,-0.02)$){{" + set_info_content + "};\n")
 
-        # Foreground overlay rendered above all other elements (optional; use PNG for transparency)
-        if row.get("ForegroundImg"):
-            card_text = card_text + '\\node at (4,5){\\includegraphics[width=6cm, max height = 8.3cm,' +\
-                  ' keepaspectratio]{' + images_folder + row["ForegroundImg"] + '}};\n'
-
-        # artist credit -- kept aligned under the (possibly shifted) set info box
         if row.get("Artist"):
-            card_text = card_text + f"\\node at ({set_info_center_x}, 0.3){{\\scriptsize{{\\copyright  LiliCo 2026 \\emph{{ Art: " + row["Artist"] + "}}};\n"
+            card_text += ("\\node[anchor=north, inner sep=1pt] at ($(setinfo.south)+(0,-0.01)$)"
+                          "{\\tiny{\\copyright  LiliCo 2026 \\emph{ Art: " + row["Artist"] + "}}};\n")
 
         if annotate:
             present = {"initbox", "movebox", "nameplate", "setinfo"}
@@ -696,16 +892,18 @@ def make_card_from_row(row, card_type, group_capability=None, annotate=False, an
                 present.add("factionlogo")
             if row["Persistence"] != "0":
                 present.add("persistence")
-            if card_type is CardTypeEnum.PILOT:
-                present.add("textbox")
+            if is_pilot:
+                if row["Text"]:
+                    present.add("textbox")
                 callouts = PILOT_CALLOUTS
             else:
                 if row["Text"]:
                     present.add("textbox")
                 if group_capability is not None:
                     present.add("groupindicator")
-                # Representative anchors for the attack/block/range labels.
-                zone_pos = {"High": 7.5, "Mid": 5.0, "Low": 2.5}
+                # Representative anchors for the attack/block/range labels, keyed
+                # off the new zone-box centres.
+                zone_pos = dict(ZONE_CY)
                 def first_zone(feat, order):
                     for z in order:
                         if parse_int_safe(row.get(f"{z}{feat}")):
@@ -723,21 +921,22 @@ def make_card_from_row(row, card_type, group_capability=None, annotate=False, an
                 blk_z = first_block_zone(lambda v: v == 1)
                 sblk_z = first_block_zone(lambda v: v > 1)
                 rng_z = first_zone("Range", ["Low", "Mid", "High"])
+                # all zone callouts sit in the right gutter, so aim at the zone's
+                # right edge (nearest the card edge) rather than crossing into it
+                zone_right = ZONE_CX + ZONE_HALF_W
                 if atk_z:
-                    card_text += f"\\coordinate (atk_aim) at (7.0,{zone_pos[atk_z] + 0.5});\n"
+                    card_text += f"\\coordinate (atk_aim) at ({zone_right:.2f},{zone_pos[atk_z]});\n"
                     present.add("atk_aim")
                 if blk_z:
-                    card_text += f"\\coordinate (block_aim) at (7.2,{zone_pos[blk_z]});\n"
+                    card_text += f"\\coordinate (block_aim) at ({zone_right:.2f},{zone_pos[blk_z]});\n"
                     present.add("block_aim")
                 if sblk_z:
-                    card_text += f"\\coordinate (superblock_aim) at (7.2,{zone_pos[sblk_z]});\n"
+                    card_text += f"\\coordinate (superblock_aim) at ({zone_right:.2f},{zone_pos[sblk_z]});\n"
                     present.add("superblock_aim")
                 if rng_z:
-                    card_text += f"\\coordinate (range_aim) at (6.2,{zone_pos[rng_z] - 0.3});\n"
+                    card_text += f"\\coordinate (range_aim) at ({zone_right:.2f},{zone_pos[rng_z]});\n"
                     present.add("range_aim")
                 if card_type is CardTypeEnum.DRONE:
-                    # west end of the drone health bar row (drawn from x=1.4 right)
-                    card_text += "\\coordinate (drone_health) at (1.1,6.65);\n"
                     present.add("drone_health")
                     present.add("drone_move")
                     callouts = DRONE_CALLOUTS
@@ -746,62 +945,112 @@ def make_card_from_row(row, card_type, group_capability=None, annotate=False, an
             card_text = card_text + _render_callouts(callouts, present)
 
         card_text = card_text + "\\end{tikzpicture}\n"
-        # ofile.write(header_text)
         ofile.write(card_text)
-        # ofile.write("\\end{document}\n")
         return card_text + "~"
     
 def create_frame_sheet(frame, annotate=False, annotate_outfile=None):
-    """creates the frames datasheet procedurally from the given data"""
+    """Frame datasheet, sharing the redesigned card layout: boxed art, name plate
+    with a faction-logo box (top-left, where an attack has its initiative) and a
+    yellow movement chevron (top-right); the three armour zones line up with an
+    attack card's zones (red bars, four fit / a fifth spills); the weapon /
+    booster / deck loadout is a column on the right under the zones; the ability
+    text sits in a box at the bottom-left with the flavour in the set-info line."""
     outname = (annotate_outfile or 'build/rules_frame.tex') if annotate else frameoutputfolder + frame["Name"] + '.tex'
     with open(outname, 'w') as ofile:
-        #load the initial image
-        frame_text = f"\\begin{{tikzpicture}}[x={card_scale}cm, y={card_scale}cm, backbox/.style= {{rectangle, minimum height = 2.2cm," \
-                + " minimum width =2.2cm, rounded corners = 0.3cm, fill=white, opacity=0.75}]\n "
-        frame_text = frame_text + "\\node [rectangle, minimum width = 6.2cm, minimum height = 8.5cm, fill=black!70!white!30] at (4,5){};\n"
-        # background
+        # --- card base + boxed art (identical to the action cards) ------------
+        frame_text = f"\\begin{{tikzpicture}}[x={card_scale}cm, y={card_scale}cm]\n "
+        frame_text += f"\\node (cardbg)[rectangle, minimum width = 6.2cm, minimum height = 8.5cm, fill={CARD_BG}] at (4,5){{}};\n"
+        # pin bounding box + clip to the card (see make_card_from_row); off when annotating
+        if not annotate:
+            frame_text += "\\useasboundingbox (cardbg.south west) rectangle (cardbg.north east);\n"
+            frame_text += "\\clip (cardbg.south west) rectangle (cardbg.north east);\n"
+        frame_text += (f"\\node (artbox)[rectangle, fill=white, draw=black!40, rounded corners={rc()}, "
+                       f"minimum width={ART_W_CM}cm, minimum height={ART_H_CM}cm] at ({ART_CX}, {ART_CY}){{}};\n")
+        frame_text += "\\begin{scope}\n"
+        frame_text += f"\\clip[rounded corners={rc()}] ($(artbox.south west)+(0.03,0.03)$) rectangle ($(artbox.north east)+(-0.03,-0.03)$);\n"
         if frame.get("BackgroundLayer"):
-            frame_text = frame_text + '\\node at (4,5){\\includegraphics[width=6cm, max height = 8.3cm, keepaspectratio]{' + frame_images_folder + frame["BackgroundLayer"] + '}};\n'
-        frame_text = frame_text + '\\node at (4,5){\\includegraphics[width=6cm, max height = 8.3cm, keepaspectratio]{' + frame_images_folder + frame["CardImg"] + '}};\n'
-        # name
-        frame_text = frame_text + "\\node (frame_name) [rectangle, minimum width=4.3cm, minimum height = 1cm,rounded corners = 0.1cm, fill=white, opacity=0.75, text width=4.1cm]" +\
-                            "at (3.3, 9){\\large{" + frame["Name"] + "}\\\\\n\\small{\\emph{~" + frame["Faction"] + "}}};\n"
-
-        # movement
-        frame_text = frame_text + '\\node (frame_move) at (7,9){\\includegraphics[' + iconwidth + ']{' + icons_folder + framemvImg + '}};\n'
-        frame_text = frame_text + " \\node at (7,9){\\Large{\\textbf{" + frame['Movement'] +"}}};\n"
-        
-        if frame["Faction"]:
-            frame_text += "\\node[opacity=0.7] (frame_logo) at (1.5, 7.7) {\\includegraphics[" + logo_width + "]{" + images_folder + light_logos_dict[frame["Faction"]] + "}};\n"
-
-        # armor
-        frame_text = frame_text + draw_armor(int(frame["Top armour"]), 8.5, "-1Init")
-        frame_text = frame_text + draw_armor(int(frame["Side armour"]), 7, "-1Crd")
-        frame_text = frame_text + draw_armor(int(frame["Low armour"]), 5.5, "-1Mv")
-        
-        # ability
-        frame_text = frame_text + "\\node (frame_ability) [rectangle, fill = white, opacity = 0.75, minimum height =1.5cm, rounded corners = 0.1cm, " \
-                    + "text width = 5cm]  at (4, 3.5){\\small{" + frame['Abilities'] +"}};\n"
-
-        # weapons
-        frame_text = frame_text + "\\node [rectangle, rounded corners = 0.1cm, minimum width=5.5cm, minimum height = 1.8cm, fill = white," + \
-                " opacity = 0.75] at (4, 1.2)(bottom_box){};\n"
-        frame_text = frame_text + "\\node[anchor=north west, text width = 5.2cm] at (bottom_box.north west){" \
-                '\\includegraphics[' + inline_iconwidth + ']{' + icons_folder + weaponImg + '} \\large{ : ' + str(frame["Weapon Slots"]) +  \
-                '} ~\\includegraphics[' + inline_iconwidth + ']{' + icons_folder + boosterImg + '}\\large{  : ' + str(frame["Boosters"]) + \
-                '} ~\\includegraphics[' + inline_iconwidth + ']{' + icons_folder + deckImg + '}\\large{  : ' + str(frame["Deck size"]) + \
-                 "} \\\\\\scriptsize{\\emph{" + frame["Flavor"] +  "}\\par}};\n"
-
-        # Foreground overlay rendered above all other elements (optional; use PNG for transparency)
+            frame_text += (f'\\node at ({ART_CX},{ART_CY}){{\\includegraphics[width={ART_W_CM}cm,'
+                           ' keepaspectratio]{' + frame_images_folder + frame["BackgroundLayer"] + '}};\n')
+        frame_text += (f'\\node at ({ART_CX},{ART_CY}){{\\includegraphics[width={ART_W_CM - 0.1:.2f}cm, max height={ART_H_CM - 0.1:.2f}cm,'
+                       ' keepaspectratio]{' + frame_images_folder + frame["CardImg"] + '}};\n')
         if frame.get("ForegroundImg"):
-            frame_text = frame_text + '\\node at (4,5){\\includegraphics[width=6cm, max height = 8.3cm, keepaspectratio]{' + frame_images_folder + frame["ForegroundImg"] + '}};\n'
+            frame_text += (f'\\node at ({ART_CX},{ART_CY}){{\\includegraphics[width={ART_W_CM - 0.1:.2f}cm, max height={ART_H_CM - 0.1:.2f}cm,'
+                           ' keepaspectratio]{' + frame_images_folder + frame["ForegroundImg"] + '}};\n')
+        frame_text += "\\end{scope}\n"
 
-        # artist credit
+        # --- name plate + faction-logo box + movement chevron -----------------
+        name_cx = (INIT_POS[0] + MOVE_POS[0]) / 2
+        name_w_cm = (MOVE_POS[0] - INIT_POS[0]) * card_scale
+        frame_text += (f"\\node (frame_name) [rectangle, minimum width={name_w_cm:.2f}cm, minimum height={NAME_H_CM}cm, "
+                       f"rounded corners={rc()}, fill=white, draw=black!40, text width={name_w_cm - 1.6:.2f}cm, align=center] "
+                       f"at ({name_cx:.2f}, {NAME_CY}){{\\large{{" + frame["Name"])
+        if frame["Faction"]:
+            frame_text += "}\\\\\n\\small{\\emph{" + frame["Faction"] + "}"
+        frame_text += "}};\n"
+
+        # faction logo in a box in the top-left corner (a little bigger than the
+        # initiative circle it stands in for), fully opaque. Its centre is nudged
+        # down/right of INIT_POS and its size kept modest so the (larger) box
+        # still sits a few pixels inside the top-left corner of the card.
+        fac_size = 1.2
+        fac_x, fac_y = 1.2, 9.14
+        frame_text += (f"\\node[rectangle, rounded corners={rc()}, fill=white, draw=black!40, "
+                       f"minimum size={fac_size}cm] (frame_logo) at ({fac_x}, {fac_y}){{}};\n")
+        if frame["Faction"]:
+            frame_text += (f"\\node at ({fac_x}, {fac_y}){{\\includegraphics[width=1.0cm]{{"
+                           + images_folder + logos_dict[frame["Faction"]] + "}};\n")
+
+        # movement chevron (always yellow) in the top-right corner
+        frame_text += draw_chevron(MOVE_POS[0], MOVE_POS[1], "yellow", frame['Movement'],
+                                   w=MOVE_CHEVRON_W, h=CHEVRON_HALF_H, point=0.5,
+                                   fontsize="\\LARGE", name="frame_move")
+
+        # --- armour zones, aligned to the attack-card zones -------------------
+        frame_text += draw_armor_bars(int(frame["Top armour"]), ZONE_CX, ZONE_CY["High"], penalty="-1Init", name="armor_high")
+        frame_text += draw_armor_bars(int(frame["Side armour"]), ZONE_CX, ZONE_CY["Mid"], penalty="-1Crd", name="armor_mid")
+        frame_text += draw_armor_bars(int(frame["Low armour"]), ZONE_CX, ZONE_CY["Low"], penalty="-1Mv", name="armor_low")
+
+        # --- loadout column (weapon / booster / deck) under the zones ---------
+        stat_rows = [(weaponImg, frame["Weapon Slots"]), (boosterImg, frame["Boosters"]),
+                     (deckImg, frame["Deck size"])]
+        stat_ys = [3.02, 2.30, 1.58]
+        cell_left = ZONE_CX - ZONE_HALF_W
+        cell_right = ZONE_CX + ZONE_HALF_W
+        for (img, val), sy in zip(stat_rows, stat_ys):
+            frame_text += (f"\\node[rectangle, draw=black!45, fill=white, rounded corners={rc()}, "
+                           f"minimum width={ZONE_W_CM}cm, minimum height=0.62cm] at ({ZONE_CX}, {sy}){{}};\n")
+            frame_text += (f"\\node[anchor=west] at ({cell_left + 0.12:.3f}, {sy}){{\\includegraphics[width=0.5cm]{{"
+                           + icons_folder + img + "}};\n")
+            frame_text += f"\\node[anchor=east] at ({cell_right - 0.16:.3f}, {sy}){{\\large{{\\textbf{{{val}}}}}}};\n"
+        frame_text += f"\\coordinate (loadout) at ({cell_right:.3f}, {stat_ys[1]});\n"
+
+        # --- ability box (bottom-left, beside the loadout column) -------------
+        abil_cx, abil_w_cm, abil_h = 2.86, 4.1, 2.0
+        frame_text += (f"\\node (frame_ability)[anchor=south, rectangle, fill=black!10!white, draw=black!40, "
+                       f"rounded corners={rc()}, minimum width={abil_w_cm}cm, minimum height={abil_h}cm] "
+                       f"at ({abil_cx}, 1.05){{}};\n")
+        # faction logo watermark behind the ability text (as on the action cards)
+        if frame["Faction"]:
+            frame_text += ("\\node[opacity=0.6] (factionlogo) at (frame_ability.center) "
+                           "{\\includegraphics[width=1.55cm, height=1.7cm, keepaspectratio]{" + images_folder + light_logos_dict[frame["Faction"]] + "}};\n")
+        frame_text += (f"\\node[text width={abil_w_cm - 0.4:.1f}cm, align=left, inner sep=1pt, font=\\footnotesize] "
+                       f"at (frame_ability.center){{" + frame['Abilities'] + "};\n")
+
+        # --- flavour + copyright at the bottom (no faction/type line needed:
+        # faction is shown up top and the card is obviously a frame). The
+        # copyright is pinned just above the card edge and the flavour sits above
+        # it with tight line spacing, so a two-line flavour can't push it off.
         if frame.get("Artist"):
-            frame_text = frame_text + "\\node at (4, 0.3){\\scriptsize{\\copyright LiliCo 2026 \\emph{Art: " + frame["Artist"] + "}}};\n"
+            frame_text += ("\\node[anchor=south, inner sep=1pt] at (4.0, 0.12)"
+                           "{\\tiny{\\copyright  LiliCo 2026 \\emph{ Art: " + frame["Artist"] + "}}};\n")
+        set_info_content = ("{\\tiny\\linespread{0.85}\\selectfont\\emph{" + frame["Flavor"] + "}\\par}"
+                            if frame["Flavor"] else "")
+        frame_text += (f"\\node[anchor=south, text width={RULES_W_CM}cm, align=center, inner sep=1pt] (setinfo) "
+                       f"at (4.0, 0.42){{" + set_info_content + "};\n")
 
         if annotate:
-            present = {"frame_name", "frame_move", "frame_ability", "bottom_box"}
+            present = {"frame_name", "frame_move", "frame_ability", "setinfo",
+                       "armor_high", "armor_mid", "armor_low", "loadout"}
             if frame["Faction"]:
                 present.add("frame_logo")
             frame_text = frame_text + _render_callouts(FRAME_CALLOUTS, present)
