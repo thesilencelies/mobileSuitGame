@@ -247,7 +247,7 @@ def createMacros():
             "\n\\newcommand{\\blockshieldpath}[4]{"
             "(#1-#3,#2+#4) -- (#1,#2+0.66*#4) -- (#1+#3,#2+#4) -- "
             "(#1+0.8*#3,#2-0.35*#4) -- (#1,#2-#4) -- (#1-0.8*#3,#2-0.35*#4) -- cycle}\n"
-            "\\newcommand{\\blockshieldfill}[5]{\\fill[#3!25, rounded corners=0.08cm] "
+            "\\newcommand{\\blockshieldfill}[5]{\\fill[#3!25, fill opacity=0.6, rounded corners=0.08cm] "
             "\\blockshieldpath{#1}{#2}{#4}{#5};}\n"
             "\\newcommand{\\blockshieldline}[5]{\\draw[draw=#3, line width=4.5pt, "
             "rounded corners=0.1cm] \\blockshieldpath{#1}{#2}{#4}{#5};}\n"
@@ -450,6 +450,9 @@ def attack_box(atk, rng, block, cy, dmg_type, color, cx=ZONE_CX,
     of the box filling in from the right; the range indicator (a 90-degree
     rotated icon plus its number) sits at the left of the box."""
     out_text = ""
+    # an empty zone (no attack and no block) gets no box drawn at all
+    if not atk and not block:
+        return out_text
     w_cm = half_w * 2 * card_scale
     h_cm = half_h * 2 * card_scale
 
@@ -457,7 +460,7 @@ def attack_box(atk, rng, block, cy, dmg_type, color, cx=ZONE_CX,
         out_text += block_shield_outline(cx, cy, color, half_w, half_h, super_block=block > 1)
     else:
         fill = f"{color}!20" if atk else "black!10!white"
-        out_text += (f"\\node[rectangle, draw=black!45, fill={fill}, rounded corners={rc()}, "
+        out_text += (f"\\node[rectangle, draw=black!45, fill={fill}, fill opacity=0.6, rounded corners={rc()}, "
                      f"minimum width={w_cm:.3f}cm, minimum height={h_cm:.3f}cm] at ({cx}, {cy}){{}};\n")
 
     # attack icons: vertical middle, filling in from the right edge leftwards,
@@ -765,20 +768,27 @@ def make_card_from_row(row, card_type, group_capability=None, annotate=False, an
             card_text += "\\useasboundingbox (cardbg.south west) rectangle (cardbg.north east);\n"
             card_text += "\\clip (cardbg.south west) rectangle (cardbg.north east);\n"
 
-        # --- art zone: art constrained to its own box (left of the zones) -----
-        card_text += (f"\\node (artbox)[rectangle, fill=white, draw=black!40, rounded corners={rc()}, "
-                      f"minimum width={ART_W_CM}cm, minimum height={ART_H_CM}cm] at ({ART_CX}, {ART_CY}){{}};\n")
+        # --- full-card art: spans from just below the name plate down to the
+        # bottom of the rules text and the full width of the card. The zone
+        # boxes and rules box are drawn over it (at reduced opacity) so the art
+        # shows through behind them.
+        art_top_y = NAME_CY - (NAME_H_CM / 2) / card_scale
+        art_bot_y = RULES_BOTTOM
+        art_cy_full = (art_top_y + art_bot_y) / 2
+        card_left = 4 - (6.2 / card_scale) / 2
+        card_right = 4 + (6.2 / card_scale) / 2
         card_text += "\\begin{scope}\n"
-        card_text += f"\\clip[rounded corners={rc()}] ($(artbox.south west)+(0.03,0.03)$) rectangle ($(artbox.north east)+(-0.03,-0.03)$);\n"
-        # background layer scaled to fill the whole art zone (clipped by the scope)
+        card_text += (f"\\clip ({card_left:.3f}, {art_bot_y:.3f}) rectangle "
+                      f"({card_right:.3f}, {art_top_y:.3f});\n")
+        # background layer scaled to fill the whole card width (clipped by the scope)
         if row.get("BackgroundLayer"):
-            card_text += (f'\\node at ({ART_CX},{ART_CY}){{\\includegraphics[width={ART_W_CM}cm,'
+            card_text += (f'\\node at (4,{art_cy_full:.3f}){{\\includegraphics[width=6.2cm,'
                           ' keepaspectratio]{' + images_folder + row["BackgroundLayer"] + '}};\n')
-        # the art itself is fitted inside the zone (never cropped or stretched)
-        card_text += (f'\\node at ({ART_CX},{ART_CY}){{\\includegraphics[width={ART_W_CM - 0.1:.2f}cm, max height={ART_H_CM - 0.1:.2f}cm,'
+        # the art itself fills the full card width, cropped to the art region
+        card_text += (f'\\node at (4,{art_cy_full:.3f}){{\\includegraphics[width=6.2cm,'
                       ' keepaspectratio]{' + images_folder + row["CardImg"] + '}};\n')
         if row.get("ForegroundImg"):
-            card_text += (f'\\node at ({ART_CX},{ART_CY}){{\\includegraphics[width={ART_W_CM - 0.1:.2f}cm, max height={ART_H_CM - 0.1:.2f}cm,'
+            card_text += (f'\\node at (4,{art_cy_full:.3f}){{\\includegraphics[width=6.2cm,'
                           ' keepaspectratio]{' + images_folder + row["ForegroundImg"] + '}};\n')
         card_text += "\\end{scope}\n"
 
@@ -837,7 +847,7 @@ def make_card_from_row(row, card_type, group_capability=None, annotate=False, an
             # weapons/drones share the bottom band with the zone column above, so
             # the box height is capped; a smaller font keeps busy cards inside it
             text_font = "\\scriptsize" if estimated_text_len(row["Text"]) > 100 else "\\footnotesize"
-        card_text += (f"\\node (rulesbox)[anchor=south, rectangle, fill=black!10!white, draw=black!40, rounded corners={rc()}, "
+        card_text += (f"\\node (rulesbox)[anchor=south, rectangle, fill=black!10!white, fill opacity=0.6, draw=black!40, rounded corners={rc()}, "
                       f"minimum width={RULES_W_CM}cm, minimum height={rules_h}cm] at (4.0, {RULES_BOTTOM}){{}};\n")
 
         # faction logo watermark sits above the box fill but behind the text
