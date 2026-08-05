@@ -775,21 +775,22 @@ def make_card_from_row(row, card_type, group_capability=None, annotate=False, an
         art_top_y = NAME_CY - (NAME_H_CM / 2) / card_scale
         art_bot_y = RULES_BOTTOM
         art_cy_full = (art_top_y + art_bot_y) / 2
+        art_h_full = (art_top_y - art_bot_y) * card_scale  # region height in cm
         card_left = 4 - (6.2 / card_scale) / 2
         card_right = 4 + (6.2 / card_scale) / 2
         card_text += "\\begin{scope}\n"
         card_text += (f"\\clip ({card_left:.3f}, {art_bot_y:.3f}) rectangle "
                       f"({card_right:.3f}, {art_top_y:.3f});\n")
-        # background layer scaled to fill the whole card width (clipped by the scope)
+        # background layer fills the whole card width (cover; cropped by the scope)
         if row.get("BackgroundLayer"):
             card_text += (f'\\node at (4,{art_cy_full:.3f}){{\\includegraphics[width=6.2cm,'
                           ' keepaspectratio]{' + images_folder + row["BackgroundLayer"] + '}};\n')
-        # the art itself fills the full card width, cropped to the art region
+        # the art itself is height-fitted to the region so it is never cut off
         card_text += (f'\\node at (4,{art_cy_full:.3f}){{\\includegraphics[width=6.2cm,'
-                      ' keepaspectratio]{' + images_folder + row["CardImg"] + '}};\n')
+                      f' max height={art_h_full:.2f}cm, keepaspectratio]{{' + images_folder + row["CardImg"] + '}};\n')
         if row.get("ForegroundImg"):
             card_text += (f'\\node at (4,{art_cy_full:.3f}){{\\includegraphics[width=6.2cm,'
-                          ' keepaspectratio]{' + images_folder + row["ForegroundImg"] + '}};\n')
+                          f' max height={art_h_full:.2f}cm, keepaspectratio]{{' + images_folder + row["ForegroundImg"] + '}};\n')
         card_text += "\\end{scope}\n"
 
         # --- name plate with overlapping initiative circle + movement chevron -
