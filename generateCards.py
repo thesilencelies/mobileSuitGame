@@ -6,12 +6,13 @@ import math
 import os
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+from terrain_cards import terrain_file, terrianoutputfolder, create_terrain_card
+
 weapon_actions_file = 'Weapon actions.csv'
 general_action_file = 'Basic actions.csv'
 pilot_actions_file = 'Pilot actions.csv'
 drone_actions_file = 'Drone actions.csv'
 booster_actions_file = 'Booster actions.csv'
-terrain_file = "Terrain_square.csv"
 frames_file = 'Frames.csv'
 
 buildfolder='build/'
@@ -21,7 +22,6 @@ buildfolder='build/'
 cardoutputfolder=buildfolder+'card/'
 frameoutputfolder=buildfolder+'frame/'
 backsoutputfolder=buildfolder+'back_'
-terrianoutputfolder=buildfolder+'terrain/'
 groupindicatoroutputfolder=buildfolder+'group_indicator_'
 
 # Create output folders up front so writes never fail on a fresh/cleared build/.
@@ -44,9 +44,6 @@ framemvImg = 'mvimg_old.png'
 weaponImg = 'weapon.png'
 boosterImg = 'boosterImg.png'
 deckImg = 'deckImg.png'
-atkpointsImg = 'atkpoints.png'
-defpointsImg = 'defpoints.png'
-tokensImg = 'token.png'
 
 
 logos_dict = {
@@ -68,7 +65,6 @@ light_logos_dict = {
 }
 
 images_folder = "../pictures/"
-terrain_images_folder = "../terrain/"
 frame_images_folder = "../pictures/"
 icons_folder = "../icons/"
 
@@ -83,8 +79,6 @@ frameBackgrounds = ["proxy_background.png"] * len(frameImages)
 iconwidth = "width=0.9cm"
 inline_iconwidth = "width=0.4cm"
 init_iconwidth = "width=1.35cm"
-terrain_iconwidth_value = 0.6
-terarin_iconwidth = f"width={terrain_iconwidth_value}cm"
 logo_width = "width=1.2cm"
 
 # Coordinate unit (in cm) for the card/frame tikzpictures. We set the picture's
@@ -610,38 +604,114 @@ def _aim_node(aim):
         return inner.split(".")[0]
     return None
 
-# Vertical layout of the callout labels. Rather than pinning each label to a
-# fixed y next to its target, the labels are spread evenly down each gutter with
-# a fixed pitch, centred on the card. A side with many labels therefore spills
-# above and below the card edges instead of being crammed alongside it, which
-# keeps the diagram far less cluttered and leaves room for larger text.
-CALLOUT_PITCH = 1.6       # cm between successive labels on one side
-CALLOUT_CENTER_Y = 5.0    # card vertical centre the stacks are balanced around
+# Vertical layout of the callout labels. Labels are stacked down each gutter
+# with the minimum gap each pair actually needs to avoid overlapping (based on
+# their rendered text height) but are otherwise pulled as close as possible to
+# their target's real height, so the leader line stays close to horizontal. A
+# side with many/clustered labels still spills above and below the card edges
+# rather than cramming, since the minimum gap alone can force that; a side
+# with few/spread-out labels follows its targets instead of bunching at a
+# fixed centre.
+CALLOUT_TITLE_LINE_H = 0.56   # cm per (always single-line) title
+CALLOUT_DESC_LINE_H = 0.44    # cm per wrapped line of the smaller desc text
+CALLOUT_DESC_CHARS_PER_LINE = 22  # rough wrap width for a 4cm box at \normalsize
+CALLOUT_LABEL_MARGIN = 0.35   # minimum breathing room between adjacent labels
 
-def _render_callouts(callouts, present):
+def _callout_height(c):
+    """Estimate the rendered vertical extent (cm) of one callout's label, so
+    labels only reserve as much gutter space as their own text needs instead
+    of a one-size-fits-all pitch -- a short "Name / faction" label (no desc)
+    packs much tighter than a three-line description."""
+    height = CALLOUT_TITLE_LINE_H
+    desc = c.get("desc")
+    if desc:
+        lines = max(1, math.ceil(len(desc) / CALLOUT_DESC_CHARS_PER_LINE))
+        height += lines * CALLOUT_DESC_LINE_H
+    return height
+
+def _stack_labels(target_ys, gaps):
+    """Return label y-positions, one per (already sorted, descending)
+    ``target_ys``, that preserve the order, keep at least ``gaps[i]`` between
+    label i and i+1, and are the closest possible (least-squares) match to
+    the targets -- i.e. leader lines are as close to horizontal as the
+    available space allows, and only spread further apart when they must.
+
+    Solved via isotonic regression (pool-adjacent-violators): shifting each
+    target by its cumulative minimum gap turns "non-increasing with a minimum
+    gap" into a plain non-increasing fit, which PAV solves by merging
+    adjacent runs that violate the ordering into their average until none
+    remain.
+    """
+    cum = [0.0] * len(target_ys)
+    for i in range(1, len(target_ys)):
+        cum[i] = cum[i - 1] + gaps[i - 1]
+    shifted = [t + c for t, c in zip(target_ys, cum)]
+    blocks = []  # each is [sum, count] of a run of equal (averaged) values
+    for value in shifted:
+        blocks.append([value, 1])
+        while len(blocks) >= 2 and blocks[-2][0] / blocks[-2][1] < blocks[-1][0] / blocks[-1][1]:
+            s2, c2 = blocks.pop()
+            s1, c1 = blocks.pop()
+            blocks.append([s1 + s2, c1 + c2])
+    fitted = []
+    for s, c in blocks:
+        fitted.extend([s / c] * c)
+    return [f - c for f, c in zip(fitted, cum)]
+
+def _render_callouts(callouts, present, y_overrides=None):
     """Draw labelled leader lines for every callout whose target node exists.
 
-    ``callouts`` is a list of dicts (x, y, side, title, desc, aim). ``present``
-    is the set of node names actually emitted for this card, so callouts for
-    optional elements (persistence, faction logo, ...) are skipped when absent.
-    The per-callout ``y`` is only an ordering hint: labels are re-spaced evenly
-    down each gutter (extending past the card top and bottom when a side is
-    busy) so the leader lines stay legible."""
-    # Keep only callouts whose target exists, preserving the listed order.
-    shown = [c for c in callouts
-             if _aim_node(c["aim"]) is None or _aim_node(c["aim"]) in present]
+    ``callouts`` is a list of dicts (side, title, desc, aim); ``side`` is
+    "left", "right", or "auto" for elements (e.g. the name plate, spanning the
+    full card width) that can be labelled from either gutter -- auto callouts
+    are assigned to whichever side has less going on, so a side that's busy
+    on one card isn't forced to carry a flexible label too. ``y`` is the
+    target's actual height for elements whose position is fixed by the
+    layout. ``present`` is the set of node names actually emitted for this
+    card, so callouts for optional elements (persistence, faction logo, ...)
+    are skipped when absent. ``y_overrides`` supplies the real height for
+    elements whose position varies per card (e.g. a weapon's attack/block
+    zone), keyed by aim node name, taking precedence over the static ``y``.
 
-    # Assign an evenly spaced y per side, centred on the card so a busy side
-    # overflows symmetrically above and below the card rather than bunching up.
+    Labels are ordered and stacked (see ``_stack_labels``) by each target's
+    real height, so leader lines never cross and stay as close to horizontal
+    as each label's own text height allows."""
+    # Keep only callouts whose target exists, preserving the listed order, and
+    # work on copies since "auto" ones get their side resolved below.
+    shown = [dict(c) for c in callouts
+             if _aim_node(c["aim"]) is None or _aim_node(c["aim"]) in present]
+    y_overrides = y_overrides or {}
+
+    def target_y(c):
+        return y_overrides.get(_aim_node(c["aim"]), c["y"])
+
+    # Resolve "auto" sides against the load already fixed on each side (a full
+    # first pass, not just whatever precedes it in the list -- an "auto" item
+    # near the top must still see the fixed items listed further down), then
+    # greedily assign each auto callout to whichever side is currently lighter
+    # and add its own height, so several flexible callouts on one card spread
+    # across both sides rather than all piling onto whichever side is favoured
+    # first.
+    load = {"left": 0.0, "right": 0.0}
+    for c in shown:
+        if c["side"] != "auto":
+            load[c["side"]] += _callout_height(c)
+    for c in shown:
+        if c["side"] == "auto":
+            c["side"] = min(load, key=load.get)
+            load[c["side"]] += _callout_height(c)
+
     ys = {}
     for side in ("left", "right"):
-        col = [c for c in shown if c["side"] == side]
-        top = CALLOUT_CENTER_Y + (len(col) - 1) * CALLOUT_PITCH / 2.0
-        for j, c in enumerate(col):
-            ys[id(c)] = top - j * CALLOUT_PITCH
+        col = sorted((c for c in shown if c["side"] == side), key=target_y, reverse=True)
+        gaps = [(_callout_height(a) + _callout_height(b)) / 2 + CALLOUT_LABEL_MARGIN
+                for a, b in zip(col, col[1:])]
+        for c, y in zip(col, _stack_labels([target_y(c) for c in col], gaps)):
+            ys[id(c)] = y
 
     out = ""
     for i, c in enumerate(shown):
+        x = LEFT_GUTTER if c["side"] == "left" else RIGHT_GUTTER
         anchor = "east" if c["side"] == "left" else "west"
         align = "right" if c["side"] == "left" else "left"
         name = f"callout{i}"
@@ -649,7 +719,7 @@ def _render_callouts(callouts, present):
         if c.get("desc"):
             body += "\\\\" + c["desc"]
         out += (f"\\node[anchor={anchor}, align={align}, text width=4cm, font=\\normalsize] "
-                f"({name}) at ({c['x']},{ys[id(c)]}) {{{body}}};\n")
+                f"({name}) at ({x},{ys[id(c)]}) {{{body}}};\n")
         # Aim at the target's edge nearest the card edge (the gutter side) so the
         # leader stops at the element instead of crossing over it. Named targets
         # (nodes and coordinates) take the .east/.west anchor; bare coordinates
@@ -666,106 +736,123 @@ def _render_callouts(callouts, present):
 LEFT_GUTTER = -0.7
 RIGHT_GUTTER = 8.6
 
-# Callouts for a weapon action card. atk_aim/block_aim/range_aim are coordinates
-# emitted at build time on the first zone that has that feature (see the annotate
-# block in make_card_from_row); the guard in _render_callouts drops any that the
-# chosen card lacks.
+# Real heights of the fixed (non-zone) rules-box elements, so each callout's
+# "y" is where its target actually sits rather than a guess -- _render_callouts
+# sorts/stacks labels by this, which is what keeps leader lines from crossing.
+# Mirrors the rules_h branch in make_card_from_row (weapon/drone vs pilot).
+RULES_H_ACTION = 2.3   # weapon/drone rules box height (cm)
+RULES_H_PILOT = 3.0    # pilot rules box height (cm)
+ACTION_RULES_TOP_Y = RULES_BOTTOM + RULES_H_ACTION / card_scale
+ACTION_RULES_CENTER_Y = (RULES_BOTTOM + ACTION_RULES_TOP_Y) / 2
+PILOT_RULES_TOP_Y = RULES_BOTTOM + RULES_H_PILOT / card_scale
+PILOT_RULES_CENTER_Y = (RULES_BOTTOM + PILOT_RULES_TOP_Y) / 2
+SETINFO_Y = RULES_BOTTOM - 0.02
+
+# Callouts for a weapon action card. atk_aim/block_aim/superblock_aim/range_aim
+# are coordinates emitted at build time on the first zone that has that
+# feature (see the annotate block in make_card_from_row), at whichever of
+# ZONE_CY's three heights that turns out to be -- make_card_from_row passes
+# their real per-card height in as a y_override so labels sort correctly even
+# though the same callout can point at a different zone on different cards;
+# the "y" here is just an unused fallback. The guard in _render_callouts drops
+# any callout the chosen card lacks.
 WEAPON_CALLOUTS = [
-    {"x": LEFT_GUTTER, "y": 9.2, "side": "left",  "title": "Initiative",
+    {"y": NAME_CY, "side": "left",  "title": "Initiative",
      "desc": "Higher acts first.", "aim": "(initbox)"},
-    {"x": LEFT_GUTTER, "y": 4.0, "side": "left",  "title": "Persistence",
+    {"y": ACTION_RULES_TOP_Y - 0.42, "side": "left",  "title": "Persistence",
      "desc": "Turns it stays in play.", "aim": "(persistence)"},
-    {"x": LEFT_GUTTER, "y": 3.0, "side": "left",  "title": "Card text",
+    {"y": ACTION_RULES_CENTER_Y, "side": "auto",  "title": "Card text",
      "desc": "Abilities and status effects.", "aim": "(textbox)"},
-    {"x": LEFT_GUTTER, "y": 2.2, "side": "left",  "title": "Faction Logo",
-     "desc": "", "aim": "(factionlogo)"},
-    {"x": LEFT_GUTTER, "y": 1.2, "side": "left",  "title": "Group zones",
+    {"y": RULES_BOTTOM + 0.13, "side": "left",  "title": "Group zones",
      "desc": "Zones the group can attack (red) or block (blue).", "aim": "(groupindicator)"},
-    {"x": RIGHT_GUTTER, "y": 9.4, "side": "right", "title": "Name / faction",
+    {"y": NAME_CY, "side": "auto", "title": "Name / faction",
      "desc": "", "aim": "(nameplate)"},
-    {"x": RIGHT_GUTTER, "y": 8.0, "side": "right", "title": "Movement",
+    {"y": NAME_CY, "side": "right", "title": "Movement",
      "desc": "Steps: green gains, red loses.", "aim": "(movebox)"},
-    {"x": RIGHT_GUTTER, "y": 7.0, "side": "right", "title": "Attack",
+    {"y": ZONE_CY["Mid"], "side": "right", "title": "Attack",
      "desc": "Damage dealt to this zone.", "aim": "(atk_aim)"},
-    {"x": RIGHT_GUTTER, "y": 5.6, "side": "right", "title": "Block",
+    {"y": ZONE_CY["Mid"], "side": "right", "title": "Block",
      "desc": "Blocks attacks to this zone.", "aim": "(block_aim)"},
-    {"x": RIGHT_GUTTER, "y": 4.4, "side": "right", "title": "Super block",
-     "desc": "Blocks without discarding; keeps blocking.", "aim": "(superblock_aim)"},
-    {"x": RIGHT_GUTTER, "y": 3.2, "side": "right", "title": "Range",
+    {"y": ZONE_CY["Mid"], "side": "right", "title": "Super block",
+     "desc": "Blocks without discarding.", "aim": "(superblock_aim)"},
+    {"y": ZONE_CY["Mid"], "side": "right", "title": "Range",
      "desc": "This zone's attack range.", "aim": "(range_aim)"},
-    {"x": RIGHT_GUTTER, "y": 1.5, "side": "right", "title": "Set info",
+    {"y": SETINFO_Y, "side": "right", "title": "Set info",
      "desc": "Faction, type, group, flavour.", "aim": "(setinfo)"},
 ]
 
 # Callouts for a pilot card (no attack, but the three zone boxes still show).
 PILOT_CALLOUTS = [
-    {"x": LEFT_GUTTER, "y": 9.0, "side": "left",  "title": "Initiative",
+    {"y": NAME_CY, "side": "left",  "title": "Initiative",
      "desc": "Higher acts first.", "aim": "(initbox)"},
-    {"x": LEFT_GUTTER, "y": 3.2, "side": "left",  "title": "Card text",
+    {"y": PILOT_RULES_CENTER_Y, "side": "auto",  "title": "Card text",
      "desc": "This card's effect.", "aim": "(textbox)"},
-    {"x": LEFT_GUTTER, "y": 2.0, "side": "left",  "title": "Faction Logo",
-     "desc": "", "aim": "(factionlogo)"},
-    {"x": RIGHT_GUTTER, "y": 9.2, "side": "right", "title": "Name / faction",
+    {"y": NAME_CY, "side": "auto", "title": "Name / faction",
      "desc": "", "aim": "(nameplate)"},
-    {"x": RIGHT_GUTTER, "y": 7.8, "side": "right", "title": "Movement",
+    {"y": NAME_CY, "side": "right", "title": "Movement",
      "desc": "Steps: green gains, red loses.", "aim": "(movebox)"},
-    {"x": RIGHT_GUTTER, "y": 4.0, "side": "right", "title": "Persistence",
+    {"y": PILOT_RULES_TOP_Y - 0.42, "side": "right", "title": "Persistence",
      "desc": "Turns it stays in play.", "aim": "(persistence)"},
-    {"x": RIGHT_GUTTER, "y": 1.5, "side": "right", "title": "Set info",
-     "desc": "Faction, type, flavour.", "aim": "(setinfo)"},
+    {"y": SETINFO_Y, "side": "right", "title": "Set info",
+     "desc": "Faction, type", "aim": "(setinfo)"},
 ]
 
 # Callouts for a frame datasheet. Armour rows are drawn right-to-left from x=7,
-# so the aim points at the rightmost (first) bar of each row.
+# so the aim points at the rightmost (first) bar of each row. frame_logo/
+# frame_ability/loadout heights mirror the literal positions create_frame_sheet
+# draws them at (fac_y, the ability box's centre, and stat_ys[1]).
 FRAME_CALLOUTS = [
-    {"x": LEFT_GUTTER, "y": 9.2, "side": "left",  "title": "Faction Logo",
+    {"y": 9.14, "side": "left",  "title": "Faction Logo",
      "desc": "", "aim": "(frame_logo)"},
-    {"x": LEFT_GUTTER, "y": 3.0, "side": "left",  "title": "Abilities",
-     "desc": "Innate special ability.", "aim": "(frame_ability)"},
-    {"x": LEFT_GUTTER, "y": 1.2, "side": "left",  "title": "Flavour",
+    {"y": 1.05 + (2.0 / card_scale) / 2, "side": "left",  "title": "Abilities",
+     "desc": "", "aim": "(frame_ability)"},
+    {"y": 0.5, "side": "left",  "title": "Flavour",
      "desc": "", "aim": "(setinfo)"},
-    {"x": RIGHT_GUTTER, "y": 9.4, "side": "right", "title": "Name / faction",
+    {"y": NAME_CY, "side": "auto", "title": "Name / faction",
      "desc": "", "aim": "(frame_name)"},
-    {"x": RIGHT_GUTTER, "y": 8.2, "side": "right", "title": "Movement",
+    {"y": NAME_CY, "side": "right", "title": "Movement",
      "desc": "Base movement.", "aim": "(frame_move)"},
-    {"x": RIGHT_GUTTER, "y": 7.0, "side": "right", "title": "Top armour",
+    {"y": ZONE_CY["High"], "side": "right", "title": "Top armour",
      "desc": "Top-zone health.", "aim": "(armor_high)"},
-    {"x": RIGHT_GUTTER, "y": 5.6, "side": "right", "title": "Side armour",
+    {"y": ZONE_CY["Mid"], "side": "right", "title": "Side armour",
      "desc": "Mid-zone health.", "aim": "(armor_mid)"},
-    {"x": RIGHT_GUTTER, "y": 4.2, "side": "right", "title": "Low armour",
+    {"y": ZONE_CY["Low"], "side": "right", "title": "Low armour",
      "desc": "Low-zone health.", "aim": "(armor_low)"},
-    {"x": RIGHT_GUTTER, "y": 2.4, "side": "right", "title": "Loadout",
+    {"y": 2.30, "side": "right", "title": "Loadout",
      "desc": "Weapon / booster slots and deck size.", "aim": "(loadout)"},
 ]
 
 # Callouts for a drone card: a weapon-style card that also fields a persistent
-# unit with its own health bar (drone_health) and movement (drone_move).
+# unit with its own health bar (drone_health) and movement (drone_move), both
+# drawn at y=3.9 (see the drone extras block in make_card_from_row). Health is
+# listed before movement even though it reads second: they target the same
+# height and the health bars sit further from the gutter than the chevron, so
+# putting health's tied-height label on the outside (see _stack_labels) keeps
+# its leader line from grazing straight through the movement chevron.
 DRONE_CALLOUTS = [
-    {"x": LEFT_GUTTER, "y": 9.3, "side": "left",  "title": "Initiative",
+    {"y": NAME_CY, "side": "left",  "title": "Initiative",
      "desc": "Higher acts first.", "aim": "(initbox)"},
-    {"x": LEFT_GUTTER, "y": 4.6, "side": "left",  "title": "Drone movement",
-     "desc": "Drone move per turn.", "aim": "(drone_move)"},
-    {"x": LEFT_GUTTER, "y": 3.8, "side": "left",  "title": "Drone health",
+    {"y": 3.9, "side": "left",  "title": "Drone health",
      "desc": "Drone hit points.", "aim": "(drone_health)"},
-    {"x": LEFT_GUTTER, "y": 3.0, "side": "left",  "title": "Persistence",
-     "desc": "Rounds it persists.", "aim": "(persistence)"},
-    {"x": LEFT_GUTTER, "y": 2.2, "side": "left",  "title": "Card text",
+    {"y": 3.9, "side": "left",  "title": "Drone movement",
+     "desc": "Drone move per turn.", "aim": "(drone_move)"},
+    {"y": ACTION_RULES_TOP_Y - 0.42, "side": "left",  "title": "Persistence",
+     "desc": "Turns it persists for.", "aim": "(persistence)"},
+    {"y": ACTION_RULES_CENTER_Y, "side": "auto",  "title": "Card text",
      "desc": "Abilities and effects.", "aim": "(textbox)"},
-    {"x": LEFT_GUTTER, "y": 1.4, "side": "left",  "title": "Faction Logo",
-     "desc": "", "aim": "(factionlogo)"},
-    {"x": RIGHT_GUTTER, "y": 9.4, "side": "right", "title": "Name / faction",
+    {"y": NAME_CY, "side": "auto", "title": "Name / faction",
      "desc": "", "aim": "(nameplate)"},
-    {"x": RIGHT_GUTTER, "y": 8.2, "side": "right", "title": "Movement",
+    {"y": NAME_CY, "side": "right", "title": "Movement",
      "desc": "Steps when played.", "aim": "(movebox)"},
-    {"x": RIGHT_GUTTER, "y": 6.8, "side": "right", "title": "Attack",
+    {"y": ZONE_CY["Mid"], "side": "right", "title": "Attack",
      "desc": "Damage dealt to this zone.", "aim": "(atk_aim)"},
-    {"x": RIGHT_GUTTER, "y": 5.2, "side": "right", "title": "Block",
+    {"y": ZONE_CY["Mid"], "side": "right", "title": "Block",
      "desc": "Blocks attacks to this zone.", "aim": "(block_aim)"},
-    {"x": RIGHT_GUTTER, "y": 4.1, "side": "right", "title": "Super block",
+    {"y": ZONE_CY["Mid"], "side": "right", "title": "Super block",
      "desc": "Doubled outline: blocks without discarding.", "aim": "(superblock_aim)"},
-    {"x": RIGHT_GUTTER, "y": 3.0, "side": "right", "title": "Range",
+    {"y": ZONE_CY["Mid"], "side": "right", "title": "Range",
      "desc": "Drone's attack range.", "aim": "(range_aim)"},
-    {"x": RIGHT_GUTTER, "y": 1.8, "side": "right", "title": "Set info",
+    {"y": SETINFO_Y, "side": "right", "title": "Set info",
      "desc": "Faction, type, group, flavour.", "aim": "(setinfo)"},
 ]
 
@@ -858,10 +945,10 @@ def make_card_from_row(row, card_type, group_capability=None, annotate=False, an
         # box stops just below the full-height Low zone so it never overlaps it.
         rules_opacity = 0.7
         if is_pilot:
-            rules_h = 3.0
+            rules_h = RULES_H_PILOT
             text_font = "\\small"
         else:
-            rules_h = 2.3
+            rules_h = RULES_H_ACTION
             # weapons/drones share the bottom band with the zone column above, so
             # the box height is capped; a smaller font keeps busy cards inside it
             text_font = "\\scriptsize" if estimated_text_len(row["Text"]) > 100 else "\\footnotesize"
@@ -921,6 +1008,7 @@ def make_card_from_row(row, card_type, group_capability=None, annotate=False, an
 
         if annotate:
             present = {"initbox", "movebox", "nameplate", "setinfo"}
+            y_overrides = {}
             if row["Faction"]:
                 present.add("factionlogo")
             if row["Persistence"] != "0":
@@ -960,22 +1048,26 @@ def make_card_from_row(row, card_type, group_capability=None, annotate=False, an
                 if atk_z:
                     card_text += f"\\coordinate (atk_aim) at ({zone_right:.2f},{zone_pos[atk_z]});\n"
                     present.add("atk_aim")
+                    y_overrides["atk_aim"] = zone_pos[atk_z]
                 if blk_z:
                     card_text += f"\\coordinate (block_aim) at ({zone_right:.2f},{zone_pos[blk_z]});\n"
                     present.add("block_aim")
+                    y_overrides["block_aim"] = zone_pos[blk_z]
                 if sblk_z:
                     card_text += f"\\coordinate (superblock_aim) at ({zone_right:.2f},{zone_pos[sblk_z]});\n"
                     present.add("superblock_aim")
+                    y_overrides["superblock_aim"] = zone_pos[sblk_z]
                 if rng_z:
                     card_text += f"\\coordinate (range_aim) at ({zone_right:.2f},{zone_pos[rng_z]});\n"
                     present.add("range_aim")
+                    y_overrides["range_aim"] = zone_pos[rng_z]
                 if card_type is CardTypeEnum.DRONE:
                     present.add("drone_health")
                     present.add("drone_move")
                     callouts = DRONE_CALLOUTS
                 else:
                     callouts = WEAPON_CALLOUTS
-            card_text = card_text + _render_callouts(callouts, present)
+            card_text = card_text + _render_callouts(callouts, present, y_overrides)
 
         card_text = card_text + "\\end{tikzpicture}\n"
         ofile.write(card_text)
@@ -1093,528 +1185,6 @@ def create_frame_sheet(frame, annotate=False, annotate_outfile=None):
 
         ofile.write(frame_text)
         return frame_text + "~"
-
-
-# ---------------------------------------------------------------------------
-# Types
-# ---------------------------------------------------------------------------
-TileStyle = Dict[str, Union[str, List[str]]]
- 
-# ---------------------------------------------------------------------------
-# Defaults
-# ---------------------------------------------------------------------------
-DEFAULT_STYLE: TileStyle = {
-    "color":       "black",
-    "thickness":   "semithick",
-    "postaction":  "",
-    "hatch":       "",
-    "hatch_color": "",     # empty = same as color
-    "fill":        "none",
-    "text":        "",
-}
-
-def _merge_style(style: TileStyle, new_vals: TileStyle) -> None:
-    """Merge new_vals into style. If a key already holds a non-default value,
-    that entry becomes a list so both values are preserved."""
-    for key, val in new_vals.items():
-        current = style.get(key)
-        default = DEFAULT_STYLE.get(key, "")
-        if current is None or current == default:
-            style[key] = val
-        elif isinstance(current, list):
-            current.append(val)
-        else:
-            style[key] = [current, val]
-
-
-def _first_valid(val: Union[str, List[str]], default: str = "") -> str:
-    """Return the first non-default entry from a possibly-list style value."""
-    if isinstance(val, list):
-        for v in val:
-            if v and v != default:
-                return v
-        return default
-    return val
-
-
-TERRAIN_STYLE = "full"
-
-if TERRAIN_STYLE == "border":
-    ## styles for other options
-    ELEVATION_1_STYLE: TileStyle = {
-        "color":       "blue",
-        "thickness":   "line width=3pt",
-    }
-
-    ELEVATION_2_STYLE: TileStyle = {
-        "color":       "blue!50",
-        "thickness":   "line width=4pt",
-    }
-
-    ELEVATION_3_STYLE: TileStyle = {
-        "color":       "blue!20",
-        "thickness":   "line width=4pt",
-    }
-    # too high to access
-    IMPASSIBLE_STYLE: TileStyle = {
-        "color":       "red",
-        "thickness":   "line width=5pt",
-        "fill":        "black",
-    }
-
-    # these should not set the line style cause they can appear at any elevation
-
-    OBJECTIVE_STYLE: TileStyle = {
-        "fill":        "green",
-    }
-
-    OBSTACLE_STYLE: TileStyle = {
-        "postaction":  "postaction={draw, line width=3pt, yellow, dash pattern=on 2mm off 2mm, dash phase=0mm}",
-    }
-
-    TOKEN_STYLE: TileStyle = {
-        "hatch":       "crosshatch",
-        "hatch_color": "orange",     # empty = same as color
-    }
-elif TERRAIN_STYLE == "corner":
-
-    ## styles for other options
-    ELEVATION_1_STYLE: TileStyle = {
-        # "color":       "blue",
-        "thickness":   "line width=3pt",
-        "icon":        "e1_filled.png",
-    }
-
-    ELEVATION_2_STYLE: TileStyle = {
-        # "color":       "blue!50",
-        "thickness":   "line width=4pt",
-        "icon":        "e2_filled.png",
-    }
-
-    ELEVATION_3_STYLE: TileStyle = {
-        # "color":       "blue!20",
-        "thickness":   "line width=5pt",
-        "icon":        "e3_filled.png",
-    }
-
-    # too high to access
-    IMPASSIBLE_STYLE: TileStyle = {
-        # "color":       "red",
-        "thickness":   "line width=6pt",
-        # "fill":        "black",
-        "icon":        "imp_filled.png",
-    }
-
-    # these should not set the line style cause they can appear at any elevation
-
-    OBJECTIVE_STYLE: TileStyle = {
-        # "fill":        "green",
-        "icon":        "obj_filled.png",
-    }
-
-    OBSTACLE_STYLE: TileStyle = {
-        # "postaction":  "postaction={draw, line width=3pt, yellow, dash pattern=on 2mm off 2mm, dash phase=0mm}",
-        "icon":        "obs_filled.png",
-    }
-
-    TOKEN_STYLE: TileStyle = {
-        # "hatch":       "crosshatch",
-        # "hatch_color": "orange",     # empty = same as color
-        "icon":        "tkn_filled.png",
-    }
-
-elif TERRAIN_STYLE == "full":
-    ## Elevation ramp: low elevation reads as low-saturation steel-grey blue,
-    ## climbing to a vivid "city" blue at the top so taller tiles pop like
-    ## glass high-rises. The base border is kept thin -- the impression of
-    ## looking onto a building's side comes from the per-edge walls drawn
-    ## below (see ELEVATION_WALL_PER_LEVEL_PT and _tikz_square_lines).
-    ELEVATION_1_STYLE: TileStyle = {
-        "color":       "cityblue!30!citysteel",
-        "thickness":   "semithick",
-        "icon":        "e1.png",
-        "fill":        "cityblue!30!citysteel",
-    }
-
-    ELEVATION_2_STYLE: TileStyle = {
-        "color":       "cityblue!60!citysteel",
-        "thickness":   "semithick",
-        "icon":        "e2.png",
-        "fill":        "cityblue!60!citysteel",
-    }
-
-    ELEVATION_3_STYLE: TileStyle = {
-        "color":       "cityblue",
-        "thickness":   "semithick",
-        "icon":        "e3.png",
-        "fill":        "cityblue",
-    }
-    # too high to access
-    IMPASSIBLE_STYLE: TileStyle = {
-        "color":       "red",
-        "thickness":   "line width=5pt",
-        "fill":        "black",
-        "icon":        "imp.png",
-    }
-
-    # these should not set the line style cause they can appear at any elevation
-
-    OBJECTIVE_STYLE: TileStyle = {
-        "hatch":        "vertical lines",
-        "hatch_color":  "green",
-        "icon":         "obj.png",
-    }
-
-    OBSTACLE_STYLE: TileStyle = {
-        "hatch":       "crosshatch",
-        "hatch_color": "yellow", 
-        "postaction":  "postaction={draw, line width=3pt, yellow, dash pattern=on 2mm off 2mm, dash phase=0mm}",
-        "icon":         "obs.png",
-    }
-
-    TOKEN_STYLE: TileStyle = {
-        "hatch":       "horizontal lines",
-        "hatch_color": "purple", 
-        "icon":        "tkn.png",
-    }
-else:
-  print("unrecognised terrain stye")
-  exit()
-  
-
-
-STYLE_DICT = {
-    "e1" : ELEVATION_1_STYLE,
-    "e2" : ELEVATION_2_STYLE,
-    "e3" : ELEVATION_3_STYLE,
-    "im" : IMPASSIBLE_STYLE,
-    "obs": OBSTACLE_STYLE,
-    "obj": OBJECTIVE_STYLE,
-    "tkn": TOKEN_STYLE
-}
-
-# Extra border width (in pt) added to a tile edge per level of elevation *drop*
-# across that edge. A tile one level above its neighbour gets one increment of
-# wall; a tile three levels above ground (an e3 next to the card edge) gets the
-# thickest wall. This is what fakes the perspective onto a building's side.
-ELEVATION_WALL_PER_LEVEL_PT = 3.5
-
-# Which tile element codes count as elevation, and the height they represent.
-_ELEVATION_LEVELS = {"e1": 1, "e2": 2, "e3": 3}
-
-
-def _tile_elevation(elements: str) -> int:
-    """Return the elevation level (1-3) encoded in a tile's element string.
-
-    Tiles with no elevation code are ground level (0); the card edge is also
-    treated as ground level by the caller."""
-    toks = elements.split(" ")
-    return max((_ELEVATION_LEVELS.get(t, 0) for t in toks), default=0)
-
-# ---------------------------------------------------------------------------
-# Line-width conversion
-# ---------------------------------------------------------------------------
-# TikZ standard line widths in pt (from pgfmanual).
-_TIKZ_LW_PT: Dict[str, float] = {
-    "ultra thin":  0.1,
-    "very thin":   0.2,
-    "thin":        0.4,
-    "semithick":   0.6,
-    "thick":       0.8,
-    "very thick":  1.2,
-    "ultra thick": 1.6,
-}
-_PT_TO_CM = 0.03528   # 1 pt = 0.03528 cm
-
-
-def _thickness_to_cm(thickness: str) -> float:
-    """Convert a TikZ thickness keyword or 'Xpt' / 'Xcm' string to cm."""
-    t = thickness.split("=")[-1].strip().lower()
-    if t in _TIKZ_LW_PT:
-        return _TIKZ_LW_PT[t] * _PT_TO_CM
-    if t.endswith("cm"):
-        return float(t[:-2])
-    if t.endswith("pt"):
-        return float(t[:-2]) * _PT_TO_CM
-    if t.endswith("mm"):
-        return float(t[:-2]) * 0.1
-    # Fallback: treat as pt
-    try:
-        return float(t) * _PT_TO_CM
-    except ValueError:
-        return _TIKZ_LW_PT["thin"] * _PT_TO_CM
-
-
-
-# ---------------------------------------------------------------------------
-# Geometry helpers  (pointy-top / flat-sided hexagons)
-#
-# In this orientation every hexagon has a flat horizontal edge at top and
-# bottom, and pointed vertices on the left and right.
-#
-#   * Rows advance vertically:   y(c,r) = 3/2 * size * r
-#   * Even rows have no x-shift; odd rows shift right by sqrt(3)/2 * size
-#   * Columns advance:           x(c,r) = sqrt(3) * size * (c + 0.5*(r%2))
-#
-# Tiling periods:
-#   Tx = sqrt(3) * size * cols   (horizontal repeat)
-#   Ty = 3/2     * size * rows   (vertical repeat)
-# ---------------------------------------------------------------------------
-
-def hex_center(col: int, row: int, size: float, offset: Tuple[float,float]) -> Tuple[float, float]:
-    """Return the (x, y) centre of hex (col, row) in cm -- pointy-top / flat-sided."""
-    sq3 = math.sqrt(3)
-    x = sq3 * size * (col + 0.5 * (row % 2)) + offset[0]
-    y = size * 3/2 * row + offset[1]
-    return x, y
-
-
-def hex_corners(cx: float, cy: float, size: float) -> List[Tuple[float, float]]:
-    """Return the 6 corner (x, y) pairs of a pointy-top (flat-sided) hexagon.
-
-    Corners start at 30 deg so the top and bottom edges are horizontal."""
-    return [
-        (cx + size * math.cos(math.radians(30 + 60 * i)),
-         cy + size * math.sin(math.radians(30 + 60 * i)))
-        for i in range(6)
-    ]
-
-
-def inset_size(size: float, thickness: str) -> float:
-    lw_cm = _thickness_to_cm(thickness)
-    # For a regular hexagon, inset perpendicular to each edge by lw/2.
-    # The circumradius shrinkage needed = (lw/2) / sin(pi/6) = lw/2 / 0.5 = lw.
-    # (pi/6 = 30 deg is the half-angle at each vertex of a regular hexagon.)
-    return size - lw_cm/2
-
-def inset_size_square(cx: float, cy:float, size: float, thickness: str) -> float:
-    lw_cm = _thickness_to_cm(thickness)
-    return cx + lw_cm/2, cy + lw_cm/2, size - lw_cm
-
-def square_center(col: int, row: int, size: float, offset: Tuple[float,float]) -> Tuple[float, float]:
-    """Return the (x, y) centre of square (col, row) in cm """
-    x = size * col + offset[0]
-    y = size * row + offset[1]
-    return x, y
-
-def create_square(cx: float, cy: float, size: float) -> str:
-    return f"({cx},{cy}) rectangle ++({size},{size})"
-
-# ---------------------------------------------------------------------------
-# LaTeX / TikZ generation
-# ---------------------------------------------------------------------------
- 
-def _coord_str(corners: List[Tuple[float, float]]) -> str:
-    return " -- ".join(f"({x:.4f},{y:.4f})" for x, y in corners) + " -- cycle"
- 
-
-def _tikz_hex_lines(col: int, row: int, size: float, s: TileStyle, offset: Tuple[float,float]) -> List[str]:
-    """Return the TikZ lines that draw one hexagon.
-
-    The stroke path uses an inset circumradius so the border is drawn
-    entirely inside the nominal hex boundary
-    """
-    cx, cy = hex_center(col, row, size, offset)
-
-    thickness  = _first_valid(s["thickness"],   DEFAULT_STYLE["thickness"])
-    color      = _first_valid(s["color"],        DEFAULT_STYLE["color"])
-    fill       = _first_valid(s.get("fill",       "none"), "none")
-    postaction = _first_valid(s.get("postaction", ""),     "")
-
-    # Full-size path for fill/hatch (covers the whole cell)
-    cs_full  = _coord_str(hex_corners(cx, cy, size))
-    # Inset path for the stroke (border stays inside the cell)
-    r_inset  = inset_size(size, thickness)
-    cs_inset = _coord_str(hex_corners(cx, cy, r_inset))
-
-    draw_opts = [thickness, f"draw={color}", "fill opacity=0.5", postaction]
-
-    hatch_val = s.get("hatch", "")
-    hatches   = hatch_val if isinstance(hatch_val, list) else ([hatch_val] if hatch_val else [])
-    hc_val    = s.get("hatch_color", "")
-    hatch_colors = hc_val if isinstance(hc_val, list) else [hc_val] * len(hatches)
-
-    lines: List[str] = []
-
-    if hatches:
-        if fill != "none":
-            lines.append(f"  \\fill[fill={fill}, fill opacity=0.5] {cs_full};")
-        for hatch, hc in zip(hatches, hatch_colors):
-            lines.append(f"  \\fill[pattern={hatch}, fill opacity=0.5, pattern color={hc or color}] {cs_full};")
-    else:
-        draw_opts.append(f"fill={fill}")
-
-    # icons
-    icon_val = s.get("icon", "")
-    icons = icon_val if isinstance(icon_val, list) else ([icon_val] if icon_val else [])
-    hoffset = terrain_iconwidth_value / 2 + _thickness_to_cm(thickness)
-    voffset = terrain_iconwidth_value / 2 + _thickness_to_cm(thickness)
-    for icon in icons:
-        lines.append(f'    \\node at({cx + size/2 - hoffset}, {cy + voffset})' + '{\\includegraphics[' + terarin_iconwidth + ']{' + icons_folder + icon + '}};\n')
-        hoffset += terrain_iconwidth_value
-
-    lines.append(f"  \\draw[{', '.join(draw_opts)}] {cs_inset};")
-    return lines
-
-
-
-def _tikz_square_lines(col: int, row: int, size: float, s: TileStyle, offset: Tuple[float,float],
-                       side_drops: Optional[Dict[str, int]] = None) -> List[str]:
-    """Return the TikZ for the given tile.
-
-    ``side_drops`` maps 'bottom'/'top'/'left'/'right' to the number of elevation
-    levels this tile stands *above* the neighbour across that edge (0 if the
-    neighbour is level or higher). Edges with a positive drop are drawn as a
-    thicker wall so the tile reads like a building seen from above.
-    """
-    if side_drops is None:
-        side_drops = {}
-    cx, cy = square_center(col, row, size, offset)
-
-    thickness  = _first_valid(s["thickness"],   DEFAULT_STYLE["thickness"])
-    color      = _first_valid(s["color"],        DEFAULT_STYLE["color"])
-    fill       = _first_valid(s.get("fill",       "none"), "none")
-    postaction = _first_valid(s.get("postaction", ""),     "")
-
-    # Full-size path for fill/hatch (covers the whole cell)
-    cs_full  = create_square(cx, cy, size)
-    # Inset path used for any dashed postaction outline (kept at base width)
-    cx_inset, cy_inset, r_inset  = inset_size_square(cx, cy, size, thickness)
-    cs_inset = create_square(cx_inset, cy_inset, r_inset)
-
-    hatch_val = s.get("hatch", "")
-    hatches   = hatch_val if isinstance(hatch_val, list) else ([hatch_val] if hatch_val else [])
-    hc_val    = s.get("hatch_color", "")
-    hatch_colors = hc_val if isinstance(hc_val, list) else [hc_val] * len(hatches)
-
-    lines: List[str] = []
-
-    # Fill / hatch first, so the borders sit on top of it.
-    if fill != "none":
-        lines.append(f"  \\fill[fill={fill}, fill opacity=0.5] {cs_full};")
-    for hatch, hc in zip(hatches, hatch_colors):
-        lines.append(f"  \\fill[pattern={hatch}, fill opacity=0.5, pattern color={hc or color}] {cs_full};")
-
-    # Borders, drawn one edge at a time so each side can carry its own width.
-    # base_pt is the tile's normal border width; drop edges add scaled walls.
-    base_pt = _thickness_to_cm(thickness) / _PT_TO_CM
-    # (p1, p2, inward-unit-vector) for each named edge, corners bottom-left origin.
-    edges = {
-        "bottom": ((cx,        cy),        (cx + size, cy),        (0.0,  1.0)),
-        "top":    ((cx,        cy + size), (cx + size, cy + size), (0.0, -1.0)),
-        "left":   ((cx,        cy),        (cx,        cy + size), (1.0,  0.0)),
-        "right":  ((cx + size, cy),        (cx + size, cy + size), (-1.0, 0.0)),
-    }
-    for name, (p1, p2, (dx, dy)) in edges.items():
-        drop = side_drops.get(name, 0)
-        edge_pt = base_pt + drop * ELEVATION_WALL_PER_LEVEL_PT
-        inset = (edge_pt * _PT_TO_CM) / 2  # keep the stroke inside the cell
-        x1, y1 = p1[0] + dx * inset, p1[1] + dy * inset
-        x2, y2 = p2[0] + dx * inset, p2[1] + dy * inset
-        lines.append(f"  \\draw[line width={edge_pt:.2f}pt, draw={color}] "
-                     f"({x1:.4f},{y1:.4f}) -- ({x2:.4f},{y2:.4f});")
-
-    # Preserve any dashed postaction outline (e.g. obstacles).
-    if postaction:
-        lines.append(f"  \\path[{postaction}] {cs_inset};")
-
-    lines.append("")
-    # icons
-    icon_val = s.get("icon", "")
-    icons = icon_val if isinstance(icon_val, list) else ([icon_val] if icon_val else [])
-    hoffset = terrain_iconwidth_value / 2 + _thickness_to_cm(thickness)
-    voffset = terrain_iconwidth_value / 2 + _thickness_to_cm(thickness)
-    for icon in icons:
-        lines.append(f'    \\node at({cx + size - hoffset}, {cy + voffset})' + '{\\includegraphics[' + terarin_iconwidth + ']{' + icons_folder + icon + '}};\n')
-        hoffset += terrain_iconwidth_value
-        if hoffset > size - terrain_iconwidth_value / 2 + _thickness_to_cm(thickness):
-            hoffset = terrain_iconwidth_value / 2 + _thickness_to_cm(thickness)
-            voffset += terrain_iconwidth_value
-
-    return lines
-
-
-def create_terrain_card(row):
-    """populates the terrain including correct borders"""
-    with open(terrianoutputfolder + row["Name"] + '.tex', 'w') as ofile:
-        #load the background image
-        terrain_text = "\\begin{tikzpicture}[backbox/.style= {rectangle, minimum height = 8.9cm," \
-                + " minimum width =6.35cm, rounded corners = 0.3cm, fill=white, opacity=0.75}]\n "
-        terrain_text += "\\node [rectangle, minimum width = 6.4cm, minimum height = 8.7cm, fill=black!10!white!90] at (3.25,4.5){};\n"
-        terrain_text += '\\node [opacity=0.6] at (3.25,4.45){\\includegraphics[width=6.35cm, max height = 8.85cm,' +\
-                'keepaspectratio]{' + terrain_images_folder + row["CardImg"] + '}};\n'
-
-        # terrain card size
-        cols = 3
-        rows = 4
-        hex_size = 2.06 #cm - diameter
-
-        hoffset = 0.1
-        voffset = 0.2
-
-        # superimpose the grid
-        # put height/terrain information in where relevant (borders?)
-        # col_range = range(-1, cols + 1)
-        # row_range = range(-1, rows + 1)
-        col_range = range(0, cols)
-        row_range = range(0, rows)
-
-        # Elevation of each in-grid tile; anything off the card is ground (0).
-        def elev_at(cc: int, rr: int) -> int:
-            if 0 <= cc < cols and 0 <= rr < rows:
-                return _tile_elevation(row[f"tile_{rr}_{cc}"])
-            return 0
-
-        hex_lines: List[str] = []
-        for c in col_range:
-            for r in row_range:
-                style = dict(DEFAULT_STYLE)
-                if 0 <= c < cols and 0 <= r < rows:
-                    for element in row[f"tile_{r}_{c}"].split(" "):
-                        _merge_style(style, STYLE_DICT.get(element, {}))
-                # Thicken the edges that look down onto lower neighbours, scaled
-                # by how far the drop is, to fake perspective onto building sides.
-                e = elev_at(c, r)
-                side_drops = {
-                    "bottom": max(e - elev_at(c,     r - 1), 0),
-                    "top":    max(e - elev_at(c,     r + 1), 0),
-                    "left":   max(e - elev_at(c - 1, r),     0),
-                    "right":  max(e - elev_at(c + 1, r),     0),
-                }
-                # hex_lines.append("\n".join(_tikz_hex_lines(c, r + 1, hex_size, style, (hoffset, voffset))))
-                hex_lines.append("\n".join(_tikz_square_lines(c, r, hex_size, style, (hoffset, voffset), side_drops)))
-
-
-        inner_body = "\n".join(hex_lines)
-
-        # TODO - add this clipping to every card
-        clip_line = f"  \\clip ({hoffset},{voffset}) rectangle (6.4, 8.9);"
-        terrain_text += "\\begin{scope}\n" + clip_line + "\n" + inner_body + "\n" + "\\end{scope}\n"
-        
-        # add rules text if extant (probably an objective card)
-
-        if row["Rules"]:
-            terrain_text += "\\node[rectangle, fill = white, opacity = 0.75, minimum height =1.8cm, rounded corners = 0.3cm, " \
-                    + "text width = 3.1cm]  at (4.6, 2.1){\\footnotesize{" + row['Rules'] +"}};\n"
-
-
-        # add objective information symbols
-        if int(row["Attack Points"]):
-            terrain_text += '\\node at(1, 8.2){\\includegraphics[' + iconwidth + ']{' + icons_folder + atkpointsImg + '}};\n'
-            terrain_text += "\\node at (1, 8.2){\\Large{\\textbf{" + row['Attack Points'] +"}}};\n"
-        if int(row["Defend Points"]):
-            terrain_text += '\\node at(2, 8.2){\\includegraphics[' + iconwidth + ']{' + icons_folder + defpointsImg + '}};\n'
-            terrain_text += "\\node at (2, 8.2){\\Large{\\textbf{" + row['Defend Points'] +"}}};\n"
-        if int(row["Tokens"]):
-            terrain_text += '\\node at(3, 8.2){\\includegraphics[' + iconwidth + ']{' + icons_folder + tokensImg + '}};\n'
-            terrain_text += "\\node at (3, 8.2){\\large{\\textbf{" + row['Tokens'] +"}}};\n"
-
-
-        #finish the tikzpicture
-        terrain_text += "\\end{tikzpicture}\n"
-
-        ofile.write(terrain_text)
-        return terrain_text + "~"
 
 
 def create_flipped(frame):

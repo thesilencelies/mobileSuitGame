@@ -132,7 +132,9 @@
       "Bash(convert pg-08.png -crop 100%x22%+0+52% +repage tab08.png)",
       "Bash(identify tab08.png)",
       "Bash(python generate_all_decks.py --skip-individual)",
-      "Bash(echo \"exit $?\")"
+      "Bash(echo \"exit $?\")",
+      "Bash(grep -n \"^# Types$\\\\|^# ---\\\\|^def create_terrain_card\\\\|^def create_flipped\" /home/stephen/mobileSuitGame/generateCards.py)",
+      "Bash(python3 generate_all_decks.py --skip-individual)"
     ],
     "additionalDirectories": [
       "/tmp/cardtest",
