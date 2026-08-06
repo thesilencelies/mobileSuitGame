@@ -605,17 +605,17 @@ The priority marker then moves one step anticlockwise.
     \par A ranged Weapon Card
 \end{figure*}
 
-\begin{figure*}[!ht]
-  \centering
-    \resizebox{\textwidth}{!}{\input{../build/rules_weapon_melee.tex}}
-    \par A melee Weapon Card
-\end{figure*}
-
 % \begin{figure*}[!ht]
 %   \centering
-%     \resizebox{\textwidth}{!}{\input{../build/rules_weapon_superblock.tex}}
-%     \par A Weapon Card with a super block (note the doubled shield outline)
+%     \resizebox{\textwidth}{!}{\input{../build/rules_weapon_melee.tex}}
+%     \par A melee Weapon Card
 % \end{figure*}
+
+\begin{figure*}[!ht]
+  \centering
+    \resizebox{\textwidth}{!}{\input{../build/rules_weapon_superblock.tex}}
+    \par A Weapon Card with a super block
+\end{figure*}
 
 \begin{figure*}[!ht]
     \centering
@@ -985,6 +985,12 @@ Deployment zones are 7 units away from the center line.
 Art: Goodboy
 TTS: Chara
 
+\section{AI usage}
+AI was used to assist in the creation of the software tools used for card layout, simulation  and diagrams.
+All rules, card design, art and text is fully human authored. We haven't surrendered our humanity to the 
+entities of the Net yet.
+
+
 % ===========================================================================
 % Quick reference (one page). \twocolumn[..] forces a fresh page and a
 % full-width spanning header, then resumes the two-column body.
@@ -1009,21 +1015,26 @@ TTS: Chara
 \qhead{Turn structure}
 Each turn: \textbf{Planning} $\to$ \textbf{Action} $\to$ \textbf{Cleanup}.
 \begin{qreflist}
-\item \textbf{Planning} (simultaneous): per frame, draw 7 ($\pm$ status), keep 2 face-down.
-  \begin{qreflist}\item then remove one of each status counter.\end{qreflist}
+\item \textbf{Planning} (simultaneous), per frame:
+\begin{qreflist}
+  \item  draw 7 ($\pm$ status)
+  \item choose 2 face-down
+  \item discard others
+  \item remove one of each status counter.
+\end{qreflist}
 \item \textbf{Action}: resolve by initiative, highest first.
   \begin{qreflist}
   \item ties: alternate clockwise from the priority marker;
-  \item each card $=$ Movement, Effect, Attack (move first \emph{or} last).
+  \item each card $=$ Movement, Effect, Attack in any order.
   \end{qreflist}
-\item \textbf{Cleanup}: discard non-persistence cards; set active persistence cards aside.
+\item \textbf{Cleanup}: discard non-persistent cards; set active persistent cards aside.
   \begin{qreflist}\item priority marker $\to$ one step anticlockwise.\end{qreflist}
 \end{qreflist}
 
 \qhead{Movement}
 \begin{qreflist}
 \item Base movement $+$ card modifier, any direction.
-\item Climb: 1 per elevation, no stopping mid-climb.
+\item Climb: 1 extra per elevation, no stopping mid-climb.
 \item Descend: free.
 \item Cannot cross obstacles or impassable tiles.
 \end{qreflist}
@@ -1036,7 +1047,7 @@ Each turn: \textbf{Planning} $\to$ \textbf{Action} $\to$ \textbf{Cleanup}.
   \item ranged $\to$ not adjacent $+$ line of sight.
   \end{qreflist}
 \item Multi-range attack: only in-range zones count.
-\item Defender \textbf{must} block if a remaining card can --- see \emph{Blocking}.
+\item Defender \textbf{must} block if a remaining card can.
 \item Unblocked: 1 damage per mark; attacker's card stays out (can block later).
 \item Melee vs elevation: shift zones 1 per level (lower $\to$ down, higher $\to$ up); off High/Low $=$ out of range. Ranged unaffected.
 \end{qreflist}
@@ -1044,7 +1055,7 @@ Each turn: \textbf{Planning} $\to$ \textbf{Action} $\to$ \textbf{Cleanup}.
 \qhead{Blocking}
 \begin{qreflist}
 \item \textbf{Compulsory}: if a remaining card blocks \emph{any} attacked zone, you must block.
-\item One block stops the \emph{whole} attack --- every zone, even ones it doesn't cover.
+\item One block stops the \emph{whole} attack; every zone, even ones it doesn't cover.
 \item The blocking card is discarded afterwards (a \emph{super block} is kept).
 \end{qreflist}
 \par\smallskip
@@ -1101,7 +1112,7 @@ Each turn: \textbf{Planning} $\to$ \textbf{Action} $\to$ \textbf{Cleanup}.
   \item an obstacle next to the target;
   \item higher terrain next to the target.
   \end{qreflist}
-\item A frame's tile counts as \textbf{one elevation higher} --- frames block sight like raised terrain.
+\item A tile with a frame on it counts as \textbf{one elevation higher}.
 \end{qreflist}
 
 \qhead{Status effects}

@@ -161,7 +161,9 @@ MOVE_CHEVRON_W = 0.93
 CHEVRON_HALF_H = (NAME_H_CM / 2) / card_scale
 
 # Zone boxes (right column). Physical sizes in cm; centres in tikz units.
-ZONE_CX = 6.4
+# Nudged left of the art centre so the wider super-block marker (see
+# \superblock in card_macros.tex) does not spill past the card's right edge.
+ZONE_CX = 6.12
 ZONE_W_CM = 1.65
 ZONE_H_CM = 1.35
 # Half extents expressed in tikz units (physical cm / card_scale) for drawing
@@ -244,15 +246,37 @@ def createMacros():
         # the super-block variant is composed in Python (block_shield_outline)
         # from these plus two concentric outline strokes.
         card_text += (
-            "\n\\newcommand{\\blockshieldpath}[4]{"
+            # Two distinct block markers, both parameterised by centre (#1,#2)
+            # and half-width/half-height (#3,#4) so they fit any zone box.
+            #  * normal block: horizontal top, vertical sides, pointed bottom.
+            #  * super block : a notched shield (top V-notch, inward sides,
+            #                  pointed bottom) plus a concentric inner line.
+            # They share the pointed-bottom family but read very differently.
+            "\n\\newcommand{\\normalblockpath}[4]{"
+            "(#1-#3,#2+#4) -- (#1+#3,#2+#4) -- (#1+#3,#2-0.35*#4) -- "
+            "(#1,#2-#4) -- (#1-#3,#2-0.35*#4) -- cycle}\n"
+            "\\newcommand{\\superblockpath}[4]{"
             "(#1-#3,#2+#4) -- (#1,#2+0.66*#4) -- (#1+#3,#2+#4) -- "
             "(#1+0.8*#3,#2-0.35*#4) -- (#1,#2-#4) -- (#1-0.8*#3,#2-0.35*#4) -- cycle}\n"
-            "\\newcommand{\\blockshieldfill}[5]{\\fill[#3!25, fill opacity=0.6, rounded corners=0.08cm] "
-            "\\blockshieldpath{#1}{#2}{#4}{#5};}\n"
-            "\\newcommand{\\blockshieldline}[5]{\\draw[draw=#3, line width=4.5pt, "
-            "rounded corners=0.1cm] \\blockshieldpath{#1}{#2}{#4}{#5};}\n"
-            "\\newcommand{\\blockshield}[5]{\\blockshieldfill{#1}{#2}{#3}{#4}{#5}"
-            "\\blockshieldline{#1}{#2}{#3}{#4}{#5}}\n"
+            # A thick black outline is stroked first so it sits *behind* the
+            # fill and the coloured outline, leaving a clean black rim.
+            "\\newcommand{\\normalblock}[5]{"
+            "\\draw[draw=black, line width=7pt, line join=round, rounded corners=0.06cm] \\normalblockpath{#1}{#2}{#4}{#5};"
+            "\\fill[#3!25, fill opacity=0.6, rounded corners=0.06cm] \\normalblockpath{#1}{#2}{#4}{#5};"
+            "\\draw[draw=#3, line width=4.5pt, rounded corners=0.06cm] \\normalblockpath{#1}{#2}{#4}{#5};}\n"
+            # The super block is drawn a little wider than a normal block and
+            # its inner emphasis line is thickened so it clearly stands apart.
+            "\\newcommand{\\superblock}[5]{"
+            "\\pgfmathsetmacro{\\sbw}{#4*1.3}"
+            "\\draw[draw=black, line width=7pt, line join=round, rounded corners=0.08cm] \\superblockpath{#1}{#2}{\\sbw}{#5};"
+            "\\fill[#3!25, fill opacity=0.6, rounded corners=0.08cm] \\superblockpath{#1}{#2}{\\sbw}{#5};"
+            "\\draw[draw=#3, line width=4.5pt, rounded corners=0.1cm] \\superblockpath{#1}{#2}{\\sbw}{#5};"
+            "\\pgfmathsetmacro{\\sbiw}{\\sbw-0.22}\\pgfmathsetmacro{\\sbih}{#5-0.22}"
+            "\\draw[draw=#3!55!black, line width=3.5pt, rounded corners=0.08cm] \\superblockpath{#1}{#2}{\\sbiw}{\\sbih};}\n"
+            # Fixed-size 3-arg wrappers (centre + colour) so the rules document
+            # draws its block markers from exactly the same shapes as the cards.
+            "\\newcommand{\\blockshield}[3]{\\normalblock{#1}{#2}{#3}{0.9}{1.0}}\n"
+            "\\newcommand{\\superblockshield}[3]{\\superblock{#1}{#2}{#3}{0.9}{1.0}}\n"
         )
 
         for t, img in damage_type_dict.items():
@@ -421,25 +445,17 @@ def estimated_text_len(text):
 
 
 def block_shield_outline(cx, cy, color, half_w, half_h, super_block=False):
-    """Shield-shaped background+outline for a blocked zone, drawn in place of the
-    plain zone rectangle so a block reads as covering the whole zone. When
-    ``super_block`` is set (a block value greater than 1) two concentric darker
-    outline strokes are added around the base shield.
+    """Background+outline for a blocked zone, drawn in place of the plain zone
+    rectangle so a block reads as covering the whole zone. A normal block uses
+    the flat-topped \\normalblock marker; a super block (a block value greater
+    than 1) uses the notched \\superblock shield, which is visibly distinct.
 
-    The shield shape lives in the \\blockshieldpath / \\blockshield macros in
-    card_macros.tex so cards and the rules reference draw an identical marker.
-    It is fitted to the zone box: centre (cx,cy), half-width/half-height in tikz
-    units, a shallow top V-notch and a pointed bottom, all kept inside the box."""
-    if not super_block:
-        return f"\\blockshield{{{cx}}}{{{cy}}}{{{color}}}{{{half_w:.3f}}}{{{half_h:.3f}}}\n"
-    # super block: the same shield plus a concentric inner outline, both kept
-    # inside the box (no outer stroke that would spill into the zone below)
-    iw, ih = half_w - 0.16, half_h - 0.16
-    return (
-        f"\\blockshield{{{cx}}}{{{cy}}}{{{color}}}{{{half_w:.3f}}}{{{half_h:.3f}}}"
-        f"\\draw[draw={color}!55!black, line width=2.4pt, rounded corners=0.08cm] "
-        f"\\blockshieldpath{{{cx}}}{{{cy}}}{{{iw:.3f}}}{{{ih:.3f}}};\n"
-    )
+    Both markers live in card_macros.tex (\\normalblock / \\superblock, built on
+    \\normalblockpath / \\superblockpath) so the cards and the rules reference
+    draw from exactly the same shapes. Each is fitted to the zone box: centre
+    (cx,cy), half-width/half-height in tikz units, all kept inside the box."""
+    macro = "\\superblock" if super_block else "\\normalblock"
+    return f"{macro}{{{cx}}}{{{cy}}}{{{color}}}{{{half_w:.3f}}}{{{half_h:.3f}}}\n"
 
 def attack_box(atk, rng, block, cy, dmg_type, color, cx=ZONE_CX,
                half_w=ZONE_HALF_W, half_h=ZONE_HALF_H):
@@ -840,6 +856,7 @@ def make_card_from_row(row, card_type, group_capability=None, annotate=False, an
         # Anchored by its bottom edge (fixed) and grown upward. A pilot's box
         # rises into the space freed by its half-height Low zone; a weapon/drone
         # box stops just below the full-height Low zone so it never overlaps it.
+        rules_opacity = 0.7
         if is_pilot:
             rules_h = 3.0
             text_font = "\\small"
@@ -848,7 +865,12 @@ def make_card_from_row(row, card_type, group_capability=None, annotate=False, an
             # weapons/drones share the bottom band with the zone column above, so
             # the box height is capped; a smaller font keeps busy cards inside it
             text_font = "\\scriptsize" if estimated_text_len(row["Text"]) > 100 else "\\footnotesize"
-        card_text += (f"\\node (rulesbox)[anchor=south, rectangle, fill=black!10!white, fill opacity=0.6, draw=black!40, rounded corners={rc()}, "
+        
+        if not row["Text"]:
+            # make rules box invisible
+            rules_opacity = 0
+
+        card_text += (f"\\node (rulesbox)[anchor=south, rectangle, fill=black!10!white, opacity={rules_opacity}, draw=black!40, rounded corners={rc()}, "
                       f"minimum width={RULES_W_CM}cm, minimum height={rules_h}cm] at (4.0, {RULES_BOTTOM}){{}};\n")
 
         # faction logo watermark sits above the box fill but behind the text

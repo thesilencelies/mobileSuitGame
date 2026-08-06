@@ -72,6 +72,29 @@ Key columns: `Name`, `Group`, `Initiative`, `Movement`, `High/Mid/Low Attack+Blo
 
 **Terrain tile codes:** `e1`/`e2`/`e3` (elevation), `im` (impassable), `obs` (obstacle), `obj` (objective), `tkn` (token)
 
+## Build-system gotchas (non-obvious)
+
+These bit us before; read before changing card layout or the rules.
+
+### `build/card_macros.tex` is generated *and* shared with the rules
+`generateCards.py`'s `createMacros()` writes `build/card_macros.tex` (colour defs, damage-type icon macros, the block-shield markers). It is `\input` by the generated card documents **and** by the hand-written `rules/rules.tex` (`\input{../build/card_macros.tex}`). Consequences:
+- **Run `python generateCards.py` before building `rules/rules.tex`.** The rules will not compile if `card_macros.tex` is missing or stale — that's the usual cause of a broken rules build.
+- **Shared visuals live only in `createMacros()`**, never duplicated in the rules, so the two can't drift. Anything the rules and cards must draw identically (icons, block markers, colours) belongs there.
+- **Block markers are the canonical source of truth.** `\normalblock` / `\superblock` (built on `\normalblockpath` / `\superblockpath`) draw the two block shapes; `block_shield_outline()` in Python just emits those macros for cards. `super_block` = a `Block` value > 1. The super block is drawn wider than a normal block and its shape/size are tuned via constants in the macro (width scale factor) and `ZONE_CX` (nudged left so the wider marker clears the card's right edge).
+- **Arity trap:** cards call the **5-arg** `\normalblock`/`\superblock` (`{cx}{cy}{colour}{half_w}{half_h}`); the rules call the **3-arg** wrappers `\blockshield`/`\superblockshield` (`{cx}{cy}{colour}`), which invoke the 5-arg macros at a fixed size and let the rules `\resizebox` them. Keep both aritys working — a call-site with the wrong count silently eats following tokens (e.g. `\end{tikzpicture}`) and yields a confusing error far away.
+
+### Annotated "rules-reference" cards reuse the real layout code
+The labelled cards in `RulesImages/` / the rules doc are produced by the *same* `make_card_from_row(..., annotate=True)` / `create_frame_sheet(..., annotate=True)` as the printed cards, with two twists:
+- **Bounding box / clip is annotate-gated.** With `annotate=False` each card pins its bounding box and clips to the `cardbg` rectangle (`\useasboundingbox` + `\clip`) so nothing spills onto the sheet and every card is exactly the same size. With `annotate=True` that is deliberately skipped so leader lines can extend into the margins. If cards ever misalign on a sheet, something is drawing outside `cardbg` before the clip.
+- **Callouts aim at named nodes/coords.** `WEAPON_CALLOUTS` / `PILOT_CALLOUTS` / `DRONE_CALLOUTS` / `FRAME_CALLOUTS` are lists of dicts whose `aim` references TikZ names the layout emits (`nameplate`, `initbox`, `movebox`, `setinfo`, and the zone `\coordinate`s `atk_aim` / `block_aim` / `superblock_aim` / `range_aim`, written at the zone's right edge `ZONE_CX + ZONE_HALF_W`). Those targets exist only when the element was drawn, so `make_card_from_row` builds a `present` set and `_render_callouts()` filters to it. **Rename or stop emitting a node → update the matching callout `aim`**, or the reference card fails to build.
+- `_render_callouts()` appends `.east` / `.west` to the aim based on each callout's `side`, so the leader lands on the element edge nearest the card edge and doesn't cross the thing it labels.
+
+### Coordinate system
+Card tikzpictures use `[x=0.86cm, y=0.86cm]` (`card_scale`). **Node `minimum width`/`minimum height` are physical cm (unaffected by the x/y unit scaling); path/`\coordinate` positions are in scaled tikz units.** Convert physical→tikz by dividing by `card_scale` (that's why e.g. `ZONE_HALF_W = (ZONE_W_CM / 2) / card_scale`). Mixing the two is the usual source of "box is the wrong size / overlaps its neighbour" bugs.
+
+### Working directory for `pdflatex`
+Generated card docs reference assets with `../` relative to `build/`, so compile them **from `build/`**. `rules/rules.tex` uses `../build/...` and is compiled **from `rules/`**. Running `pdflatex` from the repo root will fail to find inputs.
+
 ## Asset directories
 
 - `pictures/` — card images; subdirs: `backgrounds/`, `foreground/`, `weapons/`, `weapon_pictures/`, `booster_pictures/`
