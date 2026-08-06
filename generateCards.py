@@ -168,6 +168,21 @@ ZONE_HALF_H = (ZONE_H_CM / 2) / card_scale
 # lines up with the top of the art, the Low box's bottom with the bottom.
 ZONE_CY = {"High": ART_TOP - ZONE_HALF_H, "Low": ART_BOT + ZONE_HALF_H}
 ZONE_CY["Mid"] = (ZONE_CY["High"] + ZONE_CY["Low"]) / 2
+
+# Frame armour bars / loadout boxes reuse the zone *heights* (vertical alignment
+# with the attack-card zones is what matters) but not the leftward ZONE_CX nudge:
+# frames have no super-block markers, so that extra right-edge clearance isn't
+# needed. Give them their own X centre whose gap to the card edge is half the
+# (wider) zone gap, so they sit further right without spilling.
+CARD_RIGHT = 4 + (6.2 / card_scale) / 2
+FRAME_ZONE_CX = CARD_RIGHT - ZONE_HALF_W - (CARD_RIGHT - (ZONE_CX + ZONE_HALF_W)) / 2
+# Frame ability box (bottom-left) + loadout column geometry. The full-card art
+# region, the three loadout boxes and the ability box all reference these so the
+# loadout column lines up vertically with the ability box.
+ABIL_CX, ABIL_W_CM, ABIL_H_CM = 2.86, 4.1, 2.0
+ABIL_BOTTOM_Y = 1.05
+ABIL_TOP_Y = ABIL_BOTTOM_Y + ABIL_H_CM / card_scale
+
 # Pilot cards show a High block and normal Mid box, but a half-height Low box so
 # the rules box can rise higher into the freed space.
 PILOT_LOW_H_CM = ZONE_H_CM / 2
@@ -467,7 +482,7 @@ def attack_box(atk, rng, block, cy, dmg_type, color, cx=ZONE_CX,
     h_cm = half_h * 2 * card_scale
 
     if block:
-        out_text += block_shield_outline(cx, cy, color, half_w, half_h, super_block=block > 1)
+        out_text += block_shield_outline(cx, cy, color, half_w, half_h*0.9, super_block=block > 1)
     else:
         fill = f"{color}!20" if atk else "black!10!white"
         out_text += (f"\\node[rectangle, draw=black!45, fill={fill}, fill opacity=0.6, rounded corners={rc()}, "
@@ -802,9 +817,9 @@ PILOT_CALLOUTS = [
 # frame_ability/loadout heights mirror the literal positions create_frame_sheet
 # draws them at (fac_y, the ability box's centre, and stat_ys[1]).
 FRAME_CALLOUTS = [
-    {"y": 9.14, "side": "left",  "title": "Faction Logo",
+    {"y": NAME_CY, "side": "left",  "title": "Faction Logo",
      "desc": "", "aim": "(frame_logo)"},
-    {"y": 1.05 + (2.0 / card_scale) / 2, "side": "left",  "title": "Abilities",
+    {"y": (ABIL_BOTTOM_Y + ABIL_TOP_Y) / 2, "side": "left",  "title": "Abilities",
      "desc": "", "aim": "(frame_ability)"},
     {"y": 0.5, "side": "left",  "title": "Flavour",
      "desc": "", "aim": "(setinfo)"},
@@ -818,7 +833,7 @@ FRAME_CALLOUTS = [
      "desc": "Mid-zone health.", "aim": "(armor_mid)"},
     {"y": ZONE_CY["Low"], "side": "right", "title": "Low armour",
      "desc": "Low-zone health.", "aim": "(armor_low)"},
-    {"y": 2.30, "side": "right", "title": "Loadout",
+    {"y": (ABIL_BOTTOM_Y + ABIL_TOP_Y) / 2, "side": "right", "title": "Loadout",
      "desc": "Weapon / booster slots and deck size.", "aim": "(loadout)"},
 ]
 
@@ -1089,18 +1104,29 @@ def create_frame_sheet(frame, annotate=False, annotate_outfile=None):
         if not annotate:
             frame_text += "\\useasboundingbox (cardbg.south west) rectangle (cardbg.north east);\n"
             frame_text += "\\clip (cardbg.south west) rectangle (cardbg.north east);\n"
-        frame_text += (f"\\node (artbox)[rectangle, fill=white, draw=black!40, rounded corners={rc()}, "
-                       f"minimum width={ART_W_CM}cm, minimum height={ART_H_CM}cm] at ({ART_CX}, {ART_CY}){{}};\n")
+        # full-card art: spans from just below the name plate down to the bottom
+        # of the ability box, full width (as on the action cards). The armour
+        # zones, loadout boxes and ability box are drawn over it at reduced
+        # opacity so the art shows through behind them.
+        art_top_y = NAME_CY - (NAME_H_CM / 2) / card_scale
+        art_bot_y = ABIL_BOTTOM_Y  # bottom edge of the ability box
+        art_cy_full = (art_top_y + art_bot_y) / 2
+        art_h_full = (art_top_y - art_bot_y) * card_scale  # region height in cm
+        card_left = 4 - (6.2 / card_scale) / 2
+        card_right = 4 + (6.2 / card_scale) / 2
         frame_text += "\\begin{scope}\n"
-        frame_text += f"\\clip[rounded corners={rc()}] ($(artbox.south west)+(0.03,0.03)$) rectangle ($(artbox.north east)+(-0.03,-0.03)$);\n"
+        frame_text += (f"\\clip ({card_left:.3f}, {art_bot_y:.3f}) rectangle "
+                       f"({card_right:.3f}, {art_top_y:.3f});\n")
+        # background layer fills the whole card width (cover; cropped by the scope)
         if frame.get("BackgroundLayer"):
-            frame_text += (f'\\node at ({ART_CX},{ART_CY}){{\\includegraphics[width={ART_W_CM}cm,'
+            frame_text += (f'\\node at (4,{art_cy_full:.3f}){{\\includegraphics[width=6.2cm,'
                            ' keepaspectratio]{' + frame_images_folder + frame["BackgroundLayer"] + '}};\n')
-        frame_text += (f'\\node at ({ART_CX},{ART_CY}){{\\includegraphics[width={ART_W_CM - 0.1:.2f}cm, max height={ART_H_CM - 0.1:.2f}cm,'
-                       ' keepaspectratio]{' + frame_images_folder + frame["CardImg"] + '}};\n')
+        # the art itself is height-fitted to the region so it is never cut off
+        frame_text += (f'\\node at (4,{art_cy_full:.3f}){{\\includegraphics[width=6.2cm,'
+                       f' max height={art_h_full:.2f}cm, keepaspectratio]{{' + frame_images_folder + frame["CardImg"] + '}};\n')
         if frame.get("ForegroundImg"):
-            frame_text += (f'\\node at ({ART_CX},{ART_CY}){{\\includegraphics[width={ART_W_CM - 0.1:.2f}cm, max height={ART_H_CM - 0.1:.2f}cm,'
-                           ' keepaspectratio]{' + frame_images_folder + frame["ForegroundImg"] + '}};\n')
+            frame_text += (f'\\node at (4,{art_cy_full:.3f}){{\\includegraphics[width=6.2cm,'
+                           f' max height={art_h_full:.2f}cm, keepaspectratio]{{' + frame_images_folder + frame["ForegroundImg"] + '}};\n')
         frame_text += "\\end{scope}\n"
 
         # --- name plate + faction-logo box + movement chevron -----------------
@@ -1113,16 +1139,17 @@ def create_frame_sheet(frame, annotate=False, annotate_outfile=None):
             frame_text += "}\\\\\n\\small{\\emph{" + frame["Faction"] + "}"
         frame_text += "}};\n"
 
-        # faction logo in a box in the top-left corner (a little bigger than the
-        # initiative circle it stands in for), fully opaque. Its centre is nudged
-        # down/right of INIT_POS and its size kept modest so the (larger) box
-        # still sits a few pixels inside the top-left corner of the card.
-        fac_size = 1.2
-        fac_x, fac_y = 1.2, 9.14
+        # faction logo box in the top-left corner, standing in for the initiative
+        # circle. Sized and positioned exactly like the name plate (same height,
+        # centred on NAME_CY) so it aligns top-and-bottom with the name bar; the
+        # logo image is forced to fill that height.
+        fac_size = NAME_H_CM
+        fac_x, fac_y = INIT_POS[0], NAME_CY
         frame_text += (f"\\node[rectangle, rounded corners={rc()}, fill=white, draw=black!40, "
                        f"minimum size={fac_size}cm] (frame_logo) at ({fac_x}, {fac_y}){{}};\n")
         if frame["Faction"]:
-            frame_text += (f"\\node at ({fac_x}, {fac_y}){{\\includegraphics[width=1.0cm]{{"
+            frame_text += (f"\\node at ({fac_x}, {fac_y}){{\\includegraphics[height={fac_size - 0.2:.2f}cm, "
+                           f"max width={fac_size - 0.14:.2f}cm, keepaspectratio]{{"
                            + images_folder + logos_dict[frame["Faction"]] + "}};\n")
 
         # movement chevron (always yellow) in the top-right corner
@@ -1131,34 +1158,47 @@ def create_frame_sheet(frame, annotate=False, annotate_outfile=None):
                                    fontsize="\\LARGE", name="frame_move")
 
         # --- armour zones, aligned to the attack-card zones -------------------
-        frame_text += draw_armor_bars(int(frame["Top armour"]), ZONE_CX, ZONE_CY["High"], penalty="-1Init", name="armor_high")
-        frame_text += draw_armor_bars(int(frame["Side armour"]), ZONE_CX, ZONE_CY["Mid"], penalty="-1Crd", name="armor_mid")
-        frame_text += draw_armor_bars(int(frame["Low armour"]), ZONE_CX, ZONE_CY["Low"], penalty="-1Mv", name="armor_low")
+        frame_text += draw_armor_bars(int(frame["Top armour"]), FRAME_ZONE_CX, ZONE_CY["High"], penalty="-1Init", name="armor_high")
+        frame_text += draw_armor_bars(int(frame["Side armour"]), FRAME_ZONE_CX, ZONE_CY["Mid"], penalty="-1Crd", name="armor_mid")
+        frame_text += draw_armor_bars(int(frame["Low armour"]), FRAME_ZONE_CX, ZONE_CY["Low"], penalty="-1Mv", name="armor_low")
 
-        # --- loadout column (weapon / booster / deck) under the zones ---------
+        # --- loadout column (weapon / booster / deck) beside the ability box --
+        # The three boxes fill the same vertical span as the ability box and share
+        # its fill colour / opacity, so the column reads as part of the same panel.
         stat_rows = [(weaponImg, frame["Weapon Slots"]), (boosterImg, frame["Boosters"]),
                      (deckImg, frame["Deck size"])]
-        stat_ys = [3.02, 2.30, 1.58]
-        cell_left = ZONE_CX - ZONE_HALF_W
-        cell_right = ZONE_CX + ZONE_HALF_W
+        n_stats = len(stat_rows)
+        stat_gap = 0.12  # tikz-unit gap between the loadout boxes
+        stat_span = ABIL_TOP_Y - ABIL_BOTTOM_Y
+        stat_box_h_tikz = (stat_span - (n_stats - 1) * stat_gap) / n_stats
+        stat_box_h_cm = stat_box_h_tikz * card_scale
+        # centres top→bottom so the rows stay weapon / booster / deck
+        stat_ys = [ABIL_BOTTOM_Y + stat_box_h_tikz / 2 + i * (stat_box_h_tikz + stat_gap)
+                   for i in reversed(range(n_stats))]
+        cell_left = FRAME_ZONE_CX - ZONE_HALF_W
+        cell_right = FRAME_ZONE_CX + ZONE_HALF_W
         for (img, val), sy in zip(stat_rows, stat_ys):
-            frame_text += (f"\\node[rectangle, draw=black!45, fill=white, rounded corners={rc()}, "
-                           f"minimum width={ZONE_W_CM}cm, minimum height=0.62cm] at ({ZONE_CX}, {sy}){{}};\n")
-            frame_text += (f"\\node[anchor=west] at ({cell_left + 0.12:.3f}, {sy}){{\\includegraphics[width=0.5cm]{{"
+            frame_text += (f"\\node[rectangle, draw=black!40, fill=black!10!white, opacity=0.7, rounded corners={rc()}, "
+                           f"minimum width={ZONE_W_CM}cm, minimum height={stat_box_h_cm:.2f}cm] at ({FRAME_ZONE_CX}, {sy:.3f}){{}};\n")
+            frame_text += (f"\\node[anchor=west] at ({cell_left + 0.12:.3f}, {sy:.3f}){{\\includegraphics[width=0.5cm]{{"
                            + icons_folder + img + "}};\n")
-            frame_text += f"\\node[anchor=east] at ({cell_right - 0.16:.3f}, {sy}){{\\large{{\\textbf{{{val}}}}}}};\n"
-        frame_text += f"\\coordinate (loadout) at ({cell_right:.3f}, {stat_ys[1]});\n"
+            frame_text += f"\\node[anchor=east] at ({cell_right - 0.16:.3f}, {sy:.3f}){{\\large{{\\textbf{{{val}}}}}}};\n"
+        frame_text += f"\\coordinate (loadout) at ({cell_right:.3f}, {(ABIL_BOTTOM_Y + ABIL_TOP_Y) / 2:.3f});\n"
 
         # --- ability box (bottom-left, beside the loadout column) -------------
-        abil_cx, abil_w_cm, abil_h = 2.86, 4.1, 2.0
-        frame_text += (f"\\node (frame_ability)[anchor=south, rectangle, fill=black!10!white, draw=black!40, "
+        abil_cx, abil_w_cm, abil_h = ABIL_CX, ABIL_W_CM, ABIL_H_CM
+        frame_text += (f"\\node (frame_ability)[anchor=south, rectangle, fill=black!10!white, opacity=0.7, draw=black!40, "
                        f"rounded corners={rc()}, minimum width={abil_w_cm}cm, minimum height={abil_h}cm] "
-                       f"at ({abil_cx}, 1.05){{}};\n")
+                       f"at ({abil_cx}, {ABIL_BOTTOM_Y}){{}};\n")
         # faction logo watermark behind the ability text (as on the action cards)
         if frame["Faction"]:
             frame_text += ("\\node[opacity=0.6] (factionlogo) at (frame_ability.center) "
                            "{\\includegraphics[width=1.55cm, height=1.7cm, keepaspectratio]{" + images_folder + light_logos_dict[frame["Faction"]] + "}};\n")
-        frame_text += (f"\\node[text width={abil_w_cm - 0.4:.1f}cm, align=left, inner sep=1pt, font=\\footnotesize] "
+        # the ability box is small, so drop to a smaller font for busy frames
+        # (e.g. an ability with a \full... macro that expands to a long sentence)
+        # so the text doesn't clip out the top/bottom of the box.
+        abil_font = "\\scriptsize" if estimated_text_len(frame['Abilities']) > 80 else "\\footnotesize"
+        frame_text += (f"\\node[text width={abil_w_cm - 0.4:.1f}cm, align=left, inner sep=1pt, font={abil_font}] "
                        f"at (frame_ability.center){{" + frame['Abilities'] + "};\n")
 
         # --- flavour + copyright at the bottom (no faction/type line needed:
