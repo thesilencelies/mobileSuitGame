@@ -1,0 +1,12 @@
+# deg_chainsaw_2zone
+# HYPOTHETICAL: a Chainsaw that can only attack 2 zones (High + Mid) -- the Low
+# card (Tear) is skipped. Still a 4-damage one-shot (HP is 4), but now the
+# defender only has two zones to cover, so choose-2-from-7 can far more often
+# hold a block for the zone that gets hit. Tests how much the degeneracy of the
+# full 3-zone Chainsaw comes from being un-coverable rather than from raw damage.
+card/Chainsaw_Rip
+card/Chainsaw_Disembowel
+card/Chainsaw_Rip
+card/Chainsaw_Disembowel
+card/Chainsaw_Rip
+card/Chainsaw_Disembowel

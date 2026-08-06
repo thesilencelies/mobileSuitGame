@@ -1,0 +1,14 @@
+# deg_multiblock_pressure
+# The "double-duty" build: Lock down (blocks High+Mid, super High) and Bash (super
+# Mid) BLOCK and still resolve their own attack because a super block is not
+# discarded, and Rising Cut blocks High+Mid while hitting Low. Greatsword Parry
+# (super Low) and Full Guard patch the Low/everything gaps, and Great Axe Split is
+# a guard-break finisher. Aims to cover all three zones AND attack every turn --
+# the suspected "solved" deck that neither dies nor stops pushing damage.
+card/Shield_Lock down
+card/Greatsword_Rising Cut
+card/Shield_Bash
+card/Greatsword_Parry
+card/Shield_Full Guard
+card/Great Axe_Split
+card/Spear_Impale

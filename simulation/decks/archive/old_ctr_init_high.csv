@@ -1,0 +1,14 @@
+# [OLD / DEPRECATED] This deterministic hard-counter FAILED after decks were
+# scaled to 21+ cards and action choice became stochastic (temp 2): it can no
+# longer reliably assemble its combo each turn. Kept for reference only.
+# ctr_init_high  (beats only_init_high ~100%)
+# Found by search. Close Quarters (Knife Lunge) can't be blocked by the target's
+# already-resolved cards -- denying the fast deck its resolve-then-block-free
+# tempo -- while a spread of real attacks + Shield Bash (super Mid) grind it down.
+card/Axe_Chop
+card/Shield_Bash
+card/Great Axe_Eviscerate
+card/Knife_Lunge
+card/Axe_Chop
+card/Spear_Thrust
+card/Stun Baton_Shock

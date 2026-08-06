@@ -1,12 +1,13 @@
-card/Axe_Chop
-card/Halberd_Eviscerate
-card/Spear_Impale
-card/Spear_Jab
+# only_block_high  [balanced probe]
 card/Chain_Throttle
-card/Knife_Stab
-card/Axe_Chop
-card/Halberd_Eviscerate
-card/Spear_Impale
-card/Spear_Jab
+card/Stun Baton_Overcharge
 card/Chain_Throttle
-card/Knife_Stab
+card/Stun Baton_Overcharge
+card/Axe_Hook
+card/Stun Baton_Strike
+card/Halberd_Eviscerate
+card/Chain_Throttle
+card/Spear_Impale
+card/Stun Baton_Strike
+card/Knife_Lunge
+card/Stun Baton_Strike

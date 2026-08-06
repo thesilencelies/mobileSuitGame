@@ -1,0 +1,11 @@
+# deg_mid_overwhelm
+# Concentration exploit: every card lands its biggest damage in the Mid
+# zone. With a 2-card hand, two Mid hits stack to >=4 and kill the Mid zone
+# in a single turn -- faster than blocks can spread to cover it.
+
+card/Chainsaw_Disembowel
+card/Halberd_Eviscerate
+card/Cannon_Fullbore
+card/Great Axe_Cleave
+card/Greatsword_Cleave
+card/Great Axe_Eviscerate

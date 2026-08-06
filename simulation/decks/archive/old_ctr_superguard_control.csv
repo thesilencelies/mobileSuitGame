@@ -1,0 +1,15 @@
+# [OLD / DEPRECATED] This deterministic hard-counter FAILED after decks were
+# scaled to 21+ cards and action choice became stochastic (temp 2): it can no
+# longer reliably assemble its combo each turn. Kept for reference only.
+# ctr_superguard_control  (beats deg_superguard_control ~100%)
+# Found by search. Mid/Low volume pressure (8 Mid + 7 Low attack, Cannon guard
+# break) against the zones where superguard has only ONE super each, backed by
+# FIVE Mid blocks so its guard-break Mid/High offence is soaked by sheer volume
+# rather than by supers. Out-tempos the slow control shell.
+card/Sword_Slice
+card/Kinetic Hammer_Slam
+card/Cannon_Fullbore
+card/Stun Baton_Strike
+card/Cannon_Cannon
+card/Railgun_Hypervelocity Shot
+card/Swarm_Crawl

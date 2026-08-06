@@ -1,0 +1,13 @@
+# deg_immortal_superwall
+# Only ZERO-OFFENCE super-block cards, covering all three zones with a super
+# block (High: Full Guard/Catch, Mid: Sword Parry, Low: Greatsword Parry/Push
+# on). A super block is never discarded, so this deck can block the same zones
+# every round forever and it deals no damage at all -- it literally cannot win
+# or lose on damage. The mirror should hit the round cap as ~100% draws; vs
+# anything else it stress-tests un-killability and long-game handling.
+
+card/Shield_Full Guard
+card/Chain_Catch
+card/Sword_Parry
+card/Greatsword_Parry
+card/Shield_Push on

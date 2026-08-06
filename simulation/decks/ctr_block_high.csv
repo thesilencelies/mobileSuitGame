@@ -1,0 +1,11 @@
+# ctr_block_high  (beats only_block_high ~100%)
+# Found by search. Big High+Mid pressure (Rip 4, Disembowel 4) into a target that
+# blocks ONLY High, so all the Mid damage lands; five Mid blocks + Full Guard
+# (super High) neutralise its fast High/Mid counter-attack.
+card/Chainsaw_Rip
+card/Chainsaw_Disembowel
+card/Halberd_Thrust
+card/Spear_Impale
+card/Shield_Full Guard
+card/Spear_Thrust
+card/Axe_Hook

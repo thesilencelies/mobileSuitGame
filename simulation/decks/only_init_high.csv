@@ -1,12 +1,13 @@
-card/Assault Rifle_Covering Fire
-card/Spear_Jab
-card/Spear_Sweep
-card/Shield_Lock down
-card/Spear_Thrust
-card/Axe_Chop
+# only_init_high  [balanced probe]
+card/Knife_Lunge
+card/Spear_Impale
 card/Sword_Lunge
-card/Basic_Kick
+card/Stun Bow_Low blow
+card/Spear_Sweep
+card/Assault Rifle_From the hip
+card/Booster_Shoulder barge
+card/Sword_Lunge
+card/Knife_Lunge
+card/Spear_Impale
 card/Halberd_Thrust
-card/Kinetic Hammer_Batter
-card/Basic_Punch
 card/Stun Baton_Zap

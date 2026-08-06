@@ -1,0 +1,14 @@
+# deg_multiblock_wall
+# Coverage-first: Full Guard and Basic Block each cover ALL THREE zones, and the
+# two Parries cover two zones each (with a super), so from a 7-card draw the deck
+# can almost always set one card that blocks every zone and spend the other card
+# attacking. The idea is a deck that is never caught with an open zone while still
+# applying some pressure. Offence is thin (one attacker per turn), so watch for
+# draws vs anything it can't out-damage.
+card/Shield_Full Guard
+card/Basic_Block
+card/Sword_Parry
+card/Greatsword_Parry
+card/Spear_Impale
+card/Kinetic Hammer_Heavy Swing
+card/Railgun_Kinetic Barrage

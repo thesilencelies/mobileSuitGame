@@ -1,0 +1,15 @@
+# [OLD / DEPRECATED] This deterministic hard-counter FAILED after decks were
+# scaled to 21+ cards and action choice became stochastic (temp 2): it can no
+# longer reliably assemble its combo each turn. Kept for reference only.
+# ctr_multiblock_pressure  (beats deg_multiblock_pressure ~100%)
+# Found by search. All-in High burst: 14 points of High attack incl. one-shots
+# (Rip 4, Crush 3, Strike 3) overwhelm the target's High coverage faster than it
+# can draw a High super, while Full Guard (super High) + Sword Parry (super Mid)
+# wall off its own High/Mid offence.
+card/Chainsaw_Rip
+card/Halberd_Crush
+card/Kinetic Hammer_Strike
+card/Axe_Chop
+card/Railgun_Snipe
+card/Shield_Full Guard
+card/Sword_Parry
