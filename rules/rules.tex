@@ -367,11 +367,16 @@ After all frames are deployed this way the player who deployed first receives th
 On each turn of the game there are 3 phases: planning, action and cleanup. 
 
 \section{Planning}
-in the planning phase, players simultaneously choose actions for their frames.
-One by one, for each frame they draw 7 cards (modified by status effects) from its deck, choose 2 and place them facedown.
+In the planning phase, players simultaneously choose actions for their frames one frame at a time.
+To chose actions:
+\begin{itemize}
+  \item Draw 7 cards from that frame's deck (modified by status)
+  \item Place 2 cards face down - those are the chosen actions
+  \item Put the rest of the cards in that frame's discard pile
+\end{itemize}
 If you would draw from an empty deck, shuffle that deck's discard pile and it becomes the deck.
-The rest of the cards are put in that decks discard pile face down (if you are short of space, you can put the cards face up at the bottom of the deck). 
-When the deck runs out, the discard pile is shuffled back in. Then they choose for their next frame.
+
+Once all actions are chosen for all frames the planning phase ends.
 
 \subsection{Echoes of the fallen}
 If a frame has been defeated, at the end of the planning phase the player can reveal the top card of that frame's deck and put it sideways with the actions of a surviving frame. That card can also be used to block attacks against that frame this turn (ignore the rest of the card text).
@@ -381,17 +386,19 @@ At the end of the planning phase, one status token of each type is removed from 
 
 
 \section{Action}
-Cards are resolved in order of the initiative value, starting with the highest. 
+Cards are resolved in order of the initiative value, starting with the highest.
+
 To work out which card has the highest initiative left, each player declares the highest remaining initiative amongst their remaining cards at the start of the phase and after each card resolution.
 In the event of a tie the cards are resolved alternately, moving clockwise from the player with the priority marker.
 
-Card resolution consists of 3 steps: movement, effect, and attack. Movement can happen first or last but not both.
+Card resolution consists of 3 steps: movement, effect, and attack, in any order. You cannot split the movement up.
 
 \subsection{Movement}
 The frame can move up to their base movement plus the movement modifier on the card currently being resolved steps in any direction.
 
 \subsubsection{Movement penalties}
-It takes 1 movement to move up per elevation difference, and you cannot stop halfway up. It costs no additional movement to move down any number of elevations. Obstacles cannot be moved through.
+It takes 1 movement to move up per elevation difference, and you cannot stop halfway up. It costs no additional movement to move down any number of elevations. 
+Obstacles and impassible terrain cannot be moved through.
 
 \subsection{Effect}
 After movement is done, any effect on the card is applied. Effects are applied in printed order.
@@ -403,7 +410,7 @@ After movement is done, any effect on the card is applied. Effects are applied i
 \end{figure}
 
 \subsection{Attack}
-If the card has any attack listed, one target frame within any of the ranges may be chosen. They are then the defender for this attack.
+If the action has any attack listed, one frame within any of the ranges may be chosen as a target.
 Attacks without a listed range are melee attacks, and the target must be adjacent.
 Else the attack is a ranged attack and the target cannot be adjacent.
 If an attack has multiple ranges, only the zones that are in range count for the attack.
@@ -424,7 +431,7 @@ The following count as an obstruction:
   \item Terrain at a higher elevation than the target adjacent to the target
 \end{itemize}
 
-A tile with a frame on it counts as one elevation higher than it otherwise is when checking line of sight. So a frame blocks sight like terrain raised one level --- for example a frame standing on flat ground obstructs like an elevation-1 tile.
+A tile with a frame on it counts as one elevation higher when checking line of sight. For example a frame standing on flat ground obstructs like an elevation-1 tile.
 
 In the figures below, \textcolor{yellow!75!black}{\textbf{A}} is the attacking frame and the purple discs are possible targets: a \textcolor{green!45!black}{green tick} marks a target in line of sight, a \textcolor{red!80!black}{red cross} one that is not. A red \textcolor{red!85!black}{$\otimes$} marks whatever breaks the line.
 
