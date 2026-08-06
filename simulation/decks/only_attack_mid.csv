@@ -1,12 +1,13 @@
-card/Assault Rifle_From the hip
-card/Axe_Hook
-card/Halberd_Eviscerate
-card/Cannon_Fullbore
+# only_attack_mid  [balanced probe]
 card/Sword_Lunge
-card/Chainsaw_Disembowel
+card/Sword_Lunge
 card/Stun Baton_Shock
-card/Axe_Throw
-card/Greatsword_Grand Sweep
-card/Railgun_Piercing Round
-card/Sniper Rifle_Heartpiercer
+card/Halberd_Eviscerate
+card/Swarm_Swarm
+card/Cannon_Fullbore
+card/Halberd_Eviscerate
+card/Knife_Lunge
+card/Stun Baton_Shock
+card/Basic_Punch
 card/Spear_Thrust
+card/Halberd_Eviscerate

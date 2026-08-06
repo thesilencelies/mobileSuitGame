@@ -1,12 +1,13 @@
-card/Assault Rifle_Aimed Fire
-card/Assault Rifle_Burst Fire
-card/Assault Rifle_Covering Fire
-card/Assault Rifle_From the hip
-card/Cannon_Airburst
-card/Cannon_Pummel
-card/Halberd_Thrust
+# only_block_mid  [balanced probe]
+card/Sniper Rifle_Calibrated Hit
+card/Basic_Throw
 card/Railgun_Kinetic Barrage
-card/Axe_Throw
-card/Chain_Tangle
-card/Great Axe_Split
-card/Great Axe_Whirl
+card/Missile Rack_Missile Rack 1
+card/Swarm_Crawl
+card/Assault Rifle_Aimed Fire
+card/Stun Bow_Low blow
+card/Assault Rifle_Aimed Fire
+card/Stun Bow_Straight shot
+card/Knife_Cut
+card/Stun Bow_Low blow
+card/Spear_Thrust

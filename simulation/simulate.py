@@ -32,6 +32,22 @@ Modelled faithfully (the parts that matter for balance):
     already resolved (attacked) can therefore block for free, while a not-yet-
     resolved card must give up its attack to block. The higher-initiative side
     attacks first and can then still block with those resolved cards.
+  * Super blocks. A zone whose Block value is >= 2 is a *super block*: it stops an
+    attack like an ordinary block, but the card is NOT discarded -- it stays and
+    can block again (and, if it hadn't resolved yet, still resolves). The defender
+    prefers a super block when available, since it costs nothing.
+  * Guard break. An attack with the guard-break keyword can't be turned away by a
+    single block -- every zone it attacks must be blocked separately (mandatory
+    where possible), and any zone left unblocked deals its damage. The defender
+    spends its blocks on the highest-damage zones first.
+  * Feint. Deals NO damage even when unblocked, but blocking is still mandatory --
+    so its only effect is to bait out and drain one of the defender's blocks.
+  * Committed. Discarded the instant it resolves, so (unlike a normal resolved
+    card) it can't be kept on the field to block later in the round -- it forgoes
+    the attack-first-then-block-free trick.
+  * Close quarters. Cannot be blocked by a card that has already resolved; only a
+    not-yet-resolved card (which forfeits its own action) can block it, which is
+    what stops fast attackers from resolving and then blocking it for free.
 
 Lethal: damage accumulates across rounds within a game. A frame is destroyed the
 moment any single zone takes *more than or equal* than HEALTH damage ( greater than or equak).
@@ -63,6 +79,8 @@ from __future__ import annotations
 
 import argparse
 import csv
+import math
+import os
 import random
 from bisect import bisect_left, bisect_right
 from dataclasses import dataclass, field
@@ -71,6 +89,25 @@ from itertools import combinations
 from pathlib import Path
 
 ZONES = ("High", "Mid", "Low")
+
+# Balance-test decks are deliberately tiny (skewed to isolate a strategy), but a
+# deck at or below the 7-card hand is seen in full every turn, so the shuffle can't
+# add draw variance. Repeating the list up to this size (preserving card ratios)
+# makes drawing a 7-card hand a representative random sample -- closer to a real
+# game deck -- so the shuffle matters and hard-counters can't rely on always seeing
+# their whole deck.
+MIN_DECK_CARDS = 21
+
+
+def scale_deck(deck: list, minimum: int = MIN_DECK_CARDS) -> list:
+    """Repeat a deck's cards (keeping their ratios) until it holds >= `minimum`."""
+    if not deck:
+        return deck
+    base = list(deck)
+    out = list(deck)
+    while len(out) < minimum:
+        out.extend(base)
+    return out
 
 # Repo root = parent of the simulation/ folder, so the script works from anywhere.
 ROOT = Path(__file__).resolve().parent.parent
@@ -106,6 +143,26 @@ class Card:
     initiative: int
     attacks: tuple  # (high, mid, low) attack scores
     blocks: frozenset  # zones this card blocks, e.g. {"High", "Low"}
+    # Zones blocked with a *super* block (Block value >= 2). A super block stops an
+    # attack exactly like an ordinary block, but the card is NOT discarded when it
+    # blocks -- it stays revealed and can block again. Subset of `blocks`.
+    super_blocks: frozenset = frozenset()
+    # Guard break: this attack consumes a block for EACH zone it hits (a single
+    # block can't wipe the whole attack); any zone left unblocked deals its damage.
+    guard_break: bool = False
+    # Feint: if unblocked it deals NO damage, but blocking is still compulsory -- so
+    # its only effect is to bait out and drain one of the defender's blocks.
+    feint: bool = False
+    # Committed: discarded the instant it resolves, so (unlike a normal resolved
+    # card) it can NOT be kept on the field to block later this round.
+    committed: bool = False
+    # Close quarters: cannot be blocked by a card that has ALREADY resolved -- only
+    # a not-yet-resolved card (which forfeits its own action) can block it.
+    close_quarters: bool = False
+    # Ranged: at least one of its attacks has a Range > 0 (a ranged weapon). Ranged
+    # attacks almost all block Mid and trade initiative for reach, so they skew the
+    # Mid-block stats; the combat model ignores range but flags it for filtering.
+    ranged: bool = False
 
     @property
     def attack_zones(self) -> frozenset:
@@ -131,9 +188,15 @@ def load_cards() -> dict:
                     continue
                 key = f"{group}_{name}"
                 attacks = tuple(_to_int(row.get(f"{z}Attack", "")) for z in ZONES)
-                blocks = frozenset(
-                    z for z in ZONES if _to_int(row.get(f"{z}Block", "")) > 0
-                )
+                block_vals = {z: _to_int(row.get(f"{z}Block", "")) for z in ZONES}
+                blocks = frozenset(z for z in ZONES if block_vals[z] > 0)
+                super_blocks = frozenset(z for z in ZONES if block_vals[z] >= 2)
+                # Ranged if any attacked zone carries a Range value.
+                ranged = any(_to_int(row.get(f"{z}Range", "")) > 0
+                             for z, a in zip(ZONES, attacks) if a > 0)
+                # Keyword flags parsed from the Text column (\kw and \fullkw both
+                # contain the bare keyword, so a substring test catches either).
+                text = (row.get("Text") or "").lower()
                 cards[key] = Card(
                     key=key,
                     name=name,
@@ -141,6 +204,12 @@ def load_cards() -> dict:
                     initiative=_to_int(row.get("Initiative", "")),
                     attacks=attacks,
                     blocks=blocks,
+                    super_blocks=super_blocks,
+                    guard_break="guardbreak" in text,
+                    feint="feint" in text,
+                    committed="committed" in text,
+                    close_quarters="closequarters" in text,
+                    ranged=ranged,
                 )
     return cards
 
@@ -160,8 +229,8 @@ def load_deck(deck_path: str, cards: dict) -> list:
     with open(path, encoding="utf-8-sig") as fh:
         for line in fh:
             entry = line.strip()
-            if not entry:
-                continue
+            if not entry or entry.startswith("#"):
+                continue  # blank line or a `# ...` comment/description
             key = entry[5:] if entry.startswith("card/") else entry
             card = cards.get(key)
             if card is None:
@@ -172,7 +241,7 @@ def load_deck(deck_path: str, cards: dict) -> list:
         print(f"  warning: {path.name} has unknown cards: {missing}")
     if not deck:
         raise ValueError(f"deck {path} contains no usable cards")
-    return deck
+    return scale_deck(deck)
 
 
 class Pile:
@@ -241,18 +310,31 @@ def deck_profile(cards_list: list) -> dict:
     n = len(cards_list) or 1
     block_freq = {z: 0.0 for z in ZONES}
     atk_weight = {z: 0.0 for z in ZONES}
+    peak_atk = {z: 0 for z in ZONES}  # biggest single-card hit per zone (one-shot risk)
+    atk_vals = {z: [] for z in ZONES}  # every positive attack value per zone
     for c in cards_list:
         for z in c.blocks:
-            block_freq[z] += 1
+            # A super block defends its zone more reliably -- it is never spent, so
+            # it can turn away more than one attack over the game.
+            block_freq[z] += 1.5 if z in c.super_blocks else 1
+        if c.feint:
+            continue  # a feint deals no damage, so it is not a damage threat
         for z, a in zip(ZONES, c.attacks):
             atk_weight[z] += a
+            peak_atk[z] = max(peak_atk[z], a)
+            if a > 0:
+                atk_vals[z].append(a)
     atk_count = {z: 0 for z in ZONES}
     for c in cards_list:
+        if c.feint:
+            continue
         for z in c.attack_zones:
             atk_count[z] += 1
     return {"block_freq": {z: block_freq[z] / n for z in ZONES},
             "atk_weight": {z: atk_weight[z] / n for z in ZONES},
             "atk_freq": {z: atk_count[z] / n for z in ZONES},  # cards attacking z
+            "peak_atk": peak_atk,   # max damage a single opposing card lands in z
+            "atk_vals": atk_vals,   # every positive per-zone attack (to count one-shots)
             "inits": sorted(c.initiative for c in cards_list),
             "n": n}
 
@@ -272,22 +354,58 @@ DEFENSE_WEIGHT = 1.0
 CONCENTRATION_WEIGHT = 0.6
 
 
+# How badly the scorer wants a block for a zone the opponent can one-shot. Leaving
+# such a zone open loses the game outright, so this must dominate raw attack points
+# (a big attacker is worthless if you are dead before it resolves).
+SURVIVAL_WEIGHT = 8.0
+
+# Stochasticity of action choice. Rather than always playing the single best-scoring
+# hand (a deterministic policy an opponent can hard-counter -- the optimal strategy
+# in a rock-paper-scissors game is a MIXED one), the intelligent player samples a
+# hand with probability softmax(score / TEMPERATURE). 0 = pure argmax (old
+# behaviour); higher = more random. Tuned so strong plays still dominate but the
+# policy is mixed enough not to be perfectly exploitable.
+CHOICE_TEMPERATURE = 2.0
+
+
+def _softmax_pick(scores: list, temperature: float, rng: random.Random) -> int:
+    """Index into `scores`, chosen ~ softmax(score/temperature). temperature<=0 is
+    argmax with a random tiebreak (the old deterministic policy)."""
+    if temperature <= 0 or len(scores) == 1:
+        return max(range(len(scores)), key=lambda i: (scores[i], rng.random()))
+    hi = max(scores)
+    weights = [math.exp((s - hi) / temperature) for s in scores]
+    r = rng.random() * sum(weights)
+    acc = 0.0
+    for i, w in enumerate(weights):
+        acc += w
+        if r <= acc:
+            return i
+    return len(scores) - 1
+
+
 def score_hand(cards: list, prof: dict, defense_weight: float = None,
-               concentration_weight: float = None) -> float:
+               concentration_weight: float = None, health: int = None) -> float:
     """Rate a *combination* of cards chosen as one turn's actions, against the
     opponent's profile. `defense_weight` / `concentration_weight` override the
-    module defaults (used for per-team strategy). Follows the requested logic:
+    module defaults (used for per-team strategy); `health` (HP per zone) turns on
+    one-shot awareness. Follows the requested logic:
 
-      * Attacks — an attack is always credited for the damage it is likely to
-        land (zones the opponent rarely blocks). A card that resolves BEFORE most
-        of the opponent's cards gets an ADDITIONAL bonus for hitting zones they DO
-        block, because it forces them to spend a card to block and lose that
-        card's own attack. So low-initiative cards chase unblocked zones, while
-        high-initiative cards are happy to hit blocked zones too.
-      * Low-initiative cards prefer NOT to block (their block would cost them
-        their attack) so they can land damage; high-initiative blocks are free.
-      * Concentration — two attacks on the SAME zone stack toward overwhelming
-        that zone's HP, so shared attack zones get a bonus.
+      * Survival first — if the opponent has a card that can deal >= HP to a zone
+        in one hit (a one-shot), NOT holding a block for that zone loses the game
+        outright, so covering every such zone is weighted above everything else.
+        This is why, against an alpha-strike deck, the pick is fast blockers of the
+        threatened zone rather than the two biggest attackers.
+      * Attacks — an attack is credited for the damage it is likely to land (zones
+        the opponent rarely blocks). A card that resolves BEFORE most of the
+        opponent's cards gets an ADDITIONAL bonus for hitting zones they DO block
+        (it forces them to spend a block and lose that card's attack). When the
+        opponent can one-shot, a slow attack is discounted too -- it may never
+        resolve, because its owner is dead first -- so speed is favoured.
+      * Low-initiative cards prefer NOT to block (their block would cost them their
+        attack); high-initiative and super blocks are free.
+      * Concentration — two attacks on the SAME zone stack toward overwhelming that
+        zone's HP, so shared attack zones get a bonus.
       * Coverage — blocks are valued per zone up to how many attacks the opponent
         actually throws at that zone. Against a spread attacker one block each on
         several zones wins; against a deck that CONCENTRATES on one zone, a second
@@ -298,57 +416,109 @@ def score_hand(cards: list, prof: dict, defense_weight: float = None,
     dw = DEFENSE_WEIGHT if defense_weight is None else defense_weight
     cw = CONCENTRATION_WEIGHT if concentration_weight is None else concentration_weight
     bf, aw, af = prof["block_freq"], prof["atk_weight"], prof["atk_freq"]
+    peak = prof.get("peak_atk", {z: 0 for z in ZONES})
+    atk_vals = prof.get("atk_vals", {z: [] for z in ZONES})
+    # Zones the opponent can destroy in a single card -- must be covered to survive.
+    lethal = {z: (health is not None and peak[z] >= health) for z in ZONES}
+    under_alpha = any(lethal.values())
+    # How many one-shots the opponent could stack on a lethal zone this turn (it may
+    # double up, as an attacker's own scorer rewards concentration): capped by the
+    # hand size, since it can only play that many cards. Each needs its own block.
+    n_oneshot = {z: (sum(1 for v in atk_vals[z] if v >= health) if lethal[z] else 0)
+                 for z in ZONES}
+    need_lethal = {z: min(len(cards), n_oneshot[z]) for z in ZONES}
 
     offense = 0.0
     landing = {z: 0.0 for z in ZONES}       # attack expected to land, per zone
     hitters = {z: 0 for z in ZONES}         # how many chosen cards attack each zone
-    block_avails = {z: [] for z in ZONES}   # availability of every block per zone
+    block_avails = {z: [] for z in ZONES}   # availability of every ordinary block per zone
+    has_super = {z: False for z in ZONES}   # do we hold a super block for this zone?
     for c in cards:
         t = _rel_init(c, prof)
-        for z, a in zip(ZONES, c.attacks):
-            if a:
-                # base = damage likely to land; + high-init bonus for forcing a
-                # block on zones they cover. hit_value = 1 - bf*(1-t).
-                offense += a * (1 - bf[z] * (1 - t))
-                landing[z] += a * (1 - bf[z])
-                hitters[z] += 1
-        # A low-init attacker is reluctant to block (it would lose its attack);
-        # a pure block or a high-init card blocks essentially for free.
+        # Under alpha pressure a slow attacker may die before it ever resolves, so
+        # its offence is worth roughly its chance of acting first.
+        surv = (0.35 + 0.65 * t) if under_alpha else 1.0
+        # A feint deals no damage, so it contributes no offence. Close quarters can't
+        # be stopped by an already-resolved (free) block, so fewer of the opponent's
+        # blocks effectively apply to it.
+        if not c.feint:
+            bmul = 0.5 if c.close_quarters else 1.0
+            for z, a in zip(ZONES, c.attacks):
+                if a:
+                    if c.guard_break:
+                        # A single block can't wipe a guard-break attack -- every
+                        # zone it hits must be blocked on its own -- so it always
+                        # forces a block and more leaks through when they run short.
+                        offense += a * surv
+                        landing[z] += a * max(0.0, 1.0 - bf[z] * bmul * 0.5)
+                    else:
+                        # base = damage likely to land; + high-init bonus for forcing
+                        # a block on zones they cover. hit_value = 1 - bf*(1-t).
+                        offense += a * (1 - bf[z] * bmul * (1 - t)) * surv
+                        landing[z] += a * max(0.0, 1.0 - bf[z] * bmul)
+                    hitters[z] += 1
+        # A low-init attacker is reluctant to block (it would lose its attack); a
+        # pure block or a high-init card blocks essentially for free. A committed
+        # attacker is unreliable on defence -- once it resolves it can't block.
         avail = 1.0 if not c.is_attack else t
+        if c.committed and c.is_attack:
+            avail *= 0.4
         for z in c.blocks:
-            block_avails[z].append(avail)
+            if z in c.super_blocks:
+                has_super[z] = True  # kept, so it defends this zone for free
+            else:
+                block_avails[z].append(avail)
 
     # Count only as many blocks per zone as the opponent is expected to attack it
-    # (they play len(cards) actions/turn, af[z] of them at zone z).
+    # (they play len(cards) actions/turn, af[z] of them at zone z). A super block
+    # is never spent, so it covers every incoming attack on its zone by itself.
     defense = 0.0
     for z in ZONES:
         need = max(1, round(af[z] * len(cards)))
-        defense += aw[z] * sum(sorted(block_avails[z], reverse=True)[:need])
+        if has_super[z]:
+            covered = float(need)
+        else:
+            covered = sum(sorted(block_avails[z], reverse=True)[:need])
+        defense += aw[z] * covered
     defense *= dw
 
+    # Survival: an overriding reward for holding ENOUGH blocks to stop every one-
+    # shot the opponent can throw at a lethal zone (a super block covers them all by
+    # itself). Missing even one incoming one-shot is (near) certain death.
+    survival = 0.0
+    for z in ZONES:
+        if not lethal[z]:
+            continue
+        held = need_lethal[z] if has_super[z] else len(block_avails[z])
+        survival += SURVIVAL_WEIGHT * min(held, need_lethal[z])
+
     concentration = cw * sum(landing[z] for z in ZONES if hitters[z] >= 2)
-    return offense + defense + concentration
+    return offense + defense + concentration + survival
 
 
 def _choose_hand(frame: Frame, hand_size: int, intelligent: bool, pool: int,
-                 rng: random.Random) -> list:
+                 rng: random.Random, health: int = None,
+                 temperature: float = CHOICE_TEMPERATURE) -> list:
     """The cards a frame commits as actions this turn. Random by default; in
-    intelligent mode, draw a pool and keep the best-scoring COMBINATION of size
-    hand_size (so synergy between the chosen cards counts)."""
+    intelligent mode, draw a pool and score every COMBINATION of size hand_size (so
+    synergy between the chosen cards counts), then SAMPLE one ~ softmax(score /
+    temperature) rather than always taking the argmax -- a mixed policy an opponent
+    can't perfectly hard-counter. `health` lets the scorer see lethal one-shots."""
     if intelligent and frame.opp_profile is not None:
         dw, cw = frame.strategy or (None, None)
         drawn = frame.pile.draw(max(pool, hand_size))
         k = min(hand_size, len(drawn))
-        best = max(combinations(range(len(drawn)), k),
-                   key=lambda idx: (score_hand([drawn[i] for i in idx], frame.opp_profile, dw, cw),
-                                    rng.random()))
-        return [drawn[i] for i in best]
+        combos = list(combinations(range(len(drawn)), k))
+        scores = [score_hand([drawn[i] for i in idx], frame.opp_profile, dw, cw, health)
+                  for idx in combos]
+        return [drawn[i] for i in combos[_softmax_pick(scores, temperature, rng)]]
     return frame.pile.draw(hand_size)
 
 
 def play_game(team_a: list, team_b: list, target_a: Frame, target_b: Frame,
               hand_size: int, health: int, max_rounds: int,
-              rng: random.Random, intelligent: bool = False, pool: int = 5) -> tuple:
+              rng: random.Random, intelligent: bool = False, pool: int = 7,
+              temperature: float = CHOICE_TEMPERATURE) -> tuple:
     """Play one game to destruction. Returns (winner, rounds).
 
     winner is "A", "B" (surviving team) or "draw" if max_rounds is hit."""
@@ -361,7 +531,7 @@ def play_game(team_a: list, team_b: list, target_a: Frame, target_b: Frame,
     for rnd in range(1, max_rounds + 1):
         # Everyone chooses their actions for the turn.
         hands = {f: [Play(card, f) for card in
-                     _choose_hand(f, hand_size, intelligent, pool, rng)]
+                     _choose_hand(f, hand_size, intelligent, pool, rng, health, temperature)]
                  for f in all_frames}
         # Resolve highest initiative first; random tiebreak.
         events = sorted(
@@ -377,18 +547,41 @@ def play_game(team_a: list, team_b: list, target_a: Frame, target_b: Frame,
                 continue
 
             tgt = enemy_target[play.owner.team]
-            if _dead(tgt, health):
-                continue
+            if not _dead(tgt, health):
+                # A feint deals no damage even unblocked -- it only forces (and
+                # drains) a block. Close quarters can't be blocked by a card that
+                # has already resolved. Blocking stays mandatory either way.
+                lands = not card.feint
+                cq = card.close_quarters
+                if card.guard_break:
+                    # Guard break: every attacked zone must be blocked on its own, so
+                    # the defender needs a separate block per zone. Protect the
+                    # biggest threats first; zones left without a block deal damage.
+                    for z, dmg in sorted(
+                            ((z, d) for z, d in zip(ZONES, card.attacks) if d),
+                            key=lambda zd: zd[1], reverse=True):
+                        block = _choose_block(hands[tgt], frozenset((z,)), cq)
+                        if block is None:
+                            if lands:
+                                tgt.damage[z] += dmg
+                        elif z not in block.card.super_blocks:
+                            block.consumed = True  # ordinary block: spent (super kept)
+                else:
+                    # Mandatory blocking. A single block negates the whole attack.
+                    block = _choose_block(hands[tgt], card.attack_zones, cq)
+                    if block is not None:
+                        # A super block covering any attacked zone is kept, not spent.
+                        if not (block.card.super_blocks & card.attack_zones):
+                            block.consumed = True
+                    elif lands:
+                        for z, dmg in zip(ZONES, card.attacks):
+                            if dmg:
+                                tgt.damage[z] += dmg
 
-            # The defender must block if it can (mandatory blocking).
-            block = _choose_block(hands[tgt], card.attack_zones)
-            if block is not None:
-                block.consumed = True
-                continue  # attack negated; the blocking card is spent
-
-            for z, dmg in zip(ZONES, card.attacks):
-                if dmg:
-                    tgt.damage[z] += dmg
+            # Committed: discarded the moment it resolves, so it can no longer be
+            # held back as a block for the rest of the round.
+            if card.committed:
+                play.consumed = True
 
             # End the game the instant a target is destroyed.
             if _dead(target_a, health):
@@ -399,17 +592,23 @@ def play_game(team_a: list, team_b: list, target_a: Frame, target_b: Frame,
     return "draw", max_rounds
 
 
-def _choose_block(plays: list, attack_zones: frozenset):
+def _choose_block(plays: list, attack_zones: frozenset, close_quarters: bool = False):
     """Pick a card to block an attack on `attack_zones`, or None if impossible.
 
     A block covers the attack if any of its zones lines up with any attacked
-    zone. Prefer an already-resolved card (its own action is already done, so
-    spending it is free); otherwise sacrifice the weakest-attacking card."""
+    zone. A `close_quarters` attack additionally cannot be blocked by a card that
+    has already resolved, so only not-yet-resolved cards are candidates for it.
+    Preference order (cheapest block first): a super block covering the attack
+    (never discarded, so it costs nothing and stays for later), then an already-
+    resolved card (its own action is done, so spending it is free), then the
+    weakest-attacking card is sacrificed."""
     candidates = [p for p in plays
-                  if not p.consumed and (p.card.blocks & attack_zones)]
+                  if not p.consumed and (p.card.blocks & attack_zones)
+                  and not (close_quarters and p.resolved)]
     if not candidates:
         return None
-    candidates.sort(key=lambda p: (0 if p.resolved else 1,
+    candidates.sort(key=lambda p: (0 if (p.card.super_blocks & attack_zones) else 1,
+                                   0 if p.resolved else 1,
                                    sum(p.card.attacks),
                                    p.card.initiative))
     return candidates[0]
@@ -437,11 +636,12 @@ class SimConfig:
     games: int = 2500
     hand: int = 2
     health: int = 4
-    max_rounds: int = 200
+    max_rounds: int = 20
     target_a: int = 0
     target_b: int = 0
     intelligent: bool = False  # pick cards vs the opponent profile instead of random
-    pool: int = 5              # cards drawn to choose from in intelligent mode
+    pool: int = 7              # cards drawn to choose from (game: draw 7, set 2)
+    temperature: float = CHOICE_TEMPERATURE  # softmax randomness of action choice
     # Per-team scoring weights (None = module default). Lets each side play a
     # different strategy, e.g. one turtling on defense while the other attacks.
     defense_a: float = None
@@ -473,7 +673,7 @@ def _collect_stats(team_a: list, target_a: Frame, team_b: list, target_b: Frame,
     for _ in range(cfg.games):
         winner, rnds = play_game(team_a, team_b, target_a, target_b,
                                  cfg.hand, cfg.health, cfg.max_rounds, rng,
-                                 cfg.intelligent, cfg.pool)
+                                 cfg.intelligent, cfg.pool, cfg.temperature)
         wins[winner] += 1
         if winner in rounds_on_win:
             rounds_on_win[winner].append(rnds)
@@ -535,7 +735,7 @@ def cmd_match(args) -> None:
     da, ca, db, cb = _team_weights(args)
     cfg = SimConfig(args.games, args.hand, args.health, args.max_rounds,
                     args.target_a, args.target_b,
-                    intelligent=args.intelligent, pool=args.pool,
+                    intelligent=args.intelligent, pool=args.pool, temperature=args.temperature,
                     defense_a=da, concentration_a=ca, defense_b=db, concentration_b=cb)
     stats = run_matchup(args.team_a, args.team_b, cards, cfg, rng)
 
@@ -575,7 +775,7 @@ def cmd_scale(args) -> None:
     cards = load_cards()
     da, ca, db, cb = _team_weights(args)
     cfg = SimConfig(args.games, args.hand, args.health, args.max_rounds,
-                    intelligent=args.intelligent, pool=args.pool,
+                    intelligent=args.intelligent, pool=args.pool, temperature=args.temperature,
                     defense_a=da, concentration_a=ca, defense_b=db, concentration_b=cb)
     a, b = args.deck_a, args.deck_b
 
@@ -603,15 +803,45 @@ def cmd_scale(args) -> None:
 # Sub-command: tournament  (round-robin over a deck set -> HTML report)
 # --------------------------------------------------------------------------- #
 
+# Each grid cell is an independent matchup, so they parallelise cleanly. Workers
+# load the card table once (in an initializer) and read the shared cfg from a
+# module global rather than pickling either per task. Every cell is seeded from
+# its own coordinates, so results are reproducible AND independent of the order
+# the pool happens to run them in.
+_WORKER_CARDS = None
+_WORKER_CFG = None
+
+
+def _tourney_init(cfg: "SimConfig") -> None:
+    global _WORKER_CARDS, _WORKER_CFG
+    _WORKER_CARDS = load_cards()
+    _WORKER_CFG = cfg
+
+
+def _tourney_cell(task: tuple) -> tuple:
+    n, i, j, a_paths, b_paths, seed = task
+    st = run_matchup(a_paths, b_paths, _WORKER_CARDS, _WORKER_CFG,
+                     random.Random(seed))
+    return (n, i, j, st)
+
+
+def _run_cells(tasks: list, cfg: "SimConfig", jobs: int) -> list:
+    """Run the tournament cells, in a process pool when jobs > 1."""
+    if jobs and jobs > 1:
+        import multiprocessing as mp
+        with mp.Pool(jobs, initializer=_tourney_init, initargs=(cfg,)) as pool:
+            return pool.map(_tourney_cell, tasks)
+    _tourney_init(cfg)  # serial path: initialise this process and run inline
+    return [_tourney_cell(t) for t in tasks]
+
+
 def cmd_tournament(args) -> None:
-    rng = random.Random(args.seed)
-    cards = load_cards()
     # Each cell is row-deck (team A) vs column-deck (team B), so the A/B strategy
     # weights apply to rows vs columns respectively. Give them different weights
     # (e.g. --defense-a 0 --defense-b 4) to read attackers-vs-defenders off the grid.
     da, ca, db, cb = _team_weights(args)
     cfg = SimConfig(args.games, args.hand, args.health, args.max_rounds,
-                    intelligent=args.intelligent, pool=args.pool,
+                    intelligent=args.intelligent, pool=args.pool, temperature=args.temperature,
                     defense_a=da, concentration_a=ca, defense_b=db, concentration_b=cb)
 
     deck_paths = list(args.decks)
@@ -624,16 +854,23 @@ def cmd_tournament(args) -> None:
     d = len(deck_paths)
 
     total = d * d * len(args.sizes)
+    jobs = args.jobs if args.jobs and args.jobs > 0 else 1
     print(f"Round-robin: {d} decks x sizes {args.sizes}, "
-          f"{args.games} games/cell ({total} matchups) ...")
+          f"{args.games} games/cell ({total} matchups) on {jobs} worker(s) ...")
+
+    base = 0 if args.seed is None else args.seed
+    tasks = []
+    for n in args.sizes:
+        for i, a in enumerate(deck_paths):
+            for j, b in enumerate(deck_paths):
+                seed = (base * 2654435761 + n * 1000003 + i * 1009 + j) & 0x7FFFFFFF
+                tasks.append((n, i, j, [a] * n, [b] * n, seed))
 
     # grids[size][i][j] = stats for row-deck i (team A) vs col-deck j (team B).
-    grids = {}
-    for n in args.sizes:
-        grid = [[run_matchup([a] * n, [b] * n, cards, cfg, rng)
-                 for b in deck_paths] for a in deck_paths]
-        grids[n] = grid
-        print(f"  {n}v{n} done")
+    grids = {n: [[None] * d for _ in range(d)] for n in args.sizes}
+    for n, i, j, st in _run_cells(tasks, cfg, jobs):
+        grids[n][i][j] = st
+    print("  done")
 
     html = render_tournament_html(names, grids, cfg)
     out = Path(args.output)
@@ -679,7 +916,7 @@ def cmd_cards(args) -> None:
     cards = load_cards()
     da, ca, db, cb = _team_weights(args)
     cfg = SimConfig(args.games, args.hand, args.health, args.max_rounds,
-                    intelligent=args.intelligent, pool=args.pool,
+                    intelligent=args.intelligent, pool=args.pool, temperature=args.temperature,
                     defense_a=da, concentration_a=ca, defense_b=db, concentration_b=cb)
 
     deck_paths = list(args.decks)
@@ -835,7 +1072,7 @@ def cmd_pool(args) -> None:
     cards = load_cards()
     da, ca, db, cb = _team_weights(args)
     cfg = SimConfig(args.games, args.hand, args.health, args.max_rounds,
-                    intelligent=args.intelligent, pool=args.pool,
+                    intelligent=args.intelligent, pool=args.pool, temperature=args.temperature,
                     defense_a=da, concentration_a=ca, defense_b=db, concentration_b=cb)
 
     deck_paths = list(args.decks)
@@ -1069,10 +1306,61 @@ def _render_heatmap(names: list, grid: list, n: int) -> str:
   </section>"""
 
 
+def _render_summary(names: list, grid: list, n: int, top: int = 5) -> str:
+    """A leaderboard section for team size n: the strongest decks by mean head-to-
+    head win-ratio, each annotated with the matchups that trouble it most (the
+    opponents it loses to, or -- if it loses to none -- its closest game)."""
+    d = len(names)
+    stats = []
+    for i in range(d):
+        mean = sum(_win_ratio(grid[i][j]) for j in range(d)) / d
+        opp = sorted(((_win_ratio(grid[i][j]), names[j]) for j in range(d) if j != i),
+                     key=lambda x: x[0])
+        stats.append((mean, names[i], opp))
+    stats.sort(key=lambda x: x[0], reverse=True)
+
+    def chip(ratio, label, cls="mc"):
+        rgb = _diverging(ratio)
+        return (f"<span class='chip {cls}' style='background:rgb{rgb};"
+                f"color:{_ink_on(rgb)}'>{label}</span>")
+
+    rows = []
+    for rank, (mean, nm, opp) in enumerate(stats[:min(top, d)], 1):
+        losing = [(r, o) for r, o in opp if r < 50][:4]
+        if losing:
+            weak = ("<span class='wl'>loses to</span>"
+                    + "".join(chip(r, f"{escape(o)} <b>{r:.0f}%</b>") for r, o in losing))
+        elif opp:  # unbeaten across the field -- flag it, show the closest game
+            r0, o0 = opp[0]
+            weak = ("<span class='wl good'>no losing matchup</span>"
+                    + chip(r0, f"closest: {escape(o0)} <b>{r0:.0f}%</b>"))
+        else:
+            weak = ""
+        rows.append(
+            f"<li class='drow'><span class='rank'>{rank}</span>"
+            f"<span class='dn'>{escape(nm)}</span>"
+            + chip(mean, f"{mean:.0f}%", "mean")
+            + f"<span class='weak'>{weak}</span></li>")
+
+    worst_mean, worst_name, _ = stats[-1]
+    foot = (f"<p class='note'>Weakest overall: <strong>{escape(worst_name)}</strong> "
+            f"({worst_mean:.0f}% mean win-ratio).</p>")
+    return f"""<section class="summary">
+    <h2>Summary — {n}v{n}</h2>
+    <p class="note">Top {min(top, d)} decks by mean head-to-head win-ratio (draws
+    excluded). Each chip is a tough matchup — the deck's win% as team&nbsp;A against
+    that opponent; anything under 50% (red) is a matchup it loses. A deck with
+    <em>no losing matchup</em> beats the whole field and is worth a second look.</p>
+    <ol class="ranklist">{''.join(rows)}</ol>
+    {foot}
+  </section>"""
+
+
 def render_tournament_html(names: list, grids: dict, cfg: SimConfig) -> str:
-    """Self-contained HTML with one win-rate heatmap per team size. Cell (i, j) is
-    deck i's win rate as team A against deck j as team B; every cell shows its
-    number, so meaning never rides on colour alone."""
+    """Self-contained HTML with a leaderboard summary and one win-rate heatmap per
+    team size. Cell (i, j) is deck i's win rate as team A against deck j as team B;
+    every cell shows its number, so meaning never rides on colour alone."""
+    summaries = "\n".join(_render_summary(names, grids[n], n) for n in sorted(grids))
     sections = "\n".join(_render_heatmap(names, grids[n], n) for n in sorted(grids))
 
     def _w(d, c):
@@ -1131,6 +1419,19 @@ def render_tournament_html(names: list, grids: dict, cfg: SimConfig) -> str:
   .bar {{ width:220px; height:12px; border-radius:6px;
          background:linear-gradient(90deg, rgb(208,59,59), rgb(240,239,236), rgb(42,120,214)); }}
   .note {{ margin-top:.5rem; color:var(--muted); font-size:.82rem; max-width:56ch; }}
+  .summary {{ margin:1.75rem 0 .5rem; }}
+  .ranklist {{ list-style:none; padding:0; margin:.6rem 0 0;
+              display:flex; flex-direction:column; gap:.4rem; }}
+  .drow {{ display:flex; align-items:center; gap:.5rem; flex-wrap:wrap;
+          padding:.45rem .6rem; border:1px solid var(--line); border-radius:9px; }}
+  .drow .rank {{ font-weight:800; color:var(--muted); min-width:1.4em; text-align:right; }}
+  .drow .dn {{ font-weight:700; min-width:11rem; }}
+  .chip {{ display:inline-block; padding:.08rem .5rem; border-radius:999px;
+          font-size:.78rem; font-variant-numeric:tabular-nums; white-space:nowrap; }}
+  .chip.mean {{ font-weight:800; min-width:2.9rem; text-align:center; }}
+  .weak {{ display:flex; align-items:center; gap:.35rem; flex-wrap:wrap; }}
+  .weak .wl {{ color:var(--muted); font-size:.78rem; }}
+  .weak .wl.good {{ color:#2a78d6; font-weight:700; }}
 </style></head>
 <body>
   <h1>mobileSuitGame — deck tournament</h1>
@@ -1148,6 +1449,7 @@ def render_tournament_html(names: list, grids: dict, cfg: SimConfig) -> str:
   The diagonal is a deck against itself; <em>row&nbsp;avg</em> is that deck's mean
   win-ratio across all opponents — a rough power ranking. Hover any cell for the
   exact win/draw split.{asym_note}</p>
+  {summaries}
   {sections}
 </body></html>
 """
@@ -1158,23 +1460,30 @@ def main() -> None:
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="command", required=True)
 
-    def add_common(p, default_games=2500):
+    def add_common(p, default_games=200):
         p.add_argument("--games", type=int, default=default_games,
-                       help="games/matchup (2500 keeps run-to-run win%% variance ~1%%)")
+                       help="games/matchup (default is quick: ~50-200 gives a good "
+                            "directional read at a few %% variance; raise to ~2500 "
+                            "for a ~1%% publish-quality number)")
         p.add_argument("--hand", type=int, default=2,
                        help="actions chosen per frame per turn")
         p.add_argument("--health", type=int, default=4, help="HP per zone")
-        p.add_argument("--max-rounds", type=int, default=200,
-                       help="round cap before a game is called a draw")
+        p.add_argument("--max-rounds", type=int, default=20,
+                       help="round cap before a game is called a draw (a real game "
+                            "resolves in a handful of rounds; 20 is a safe ceiling)")
         p.add_argument("--seed", type=int, default=None,
                        help="RNG seed for reproducibility")
         p.add_argument("--intelligent", action="store_true",
                        help="pick the best actions vs the opponent's deck profile "
                             "instead of playing random cards")
-        p.add_argument("--pool", type=int, default=5,
+        p.add_argument("--pool", type=int, default=7,
                        help="cards seen to choose actions from in intelligent mode "
-                            "(default 5; capped at deck size, so a big value = the "
-                            "whole deck every turn)")
+                            "(default 7 = the game's 'draw 7, set 2 face down'; capped "
+                            "at deck size, so a big value = the whole deck every turn)")
+        p.add_argument("--temperature", type=float, default=CHOICE_TEMPERATURE,
+                       help="softmax randomness of intelligent action choice "
+                            f"(default {CHOICE_TEMPERATURE}; 0 = deterministic argmax, "
+                            "higher = more mixed/less exploitable play)")
         p.add_argument("--defense", type=float, default=None,
                        help="intelligent defense weight for BOTH teams "
                             f"(default {DEFENSE_WEIGHT})")
@@ -1219,7 +1528,10 @@ def main() -> None:
     t.add_argument("--sizes", type=int, nargs="+", default=[1, 2, 3],
                    help="team sizes, one heatmap each (default 1 2 3)")
     t.add_argument("--output", default="build/tournament.html", help="HTML report path")
-    add_common(t, default_games=250)
+    t.add_argument("--jobs", type=int, default=(os.cpu_count() or 1),
+                   help="parallel worker processes for the grid cells "
+                        "(default = CPU count; 1 disables multiprocessing)")
+    add_common(t, default_games=50)  # d*d cells; 50 is enough for a directional grid
     add_per_team_strategy(t)  # rows play the A-strategy, columns the B-strategy
     t.set_defaults(func=cmd_tournament)
 
@@ -1232,7 +1544,7 @@ def main() -> None:
     c.add_argument("--attackers-only", action="store_true",
                    help="skip cards with no attack (a block-only deck can never win)")
     c.add_argument("--output", default="build/card_sweep.html", help="HTML report path")
-    add_common(c, default_games=300)  # cards x decks x games gets big; keep games modest
+    add_common(c, default_games=50)  # cards x decks x games gets big; keep games modest
     add_per_team_strategy(c)  # cards play the A-strategy, decks the B-strategy
     c.set_defaults(func=cmd_cards)
 
@@ -1247,7 +1559,7 @@ def main() -> None:
     p.add_argument("--attackers-only", action="store_true",
                    help="only try adding cards that have an attack")
     p.add_argument("--output", default="build/card_pool.html", help="HTML report path")
-    add_common(p, default_games=300)  # cards x decks x games gets big; keep games modest
+    add_common(p, default_games=50)  # cards x decks x games gets big; keep games modest
     add_per_team_strategy(p)  # base deck plays the A-strategy, opponents the B-strategy
     p.set_defaults(func=cmd_pool)
 

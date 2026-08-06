@@ -489,6 +489,7 @@ In the figures below, \textcolor{yellow!75!black}{\textbf{A}} is the attacking f
 
 If the defender has a block on their remaining cards in the same zone as any of the attacks that are in range, they \textbf{must} choose one of those cards to block. 
 The attack fails and that blocking card is discarded (if the blocking card has not yet resolved it's action is forfeit).
+If any of the blocking zones have a super block then the blocking card is not discarded, but remains revealed.
 
 In the figures below the three rows are the High, Mid and Low zones. The attacking card is on the left and the defender's two remaining cards on the right; a block stops the attack only when it sits in the same zone as an attack mark.
 
@@ -537,7 +538,7 @@ In the figures below the three rows are the High, Mid and Low zones. The attacki
     \zburst{6.95}{2.0}{$-1$}
     \zburst{6.95}{1.1}{$-1$}
   \end{tikzpicture}}
-  \caption{A multi-zone attack only needs a block in \emph{one} of its zones. \emph{Top:} the High attack meets a High block, so the whole attack --- High and Mid --- is stopped and the blocking card is discarded. \emph{Bottom:} the defender has no High or Mid block, so both zones land.}
+  \caption{A multi-zone attack only needs a block in \emph{one} of its zones. \emph{Top:} the High attack meets a High block, so the whole attack is stopped and the blocking card is discarded. \\ \emph{Bottom:} the defender has no High or Mid block, so both zones land.}
 \end{figure}
 
 \begin{figure}[!ht]
@@ -550,7 +551,7 @@ In the figures below the three rows are the High, Mid and Low zones. The attacki
     \draw[blockedatk] (2.55,1.1)--(3.90,1.1);
     \zkept{4.30}{-0.62}
   \end{tikzpicture}}
-  \caption{A super block (double outline) stops an attack exactly like an ordinary block, but the card is not discarded --- it stays on the field and can block again.}
+  \caption{A super block (double outline) stops an attack exactly like an ordinary block, but the card is not discarded - it stays on the field and can block again.}
 \end{figure}
 
 Otherwise the attack succeeds, and the defender takes one damage per attack mark in the corresponding zone (high/mid/low).

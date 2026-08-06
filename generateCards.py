@@ -968,11 +968,14 @@ def make_card_from_row(row, card_type, group_capability=None, annotate=False, an
             # the box height is capped; a smaller font keeps busy cards inside it
             text_font = "\\scriptsize" if estimated_text_len(row["Text"]) > 100 else "\\footnotesize"
         
-        if not row["Text"]:
-            # make rules box invisible
-            rules_opacity = 0
+        if row["Text"]:
+            box_fill_draw = f"fill=black!10!white, opacity={rules_opacity}, draw=black!40"
+        else:
+            # no rules text (e.g. Full Guard): the box stays only for alignment /
+            # the faction watermark, so draw neither fill nor border
+            box_fill_draw = "fill=none, draw=none"
 
-        card_text += (f"\\node (rulesbox)[anchor=south, rectangle, fill=black!10!white, opacity={rules_opacity}, draw=black!40, rounded corners={rc()}, "
+        card_text += (f"\\node (rulesbox)[anchor=south, rectangle, {box_fill_draw}, rounded corners={rc()}, "
                       f"minimum width={RULES_W_CM}cm, minimum height={rules_h}cm] at (4.0, {RULES_BOTTOM}){{}};\n")
 
         # faction logo watermark sits above the box fill but behind the text

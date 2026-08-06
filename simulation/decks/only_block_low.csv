@@ -1,12 +1,13 @@
-card/Axe_Hook
-card/Great Axe_Cleave
-card/Great Axe_Eviscerate
-card/Halberd_Sweep
-card/Stun Baton_Zap
+# only_block_low  [balanced probe]
 card/Basic_Kick
-card/Halberd_Crush
-card/Sword_Lunge
-card/Sword_Slice
-card/Kinetic Hammer_Batter
-card/Kinetic Hammer_Slam
+card/Knife_Slit
+card/Great Axe_Cleave
+card/Knife_Slit
+card/Stun Baton_Zap
+card/Greatsword_Grand Sweep
+card/Spear_Sweep
 card/Kinetic Hammer_Strike
+card/Stun Baton_Shock
+card/Halberd_Sweep
+card/Kinetic Hammer_Strike
+card/Sword_Lunge

@@ -1,0 +1,12 @@
+# deg_chainsaw_1zone
+# HYPOTHETICAL: a Chainsaw that can only attack 1 zone (High) -- Mid (Disembowel)
+# and Low (Tear) are skipped. A 4-damage one-shot the defender can perfectly
+# predict: every attack is High, so any High block shuts it down. The control
+# case for "is the 4-damage one-shot degenerate on its own, or only because it
+# spreads across all three zones?"
+card/Chainsaw_Rip
+card/Chainsaw_Rip
+card/Chainsaw_Rip
+card/Chainsaw_Rip
+card/Chainsaw_Rip
+card/Chainsaw_Rip
