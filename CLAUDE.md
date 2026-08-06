@@ -17,9 +17,13 @@ decks/*.csv → generate_card_sheet.py → card_sheet.tex → card_sheet.pdf
 ## Scripts
 
 ### generateCards.py
-Reads all card CSVs; outputs individual `build/card/<Group>_<Name>.tex` files, a combined `build/card_all.tex`, frame datasheets (`build/frame_*.tex`), and terrain tiles (`build/terrain/<Name>.tex`). Creates the `build/card/` and `build/terrain/` subfolders if they don't exist. For weapon cards it also writes `build/group_indicator_<Group>.tex` — a small red-triangle/blue-square grid showing which High/Mid/Low zones that weapon *group* can attack/block across all its cards, `\input` by each card in the group at the bottom left.
+Reads all card CSVs; outputs individual `build/card/<Group>_<Name>.tex` files, a combined `build/card_all.tex`, and frame datasheets (`build/frame_*.tex`). Creates the `build/card/` subfolder if it doesn't exist. For weapon cards it also writes `build/group_indicator_<Group>.tex` — a small red-triangle/blue-square grid showing which High/Mid/Low zones that weapon *group* can attack/block across all its cards, `\input` by each card in the group at the bottom left.
 It also emits the rules-reference set: one representative card per type annotated with labelled leader lines — bare `\input`-able fragments `build/rules_<type>.tex` (melee weapon, ranged weapon, drone, pilot, frame), a standalone `build/rules_<type>_doc.tex` per fragment, and a combined preview `build/rules.tex`.
+Terrain tile generation (`Terrain_square.csv` → `build/terrain/<Name>.tex`) lives in `terrain_cards.py` and is called from here — see below.
 Run: `python generateCards.py`
+
+### terrain_cards.py
+Generates terrain tiles (`build/terrain/<Name>.tex`) from `Terrain_square.csv`: hex/square tile geometry, elevation-wall styling (`TERRAIN_STYLE`, `STYLE_DICT`), and the objective-point icons. Not run standalone — `generateCards.py` imports `create_terrain_card()` (plus `terrain_file`/`terrianoutputfolder`) from it, creates the `build/terrain/` subfolder up front, and calls `create_terrain_card()` per-row from its `__main__` block.
 
 ### generate_card_sheet.py
 Arranges card `.tex` files into a printable grid (default 10×7) for TTS; generates multi-page output as needed.
