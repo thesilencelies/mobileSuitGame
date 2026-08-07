@@ -53,7 +53,9 @@ Lethal: damage accumulates across rounds within a game. A frame is destroyed the
 moment any single zone takes *more than or equal* than HEALTH damage ( greater than or equak).
 
 Decks are the same one-`card/{Group}_{Name}`-per-line CSVs used elsewhere.
-Balance-test decks live in simulation/decks/ and can be named by basename.
+Balance-test (SIM) decks live in simulation/decks/sim/ and can be named by basename;
+the real game decks live in decks/ (one per pilot). tournament can pit them against
+each other and against every weapon group, grouped by provenance in the report.
 
 Five sub-commands:
     match       one explicit matchup (team A vs team B)
@@ -67,12 +69,13 @@ Run:
                                         --team-b only_block_mid.csv
     python simulation/simulate.py scale --deck-a even_mix.csv \
                                         --deck-b only_attack_high.csv
-    python simulation/simulate.py tournament --decks-dir simulation/decks \
-                                        --sizes 1 2 3 --output build/tournament.html
-    python simulation/simulate.py cards --decks-dir simulation/decks \
+    # real decks + sim decks + every weapon group, grouped by provenance:
+    python simulation/simulate.py tournament --real --sim --weapon-groups \
+                                        --intelligent --pool 7 --output build/tournament.html
+    python simulation/simulate.py cards --decks-dir simulation/decks/sim \
                                         --output build/card_sweep.html
     python simulation/simulate.py pool --base even_mix.csv \
-                                        --decks-dir simulation/decks
+                                        --decks-dir simulation/decks/sim
 """
 
 from __future__ import annotations
@@ -113,13 +116,40 @@ def scale_deck(deck: list, minimum: int = MIN_DECK_CARDS) -> list:
 ROOT = Path(__file__).resolve().parent.parent
 
 # Action-card CSVs that decks draw from (frames / terrain are not action cards).
+WEAPON_CSV = "Weapon actions.csv"
 CARD_CSVS = [
-    "Weapon actions.csv",
+    WEAPON_CSV,
     "Basic actions.csv",
     "Booster actions.csv",
     "Drone actions.csv",
     "Pilot actions.csv",
 ]
+
+# Deck sources, by provenance. REAL = the actual game decks (one per pilot) the card
+# generator uses; SIM = our hand/search-built balance-probe decks. Weapon-group decks
+# are synthetic (see load_deck's `weapon:` handling) and carry provenance "Weapon".
+REAL_DECKS_DIR = ROOT / "decks"                       # deck_<faction>_<pilot>.csv
+SIM_DECKS_DIR = ROOT / "simulation" / "decks" / "sim"
+
+
+def weapon_groups() -> list:
+    """Every weapon group (Spear, Axe, ...) as listed in the Weapon actions CSV, in
+    file order. These are the groups `tournament --weapon-groups` turns into decks."""
+    import csv as _csv
+    path = ROOT / WEAPON_CSV
+    seen = []
+    if path.exists():
+        for row in _csv.DictReader(open(path, encoding="utf-8-sig")):
+            g = (row.get("Group") or "").strip()
+            if g and g not in seen:
+                seen.append(g)
+    return seen
+
+
+def real_deck_paths() -> list:
+    """The real combat decks (exclude terrain tile lists; frames_deck is not a hand)."""
+    return sorted(p for p in REAL_DECKS_DIR.glob("deck_*.csv")
+                  if not p.stem.startswith("deck_terrain"))
 
 
 def _to_int(value: str) -> int:
@@ -215,12 +245,24 @@ def load_cards() -> dict:
 
 
 def load_deck(deck_path: str, cards: dict) -> list:
-    """Read a deck CSV (one `card/{group}_{name}` per line) into a list of Cards."""
+    """Read a deck CSV (one `card/{group}_{name}` per line) into a list of Cards.
+
+    A `weapon:<Group>` pseudo-path is a SYNTHETIC deck of every card in that weapon
+    group (no file needed) -- used by `tournament --weapon-groups` to pit each weapon
+    against the field."""
+    if isinstance(deck_path, str) and deck_path.startswith("weapon:"):
+        group = deck_path[len("weapon:"):]
+        deck = [c for c in cards.values() if c.group == group]
+        if not deck:
+            raise ValueError(f"weapon group {group!r} has no cards")
+        return scale_deck(deck)
     path = Path(deck_path)
     if not path.is_absolute() and not path.exists():
-        # Balance decks live in simulation/decks/, demo decks in simulation/test/;
+        # Balance decks live in simulation/decks/sim/, demo decks in simulation/test/;
         # fall back through those, then the repo root.
-        for base in (ROOT / "simulation" / "decks", ROOT / "simulation" / "test", ROOT):
+        for base in (ROOT / "simulation" / "decks" / "sim",
+                     ROOT / "simulation" / "decks",
+                     ROOT / "simulation" / "test", ROOT):
             if (base / deck_path).exists():
                 path = base / deck_path
                 break
@@ -929,6 +971,58 @@ def _run_cells(tasks: list, cfg: "SimConfig", jobs: int) -> list:
     return [_tourney_cell(t) for t in tasks]
 
 
+PROVENANCE_ORDER = ("Real", "Sim", "Weapon", "Other")
+
+
+def _provenance_order(provenance: list) -> list:
+    """Provenance labels present, in a stable display order."""
+    present = set(provenance)
+    return [p for p in PROVENANCE_ORDER if p in present] + \
+           sorted(p for p in present if p not in PROVENANCE_ORDER)
+
+
+def _infer_provenance(path: str) -> str:
+    """Best-guess provenance for a deck given by explicit path."""
+    s = str(path).replace("\\", "/")
+    if "/simulation/" in s or s.startswith("simulation/"):
+        return "Sim"
+    if "/decks/" in s and "/simulation/" not in s:
+        return "Real"
+    return "Other"
+
+
+def _gather_tournament_decks(args) -> tuple:
+    """Assemble the tournament field as parallel (load-spec, display-name, provenance)
+    lists from every requested source, de-duplicated by spec (first wins). Sources:
+    explicit --decks / --decks-dir (provenance inferred from path), --real (the game's
+    pilot decks), --sim (our balance decks), --weapon-groups (one synthetic deck per
+    weapon group)."""
+    specs, names, prov = [], [], []
+    seen = set()
+
+    def add(spec, name, provenance):
+        if spec in seen:
+            return
+        seen.add(spec)
+        specs.append(spec); names.append(name); prov.append(provenance)
+
+    for p in args.decks:
+        add(p, Path(p).stem, _infer_provenance(p))
+    if args.decks_dir:
+        for p in sorted(Path(args.decks_dir).glob("*.csv")):
+            add(str(p), p.stem, _infer_provenance(str(p)))
+    if getattr(args, "real", False):
+        for p in real_deck_paths():
+            add(str(p), p.stem, "Real")
+    if getattr(args, "sim", False):
+        for p in sorted(SIM_DECKS_DIR.glob("*.csv")):
+            add(str(p), p.stem, "Sim")
+    if getattr(args, "weapon_groups", False):
+        for g in weapon_groups():
+            add(f"weapon:{g}", g, "Weapon")
+    return specs, names, prov
+
+
 def cmd_tournament(args) -> None:
     # Each cell is row-deck (team A) vs column-deck (team B), so the A/B strategy
     # weights apply to rows vs columns respectively. Give them different weights
@@ -938,13 +1032,10 @@ def cmd_tournament(args) -> None:
                     intelligent=args.intelligent, pool=args.pool, temperature=args.temperature,
                     defense_a=da, concentration_a=ca, defense_b=db, concentration_b=cb)
 
-    deck_paths = list(args.decks)
-    if args.decks_dir:
-        deck_paths += sorted(str(p) for p in Path(args.decks_dir).glob("*.csv"))
+    deck_paths, names, provenance = _gather_tournament_decks(args)
     if len(deck_paths) < 2:
-        raise SystemExit("tournament needs at least 2 decks "
-                         "(via --decks and/or --decks-dir)")
-    names = [Path(p).stem for p in deck_paths]
+        raise SystemExit("tournament needs at least 2 decks (via --decks, --decks-dir, "
+                         "--real, --sim, and/or --weapon-groups)")
     d = len(deck_paths)
 
     total = d * d * len(args.sizes)
@@ -966,21 +1057,26 @@ def cmd_tournament(args) -> None:
         grids[n][i][j] = st
     print("  done")
 
-    html = render_tournament_html(names, grids, cfg)
+    html = render_tournament_html(names, grids, cfg, provenance)
     out = Path(args.output)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(html, encoding="utf-8")
     print(f"\nWrote visual report -> {out}")
 
-    # Text ranking per size by mean head-to-head win-ratio (draws excluded).
+    # Text ranking per size by mean head-to-head win-ratio (draws excluded), grouped
+    # by provenance so real decks and sim/weapon decks are read against each other.
+    multi_prov = len(set(provenance)) > 1
     for n in args.sizes:
         grid = grids[n]
+        means = {i: sum(_win_ratio(grid[i][j]) for j in range(d)) / d for i in range(d)}
         print(f"\nRanking at {n}v{n} (mean win-ratio vs all opponents, draws excluded):")
-        scored = sorted(
-            ((sum(_win_ratio(grid[i][j]) for j in range(d)) / d, names[i])
-             for i in range(d)), reverse=True)
-        for rate, name in scored:
-            print(f"  {rate:5.1f}%  {name}")
+        for prov in _provenance_order(provenance):
+            if multi_prov:
+                print(f"  [{prov}]")
+            scored = sorted(((means[i], names[i]) for i in range(d)
+                             if provenance[i] == prov), reverse=True)
+            for rate, name in scored:
+                print(f"  {'  ' if multi_prov else ''}{rate:5.1f}%  {name}")
 
 
 # --------------------------------------------------------------------------- #
@@ -1400,61 +1496,86 @@ def _render_heatmap(names: list, grid: list, n: int) -> str:
   </section>"""
 
 
-def _render_summary(names: list, grid: list, n: int, top: int = 5) -> str:
-    """A leaderboard section for team size n: the strongest decks by mean head-to-
-    head win-ratio, each annotated with the matchups that trouble it most (the
-    opponents it loses to, or -- if it loses to none -- its closest game)."""
+def _render_summary(names: list, grid: list, n: int, provenance: list = None,
+                    top: int = 5) -> str:
+    """A leaderboard section for team size n: decks by mean head-to-head win-ratio,
+    each annotated with the matchups that trouble it most (the opponents it loses to,
+    or -- if it loses to none -- its closest game). When decks span several
+    provenances (real game decks vs sim/weapon decks) it renders one ranked block per
+    provenance so the groups can be read against each other; otherwise a single Top-N."""
     d = len(names)
-    stats = []
-    for i in range(d):
-        mean = sum(_win_ratio(grid[i][j]) for j in range(d)) / d
-        opp = sorted(((_win_ratio(grid[i][j]), names[j]) for j in range(d) if j != i),
-                     key=lambda x: x[0])
-        stats.append((mean, names[i], opp))
-    stats.sort(key=lambda x: x[0], reverse=True)
+    if provenance is None:
+        provenance = ["Sim"] * d
+    means = {i: sum(_win_ratio(grid[i][j]) for j in range(d)) / d for i in range(d)}
+    opp_of = {i: sorted(((_win_ratio(grid[i][j]), names[j]) for j in range(d) if j != i),
+                        key=lambda x: x[0]) for i in range(d)}
 
     def chip(ratio, label, cls="mc"):
         rgb = _diverging(ratio)
         return (f"<span class='chip {cls}' style='background:rgb{rgb};"
                 f"color:{_ink_on(rgb)}'>{label}</span>")
 
-    rows = []
-    for rank, (mean, nm, opp) in enumerate(stats[:min(top, d)], 1):
+    def row(rank, i):
+        opp = opp_of[i]
         losing = [(r, o) for r, o in opp if r < 50][:4]
         if losing:
             weak = ("<span class='wl'>loses to</span>"
                     + "".join(chip(r, f"{escape(o)} <b>{r:.0f}%</b>") for r, o in losing))
-        elif opp:  # unbeaten across the field -- flag it, show the closest game
+        elif opp:
             r0, o0 = opp[0]
             weak = ("<span class='wl good'>no losing matchup</span>"
                     + chip(r0, f"closest: {escape(o0)} <b>{r0:.0f}%</b>"))
         else:
             weak = ""
-        rows.append(
-            f"<li class='drow'><span class='rank'>{rank}</span>"
-            f"<span class='dn'>{escape(nm)}</span>"
-            + chip(mean, f"{mean:.0f}%", "mean")
-            + f"<span class='weak'>{weak}</span></li>")
+        return (f"<li class='drow'><span class='rank'>{rank}</span>"
+                f"<span class='dn'>{escape(names[i])}</span>"
+                + chip(means[i], f"{means[i]:.0f}%", "mean")
+                + f"<span class='weak'>{weak}</span></li>")
 
-    worst_mean, worst_name, _ = stats[-1]
-    foot = (f"<p class='note'>Weakest overall: <strong>{escape(worst_name)}</strong> "
-            f"({worst_mean:.0f}% mean win-ratio).</p>")
+    groups = _provenance_order(provenance)
+    if len(groups) <= 1:
+        order = sorted(range(d), key=lambda i: means[i], reverse=True)[:min(top, d)]
+        body = f"<ol class='ranklist'>{''.join(row(r, i) for r, i in enumerate(order, 1))}</ol>"
+        intro = (f"Top {len(order)} decks by mean head-to-head win-ratio (draws "
+                 "excluded).")
+    else:
+        blocks = []
+        for prov in groups:
+            idxs = sorted((i for i in range(d) if provenance[i] == prov),
+                          key=lambda i: means[i], reverse=True)
+            if not idxs:
+                continue
+            gmean = sum(means[i] for i in idxs) / len(idxs)
+            lst = "".join(row(r, i) for r, i in enumerate(idxs, 1))
+            blocks.append(
+                f"<div class='pgroup'><h3>{escape(prov)} decks "
+                f"<span class='gmean'>· group avg {gmean:.0f}%</span></h3>"
+                f"<ol class='ranklist'>{lst}</ol></div>")
+        body = "".join(blocks)
+        intro = ("Decks grouped by provenance, each ranked by mean head-to-head "
+                 "win-ratio vs the WHOLE field (draws excluded) — so a group's numbers "
+                 "read directly against the others'.")
+        if "Real" in groups:
+            intro += (" <em>Caveat:</em> real (pilot) decks include frame/pilot "
+                      "ability cards the sim doesn't model, so they draw some dead "
+                      "cards and read a bit low against the pure-combat sim decks; "
+                      "their ranking <em>relative to each other</em> is the fair read.")
     return f"""<section class="summary">
     <h2>Summary — {n}v{n}</h2>
-    <p class="note">Top {min(top, d)} decks by mean head-to-head win-ratio (draws
-    excluded). Each chip is a tough matchup — the deck's win% as team&nbsp;A against
-    that opponent; anything under 50% (red) is a matchup it loses. A deck with
+    <p class="note">{intro} Each chip is a tough matchup — the deck's win% as
+    team&nbsp;A against that opponent; anything under 50% (red) is a loss. A deck with
     <em>no losing matchup</em> beats the whole field and is worth a second look.</p>
-    <ol class="ranklist">{''.join(rows)}</ol>
-    {foot}
+    {body}
   </section>"""
 
 
-def render_tournament_html(names: list, grids: dict, cfg: SimConfig) -> str:
+def render_tournament_html(names: list, grids: dict, cfg: SimConfig,
+                           provenance: list = None) -> str:
     """Self-contained HTML with a leaderboard summary and one win-rate heatmap per
     team size. Cell (i, j) is deck i's win rate as team A against deck j as team B;
     every cell shows its number, so meaning never rides on colour alone."""
-    summaries = "\n".join(_render_summary(names, grids[n], n) for n in sorted(grids))
+    summaries = "\n".join(_render_summary(names, grids[n], n, provenance)
+                          for n in sorted(grids))
     sections = "\n".join(_render_heatmap(names, grids[n], n) for n in sorted(grids))
 
     def _w(d, c):
@@ -1526,6 +1647,9 @@ def render_tournament_html(names: list, grids: dict, cfg: SimConfig) -> str:
   .weak {{ display:flex; align-items:center; gap:.35rem; flex-wrap:wrap; }}
   .weak .wl {{ color:var(--muted); font-size:.78rem; }}
   .weak .wl.good {{ color:#2a78d6; font-weight:700; }}
+  .pgroup {{ margin:.9rem 0 0; }}
+  .pgroup h3 {{ font-size:.9rem; margin:.3rem 0 .35rem; }}
+  .pgroup h3 .gmean {{ color:var(--muted); font-weight:600; font-size:.82rem; }}
 </style></head>
 <body>
   <h1>mobileSuitGame — deck tournament</h1>
@@ -1619,6 +1743,13 @@ def main() -> None:
     t = sub.add_parser("tournament", help="round-robin over a deck set -> HTML report")
     t.add_argument("--decks", nargs="*", default=[], help="deck CSVs to include")
     t.add_argument("--decks-dir", help="also include every *.csv in this folder")
+    t.add_argument("--real", action="store_true",
+                   help="include the REAL game decks (decks/deck_*.csv, one per pilot)")
+    t.add_argument("--sim", action="store_true",
+                   help="include the SIM balance decks (simulation/decks/sim/*.csv)")
+    t.add_argument("--weapon-groups", action="store_true",
+                   help="include one synthetic deck per weapon group (all its cards; "
+                        "no CSV written) to pit each weapon against the field")
     t.add_argument("--sizes", type=int, nargs="+", default=[1, 2, 3],
                    help="team sizes, one heatmap each (default 1 2 3)")
     t.add_argument("--output", default="build/tournament.html", help="HTML report path")
