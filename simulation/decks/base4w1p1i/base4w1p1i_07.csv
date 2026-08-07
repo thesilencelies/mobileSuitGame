@@ -1,0 +1,27 @@
+# base4w1p1i_07: 4 weapons (Spear, Cannon, Stun Baton, Great Axe) + pilot 'Wunderkid' + Booster (inert) -- same shape as a typical real deck; real decks should go ~even vs this
+# groups: Spear, Cannon, Stun Baton, Great Axe, Wunderkid, Booster
+
+card/Spear_Thrust
+card/Spear_Jab
+card/Spear_Impale
+card/Spear_Sweep
+card/Cannon_Fullbore
+card/Cannon_Airburst
+card/Cannon_Cannon
+card/Cannon_Pummel
+card/Stun Baton_Overcharge
+card/Stun Baton_Shock
+card/Stun Baton_Zap
+card/Stun Baton_Strike
+card/Great Axe_Cleave
+card/Great Axe_Split
+card/Great Axe_Whirl
+card/Great Axe_Eviscerate
+card/Wunderkid_Hyper
+card/Wunderkid_Net Speed
+card/Wunderkid_Portal
+card/Wunderkid_Ace Reflexes
+card/Booster_Full speed ahead
+card/Booster_Quick Step
+card/Booster_Shoulder barge
+card/Booster_Accelerate

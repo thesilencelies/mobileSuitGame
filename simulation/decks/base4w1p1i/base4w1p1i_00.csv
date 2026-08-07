@@ -1,0 +1,26 @@
+# base4w1p1i_00: 4 weapons (Sword, Missile Rack, Greatsword, Chainsaw) + pilot 'Specialist' + Booster (inert) -- same shape as a typical real deck; real decks should go ~even vs this
+# groups: Sword, Missile Rack, Greatsword, Chainsaw, Specialist, Booster
+
+card/Sword_Lunge
+card/Sword_Feint
+card/Sword_Slice
+card/Sword_Parry
+card/Missile Rack_Missile Rack 1
+card/Missile Rack_Missile Rack 2
+card/Missile Rack_Missile Rack 3
+card/Greatsword_Cleave
+card/Greatsword_Parry
+card/Greatsword_Grand Sweep
+card/Greatsword_Rising Cut
+card/Chainsaw_Disembowel
+card/Chainsaw_Rip
+card/Chainsaw_Grind
+card/Chainsaw_Tear
+card/Specialist_Combo strike
+card/Specialist_Snipers aim
+card/Specialist_Master duelist
+card/Specialist_Practiced Technique
+card/Booster_Full speed ahead
+card/Booster_Quick Step
+card/Booster_Shoulder barge
+card/Booster_Accelerate
