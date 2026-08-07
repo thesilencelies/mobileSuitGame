@@ -1,15 +1,10 @@
-# ctr_superguard_control  (~86% vs target — STRONG)
-# Heavy Mid burst (12 pts) with Guard Break, Close Quarters and a Committed hitter,
-# plus spread blocks. Overwhelms superguard's single Mid super and punches through
-# its resolve-then-block defence even with draw variance.
-card/Sniper Rifle_Patience's Reward
-card/Sword_Lunge
-card/Kinetic Hammer_Strike
+# ctr_superguard_control  (~98% vs deg_superguard_control). Found by empirical random search vs the fixed AI.
+card/Halberd_Crush
 card/Stun Baton_Shock
-card/Chain_Whip
-card/Stun Baton_Overcharge
-card/Plasma Rifle_Plasma Stream
 card/Stun Baton_Shock
-card/Basic_Punch
-card/Halberd_Eviscerate
-card/Knife_Stab
+card/Great Axe_Whirl
+card/Axe_Throw
+card/Great Axe_Cleave
+card/Swarm_Swarm
+card/Sniper Rifle_Calibrated Hit
+card/Knife_Lunge

@@ -1,0 +1,16 @@
+# ctr_multiblock_pressure  (~55% vs target — MARGINAL)
+# Best counter found by evolutionary search under the new stochastic/scaled regime.
+# deg_multiblock_pressure largely RESISTS hard-countering now: its super blocks stay
+# consistent through draw variance, so this only manages a slight edge by pushing
+# Mid/Low volume (its thinner zones) with a guard-break finisher.
+card/Swarm_Swarm
+card/Plasma Rifle_Plasma Stream
+card/Stun Baton_Strike
+card/Halberd_Sweep
+card/Stun Bow_Low blow
+card/Chainsaw_Grind
+card/Cannon_Fullbore
+card/Kinetic Hammer_Slam
+card/Sniper Rifle_Calibrated Hit
+card/Halberd_Eviscerate
+card/Kinetic Hammer_Slam

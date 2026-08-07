@@ -353,6 +353,13 @@ def _rel_init(card: Card, prof: dict) -> float:
 DEFENSE_WEIGHT = 1.0
 CONCENTRATION_WEIGHT = 0.6
 
+# Tempo value of an attack the opponent BLOCKS, relative to one it lands. Forcing a
+# block is worth something (it spends one of the opponent's cards), but far less than
+# real damage -- and only the first "defensive attack" into a zone earns it. This is
+# deliberately small so the scorer never rates hammering a zone the opponent reliably
+# blocks (a redundantly-covered zone) anywhere near hitting an open one.
+FORCE_WEIGHT = 0.35
+
 
 # How badly the scorer wants a block for a zone the opponent can one-shot. Leaving
 # such a zone open loses the game outright, so this must dominate raw attack points
@@ -382,6 +389,56 @@ def _softmax_pick(scores: list, temperature: float, rng: random.Random) -> int:
         if r <= acc:
             return i
     return len(scores) - 1
+
+
+def _threat_profile(prof: dict, health: int, hand_len: int) -> tuple:
+    """Per-zone threat the opponent `prof` poses to a defender playing `hand_len`
+    cards: (kill_risk, one_shot, need). A zone is a KILL RISK if leaving it open
+    loses before we can out-race it -- a one-shot (peak >= HP) or sustained focused
+    fire that kills within two turns (`press` = damage/turn if unblocked). `need` is
+    how many blocks neutralise it (one per incoming attack; a super covers them all)."""
+    aw, af = prof["atk_weight"], prof["atk_freq"]
+    peak = prof.get("peak_atk", {z: 0 for z in ZONES})
+    atk_vals = prof.get("atk_vals", {z: [] for z in ZONES})
+    press = {z: aw[z] * hand_len for z in ZONES}
+    one_shot = {z: (health is not None and peak[z] >= health) for z in ZONES}
+    kill_risk = {z: (health is not None and (one_shot[z]
+                     or (press[z] > 0 and press[z] * 2 >= health))) for z in ZONES}
+    n_atk_z = {z: min(hand_len, max(0, round(af[z] * hand_len))) for z in ZONES}
+    n_oneshot = {z: (sum(1 for v in atk_vals[z] if v >= health) if one_shot[z] else 0)
+                 for z in ZONES}
+    need = {z: min(hand_len, max(n_atk_z[z] if kill_risk[z] else 0, n_oneshot[z]))
+            for z in ZONES}
+    return kill_risk, one_shot, need
+
+
+def _survival_deficit(cards: list, prof: dict, health: int) -> float:
+    """How badly a hand FAILS to cover the opponent's coverable lethal threats: the
+    (weighted) shortfall of blocks vs `need` on every kill-risk zone. 0 = every
+    lethal threat is fully covered. Used to keep the mixed action policy from ever
+    GAMBLING with survival: pick only among the survival-safest hands, then mix on
+    offence among those. One-shot shortfalls (certain death) count double sustained
+    ones (a turn of slack)."""
+    if prof is None or health is None:
+        return 0.0
+    kill_risk, one_shot, need = _threat_profile(prof, health, len(cards))
+    if not any(kill_risk.values()):
+        return 0.0
+    has_super = {z: False for z in ZONES}
+    cnt = {z: 0 for z in ZONES}
+    for c in cards:
+        for z in c.blocks:
+            if z in c.super_blocks:
+                has_super[z] = True
+            else:
+                cnt[z] += 1
+    deficit = 0.0
+    for z in ZONES:
+        if not kill_risk[z]:
+            continue
+        held = need[z] if has_super[z] else cnt[z]
+        deficit += (1.0 if one_shot[z] else 0.5) * max(0, need[z] - held)
+    return deficit
 
 
 def score_hand(cards: list, prof: dict, defense_weight: float = None,
@@ -418,44 +475,22 @@ def score_hand(cards: list, prof: dict, defense_weight: float = None,
     bf, aw, af = prof["block_freq"], prof["atk_weight"], prof["atk_freq"]
     peak = prof.get("peak_atk", {z: 0 for z in ZONES})
     atk_vals = prof.get("atk_vals", {z: [] for z in ZONES})
-    # Zones the opponent can destroy in a single card -- must be covered to survive.
-    lethal = {z: (health is not None and peak[z] >= health) for z in ZONES}
-    under_alpha = any(lethal.values())
-    # How many one-shots the opponent could stack on a lethal zone this turn (it may
-    # double up, as an attacker's own scorer rewards concentration): capped by the
-    # hand size, since it can only play that many cards. Each needs its own block.
-    n_oneshot = {z: (sum(1 for v in atk_vals[z] if v >= health) if lethal[z] else 0)
-                 for z in ZONES}
-    need_lethal = {z: min(len(cards), n_oneshot[z]) for z in ZONES}
+    # Per-zone lethal threat (one-shot OR sustained focused fire) -- see
+    # _threat_profile. `lethal`/`under_alpha` names kept for the terms below.
+    kill_risk, one_shot, need_lethal = _threat_profile(prof, health, len(cards))
+    lethal = kill_risk
+    under_alpha = any(kill_risk.values())
 
-    offense = 0.0
-    landing = {z: 0.0 for z in ZONES}       # attack expected to land, per zone
     hitters = {z: 0 for z in ZONES}         # how many chosen cards attack each zone
     block_avails = {z: [] for z in ZONES}   # availability of every ordinary block per zone
     has_super = {z: False for z in ZONES}   # do we hold a super block for this zone?
+    attackers = []                          # (card, rel_init) for every non-feint hitter
     for c in cards:
         t = _rel_init(c, prof)
-        # Under alpha pressure a slow attacker may die before it ever resolves, so
-        # its offence is worth roughly its chance of acting first.
-        surv = (0.35 + 0.65 * t) if under_alpha else 1.0
-        # A feint deals no damage, so it contributes no offence. Close quarters can't
-        # be stopped by an already-resolved (free) block, so fewer of the opponent's
-        # blocks effectively apply to it.
-        if not c.feint:
-            bmul = 0.5 if c.close_quarters else 1.0
+        if not c.feint and c.is_attack:
+            attackers.append((c, t))
             for z, a in zip(ZONES, c.attacks):
                 if a:
-                    if c.guard_break:
-                        # A single block can't wipe a guard-break attack -- every
-                        # zone it hits must be blocked on its own -- so it always
-                        # forces a block and more leaks through when they run short.
-                        offense += a * surv
-                        landing[z] += a * max(0.0, 1.0 - bf[z] * bmul * 0.5)
-                    else:
-                        # base = damage likely to land; + high-init bonus for forcing
-                        # a block on zones they cover. hit_value = 1 - bf*(1-t).
-                        offense += a * (1 - bf[z] * bmul * (1 - t)) * surv
-                        landing[z] += a * max(0.0, 1.0 - bf[z] * bmul)
                     hitters[z] += 1
         # A low-init attacker is reluctant to block (it would lose its attack); a
         # pure block or a high-init card blocks essentially for free. A committed
@@ -468,6 +503,52 @@ def score_hand(cards: list, prof: dict, defense_weight: float = None,
                 has_super[z] = True  # kept, so it defends this zone for free
             else:
                 block_avails[z].append(avail)
+
+    # ---- offence: resolve our attacks against the opponent's expected blocking ----
+    # The opponent can field ~ block_freq[z] * hand_size blocks at each zone this
+    # turn; model that as a per-zone budget that DRAWS DOWN as attacks force blocks.
+    # Consequences that match how blocking really works:
+    #   * A zone the opponent covers redundantly (budget >= our attacks there) eats
+    #     everything -- those attacks land ~nothing, so hammering a wall is not
+    #     rewarded. Only the first attack into a blocked zone earns a small tempo
+    #     credit (the one worthwhile "defensive attack").
+    #   * A SECOND attack on a zone only pays once it OVERWHELMS the budget there --
+    #     i.e. the concentration "bet" that the opponent holds just one block.
+    #   * A normal multi-zone attack is negated whole by a single block (the opponent
+    #     spends its most-available covering zone); guard break must be blocked per
+    #     zone, so each zone draws the budget down on its own.
+    offense = 0.0
+    landing = {z: 0.0 for z in ZONES}
+    budget = {z: bf[z] * len(cards) for z in ZONES}
+    forced = {z: 0 for z in ZONES}
+    # Bigger threats first -- the opponent spends its blocks on the scariest attacks.
+    for c, t in sorted(attackers, key=lambda ct: -sum(ct[0].attacks)):
+        surv = (0.35 + 0.65 * t) if under_alpha else 1.0
+        cqm = 0.5 if c.close_quarters else 1.0  # resolved free blocks can't stop CQ
+        zones = [(z, a) for z, a in zip(ZONES, c.attacks) if a]
+        if c.guard_break:
+            for z, a in sorted(zones, key=lambda za: -za[1]):
+                blocked = min(1.0, max(0.0, budget[z] * cqm))
+                land = a * (1.0 - blocked)
+                offense += land * surv
+                landing[z] += land
+                if blocked > 0.0 and forced[z] < 1:
+                    offense += FORCE_WEIGHT * a * blocked * t
+                    forced[z] += 1
+                budget[z] = max(0.0, budget[z] - 1.0)
+        else:
+            # One block covering ANY attacked zone stops the whole attack; the
+            # opponent uses whichever attacked zone it can most afford to block.
+            zb = max(zones, key=lambda za: budget[za[0]])[0]
+            blocked = min(1.0, max(0.0, budget[zb] * cqm))
+            for z, a in zones:
+                land = a * (1.0 - blocked)
+                offense += land * surv
+                landing[z] += land
+            if blocked > 0.0 and forced[zb] < 1:
+                offense += FORCE_WEIGHT * sum(a for _, a in zones) * blocked * t
+                forced[zb] += 1
+            budget[zb] = max(0.0, budget[zb] - 1.0)
 
     # Count only as many blocks per zone as the opponent is expected to attack it
     # (they play len(cards) actions/turn, af[z] of them at zone z). A super block
@@ -490,7 +571,11 @@ def score_hand(cards: list, prof: dict, defense_weight: float = None,
         if not lethal[z]:
             continue
         held = need_lethal[z] if has_super[z] else len(block_avails[z])
-        survival += SURVIVAL_WEIGHT * min(held, need_lethal[z])
+        # A one-shot is certain death (full weight). A sustained (2-turn) threat is
+        # urgent but leaves a turn of slack, so it is weighted lower -- enough to
+        # beat a greedy extra attack, not so much the deck turtles blindly.
+        w = SURVIVAL_WEIGHT if one_shot[z] else SURVIVAL_WEIGHT * 0.5
+        survival += w * min(held, need_lethal[z])
 
     concentration = cw * sum(landing[z] for z in ZONES if hitters[z] >= 2)
     return offense + defense + concentration + survival
@@ -509,9 +594,18 @@ def _choose_hand(frame: Frame, hand_size: int, intelligent: bool, pool: int,
         drawn = frame.pile.draw(max(pool, hand_size))
         k = min(hand_size, len(drawn))
         combos = list(combinations(range(len(drawn)), k))
-        scores = [score_hand([drawn[i] for i in idx], frame.opp_profile, dw, cw, health)
-                  for idx in combos]
-        return [drawn[i] for i in combos[_softmax_pick(scores, temperature, rng)]]
+        hands = [[drawn[i] for i in idx] for idx in combos]
+        scores = [score_hand(h, frame.opp_profile, dw, cw, health) for h in hands]
+        # Never GAMBLE with survival: the softmax exists to make our OFFENCE an
+        # unexploitable mixed policy, but covering a coverable lethal threat is
+        # strictly dominant -- randomising it away just leaks damage that accumulates
+        # against a relentless focused attacker. So restrict the sampling to the
+        # survival-safest hands available, then mix on score among those.
+        deficits = [_survival_deficit(h, frame.opp_profile, health) for h in hands]
+        best = min(deficits)
+        safe = [i for i, d in enumerate(deficits) if d <= best + 1e-9]
+        sub = _softmax_pick([scores[i] for i in safe], temperature, rng)
+        return hands[safe[sub]]
     return frame.pile.draw(hand_size)
 
 
