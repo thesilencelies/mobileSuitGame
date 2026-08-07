@@ -464,6 +464,29 @@ def _threat_profile(prof: dict, health: int, hand_len: int) -> tuple:
     return kill_risk, one_shot, need
 
 
+def _dominates(a: "Card", b: "Card") -> bool:
+    """True if playing card `a` is never worse than card `b` and is strictly better:
+    `a` attacks at least as hard in every zone (feints count as no damage) and blocks
+    (and super-blocks) every zone `b` does, plus strictly more somewhere. A card that
+    is dominated by another AVAILABLE card is dead weight -- e.g. a pilot (blocks High
+    only) is dominated by a spear that also blocks High but attacks too, so the mixed
+    policy should never spend an action on the pilot when a spear is in hand. A super
+    block is dominated by nothing (no attacker replicates a free, never-spent block),
+    so genuine defensive holds are preserved.
+
+    Feints are INCOMPARABLE (never dominate, never dominated): a feint deals no damage
+    but forces a block on its own zone (tempo), a value neither a plain attacker nor a
+    blocker replicates -- so a feint-tempo play is never pruned."""
+    if a.feint or b.feint:
+        return False
+    if any(a.attacks[z] < b.attacks[z] for z in range(len(ZONES))):
+        return False
+    if not (b.blocks <= a.blocks and b.super_blocks <= a.super_blocks):
+        return False
+    return (any(a.attacks[z] > b.attacks[z] for z in range(len(ZONES)))
+            or a.blocks > b.blocks or a.super_blocks > b.super_blocks)
+
+
 def _survival_deficit(cards: list, prof: dict, health: int) -> float:
     """How badly a hand FAILS to cover the opponent's coverable lethal threats: the
     (weighted) shortfall of blocks vs `need` on every kill-risk zone. 0 = every
@@ -656,8 +679,31 @@ def _choose_hand(frame: Frame, hand_size: int, intelligent: bool, pool: int,
         deficits = [_survival_deficit(h, frame.opp_profile, health) for h in hands]
         best = min(deficits)
         safe = [i for i, d in enumerate(deficits) if d <= best + 1e-9]
-        sub = _softmax_pick([scores[i] for i in safe], temperature, rng)
-        return hands[safe[sub]]
+        # Don't spend an action on a DOMINATED card. A card another DRAWN card strictly
+        # dominates (attacks as hard everywhere and blocks everything it does, plus
+        # more -- see _dominates) is dead weight: playing it instead of the dominator
+        # only loses value. Yet the softmax would still play it, taxing you every turn
+        # merely for HOLDING dead cards (a pure artifact -- at full draw a rational
+        # player pays only draw-dilution). So drop any hand that plays a card while a
+        # dominator sits unused, then mix on score among the rest. This prunes inert
+        # cards and redundant blocks (e.g. a pilot when a High-blocking attacker is in
+        # hand) but never a super block (nothing dominates a free, never-spent block)
+        # nor a card that is your only cover for some zone; if every option is
+        # dominated (you drew only dead cards) the draw-dilution cost is preserved.
+        n = len(drawn)
+        dominators = [set() for _ in range(n)]
+        for i in range(n):
+            for j in range(n):
+                if i != j and _dominates(drawn[j], drawn[i]):
+                    dominators[i].add(j)
+
+        def has_dead(c):
+            idx = set(combos[c])
+            return any(dominators[i] - idx for i in combos[c])
+
+        keep = [c for c in safe if not has_dead(c)] or safe
+        sub = _softmax_pick([scores[c] for c in keep], temperature, rng)
+        return hands[keep[sub]]
     return frame.pile.draw(hand_size)
 
 
