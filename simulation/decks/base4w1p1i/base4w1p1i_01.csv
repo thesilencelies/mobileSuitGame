@@ -1,0 +1,27 @@
+# base4w1p1i_01: 4 weapons (Sniper Rifle, Knife, Great Axe, Cannon) + pilot 'Tactician' + Booster (inert) -- same shape as a typical real deck; real decks should go ~even vs this
+# groups: Sniper Rifle, Knife, Great Axe, Cannon, Tactician, Booster
+
+card/Sniper Rifle_Headshot
+card/Sniper Rifle_Calibrated Hit
+card/Sniper Rifle_Heartpiercer
+card/Sniper Rifle_Patience's Reward
+card/Knife_Stab
+card/Knife_Cut
+card/Knife_Slit
+card/Knife_Lunge
+card/Great Axe_Cleave
+card/Great Axe_Split
+card/Great Axe_Whirl
+card/Great Axe_Eviscerate
+card/Cannon_Fullbore
+card/Cannon_Airburst
+card/Cannon_Cannon
+card/Cannon_Pummel
+card/Tactician_Tactical broadcast
+card/Tactician_Fog of war
+card/Tactician_Set the trap
+card/Tactician_Outfox
+card/Booster_Full speed ahead
+card/Booster_Quick Step
+card/Booster_Shoulder barge
+card/Booster_Accelerate

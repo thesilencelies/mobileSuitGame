@@ -1,0 +1,29 @@
+# w6_sustained
+# Sustained 2-damage pressure across all three zones (two hits kill a 4-HP zone).
+# 6 weapon groups (repeats allowed): Axe, Kinetic Hammer, Plasma Rifle x2, Spear x2.
+# Found by 6-group empirical search vs the clean sim field (~73% mean win-ratio).
+
+card/Axe_Chop
+card/Axe_Hook
+card/Axe_Split
+card/Axe_Throw
+card/Kinetic Hammer_Slam
+card/Kinetic Hammer_Strike
+card/Kinetic Hammer_Heavy Swing
+card/Kinetic Hammer_Batter
+card/Plasma Rifle_Charged Shot
+card/Plasma Rifle_Single Shot
+card/Plasma Rifle_Plasma Stream
+card/Plasma Rifle_Vent
+card/Plasma Rifle_Charged Shot
+card/Plasma Rifle_Single Shot
+card/Plasma Rifle_Plasma Stream
+card/Plasma Rifle_Vent
+card/Spear_Thrust
+card/Spear_Jab
+card/Spear_Impale
+card/Spear_Sweep
+card/Spear_Thrust
+card/Spear_Jab
+card/Spear_Impale
+card/Spear_Sweep

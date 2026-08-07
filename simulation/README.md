@@ -17,8 +17,11 @@ python simulation/simulate.py scale \
 
 # 3. Round-robin over a deck set -> one HTML heatmap per team size
 python simulation/simulate.py tournament \
-    --decks-dir simulation/decks --sizes 1 2 3 --output build/tournament.html
-#   --decks a.csv b.csv c.csv   to list decks explicitly instead of a folder
+    --sim --sizes 1 2 3 --output build/tournament.html
+#   --decks a.csv b.csv c.csv   to list decks explicitly instead
+#   --real          also include the real game decks (decks/deck_*.csv)
+#   --weapon-groups also include one synthetic deck per weapon group (no CSV)
+#   the report groups the leaderboard by provenance (Real / Sim / Weapon)
 ```
 
 `scale` prints one row per team size; `tournament` runs every ordered deck pair
@@ -34,7 +37,7 @@ two sides **different strategies** and read attackers-vs-defenders straight off
 the grid (the report labels it and flags that the grid is then not symmetric):
 
 ```bash
-python simulation/simulate.py tournament --decks-dir simulation/decks --sizes 1 \
+python simulation/simulate.py tournament --sim --sizes 1 \
     --intelligent --pool 8 --defense-a 0 --defense-b 4
 #   rows played offensively (def 0) vs columns played defensively (def 4)
 ```
@@ -43,11 +46,14 @@ python simulation/simulate.py tournament --decks-dir simulation/decks --sizes 1 
 win-rate variance at roughly ±1% (worst case, near 50/50). Halve the games for ~4×
 the variance; quadruple them (`--games 10000`) to roughly halve it.
 
-## Test decks: `simulation/decks/`
+## Test decks: `simulation/decks/sim/`
 
-Balance-test decks live in [`simulation/decks/`](decks/) and can be referenced by
-bare basename (the script also falls back to the repo-root `decks/` and to any
-path you give it). They are the same one-`card/{Group}_{Name}`-per-line CSVs used
+Balance-test (SIM) decks live in [`simulation/decks/sim/`](decks/sim/) and can be
+referenced by bare basename (the script also falls back to the repo-root `decks/`
+and to any path you give it); `simulation/decks/weapon6/` holds the
+six-weapon-group-constrained variants and `simulation/decks/archive/` retired ones.
+The real per-pilot game decks live in the repo-root `decks/` and are included with
+`--real`; every weapon group can be played as a deck with `--weapon-groups`. They are the same one-`card/{Group}_{Name}`-per-line CSVs used
 elsewhere; card stats are read from the action-card CSVs at the repo root
 (`Weapon actions.csv`, `Basic actions.csv`, `Booster actions.csv`,
 `Drone actions.csv`, `Pilot actions.csv`). Skew a deck heavily toward the cards
@@ -112,6 +118,32 @@ can never cover a high attack).
   moment any one zone takes *more* than `--health` (default 4) damage.
 * **Focus fire.** Every frame on a team funnels all attacks onto one designated
   target frame on the other team (`--target-a` / `--target-b`, default index 0).
+* **Keywords.** guard break, super block, feint, committed, close quarters, and
+  **reload** (a downside: after a reload attack fires, that weapon group's next
+  attack duds — no damage, no block spent — until it is spent reloading; the trigger
+  persists across rounds). Pilot cards get an implicit High block by rule.
+
+## Weapon analysis tools
+
+Four scripts characterise the WEAPON groups (each reads the live card data, so they
+stay honest as cards change):
+
+```bash
+# how strong is each weapon as a standalone deck, and WHY (features + summary stats)
+python simulation/weapon_power.py            # add --fit to refit the model to a live tournament
+
+# separate a weapon's OFFENCE from its blocking: drop it into an all-Basics deck
+# (Basic_Block covers every zone) and diff vs the pure weapon-group round-robin
+python simulation/weapon_quality_test.py
+
+# a weapon's power as a CONTRIBUTOR: avg lift when added to a deck already running
+# another weapon (~a Shapley value); reveals partners that solo win% hides
+python simulation/weapon_contribution.py
+
+# two-weapon pairings (+basics), best pairs and which weapons never partner well;
+# --team-size 2 shows how the meta shifts under 2v2 focus-fire pressure
+python simulation/weapon_pairs.py --team-size 2
+```
 
 ## Tests
 

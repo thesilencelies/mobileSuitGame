@@ -1,0 +1,13 @@
+# deg_guardbreak_flood
+# Nothing but guard-break multi-zone attackers. Each attack must be blocked once PER
+# zone it hits, so a defender with normal one-per-attack blocking is drained in a
+# couple of turns and the overflow zones leak through. Favours the widest-hitting
+# guard-breakers (Airburst/Cannon hit all three; Overcharge H/M/L). Tuned by themed
+# search (guard_break only) vs the fixed AI: 43% -> 47%.
+card/Cannon_Airburst
+card/Cannon_Cannon
+card/Stun Baton_Overcharge
+card/Great Axe_Split
+card/Plasma Rifle_Plasma Stream
+card/Missile Rack_Missile Rack 1
+card/Missile Rack_Missile Rack 2

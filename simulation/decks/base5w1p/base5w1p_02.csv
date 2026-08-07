@@ -1,0 +1,26 @@
+# base5w1p_02: same 5 weapons as base6w_02, 6th slot = pilot 'Tactician' (dead-effect card, blocks High by rule) -- dead-card test
+# groups: Sword, Chainsaw, Stun Bow, Great Axe, Missile Rack, Tactician
+
+card/Sword_Lunge
+card/Sword_Feint
+card/Sword_Slice
+card/Sword_Parry
+card/Chainsaw_Disembowel
+card/Chainsaw_Rip
+card/Chainsaw_Grind
+card/Chainsaw_Tear
+card/Stun Bow_Rapid fire
+card/Stun Bow_Arc shot
+card/Stun Bow_Straight shot
+card/Stun Bow_Low blow
+card/Great Axe_Cleave
+card/Great Axe_Split
+card/Great Axe_Whirl
+card/Great Axe_Eviscerate
+card/Missile Rack_Missile Rack 1
+card/Missile Rack_Missile Rack 2
+card/Missile Rack_Missile Rack 3
+card/Tactician_Tactical broadcast
+card/Tactician_Fog of war
+card/Tactician_Set the trap
+card/Tactician_Outfox

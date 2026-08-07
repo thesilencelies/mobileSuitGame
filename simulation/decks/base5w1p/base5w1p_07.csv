@@ -1,0 +1,27 @@
+# base5w1p_07: same 5 weapons as base6w_07, 6th slot = pilot 'Wunderkid' (dead-effect card, blocks High by rule) -- dead-card test
+# groups: Spear, Cannon, Stun Baton, Great Axe, Greatsword, Wunderkid
+
+card/Spear_Thrust
+card/Spear_Jab
+card/Spear_Impale
+card/Spear_Sweep
+card/Cannon_Fullbore
+card/Cannon_Airburst
+card/Cannon_Cannon
+card/Cannon_Pummel
+card/Stun Baton_Overcharge
+card/Stun Baton_Shock
+card/Stun Baton_Zap
+card/Stun Baton_Strike
+card/Great Axe_Cleave
+card/Great Axe_Split
+card/Great Axe_Whirl
+card/Great Axe_Eviscerate
+card/Greatsword_Cleave
+card/Greatsword_Parry
+card/Greatsword_Grand Sweep
+card/Greatsword_Rising Cut
+card/Wunderkid_Hyper
+card/Wunderkid_Net Speed
+card/Wunderkid_Portal
+card/Wunderkid_Ace Reflexes

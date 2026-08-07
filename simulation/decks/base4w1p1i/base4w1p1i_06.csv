@@ -1,0 +1,27 @@
+# base4w1p1i_06: 4 weapons (Halberd, Stun Baton, Great Axe, Axe) + pilot 'Mystic' + Booster (inert) -- same shape as a typical real deck; real decks should go ~even vs this
+# groups: Halberd, Stun Baton, Great Axe, Axe, Mystic, Booster
+
+card/Halberd_Crush
+card/Halberd_Eviscerate
+card/Halberd_Thrust
+card/Halberd_Sweep
+card/Stun Baton_Overcharge
+card/Stun Baton_Shock
+card/Stun Baton_Zap
+card/Stun Baton_Strike
+card/Great Axe_Cleave
+card/Great Axe_Split
+card/Great Axe_Whirl
+card/Great Axe_Eviscerate
+card/Axe_Chop
+card/Axe_Hook
+card/Axe_Split
+card/Axe_Throw
+card/Mystic_Ephemeral Images
+card/Mystic_Teleport
+card/Mystic_Utter darkness
+card/Mystic_Encode the future
+card/Booster_Full speed ahead
+card/Booster_Quick Step
+card/Booster_Shoulder barge
+card/Booster_Accelerate

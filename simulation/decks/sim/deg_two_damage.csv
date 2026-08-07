@@ -1,0 +1,12 @@
+# deg_two_damage
+# Every attack deals exactly 2, so two hits on a zone (HP 4) score a kill -- it tests
+# SUSTAINED pressure rather than alpha (no card one-shots a fresh zone). Spread across
+# all three zones so the lethality-aware defender can't just wall one lane. Tuned by
+# themed search (all attacked zones == 2 damage) vs the fixed AI: 65% -> 71%.
+card/Spear_Impale
+card/Axe_Chop
+card/Sniper Rifle_Headshot
+card/Plasma Rifle_Single Shot
+card/Railgun_Piercing Round
+card/Greatsword_Grand Sweep
+card/Kinetic Hammer_Slam

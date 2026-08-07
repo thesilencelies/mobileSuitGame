@@ -1,0 +1,27 @@
+# base6w_03: random baseline, 6 different weapons (all attack)
+# groups: Plasma Rifle, Axe, Sword, Great Axe, Halberd, Greatsword
+
+card/Plasma Rifle_Charged Shot
+card/Plasma Rifle_Single Shot
+card/Plasma Rifle_Plasma Stream
+card/Plasma Rifle_Vent
+card/Axe_Chop
+card/Axe_Hook
+card/Axe_Split
+card/Axe_Throw
+card/Sword_Lunge
+card/Sword_Feint
+card/Sword_Slice
+card/Sword_Parry
+card/Great Axe_Cleave
+card/Great Axe_Split
+card/Great Axe_Whirl
+card/Great Axe_Eviscerate
+card/Halberd_Crush
+card/Halberd_Eviscerate
+card/Halberd_Thrust
+card/Halberd_Sweep
+card/Greatsword_Cleave
+card/Greatsword_Parry
+card/Greatsword_Grand Sweep
+card/Greatsword_Rising Cut

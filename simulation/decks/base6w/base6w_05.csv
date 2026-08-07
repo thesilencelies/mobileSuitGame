@@ -1,0 +1,27 @@
+# base6w_05: random baseline, 6 different weapons (all attack)
+# groups: Cannon, Plasma Rifle, Great Axe, Sniper Rifle, Chainsaw, Sword
+
+card/Cannon_Fullbore
+card/Cannon_Airburst
+card/Cannon_Cannon
+card/Cannon_Pummel
+card/Plasma Rifle_Charged Shot
+card/Plasma Rifle_Single Shot
+card/Plasma Rifle_Plasma Stream
+card/Plasma Rifle_Vent
+card/Great Axe_Cleave
+card/Great Axe_Split
+card/Great Axe_Whirl
+card/Great Axe_Eviscerate
+card/Sniper Rifle_Headshot
+card/Sniper Rifle_Calibrated Hit
+card/Sniper Rifle_Heartpiercer
+card/Sniper Rifle_Patience's Reward
+card/Chainsaw_Disembowel
+card/Chainsaw_Rip
+card/Chainsaw_Grind
+card/Chainsaw_Tear
+card/Sword_Lunge
+card/Sword_Feint
+card/Sword_Slice
+card/Sword_Parry

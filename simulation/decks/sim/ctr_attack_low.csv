@@ -1,0 +1,11 @@
+# ctr_attack_low  (soft counter -- only_attack_low is an efficient probe, ~66% is the
+# best hard-counter search found). Found by empirical random search vs the fixed AI.
+card/Chainsaw_Rip
+card/Halberd_Crush
+card/Halberd_Crush
+card/Railgun_Kinetic Barrage
+card/Basic_Kick
+card/Spear_Sweep
+card/Knife_Slit
+card/Chain_Whip
+card/Basic_Block

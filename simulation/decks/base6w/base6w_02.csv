@@ -1,0 +1,26 @@
+# base6w_02: random baseline, 6 different weapons (all attack)
+# groups: Sword, Chainsaw, Stun Bow, Great Axe, Missile Rack, Sniper Rifle
+
+card/Sword_Lunge
+card/Sword_Feint
+card/Sword_Slice
+card/Sword_Parry
+card/Chainsaw_Disembowel
+card/Chainsaw_Rip
+card/Chainsaw_Grind
+card/Chainsaw_Tear
+card/Stun Bow_Rapid fire
+card/Stun Bow_Arc shot
+card/Stun Bow_Straight shot
+card/Stun Bow_Low blow
+card/Great Axe_Cleave
+card/Great Axe_Split
+card/Great Axe_Whirl
+card/Great Axe_Eviscerate
+card/Missile Rack_Missile Rack 1
+card/Missile Rack_Missile Rack 2
+card/Missile Rack_Missile Rack 3
+card/Sniper Rifle_Headshot
+card/Sniper Rifle_Calibrated Hit
+card/Sniper Rifle_Heartpiercer
+card/Sniper Rifle_Patience's Reward

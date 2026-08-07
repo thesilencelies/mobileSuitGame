@@ -1,0 +1,16 @@
+# robust_allrounder
+# Highest MEAN win-ratio vs the whole surviving field, found by evolutionary search
+# (scratchpad/robust.py) under the fixed AI (~75% at search fitness). A spread of
+# guaranteed-damage attackers across all three zones (no gimmick) that punishes
+# narrow decks without a hard weakness of its own.
+card/Spear_Impale
+card/Chainsaw_Disembowel
+card/Chainsaw_Grind
+card/Great Axe_Split
+card/Cannon_Pummel
+card/Plasma Rifle_Single Shot
+card/Kinetic Hammer_Slam
+card/Sword_Slice
+card/Knife_Slit
+card/Halberd_Sweep
+card/Spear_Thrust

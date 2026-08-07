@@ -1,0 +1,29 @@
+# w6_robust
+# Best all-round 6-group deck vs the clean sim field: no gimmick, just strong groups.
+# 6 weapon groups (repeats allowed): Assault Rifle, Chainsaw, Halberd x2, Spear, Stun Baton.
+# Found by 6-group empirical search vs the clean sim field (~79% mean win-ratio).
+
+card/Assault Rifle_Burst Fire
+card/Assault Rifle_Aimed Fire
+card/Assault Rifle_From the hip
+card/Assault Rifle_Covering Fire
+card/Chainsaw_Disembowel
+card/Chainsaw_Rip
+card/Chainsaw_Grind
+card/Chainsaw_Tear
+card/Halberd_Crush
+card/Halberd_Eviscerate
+card/Halberd_Thrust
+card/Halberd_Sweep
+card/Halberd_Crush
+card/Halberd_Eviscerate
+card/Halberd_Thrust
+card/Halberd_Sweep
+card/Spear_Thrust
+card/Spear_Jab
+card/Spear_Impale
+card/Spear_Sweep
+card/Stun Baton_Overcharge
+card/Stun Baton_Shock
+card/Stun Baton_Zap
+card/Stun Baton_Strike

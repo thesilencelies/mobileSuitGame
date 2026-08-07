@@ -53,7 +53,9 @@ Lethal: damage accumulates across rounds within a game. A frame is destroyed the
 moment any single zone takes *more than or equal* than HEALTH damage ( greater than or equak).
 
 Decks are the same one-`card/{Group}_{Name}`-per-line CSVs used elsewhere.
-Balance-test decks live in simulation/decks/ and can be named by basename.
+Balance-test (SIM) decks live in simulation/decks/sim/ and can be named by basename;
+the real game decks live in decks/ (one per pilot). tournament can pit them against
+each other and against every weapon group, grouped by provenance in the report.
 
 Five sub-commands:
     match       one explicit matchup (team A vs team B)
@@ -67,12 +69,13 @@ Run:
                                         --team-b only_block_mid.csv
     python simulation/simulate.py scale --deck-a even_mix.csv \
                                         --deck-b only_attack_high.csv
-    python simulation/simulate.py tournament --decks-dir simulation/decks \
-                                        --sizes 1 2 3 --output build/tournament.html
-    python simulation/simulate.py cards --decks-dir simulation/decks \
+    # real decks + sim decks + every weapon group, grouped by provenance:
+    python simulation/simulate.py tournament --real --sim --weapon-groups \
+                                        --intelligent --pool 7 --output build/tournament.html
+    python simulation/simulate.py cards --decks-dir simulation/decks/sim \
                                         --output build/card_sweep.html
     python simulation/simulate.py pool --base even_mix.csv \
-                                        --decks-dir simulation/decks
+                                        --decks-dir simulation/decks/sim
 """
 
 from __future__ import annotations
@@ -113,13 +116,45 @@ def scale_deck(deck: list, minimum: int = MIN_DECK_CARDS) -> list:
 ROOT = Path(__file__).resolve().parent.parent
 
 # Action-card CSVs that decks draw from (frames / terrain are not action cards).
+WEAPON_CSV = "Weapon actions.csv"
+PILOT_CSV = "Pilot actions.csv"
 CARD_CSVS = [
-    "Weapon actions.csv",
+    WEAPON_CSV,
     "Basic actions.csv",
     "Booster actions.csv",
     "Drone actions.csv",
-    "Pilot actions.csv",
+    PILOT_CSV,
 ]
+
+# Deck sources, by provenance. REAL = the actual game decks (one per pilot) the card
+# generator uses; SIM = our hand/search-built balance-probe decks. Weapon-group decks
+# are synthetic (see load_deck's `weapon:` handling) and carry provenance "Weapon".
+REAL_DECKS_DIR = ROOT / "decks"                       # deck_<faction>_<pilot>.csv
+SIM_DECKS_DIR = ROOT / "simulation" / "decks" / "sim"
+WEAPON6_DECKS_DIR = ROOT / "simulation" / "decks" / "weapon6"
+BASE6W_DECKS_DIR = ROOT / "simulation" / "decks" / "base6w"      # 6 distinct weapons
+BASE5W1P_DECKS_DIR = ROOT / "simulation" / "decks" / "base5w1p"  # 5 weapons + 1 pilot
+BASE4W1P1I_DECKS_DIR = ROOT / "simulation" / "decks" / "base4w1p1i"  # 4 wpn+1 pilot+1 inert
+
+
+def weapon_groups() -> list:
+    """Every weapon group (Spear, Axe, ...) as listed in the Weapon actions CSV, in
+    file order. These are the groups `tournament --weapon-groups` turns into decks."""
+    import csv as _csv
+    path = ROOT / WEAPON_CSV
+    seen = []
+    if path.exists():
+        for row in _csv.DictReader(open(path, encoding="utf-8-sig")):
+            g = (row.get("Group") or "").strip()
+            if g and g not in seen:
+                seen.append(g)
+    return seen
+
+
+def real_deck_paths() -> list:
+    """The real combat decks (exclude terrain tile lists; frames_deck is not a hand)."""
+    return sorted(p for p in REAL_DECKS_DIR.glob("deck_*.csv")
+                  if not p.stem.startswith("deck_terrain"))
 
 
 def _to_int(value: str) -> int:
@@ -163,6 +198,11 @@ class Card:
     # attacks almost all block Mid and trade initiative for reach, so they skew the
     # Mid-block stats; the combat model ignores range but flags it for filtering.
     ranged: bool = False
+    # Reload (a downside): after a reload attack fires, this weapon GROUP must reload,
+    # so the group's NEXT attack is a dud -- deals no damage and (per the rules note)
+    # consumes no block. Cannon has it on every card (so ~half its shots dud); Plasma
+    # Rifle only on Charged Shot. Ignoring it overstates those weapons.
+    reload: bool = False
 
     @property
     def attack_zones(self) -> frozenset:
@@ -189,8 +229,14 @@ def load_cards() -> dict:
                 key = f"{group}_{name}"
                 attacks = tuple(_to_int(row.get(f"{z}Attack", "")) for z in ZONES)
                 block_vals = {z: _to_int(row.get(f"{z}Block", "")) for z in ZONES}
-                blocks = frozenset(z for z in ZONES if block_vals[z] > 0)
+                blocks = set(z for z in ZONES if block_vals[z] > 0)
                 super_blocks = frozenset(z for z in ZONES if block_vals[z] >= 2)
+                # Every pilot card carries a High block by rule -- it isn't written in
+                # the CSV, so add it here now that real decks (which run pilot cards)
+                # are simulated. It's an ordinary block (spent when used), not a super.
+                if fname == PILOT_CSV:
+                    blocks.add("High")
+                blocks = frozenset(blocks)
                 # Ranged if any attacked zone carries a Range value.
                 ranged = any(_to_int(row.get(f"{z}Range", "")) > 0
                              for z, a in zip(ZONES, attacks) if a > 0)
@@ -210,17 +256,30 @@ def load_cards() -> dict:
                     committed="committed" in text,
                     close_quarters="closequarters" in text,
                     ranged=ranged,
+                    reload="reload" in text,
                 )
     return cards
 
 
 def load_deck(deck_path: str, cards: dict) -> list:
-    """Read a deck CSV (one `card/{group}_{name}` per line) into a list of Cards."""
+    """Read a deck CSV (one `card/{group}_{name}` per line) into a list of Cards.
+
+    A `weapon:<Group>` pseudo-path is a SYNTHETIC deck of every card in that weapon
+    group (no file needed) -- used by `tournament --weapon-groups` to pit each weapon
+    against the field."""
+    if isinstance(deck_path, str) and deck_path.startswith("weapon:"):
+        group = deck_path[len("weapon:"):]
+        deck = [c for c in cards.values() if c.group == group]
+        if not deck:
+            raise ValueError(f"weapon group {group!r} has no cards")
+        return scale_deck(deck)
     path = Path(deck_path)
     if not path.is_absolute() and not path.exists():
-        # Balance decks live in simulation/decks/, demo decks in simulation/test/;
+        # Balance decks live in simulation/decks/sim/, demo decks in simulation/test/;
         # fall back through those, then the repo root.
-        for base in (ROOT / "simulation" / "decks", ROOT / "simulation" / "test", ROOT):
+        for base in (ROOT / "simulation" / "decks" / "sim",
+                     ROOT / "simulation" / "decks",
+                     ROOT / "simulation" / "test", ROOT):
             if (base / deck_path).exists():
                 path = base / deck_path
                 break
@@ -280,9 +339,11 @@ class Frame:
     is_target: bool = False
     opp_profile: dict = None  # opposing team's aggregate profile (intelligent mode)
     strategy: tuple = None    # (defense_weight, concentration_weight); None = defaults
+    reloading: set = field(default_factory=set)  # weapon groups whose next attack duds
 
     def reset(self) -> None:
         self.damage = {z: 0 for z in ZONES}
+        self.reloading = set()
         self.pile.reset()
 
 
@@ -353,6 +414,13 @@ def _rel_init(card: Card, prof: dict) -> float:
 DEFENSE_WEIGHT = 1.0
 CONCENTRATION_WEIGHT = 0.6
 
+# Tempo value of an attack the opponent BLOCKS, relative to one it lands. Forcing a
+# block is worth something (it spends one of the opponent's cards), but far less than
+# real damage -- and only the first "defensive attack" into a zone earns it. This is
+# deliberately small so the scorer never rates hammering a zone the opponent reliably
+# blocks (a redundantly-covered zone) anywhere near hitting an open one.
+FORCE_WEIGHT = 0.35
+
 
 # How badly the scorer wants a block for a zone the opponent can one-shot. Leaving
 # such a zone open loses the game outright, so this must dominate raw attack points
@@ -384,8 +452,82 @@ def _softmax_pick(scores: list, temperature: float, rng: random.Random) -> int:
     return len(scores) - 1
 
 
+def _threat_profile(prof: dict, health: int, hand_len: int) -> tuple:
+    """Per-zone threat the opponent `prof` poses to a defender playing `hand_len`
+    cards: (kill_risk, one_shot, need). A zone is a KILL RISK if leaving it open
+    loses before we can out-race it -- a one-shot (peak >= HP) or sustained focused
+    fire that kills within two turns (`press` = damage/turn if unblocked). `need` is
+    how many blocks neutralise it (one per incoming attack; a super covers them all)."""
+    aw, af = prof["atk_weight"], prof["atk_freq"]
+    peak = prof.get("peak_atk", {z: 0 for z in ZONES})
+    atk_vals = prof.get("atk_vals", {z: [] for z in ZONES})
+    press = {z: aw[z] * hand_len for z in ZONES}
+    one_shot = {z: (health is not None and peak[z] >= health) for z in ZONES}
+    kill_risk = {z: (health is not None and (one_shot[z]
+                     or (press[z] > 0 and press[z] * 2 >= health))) for z in ZONES}
+    n_atk_z = {z: min(hand_len, max(0, round(af[z] * hand_len))) for z in ZONES}
+    n_oneshot = {z: (sum(1 for v in atk_vals[z] if v >= health) if one_shot[z] else 0)
+                 for z in ZONES}
+    need = {z: min(hand_len, max(n_atk_z[z] if kill_risk[z] else 0, n_oneshot[z]))
+            for z in ZONES}
+    return kill_risk, one_shot, need
+
+
+def _dominates(a: "Card", b: "Card") -> bool:
+    """True if playing card `a` is never worse than card `b` and is strictly better:
+    `a` attacks at least as hard in every zone (feints count as no damage) and blocks
+    (and super-blocks) every zone `b` does, plus strictly more somewhere. A card that
+    is dominated by another AVAILABLE card is dead weight -- e.g. a pilot (blocks High
+    only) is dominated by a spear that also blocks High but attacks too, so the mixed
+    policy should never spend an action on the pilot when a spear is in hand. A super
+    block is dominated by nothing (no attacker replicates a free, never-spent block),
+    so genuine defensive holds are preserved.
+
+    Feints are INCOMPARABLE (never dominate, never dominated): a feint deals no damage
+    but forces a block on its own zone (tempo), a value neither a plain attacker nor a
+    blocker replicates -- so a feint-tempo play is never pruned."""
+    if a.feint or b.feint:
+        return False
+    if any(a.attacks[z] < b.attacks[z] for z in range(len(ZONES))):
+        return False
+    if not (b.blocks <= a.blocks and b.super_blocks <= a.super_blocks):
+        return False
+    return (any(a.attacks[z] > b.attacks[z] for z in range(len(ZONES)))
+            or a.blocks > b.blocks or a.super_blocks > b.super_blocks)
+
+
+def _survival_deficit(cards: list, prof: dict, health: int) -> float:
+    """How badly a hand FAILS to cover the opponent's coverable lethal threats: the
+    (weighted) shortfall of blocks vs `need` on every kill-risk zone. 0 = every
+    lethal threat is fully covered. Used to keep the mixed action policy from ever
+    GAMBLING with survival: pick only among the survival-safest hands, then mix on
+    offence among those. One-shot shortfalls (certain death) count double sustained
+    ones (a turn of slack)."""
+    if prof is None or health is None:
+        return 0.0
+    kill_risk, one_shot, need = _threat_profile(prof, health, len(cards))
+    if not any(kill_risk.values()):
+        return 0.0
+    has_super = {z: False for z in ZONES}
+    cnt = {z: 0 for z in ZONES}
+    for c in cards:
+        for z in c.blocks:
+            if z in c.super_blocks:
+                has_super[z] = True
+            else:
+                cnt[z] += 1
+    deficit = 0.0
+    for z in ZONES:
+        if not kill_risk[z]:
+            continue
+        held = need[z] if has_super[z] else cnt[z]
+        deficit += (1.0 if one_shot[z] else 0.5) * max(0, need[z] - held)
+    return deficit
+
+
 def score_hand(cards: list, prof: dict, defense_weight: float = None,
-               concentration_weight: float = None, health: int = None) -> float:
+               concentration_weight: float = None, health: int = None,
+               reloading: set = None) -> float:
     """Rate a *combination* of cards chosen as one turn's actions, against the
     opponent's profile. `defense_weight` / `concentration_weight` override the
     module defaults (used for per-team strategy); `health` (HP per zone) turns on
@@ -418,44 +560,39 @@ def score_hand(cards: list, prof: dict, defense_weight: float = None,
     bf, aw, af = prof["block_freq"], prof["atk_weight"], prof["atk_freq"]
     peak = prof.get("peak_atk", {z: 0 for z in ZONES})
     atk_vals = prof.get("atk_vals", {z: [] for z in ZONES})
-    # Zones the opponent can destroy in a single card -- must be covered to survive.
-    lethal = {z: (health is not None and peak[z] >= health) for z in ZONES}
-    under_alpha = any(lethal.values())
-    # How many one-shots the opponent could stack on a lethal zone this turn (it may
-    # double up, as an attacker's own scorer rewards concentration): capped by the
-    # hand size, since it can only play that many cards. Each needs its own block.
-    n_oneshot = {z: (sum(1 for v in atk_vals[z] if v >= health) if lethal[z] else 0)
-                 for z in ZONES}
-    need_lethal = {z: min(len(cards), n_oneshot[z]) for z in ZONES}
+    # Per-zone lethal threat (one-shot OR sustained focused fire) -- see
+    # _threat_profile. `lethal`/`under_alpha` names kept for the terms below.
+    kill_risk, one_shot, need_lethal = _threat_profile(prof, health, len(cards))
+    lethal = kill_risk
+    under_alpha = any(kill_risk.values())
 
-    offense = 0.0
-    landing = {z: 0.0 for z in ZONES}       # attack expected to land, per zone
+    # Reload: work out which chosen attacks will DUD (deal nothing) -- a weapon group
+    # already reloading (from a past turn, via `reloading`) or one that fires a reload
+    # attack earlier this turn leaves its next same-group shot empty. Walk the attacks
+    # in resolution (initiative) order and flag the duds so their offence is zeroed --
+    # so the AI won't, e.g., stack two Cannons in a hand and waste one.
+    dud = set()
+    if reloading or any(c.reload for c in cards):
+        reload_state = set(reloading) if reloading else set()
+        for i in sorted((i for i, c in enumerate(cards) if c.is_attack),
+                        key=lambda i: -cards[i].initiative):
+            g = cards[i].group
+            if g in reload_state:
+                dud.add(i)
+                reload_state.discard(g)
+            elif cards[i].reload:
+                reload_state.add(g)
+
     hitters = {z: 0 for z in ZONES}         # how many chosen cards attack each zone
     block_avails = {z: [] for z in ZONES}   # availability of every ordinary block per zone
     has_super = {z: False for z in ZONES}   # do we hold a super block for this zone?
-    for c in cards:
+    attackers = []                          # (card, rel_init) for every non-feint hitter
+    for i, c in enumerate(cards):
         t = _rel_init(c, prof)
-        # Under alpha pressure a slow attacker may die before it ever resolves, so
-        # its offence is worth roughly its chance of acting first.
-        surv = (0.35 + 0.65 * t) if under_alpha else 1.0
-        # A feint deals no damage, so it contributes no offence. Close quarters can't
-        # be stopped by an already-resolved (free) block, so fewer of the opponent's
-        # blocks effectively apply to it.
-        if not c.feint:
-            bmul = 0.5 if c.close_quarters else 1.0
+        if not c.feint and c.is_attack and i not in dud:
+            attackers.append((c, t))
             for z, a in zip(ZONES, c.attacks):
                 if a:
-                    if c.guard_break:
-                        # A single block can't wipe a guard-break attack -- every
-                        # zone it hits must be blocked on its own -- so it always
-                        # forces a block and more leaks through when they run short.
-                        offense += a * surv
-                        landing[z] += a * max(0.0, 1.0 - bf[z] * bmul * 0.5)
-                    else:
-                        # base = damage likely to land; + high-init bonus for forcing
-                        # a block on zones they cover. hit_value = 1 - bf*(1-t).
-                        offense += a * (1 - bf[z] * bmul * (1 - t)) * surv
-                        landing[z] += a * max(0.0, 1.0 - bf[z] * bmul)
                     hitters[z] += 1
         # A low-init attacker is reluctant to block (it would lose its attack); a
         # pure block or a high-init card blocks essentially for free. A committed
@@ -468,6 +605,52 @@ def score_hand(cards: list, prof: dict, defense_weight: float = None,
                 has_super[z] = True  # kept, so it defends this zone for free
             else:
                 block_avails[z].append(avail)
+
+    # ---- offence: resolve our attacks against the opponent's expected blocking ----
+    # The opponent can field ~ block_freq[z] * hand_size blocks at each zone this
+    # turn; model that as a per-zone budget that DRAWS DOWN as attacks force blocks.
+    # Consequences that match how blocking really works:
+    #   * A zone the opponent covers redundantly (budget >= our attacks there) eats
+    #     everything -- those attacks land ~nothing, so hammering a wall is not
+    #     rewarded. Only the first attack into a blocked zone earns a small tempo
+    #     credit (the one worthwhile "defensive attack").
+    #   * A SECOND attack on a zone only pays once it OVERWHELMS the budget there --
+    #     i.e. the concentration "bet" that the opponent holds just one block.
+    #   * A normal multi-zone attack is negated whole by a single block (the opponent
+    #     spends its most-available covering zone); guard break must be blocked per
+    #     zone, so each zone draws the budget down on its own.
+    offense = 0.0
+    landing = {z: 0.0 for z in ZONES}
+    budget = {z: bf[z] * len(cards) for z in ZONES}
+    forced = {z: 0 for z in ZONES}
+    # Bigger threats first -- the opponent spends its blocks on the scariest attacks.
+    for c, t in sorted(attackers, key=lambda ct: -sum(ct[0].attacks)):
+        surv = (0.35 + 0.65 * t) if under_alpha else 1.0
+        cqm = 0.5 if c.close_quarters else 1.0  # resolved free blocks can't stop CQ
+        zones = [(z, a) for z, a in zip(ZONES, c.attacks) if a]
+        if c.guard_break:
+            for z, a in sorted(zones, key=lambda za: -za[1]):
+                blocked = min(1.0, max(0.0, budget[z] * cqm))
+                land = a * (1.0 - blocked)
+                offense += land * surv
+                landing[z] += land
+                if blocked > 0.0 and forced[z] < 1:
+                    offense += FORCE_WEIGHT * a * blocked * t
+                    forced[z] += 1
+                budget[z] = max(0.0, budget[z] - 1.0)
+        else:
+            # One block covering ANY attacked zone stops the whole attack; the
+            # opponent uses whichever attacked zone it can most afford to block.
+            zb = max(zones, key=lambda za: budget[za[0]])[0]
+            blocked = min(1.0, max(0.0, budget[zb] * cqm))
+            for z, a in zones:
+                land = a * (1.0 - blocked)
+                offense += land * surv
+                landing[z] += land
+            if blocked > 0.0 and forced[zb] < 1:
+                offense += FORCE_WEIGHT * sum(a for _, a in zones) * blocked * t
+                forced[zb] += 1
+            budget[zb] = max(0.0, budget[zb] - 1.0)
 
     # Count only as many blocks per zone as the opponent is expected to attack it
     # (they play len(cards) actions/turn, af[z] of them at zone z). A super block
@@ -490,7 +673,11 @@ def score_hand(cards: list, prof: dict, defense_weight: float = None,
         if not lethal[z]:
             continue
         held = need_lethal[z] if has_super[z] else len(block_avails[z])
-        survival += SURVIVAL_WEIGHT * min(held, need_lethal[z])
+        # A one-shot is certain death (full weight). A sustained (2-turn) threat is
+        # urgent but leaves a turn of slack, so it is weighted lower -- enough to
+        # beat a greedy extra attack, not so much the deck turtles blindly.
+        w = SURVIVAL_WEIGHT if one_shot[z] else SURVIVAL_WEIGHT * 0.5
+        survival += w * min(held, need_lethal[z])
 
     concentration = cw * sum(landing[z] for z in ZONES if hitters[z] >= 2)
     return offense + defense + concentration + survival
@@ -509,9 +696,42 @@ def _choose_hand(frame: Frame, hand_size: int, intelligent: bool, pool: int,
         drawn = frame.pile.draw(max(pool, hand_size))
         k = min(hand_size, len(drawn))
         combos = list(combinations(range(len(drawn)), k))
-        scores = [score_hand([drawn[i] for i in idx], frame.opp_profile, dw, cw, health)
-                  for idx in combos]
-        return [drawn[i] for i in combos[_softmax_pick(scores, temperature, rng)]]
+        hands = [[drawn[i] for i in idx] for idx in combos]
+        scores = [score_hand(h, frame.opp_profile, dw, cw, health, frame.reloading)
+                  for h in hands]
+        # Never GAMBLE with survival: the softmax exists to make our OFFENCE an
+        # unexploitable mixed policy, but covering a coverable lethal threat is
+        # strictly dominant -- randomising it away just leaks damage that accumulates
+        # against a relentless focused attacker. So restrict the sampling to the
+        # survival-safest hands available, then mix on score among those.
+        deficits = [_survival_deficit(h, frame.opp_profile, health) for h in hands]
+        best = min(deficits)
+        safe = [i for i, d in enumerate(deficits) if d <= best + 1e-9]
+        # Don't spend an action on a DOMINATED card. A card another DRAWN card strictly
+        # dominates (attacks as hard everywhere and blocks everything it does, plus
+        # more -- see _dominates) is dead weight: playing it instead of the dominator
+        # only loses value. Yet the softmax would still play it, taxing you every turn
+        # merely for HOLDING dead cards (a pure artifact -- at full draw a rational
+        # player pays only draw-dilution). So drop any hand that plays a card while a
+        # dominator sits unused, then mix on score among the rest. This prunes inert
+        # cards and redundant blocks (e.g. a pilot when a High-blocking attacker is in
+        # hand) but never a super block (nothing dominates a free, never-spent block)
+        # nor a card that is your only cover for some zone; if every option is
+        # dominated (you drew only dead cards) the draw-dilution cost is preserved.
+        n = len(drawn)
+        dominators = [set() for _ in range(n)]
+        for i in range(n):
+            for j in range(n):
+                if i != j and _dominates(drawn[j], drawn[i]):
+                    dominators[i].add(j)
+
+        def has_dead(c):
+            idx = set(combos[c])
+            return any(dominators[i] - idx for i in combos[c])
+
+        keep = [c for c in safe if not has_dead(c)] or safe
+        sub = _softmax_pick([scores[c] for c in keep], temperature, rng)
+        return hands[keep[sub]]
     return frame.pile.draw(hand_size)
 
 
@@ -546,6 +766,15 @@ def play_game(team_a: list, team_b: list, target_a: Frame, target_b: Frame,
             if not card.is_attack:
                 continue
 
+            # Reload downside: if this weapon group fired a reload attack earlier and
+            # hasn't reloaded since, THIS shot is a dud -- it deals no damage and (per
+            # the rules note, PENDING CONFIRMATION) consumes no block. Firing the dud
+            # completes the reload, so the group is ready again next time. The card
+            # still counts as resolved (it can block for free like any resolved card).
+            if card.group in play.owner.reloading:
+                play.owner.reloading.discard(card.group)
+                continue
+
             tgt = enemy_target[play.owner.team]
             if not _dead(tgt, health):
                 # A feint deals no damage even unblocked -- it only forces (and
@@ -577,6 +806,11 @@ def play_game(team_a: list, team_b: list, target_a: Frame, target_b: Frame,
                         for z, dmg in zip(ZONES, card.attacks):
                             if dmg:
                                 tgt.damage[z] += dmg
+
+                # A reload attack that fired now leaves the weapon needing a reload, so
+                # this group's next attack will dud.
+                if card.reload:
+                    play.owner.reloading.add(card.group)
 
             # Committed: discarded the moment it resolves, so it can no longer be
             # held back as a block for the rest of the round.
@@ -835,6 +1069,71 @@ def _run_cells(tasks: list, cfg: "SimConfig", jobs: int) -> list:
     return [_tourney_cell(t) for t in tasks]
 
 
+PROVENANCE_ORDER = ("Real", "Sim", "Weapon6",
+                    "Base6w", "Base5w1p", "Base4w1p1i", "Weapon", "Other")
+
+
+def _provenance_order(provenance: list) -> list:
+    """Provenance labels present, in a stable display order."""
+    present = set(provenance)
+    return [p for p in PROVENANCE_ORDER if p in present] + \
+           sorted(p for p in present if p not in PROVENANCE_ORDER)
+
+
+def _infer_provenance(path: str) -> str:
+    """Best-guess provenance for a deck given by explicit path."""
+    s = str(path).replace("\\", "/")
+    if "/simulation/" in s or s.startswith("simulation/"):
+        return "Sim"
+    if "/decks/" in s and "/simulation/" not in s:
+        return "Real"
+    return "Other"
+
+
+def _gather_tournament_decks(args) -> tuple:
+    """Assemble the tournament field as parallel (load-spec, display-name, provenance)
+    lists from every requested source, de-duplicated by spec (first wins). Sources:
+    explicit --decks / --decks-dir (provenance inferred from path), --real (the game's
+    pilot decks), --sim (our balance decks), --weapon-groups (one synthetic deck per
+    weapon group)."""
+    specs, names, prov = [], [], []
+    seen = set()
+
+    def add(spec, name, provenance):
+        if spec in seen:
+            return
+        seen.add(spec)
+        specs.append(spec); names.append(name); prov.append(provenance)
+
+    for p in args.decks:
+        add(p, Path(p).stem, _infer_provenance(p))
+    if args.decks_dir:
+        for p in sorted(Path(args.decks_dir).glob("*.csv")):
+            add(str(p), p.stem, _infer_provenance(str(p)))
+    if getattr(args, "real", False):
+        for p in real_deck_paths():
+            add(str(p), p.stem, "Real")
+    if getattr(args, "sim", False):
+        for p in sorted(SIM_DECKS_DIR.glob("*.csv")):
+            add(str(p), p.stem, "Sim")
+    if getattr(args, "weapon6", False):
+        for p in sorted(WEAPON6_DECKS_DIR.glob("*.csv")):
+            add(str(p), p.stem, "Weapon6")
+    if getattr(args, "base6w", False):
+        for p in sorted(BASE6W_DECKS_DIR.glob("*.csv")):
+            add(str(p), p.stem, "Base6w")
+    if getattr(args, "base5w1p", False):
+        for p in sorted(BASE5W1P_DECKS_DIR.glob("*.csv")):
+            add(str(p), p.stem, "Base5w1p")
+    if getattr(args, "base4w1p1i", False):
+        for p in sorted(BASE4W1P1I_DECKS_DIR.glob("*.csv")):
+            add(str(p), p.stem, "Base4w1p1i")
+    if getattr(args, "weapon_groups", False):
+        for g in weapon_groups():
+            add(f"weapon:{g}", g, "Weapon")
+    return specs, names, prov
+
+
 def cmd_tournament(args) -> None:
     # Each cell is row-deck (team A) vs column-deck (team B), so the A/B strategy
     # weights apply to rows vs columns respectively. Give them different weights
@@ -844,27 +1143,39 @@ def cmd_tournament(args) -> None:
                     intelligent=args.intelligent, pool=args.pool, temperature=args.temperature,
                     defense_a=da, concentration_a=ca, defense_b=db, concentration_b=cb)
 
-    deck_paths = list(args.decks)
-    if args.decks_dir:
-        deck_paths += sorted(str(p) for p in Path(args.decks_dir).glob("*.csv"))
+    deck_paths, names, provenance = _gather_tournament_decks(args)
     if len(deck_paths) < 2:
-        raise SystemExit("tournament needs at least 2 decks "
-                         "(via --decks and/or --decks-dir)")
-    names = [Path(p).stem for p in deck_paths]
+        raise SystemExit("tournament needs at least 2 decks (via --decks, --decks-dir, "
+                         "--real/--sim/--weapon6/--base6w/--base5w1p/--weapon-groups)")
     d = len(deck_paths)
 
-    total = d * d * len(args.sizes)
-    jobs = args.jobs if args.jobs and args.jobs > 0 else 1
-    print(f"Round-robin: {d} decks x sizes {args.sizes}, "
-          f"{args.games} games/cell ({total} matchups) on {jobs} worker(s) ...")
+    # Optional --matchups filter: only compute cells between the named provenance
+    # pairs (both directions), e.g. "Real:Base6w" -> just real-vs-baseline cells.
+    # Cuts the grid down for performance and focuses the report on one comparison.
+    allowed = None
+    if getattr(args, "matchups", None):
+        allowed = set()
+        for tok in args.matchups:
+            a, _, b = tok.partition(":")
+            if not b:
+                raise SystemExit(f"--matchups expects PROV_A:PROV_B tokens, got {tok!r}")
+            allowed.add((a, b)); allowed.add((b, a))
+
+    def cell_on(i, j):
+        return allowed is None or (provenance[i], provenance[j]) in allowed
 
     base = 0 if args.seed is None else args.seed
     tasks = []
     for n in args.sizes:
         for i, a in enumerate(deck_paths):
             for j, b in enumerate(deck_paths):
+                if not cell_on(i, j):
+                    continue
                 seed = (base * 2654435761 + n * 1000003 + i * 1009 + j) & 0x7FFFFFFF
                 tasks.append((n, i, j, [a] * n, [b] * n, seed))
+    jobs = args.jobs if args.jobs and args.jobs > 0 else 1
+    print(f"Round-robin: {d} decks x sizes {args.sizes}, {args.games} games/cell "
+          f"({len(tasks)} cells) on {jobs} worker(s) ...")
 
     # grids[size][i][j] = stats for row-deck i (team A) vs col-deck j (team B).
     grids = {n: [[None] * d for _ in range(d)] for n in args.sizes}
@@ -872,21 +1183,27 @@ def cmd_tournament(args) -> None:
         grids[n][i][j] = st
     print("  done")
 
-    html = render_tournament_html(names, grids, cfg)
+    html = render_tournament_html(names, grids, cfg, provenance)
     out = Path(args.output)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(html, encoding="utf-8")
     print(f"\nWrote visual report -> {out}")
 
-    # Text ranking per size by mean head-to-head win-ratio (draws excluded).
+    # Text ranking per size by mean head-to-head win-ratio (draws excluded), grouped
+    # by provenance so real decks and sim/weapon decks are read against each other.
+    multi_prov = len(set(provenance)) > 1
     for n in args.sizes:
         grid = grids[n]
-        print(f"\nRanking at {n}v{n} (mean win-ratio vs all opponents, draws excluded):")
-        scored = sorted(
-            ((sum(_win_ratio(grid[i][j]) for j in range(d)) / d, names[i])
-             for i in range(d)), reverse=True)
-        for rate, name in scored:
-            print(f"  {rate:5.1f}%  {name}")
+        played = {i for i in range(d) if any(grid[i][j] is not None for j in range(d))}
+        means = {i: _row_mean(grid, i) for i in played}
+        print(f"\nRanking at {n}v{n} (mean win-ratio vs opponents played, draws excluded):")
+        for prov in _provenance_order([provenance[i] for i in played]):
+            if multi_prov:
+                print(f"  [{prov}]")
+            scored = sorted(((means[i], names[i]) for i in played
+                             if provenance[i] == prov), reverse=True)
+            for rate, name in scored:
+                print(f"  {'  ' if multi_prov else ''}{rate:5.1f}%  {name}")
 
 
 # --------------------------------------------------------------------------- #
@@ -1267,12 +1584,19 @@ def _win_ratio(st: dict) -> float:
     return 100.0 * wa / (wa + wb) if (wa + wb) else 50.0
 
 
+def _row_mean(grid: list, i: int) -> float:
+    """Deck i's mean win-ratio over the opponents it actually PLAYED (cells left None
+    by a --matchups filter are skipped). 0 if it played nothing."""
+    vals = [_win_ratio(grid[i][j]) for j in range(len(grid)) if grid[i][j] is not None]
+    return sum(vals) / len(vals) if vals else 0.0
+
+
 def _render_heatmap(names: list, grid: list, n: int) -> str:
     """One <section> with the heatmap for team size n. Each cell shows the row
     deck's win count over the column deck's; colour is the win ratio (draws
     excluded) so a decisive 50/50 and an all-draws cell read differently."""
     d = len(names)
-    row_avg = [sum(_win_ratio(grid[i][j]) for j in range(d)) / d for i in range(d)]
+    row_avg = [_row_mean(grid, i) for i in range(d)]
 
     head_cells = "".join(f"<th class='col'><div>{escape(nm)}</div></th>" for nm in names)
     body_rows = []
@@ -1280,6 +1604,9 @@ def _render_heatmap(names: list, grid: list, n: int) -> str:
         cells = []
         for j in range(d):
             st = grid[i][j]
+            if st is None:  # cell not played (a --matchups filter skipped it)
+                cells.append("<td class='cell skip' title='not played'></td>")
+                continue
             wa, wb, dr = st["wins"]["A"], st["wins"]["B"], st["wins"]["draw"]
             rgb = _diverging(_win_ratio(st))
             ar = st["avg_rounds"]["A"]
@@ -1306,61 +1633,88 @@ def _render_heatmap(names: list, grid: list, n: int) -> str:
   </section>"""
 
 
-def _render_summary(names: list, grid: list, n: int, top: int = 5) -> str:
-    """A leaderboard section for team size n: the strongest decks by mean head-to-
-    head win-ratio, each annotated with the matchups that trouble it most (the
-    opponents it loses to, or -- if it loses to none -- its closest game)."""
+def _render_summary(names: list, grid: list, n: int, provenance: list = None,
+                    top: int = 5) -> str:
+    """A leaderboard section for team size n: decks by mean head-to-head win-ratio,
+    each annotated with the matchups that trouble it most (the opponents it loses to,
+    or -- if it loses to none -- its closest game). When decks span several
+    provenances (real game decks vs sim/weapon decks) it renders one ranked block per
+    provenance so the groups can be read against each other; otherwise a single Top-N."""
     d = len(names)
-    stats = []
-    for i in range(d):
-        mean = sum(_win_ratio(grid[i][j]) for j in range(d)) / d
-        opp = sorted(((_win_ratio(grid[i][j]), names[j]) for j in range(d) if j != i),
-                     key=lambda x: x[0])
-        stats.append((mean, names[i], opp))
-    stats.sort(key=lambda x: x[0], reverse=True)
+    if provenance is None:
+        provenance = ["Sim"] * d
+    means = {i: _row_mean(grid, i) for i in range(d)}
+    opp_of = {i: sorted(((_win_ratio(grid[i][j]), names[j]) for j in range(d)
+                         if j != i and grid[i][j] is not None), key=lambda x: x[0])
+              for i in range(d)}
+    played = {i for i in range(d) if any(grid[i][j] is not None for j in range(d))}
 
     def chip(ratio, label, cls="mc"):
         rgb = _diverging(ratio)
         return (f"<span class='chip {cls}' style='background:rgb{rgb};"
                 f"color:{_ink_on(rgb)}'>{label}</span>")
 
-    rows = []
-    for rank, (mean, nm, opp) in enumerate(stats[:min(top, d)], 1):
+    def row(rank, i):
+        opp = opp_of[i]
         losing = [(r, o) for r, o in opp if r < 50][:4]
         if losing:
             weak = ("<span class='wl'>loses to</span>"
                     + "".join(chip(r, f"{escape(o)} <b>{r:.0f}%</b>") for r, o in losing))
-        elif opp:  # unbeaten across the field -- flag it, show the closest game
+        elif opp:
             r0, o0 = opp[0]
             weak = ("<span class='wl good'>no losing matchup</span>"
                     + chip(r0, f"closest: {escape(o0)} <b>{r0:.0f}%</b>"))
         else:
             weak = ""
-        rows.append(
-            f"<li class='drow'><span class='rank'>{rank}</span>"
-            f"<span class='dn'>{escape(nm)}</span>"
-            + chip(mean, f"{mean:.0f}%", "mean")
-            + f"<span class='weak'>{weak}</span></li>")
+        return (f"<li class='drow'><span class='rank'>{rank}</span>"
+                f"<span class='dn'>{escape(names[i])}</span>"
+                + chip(means[i], f"{means[i]:.0f}%", "mean")
+                + f"<span class='weak'>{weak}</span></li>")
 
-    worst_mean, worst_name, _ = stats[-1]
-    foot = (f"<p class='note'>Weakest overall: <strong>{escape(worst_name)}</strong> "
-            f"({worst_mean:.0f}% mean win-ratio).</p>")
+    groups = _provenance_order([provenance[i] for i in played])
+    if len(groups) <= 1:
+        order = sorted(played, key=lambda i: means[i], reverse=True)[:min(top, len(played))]
+        body = f"<ol class='ranklist'>{''.join(row(r, i) for r, i in enumerate(order, 1))}</ol>"
+        intro = (f"Top {len(order)} decks by mean head-to-head win-ratio (draws "
+                 "excluded).")
+    else:
+        blocks = []
+        for prov in groups:
+            idxs = sorted((i for i in played if provenance[i] == prov),
+                          key=lambda i: means[i], reverse=True)
+            if not idxs:
+                continue
+            gmean = sum(means[i] for i in idxs) / len(idxs)
+            lst = "".join(row(r, i) for r, i in enumerate(idxs, 1))
+            blocks.append(
+                f"<div class='pgroup'><h3>{escape(prov)} decks "
+                f"<span class='gmean'>· group avg {gmean:.0f}%</span></h3>"
+                f"<ol class='ranklist'>{lst}</ol></div>")
+        body = "".join(blocks)
+        intro = ("Decks grouped by provenance, each ranked by mean head-to-head "
+                 "win-ratio vs the WHOLE field (draws excluded) — so a group's numbers "
+                 "read directly against the others'.")
+        if "Real" in groups:
+            intro += (" <em>Caveat:</em> real (pilot) decks include frame/pilot "
+                      "ability cards the sim doesn't model, so they draw some dead "
+                      "cards and read a bit low against the pure-combat sim decks; "
+                      "their ranking <em>relative to each other</em> is the fair read.")
     return f"""<section class="summary">
     <h2>Summary — {n}v{n}</h2>
-    <p class="note">Top {min(top, d)} decks by mean head-to-head win-ratio (draws
-    excluded). Each chip is a tough matchup — the deck's win% as team&nbsp;A against
-    that opponent; anything under 50% (red) is a matchup it loses. A deck with
+    <p class="note">{intro} Each chip is a tough matchup — the deck's win% as
+    team&nbsp;A against that opponent; anything under 50% (red) is a loss. A deck with
     <em>no losing matchup</em> beats the whole field and is worth a second look.</p>
-    <ol class="ranklist">{''.join(rows)}</ol>
-    {foot}
+    {body}
   </section>"""
 
 
-def render_tournament_html(names: list, grids: dict, cfg: SimConfig) -> str:
+def render_tournament_html(names: list, grids: dict, cfg: SimConfig,
+                           provenance: list = None) -> str:
     """Self-contained HTML with a leaderboard summary and one win-rate heatmap per
     team size. Cell (i, j) is deck i's win rate as team A against deck j as team B;
     every cell shows its number, so meaning never rides on colour alone."""
-    summaries = "\n".join(_render_summary(names, grids[n], n) for n in sorted(grids))
+    summaries = "\n".join(_render_summary(names, grids[n], n, provenance)
+                          for n in sorted(grids))
     sections = "\n".join(_render_heatmap(names, grids[n], n) for n in sorted(grids))
 
     def _w(d, c):
@@ -1412,6 +1766,8 @@ def render_tournament_html(names: list, grids: dict, cfg: SimConfig) -> str:
   td.cell b {{ font-weight:800; }}
   td.cell .sl {{ opacity:.5; margin:0 1px; font-weight:400; }}
   td.cell.diag {{ outline:2px solid var(--surface); outline-offset:-2px; opacity:.85; }}
+  td.cell.skip {{ background:repeating-linear-gradient(45deg,var(--line),var(--line) 4px,
+                 transparent 4px,transparent 8px); opacity:.35; }}
   td.cell.avg {{ font-weight:800; min-width:44px; }}
   th.avghead div {{ color:var(--ink); }}
   .legend {{ display:flex; align-items:center; gap:.6rem; margin:1.25rem 0 .5rem; font-size:.82rem;
@@ -1432,6 +1788,9 @@ def render_tournament_html(names: list, grids: dict, cfg: SimConfig) -> str:
   .weak {{ display:flex; align-items:center; gap:.35rem; flex-wrap:wrap; }}
   .weak .wl {{ color:var(--muted); font-size:.78rem; }}
   .weak .wl.good {{ color:#2a78d6; font-weight:700; }}
+  .pgroup {{ margin:.9rem 0 0; }}
+  .pgroup h3 {{ font-size:.9rem; margin:.3rem 0 .35rem; }}
+  .pgroup h3 .gmean {{ color:var(--muted); font-weight:600; font-size:.82rem; }}
 </style></head>
 <body>
   <h1>mobileSuitGame — deck tournament</h1>
@@ -1525,6 +1884,27 @@ def main() -> None:
     t = sub.add_parser("tournament", help="round-robin over a deck set -> HTML report")
     t.add_argument("--decks", nargs="*", default=[], help="deck CSVs to include")
     t.add_argument("--decks-dir", help="also include every *.csv in this folder")
+    t.add_argument("--real", action="store_true",
+                   help="include the REAL game decks (decks/deck_*.csv, one per pilot)")
+    t.add_argument("--sim", action="store_true",
+                   help="include the SIM balance decks (simulation/decks/sim/*.csv)")
+    t.add_argument("--weapon6", action="store_true",
+                   help="include the 6-weapon-group decks (simulation/decks/weapon6/*.csv)")
+    t.add_argument("--base6w", action="store_true",
+                   help="include the random 6-distinct-weapon baseline decks "
+                        "(simulation/decks/base6w/*.csv)")
+    t.add_argument("--base5w1p", action="store_true",
+                   help="include the random 5-weapon + 1-pilot baseline decks "
+                        "(simulation/decks/base5w1p/*.csv) -- the dead-card test")
+    t.add_argument("--base4w1p1i", action="store_true",
+                   help="include the 4-weapon + 1-pilot + 1-inert(Booster) baseline "
+                        "decks (simulation/decks/base4w1p1i/*.csv) -- real-deck shape")
+    t.add_argument("--weapon-groups", action="store_true",
+                   help="include one synthetic deck per weapon group (all its cards; "
+                        "no CSV written) to pit each weapon against the field")
+    t.add_argument("--matchups", nargs="+", metavar="PROV_A:PROV_B",
+                   help="only play these provenance pairs (both directions), e.g. "
+                        "Real:Base6w Real:Base5w1p -- skips all other cells for speed")
     t.add_argument("--sizes", type=int, nargs="+", default=[1, 2, 3],
                    help="team sizes, one heatmap each (default 1 2 3)")
     t.add_argument("--output", default="build/tournament.html", help="HTML report path")
