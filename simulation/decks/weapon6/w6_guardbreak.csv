@@ -1,0 +1,29 @@
+# w6_guardbreak
+# Guard-break flood: multi-zone attacks that each must be blocked per zone.
+# 6 weapon groups (repeats allowed): Great Axe, Plasma Rifle x2, Stun Baton x3.
+# Found by 6-group empirical search vs the clean sim field (~69% mean win-ratio).
+
+card/Great Axe_Cleave
+card/Great Axe_Split
+card/Great Axe_Whirl
+card/Great Axe_Eviscerate
+card/Plasma Rifle_Charged Shot
+card/Plasma Rifle_Single Shot
+card/Plasma Rifle_Plasma Stream
+card/Plasma Rifle_Vent
+card/Plasma Rifle_Charged Shot
+card/Plasma Rifle_Single Shot
+card/Plasma Rifle_Plasma Stream
+card/Plasma Rifle_Vent
+card/Stun Baton_Overcharge
+card/Stun Baton_Shock
+card/Stun Baton_Zap
+card/Stun Baton_Strike
+card/Stun Baton_Overcharge
+card/Stun Baton_Shock
+card/Stun Baton_Zap
+card/Stun Baton_Strike
+card/Stun Baton_Overcharge
+card/Stun Baton_Shock
+card/Stun Baton_Zap
+card/Stun Baton_Strike

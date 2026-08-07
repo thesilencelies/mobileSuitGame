@@ -1,0 +1,29 @@
+# w6_alpha
+# Alpha one-shot: Chainsaw's 4-dmg zone-killers + Halberd/Great Axe big single hits.
+# 6 weapon groups (repeats allowed): Chainsaw x2, Great Axe, Halberd x3.
+# Found by 6-group empirical search vs the clean sim field (~74% mean win-ratio).
+
+card/Chainsaw_Disembowel
+card/Chainsaw_Rip
+card/Chainsaw_Grind
+card/Chainsaw_Tear
+card/Chainsaw_Disembowel
+card/Chainsaw_Rip
+card/Chainsaw_Grind
+card/Chainsaw_Tear
+card/Great Axe_Cleave
+card/Great Axe_Split
+card/Great Axe_Whirl
+card/Great Axe_Eviscerate
+card/Halberd_Crush
+card/Halberd_Eviscerate
+card/Halberd_Thrust
+card/Halberd_Sweep
+card/Halberd_Crush
+card/Halberd_Eviscerate
+card/Halberd_Thrust
+card/Halberd_Sweep
+card/Halberd_Crush
+card/Halberd_Eviscerate
+card/Halberd_Thrust
+card/Halberd_Sweep

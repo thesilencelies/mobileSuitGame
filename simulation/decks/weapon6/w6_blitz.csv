@@ -1,0 +1,29 @@
+# w6_blitz
+# Initiative blitz: the fastest groups -- resolve first, then block for free.
+# 6 weapon groups (repeats allowed): Halberd x2, Spear x3, Sword.
+# Found by 6-group empirical search vs the clean sim field (~75% mean win-ratio).
+
+card/Halberd_Crush
+card/Halberd_Eviscerate
+card/Halberd_Thrust
+card/Halberd_Sweep
+card/Halberd_Crush
+card/Halberd_Eviscerate
+card/Halberd_Thrust
+card/Halberd_Sweep
+card/Spear_Thrust
+card/Spear_Jab
+card/Spear_Impale
+card/Spear_Sweep
+card/Spear_Thrust
+card/Spear_Jab
+card/Spear_Impale
+card/Spear_Sweep
+card/Spear_Thrust
+card/Spear_Jab
+card/Spear_Impale
+card/Spear_Sweep
+card/Sword_Lunge
+card/Sword_Feint
+card/Sword_Slice
+card/Sword_Parry
