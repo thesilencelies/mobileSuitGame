@@ -526,7 +526,8 @@ def _survival_deficit(cards: list, prof: dict, health: int) -> float:
 
 
 def score_hand(cards: list, prof: dict, defense_weight: float = None,
-               concentration_weight: float = None, health: int = None) -> float:
+               concentration_weight: float = None, health: int = None,
+               reloading: set = None) -> float:
     """Rate a *combination* of cards chosen as one turn's actions, against the
     opponent's profile. `defense_weight` / `concentration_weight` override the
     module defaults (used for per-team strategy); `health` (HP per zone) turns on
@@ -565,13 +566,30 @@ def score_hand(cards: list, prof: dict, defense_weight: float = None,
     lethal = kill_risk
     under_alpha = any(kill_risk.values())
 
+    # Reload: work out which chosen attacks will DUD (deal nothing) -- a weapon group
+    # already reloading (from a past turn, via `reloading`) or one that fires a reload
+    # attack earlier this turn leaves its next same-group shot empty. Walk the attacks
+    # in resolution (initiative) order and flag the duds so their offence is zeroed --
+    # so the AI won't, e.g., stack two Cannons in a hand and waste one.
+    dud = set()
+    if reloading or any(c.reload for c in cards):
+        reload_state = set(reloading) if reloading else set()
+        for i in sorted((i for i, c in enumerate(cards) if c.is_attack),
+                        key=lambda i: -cards[i].initiative):
+            g = cards[i].group
+            if g in reload_state:
+                dud.add(i)
+                reload_state.discard(g)
+            elif cards[i].reload:
+                reload_state.add(g)
+
     hitters = {z: 0 for z in ZONES}         # how many chosen cards attack each zone
     block_avails = {z: [] for z in ZONES}   # availability of every ordinary block per zone
     has_super = {z: False for z in ZONES}   # do we hold a super block for this zone?
     attackers = []                          # (card, rel_init) for every non-feint hitter
-    for c in cards:
+    for i, c in enumerate(cards):
         t = _rel_init(c, prof)
-        if not c.feint and c.is_attack:
+        if not c.feint and c.is_attack and i not in dud:
             attackers.append((c, t))
             for z, a in zip(ZONES, c.attacks):
                 if a:
@@ -679,7 +697,8 @@ def _choose_hand(frame: Frame, hand_size: int, intelligent: bool, pool: int,
         k = min(hand_size, len(drawn))
         combos = list(combinations(range(len(drawn)), k))
         hands = [[drawn[i] for i in idx] for idx in combos]
-        scores = [score_hand(h, frame.opp_profile, dw, cw, health) for h in hands]
+        scores = [score_hand(h, frame.opp_profile, dw, cw, health, frame.reloading)
+                  for h in hands]
         # Never GAMBLE with survival: the softmax exists to make our OFFENCE an
         # unexploitable mixed policy, but covering a coverable lethal threat is
         # strictly dominant -- randomising it away just leaks damage that accumulates
