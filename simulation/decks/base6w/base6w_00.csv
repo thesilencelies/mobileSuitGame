@@ -1,0 +1,26 @@
+# base6w_00: random baseline, 6 different weapons (all attack)
+# groups: Sword, Missile Rack, Greatsword, Chainsaw, Spear, Chain
+
+card/Sword_Lunge
+card/Sword_Feint
+card/Sword_Slice
+card/Sword_Parry
+card/Missile Rack_Missile Rack 1
+card/Missile Rack_Missile Rack 2
+card/Missile Rack_Missile Rack 3
+card/Greatsword_Cleave
+card/Greatsword_Parry
+card/Greatsword_Grand Sweep
+card/Greatsword_Rising Cut
+card/Chainsaw_Disembowel
+card/Chainsaw_Rip
+card/Chainsaw_Grind
+card/Chainsaw_Tear
+card/Spear_Thrust
+card/Spear_Jab
+card/Spear_Impale
+card/Spear_Sweep
+card/Chain_Whip
+card/Chain_Tangle
+card/Chain_Throttle
+card/Chain_Catch

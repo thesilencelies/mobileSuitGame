@@ -1,0 +1,27 @@
+# base5w1p_04: same 5 weapons as base6w_04, 6th slot = pilot 'Tactician' (dead-effect card, blocks High by rule) -- dead-card test
+# groups: Great Axe, Spear, Plasma Rifle, Sword, Greatsword, Tactician
+
+card/Great Axe_Cleave
+card/Great Axe_Split
+card/Great Axe_Whirl
+card/Great Axe_Eviscerate
+card/Spear_Thrust
+card/Spear_Jab
+card/Spear_Impale
+card/Spear_Sweep
+card/Plasma Rifle_Charged Shot
+card/Plasma Rifle_Single Shot
+card/Plasma Rifle_Plasma Stream
+card/Plasma Rifle_Vent
+card/Sword_Lunge
+card/Sword_Feint
+card/Sword_Slice
+card/Sword_Parry
+card/Greatsword_Cleave
+card/Greatsword_Parry
+card/Greatsword_Grand Sweep
+card/Greatsword_Rising Cut
+card/Tactician_Tactical broadcast
+card/Tactician_Fog of war
+card/Tactician_Set the trap
+card/Tactician_Outfox

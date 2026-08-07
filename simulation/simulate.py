@@ -132,6 +132,8 @@ CARD_CSVS = [
 REAL_DECKS_DIR = ROOT / "decks"                       # deck_<faction>_<pilot>.csv
 SIM_DECKS_DIR = ROOT / "simulation" / "decks" / "sim"
 WEAPON6_DECKS_DIR = ROOT / "simulation" / "decks" / "weapon6"
+BASE6W_DECKS_DIR = ROOT / "simulation" / "decks" / "base6w"      # 6 distinct weapons
+BASE5W1P_DECKS_DIR = ROOT / "simulation" / "decks" / "base5w1p"  # 5 weapons + 1 pilot
 
 
 def weapon_groups() -> list:
@@ -979,7 +981,7 @@ def _run_cells(tasks: list, cfg: "SimConfig", jobs: int) -> list:
     return [_tourney_cell(t) for t in tasks]
 
 
-PROVENANCE_ORDER = ("Real", "Sim", "Weapon6", "Weapon", "Other")
+PROVENANCE_ORDER = ("Real", "Sim", "Weapon6", "Base6w", "Base5w1p", "Weapon", "Other")
 
 
 def _provenance_order(provenance: list) -> list:
@@ -1028,6 +1030,12 @@ def _gather_tournament_decks(args) -> tuple:
     if getattr(args, "weapon6", False):
         for p in sorted(WEAPON6_DECKS_DIR.glob("*.csv")):
             add(str(p), p.stem, "Weapon6")
+    if getattr(args, "base6w", False):
+        for p in sorted(BASE6W_DECKS_DIR.glob("*.csv")):
+            add(str(p), p.stem, "Base6w")
+    if getattr(args, "base5w1p", False):
+        for p in sorted(BASE5W1P_DECKS_DIR.glob("*.csv")):
+            add(str(p), p.stem, "Base5w1p")
     if getattr(args, "weapon_groups", False):
         for g in weapon_groups():
             add(f"weapon:{g}", g, "Weapon")
@@ -1046,21 +1054,36 @@ def cmd_tournament(args) -> None:
     deck_paths, names, provenance = _gather_tournament_decks(args)
     if len(deck_paths) < 2:
         raise SystemExit("tournament needs at least 2 decks (via --decks, --decks-dir, "
-                         "--real, --sim, and/or --weapon-groups)")
+                         "--real/--sim/--weapon6/--base6w/--base5w1p/--weapon-groups)")
     d = len(deck_paths)
 
-    total = d * d * len(args.sizes)
-    jobs = args.jobs if args.jobs and args.jobs > 0 else 1
-    print(f"Round-robin: {d} decks x sizes {args.sizes}, "
-          f"{args.games} games/cell ({total} matchups) on {jobs} worker(s) ...")
+    # Optional --matchups filter: only compute cells between the named provenance
+    # pairs (both directions), e.g. "Real:Base6w" -> just real-vs-baseline cells.
+    # Cuts the grid down for performance and focuses the report on one comparison.
+    allowed = None
+    if getattr(args, "matchups", None):
+        allowed = set()
+        for tok in args.matchups:
+            a, _, b = tok.partition(":")
+            if not b:
+                raise SystemExit(f"--matchups expects PROV_A:PROV_B tokens, got {tok!r}")
+            allowed.add((a, b)); allowed.add((b, a))
+
+    def cell_on(i, j):
+        return allowed is None or (provenance[i], provenance[j]) in allowed
 
     base = 0 if args.seed is None else args.seed
     tasks = []
     for n in args.sizes:
         for i, a in enumerate(deck_paths):
             for j, b in enumerate(deck_paths):
+                if not cell_on(i, j):
+                    continue
                 seed = (base * 2654435761 + n * 1000003 + i * 1009 + j) & 0x7FFFFFFF
                 tasks.append((n, i, j, [a] * n, [b] * n, seed))
+    jobs = args.jobs if args.jobs and args.jobs > 0 else 1
+    print(f"Round-robin: {d} decks x sizes {args.sizes}, {args.games} games/cell "
+          f"({len(tasks)} cells) on {jobs} worker(s) ...")
 
     # grids[size][i][j] = stats for row-deck i (team A) vs col-deck j (team B).
     grids = {n: [[None] * d for _ in range(d)] for n in args.sizes}
@@ -1079,12 +1102,13 @@ def cmd_tournament(args) -> None:
     multi_prov = len(set(provenance)) > 1
     for n in args.sizes:
         grid = grids[n]
-        means = {i: sum(_win_ratio(grid[i][j]) for j in range(d)) / d for i in range(d)}
-        print(f"\nRanking at {n}v{n} (mean win-ratio vs all opponents, draws excluded):")
-        for prov in _provenance_order(provenance):
+        played = {i for i in range(d) if any(grid[i][j] is not None for j in range(d))}
+        means = {i: _row_mean(grid, i) for i in played}
+        print(f"\nRanking at {n}v{n} (mean win-ratio vs opponents played, draws excluded):")
+        for prov in _provenance_order([provenance[i] for i in played]):
             if multi_prov:
                 print(f"  [{prov}]")
-            scored = sorted(((means[i], names[i]) for i in range(d)
+            scored = sorted(((means[i], names[i]) for i in played
                              if provenance[i] == prov), reverse=True)
             for rate, name in scored:
                 print(f"  {'  ' if multi_prov else ''}{rate:5.1f}%  {name}")
@@ -1468,12 +1492,19 @@ def _win_ratio(st: dict) -> float:
     return 100.0 * wa / (wa + wb) if (wa + wb) else 50.0
 
 
+def _row_mean(grid: list, i: int) -> float:
+    """Deck i's mean win-ratio over the opponents it actually PLAYED (cells left None
+    by a --matchups filter are skipped). 0 if it played nothing."""
+    vals = [_win_ratio(grid[i][j]) for j in range(len(grid)) if grid[i][j] is not None]
+    return sum(vals) / len(vals) if vals else 0.0
+
+
 def _render_heatmap(names: list, grid: list, n: int) -> str:
     """One <section> with the heatmap for team size n. Each cell shows the row
     deck's win count over the column deck's; colour is the win ratio (draws
     excluded) so a decisive 50/50 and an all-draws cell read differently."""
     d = len(names)
-    row_avg = [sum(_win_ratio(grid[i][j]) for j in range(d)) / d for i in range(d)]
+    row_avg = [_row_mean(grid, i) for i in range(d)]
 
     head_cells = "".join(f"<th class='col'><div>{escape(nm)}</div></th>" for nm in names)
     body_rows = []
@@ -1481,6 +1512,9 @@ def _render_heatmap(names: list, grid: list, n: int) -> str:
         cells = []
         for j in range(d):
             st = grid[i][j]
+            if st is None:  # cell not played (a --matchups filter skipped it)
+                cells.append("<td class='cell skip' title='not played'></td>")
+                continue
             wa, wb, dr = st["wins"]["A"], st["wins"]["B"], st["wins"]["draw"]
             rgb = _diverging(_win_ratio(st))
             ar = st["avg_rounds"]["A"]
@@ -1517,9 +1551,11 @@ def _render_summary(names: list, grid: list, n: int, provenance: list = None,
     d = len(names)
     if provenance is None:
         provenance = ["Sim"] * d
-    means = {i: sum(_win_ratio(grid[i][j]) for j in range(d)) / d for i in range(d)}
-    opp_of = {i: sorted(((_win_ratio(grid[i][j]), names[j]) for j in range(d) if j != i),
-                        key=lambda x: x[0]) for i in range(d)}
+    means = {i: _row_mean(grid, i) for i in range(d)}
+    opp_of = {i: sorted(((_win_ratio(grid[i][j]), names[j]) for j in range(d)
+                         if j != i and grid[i][j] is not None), key=lambda x: x[0])
+              for i in range(d)}
+    played = {i for i in range(d) if any(grid[i][j] is not None for j in range(d))}
 
     def chip(ratio, label, cls="mc"):
         rgb = _diverging(ratio)
@@ -1543,16 +1579,16 @@ def _render_summary(names: list, grid: list, n: int, provenance: list = None,
                 + chip(means[i], f"{means[i]:.0f}%", "mean")
                 + f"<span class='weak'>{weak}</span></li>")
 
-    groups = _provenance_order(provenance)
+    groups = _provenance_order([provenance[i] for i in played])
     if len(groups) <= 1:
-        order = sorted(range(d), key=lambda i: means[i], reverse=True)[:min(top, d)]
+        order = sorted(played, key=lambda i: means[i], reverse=True)[:min(top, len(played))]
         body = f"<ol class='ranklist'>{''.join(row(r, i) for r, i in enumerate(order, 1))}</ol>"
         intro = (f"Top {len(order)} decks by mean head-to-head win-ratio (draws "
                  "excluded).")
     else:
         blocks = []
         for prov in groups:
-            idxs = sorted((i for i in range(d) if provenance[i] == prov),
+            idxs = sorted((i for i in played if provenance[i] == prov),
                           key=lambda i: means[i], reverse=True)
             if not idxs:
                 continue
@@ -1638,6 +1674,8 @@ def render_tournament_html(names: list, grids: dict, cfg: SimConfig,
   td.cell b {{ font-weight:800; }}
   td.cell .sl {{ opacity:.5; margin:0 1px; font-weight:400; }}
   td.cell.diag {{ outline:2px solid var(--surface); outline-offset:-2px; opacity:.85; }}
+  td.cell.skip {{ background:repeating-linear-gradient(45deg,var(--line),var(--line) 4px,
+                 transparent 4px,transparent 8px); opacity:.35; }}
   td.cell.avg {{ font-weight:800; min-width:44px; }}
   th.avghead div {{ color:var(--ink); }}
   .legend {{ display:flex; align-items:center; gap:.6rem; margin:1.25rem 0 .5rem; font-size:.82rem;
@@ -1760,9 +1798,18 @@ def main() -> None:
                    help="include the SIM balance decks (simulation/decks/sim/*.csv)")
     t.add_argument("--weapon6", action="store_true",
                    help="include the 6-weapon-group decks (simulation/decks/weapon6/*.csv)")
+    t.add_argument("--base6w", action="store_true",
+                   help="include the random 6-distinct-weapon baseline decks "
+                        "(simulation/decks/base6w/*.csv)")
+    t.add_argument("--base5w1p", action="store_true",
+                   help="include the random 5-weapon + 1-pilot baseline decks "
+                        "(simulation/decks/base5w1p/*.csv) -- the dead-card test")
     t.add_argument("--weapon-groups", action="store_true",
                    help="include one synthetic deck per weapon group (all its cards; "
                         "no CSV written) to pit each weapon against the field")
+    t.add_argument("--matchups", nargs="+", metavar="PROV_A:PROV_B",
+                   help="only play these provenance pairs (both directions), e.g. "
+                        "Real:Base6w Real:Base5w1p -- skips all other cells for speed")
     t.add_argument("--sizes", type=int, nargs="+", default=[1, 2, 3],
                    help="team sizes, one heatmap each (default 1 2 3)")
     t.add_argument("--output", default="build/tournament.html", help="HTML report path")
