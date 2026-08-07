@@ -1,18 +1,16 @@
-# robust_allrounder  (found by evolutionary search vs the whole field)
-# NOT a hard-counter -- optimised for the highest MEAN win-ratio across every deck
-# in the field (~89% both-sides, 1v1). Design that emerged: 11 cards (bigger than
-# the 7-card hand, so it draws a varied shuffled hand every turn), fast-ish
-# (med init 5), balanced High/Mid pressure with a Low threat, defended by VOLUME
-# (7 Mid + 4 High blocks, no supers) plus a Close Quarters (Knife Stab) to punish
-# resolve-then-block decks. Only losing matchup in the field: only_block_high.
-card/Chain_Throttle
-card/Axe_Split
-card/Axe_Chop
-card/Halberd_Thrust
-card/Stun Bow_Straight shot
-card/Sniper Rifle_Calibrated Hit
-card/Assault Rifle_Burst Fire
-card/Halberd_Eviscerate
+# robust_allrounder
+# Highest MEAN win-ratio vs the whole surviving field, found by evolutionary search
+# (scratchpad/robust.py) under the fixed AI (~75% at search fitness). A spread of
+# guaranteed-damage attackers across all three zones (no gimmick) that punishes
+# narrow decks without a hard weakness of its own.
+card/Spear_Impale
+card/Chainsaw_Disembowel
 card/Chainsaw_Grind
-card/Booster_Shoulder barge
-card/Knife_Stab
+card/Great Axe_Split
+card/Cannon_Pummel
+card/Plasma Rifle_Single Shot
+card/Kinetic Hammer_Slam
+card/Sword_Slice
+card/Knife_Slit
+card/Halberd_Sweep
+card/Spear_Thrust

@@ -1,12 +1,14 @@
 # deg_superguard_control
-# The suspected 'solved' deck: super blocks so it (almost) never dies, plus
-# guard-break attackers so its damage still gets through the opponent's
-# blocks. Aims to win every non-mirror while losing to nothing.
-
+# The suspected 'solved' control shell: super blocks (kept, never spent) so it almost
+# never dies, plus guard-break attackers so its damage still leaks through the
+# opponent's blocks. Aims to win every non-mirror while losing to nothing. Super
+# blockers: Catch (H), Sword Parry (M), Greatsword Parry (L), Lock down (H), Full
+# Guard (H); guard-break offence: Cannon, Missile Rack 2. Tuned by themed search
+# (super_block or guard_break) vs the fixed AI: 62% -> 65%.
 card/Shield_Full Guard
+card/Chain_Catch
 card/Sword_Parry
 card/Greatsword_Parry
-card/Chain_Catch
+card/Shield_Lock down
 card/Cannon_Cannon
-card/Plasma Rifle_Charged Shot
-card/Great Axe_Split
+card/Missile Rack_Missile Rack 2

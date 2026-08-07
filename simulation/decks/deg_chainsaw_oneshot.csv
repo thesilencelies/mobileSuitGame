@@ -1,11 +1,13 @@
 # deg_chainsaw_oneshot
-# Chainsaw single-zone 4-damage hits (High/Mid/Low). Health is 4/zone, so
-# ONE unblocked card instantly destroys a zone. Spread across all three
-# zones so the defender can never hold the right block for every threat.
-
+# Alpha one-shot: the single biggest hit available in EVERY zone, so one unblocked
+# card (near-)destroys a 4-HP zone. Now a true three-zone spread (the old build was
+# secretly High/Mid only) so the defender can never hold the right block everywhere:
+#   High: Rip (4), Strike (3)   Mid: Disembowel (4), Eviscerate/Cleave (3)   Low: Crush (3), Pummel (3)
+# Tuned by themed search (single-zone hit >=3) vs the fixed AI: 54% -> 67%.
 card/Chainsaw_Rip
+card/Kinetic Hammer_Strike
 card/Chainsaw_Disembowel
-card/Chainsaw_Tear
-card/Chainsaw_Rip
-card/Chainsaw_Disembowel
-card/Chainsaw_Tear
+card/Halberd_Eviscerate
+card/Great Axe_Cleave
+card/Halberd_Crush
+card/Cannon_Pummel

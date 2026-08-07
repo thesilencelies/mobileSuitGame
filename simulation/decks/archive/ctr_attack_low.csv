@@ -1,0 +1,11 @@
+# ctr_attack_low  (beats only_attack_low ~100%)
+# Found by search. Four Mid + four Low blocks soak the target's entire Low dump,
+# while a spread of real attacks (High 4 / Low 5) and Full Guard (super High) win
+# on the zones it barely defends.
+card/Kinetic Hammer_Batter
+card/Assault Rifle_Burst Fire
+card/Greatsword_Rising Cut
+card/Halberd_Crush
+card/Basic_Kick
+card/Shield_Full Guard
+card/Swarm_Crawl
