@@ -73,10 +73,23 @@ def features(cards: list) -> dict:
         gb += 1 if c.guard_break else 0
     inits = sorted(c.initiative for c in cards)
     tot = sum(atk.values())
+    # Where the damage sits in the init order matters far more than the AVERAGE init:
+    # damage on your fastest card lands (or forces a block before the enemy sets up);
+    # damage stuck on your slowest card is blocked for free. Report the damage on the
+    # fastest and slowest ATTACKING card, and the init spread.
+    atkers = [c for c in cards if not c.feint and sum(c.attacks) > 0]
+    fast = max(atkers, key=lambda c: c.initiative, default=None)
+    slow = min(atkers, key=lambda c: c.initiative, default=None)
+    fast_dmg = sum(fast.attacks) if fast else 0
+    slow_dmg = sum(slow.attacks) if slow else 0
+    fast_init = fast.initiative if fast else 0
+    slow_init = slow.initiative if slow else 0
+    init_spread = inits[-1] - inits[0]
     # Init-weighted "landed offence": each card's damage scaled by how early it
-    # resolves (init/8). A fast big hit forces/beats a block; a slow one is blocked
-    # for free, so its raw damage barely counts. (Zone-weighting the damage by pool
-    # scarcity was tried and *lowered* fit, so damage is counted flat here.)
+    # resolves (init/8) -- the smooth version of "damage at max vs min init". A fast
+    # big hit forces/beats a block; a slow one is blocked for free, so its raw damage
+    # barely counts. (Zone-weighting damage by pool scarcity was tried and *lowered*
+    # fit, so damage is counted flat here.)
     land_off = sum((0 if c.feint else sum(c.attacks)) * (c.initiative / 8.0)
                    for c in cards) / nc
     return {
@@ -84,6 +97,9 @@ def features(cards: list) -> dict:
         "avg_dmg": tot / nc,
         "n2plus": n2,
         "avg_init": sum(inits) / nc,
+        "init_spread": init_spread,
+        "fast_dmg": fast_dmg, "fast_init": fast_init,
+        "slow_dmg": slow_dmg, "slow_init": slow_init,
         "land_off": land_off,
         "blk_cov": sum(1 for z in ZONES if blk[z] > 0),
         "rng_frac": sum(1 for c in cards if c.ranged) / nc,
@@ -199,7 +215,7 @@ def main() -> None:
 
     hdr = (f"{'weapon':<14}{'EST':>5}" + (f"{'win%':>6}" if wins else "")
            + f"{'atk H/M/L':>11}{'blk H/M/L':>11}{'2+':>4}{'sup':>4}"
-           + f"{'init':>8}{'rng%':>6}{'move':>7}")
+           + f"{'init':>7}{'dmg@fast/slow':>15}{'rng%':>6}{'move':>7}")
     print(hdr)
     print("-" * len(hdr))
     for g in sorted(WG, key=order):
@@ -210,8 +226,10 @@ def main() -> None:
         win = f"{wins[g]:>6.0f}" if wins else ""
         mvs = mv[g]
         move = f"{min(mvs)}..{max(mvs)}" if mvs else "-"
+        # damage on the fastest / slowest attacking card, with the init it lands at
+        dfs = f"{f['fast_dmg']}@i{f['fast_init']}/{f['slow_dmg']}@i{f['slow_init']}"
         print(f"{g:<14}{est[g]:>5.0f}{win}{a:>11}{b:>11}{f['n2plus']:>4}"
-              f"{f['n_super']:>4}{ins[0]:>4}-{ins[-1]:<3}{100*f['rng_frac']:>5.0f}%{move:>7}")
+              f"{f['n_super']:>4}{ins[0]:>3}-{ins[-1]:<3}{dfs:>15}{100*f['rng_frac']:>5.0f}%{move:>7}")
 
     print("\nEST = estimated win% from card features (intercept + weighted features; "
           "baked model R^2~0.5, so a rough guide -- the rest is matchup/nonlinear and "
