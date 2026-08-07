@@ -198,6 +198,11 @@ class Card:
     # attacks almost all block Mid and trade initiative for reach, so they skew the
     # Mid-block stats; the combat model ignores range but flags it for filtering.
     ranged: bool = False
+    # Reload (a downside): after a reload attack fires, this weapon GROUP must reload,
+    # so the group's NEXT attack is a dud -- deals no damage and (per the rules note)
+    # consumes no block. Cannon has it on every card (so ~half its shots dud); Plasma
+    # Rifle only on Charged Shot. Ignoring it overstates those weapons.
+    reload: bool = False
 
     @property
     def attack_zones(self) -> frozenset:
@@ -251,6 +256,7 @@ def load_cards() -> dict:
                     committed="committed" in text,
                     close_quarters="closequarters" in text,
                     ranged=ranged,
+                    reload="reload" in text,
                 )
     return cards
 
@@ -333,9 +339,11 @@ class Frame:
     is_target: bool = False
     opp_profile: dict = None  # opposing team's aggregate profile (intelligent mode)
     strategy: tuple = None    # (defense_weight, concentration_weight); None = defaults
+    reloading: set = field(default_factory=set)  # weapon groups whose next attack duds
 
     def reset(self) -> None:
         self.damage = {z: 0 for z in ZONES}
+        self.reloading = set()
         self.pile.reset()
 
 
@@ -739,6 +747,15 @@ def play_game(team_a: list, team_b: list, target_a: Frame, target_b: Frame,
             if not card.is_attack:
                 continue
 
+            # Reload downside: if this weapon group fired a reload attack earlier and
+            # hasn't reloaded since, THIS shot is a dud -- it deals no damage and (per
+            # the rules note, PENDING CONFIRMATION) consumes no block. Firing the dud
+            # completes the reload, so the group is ready again next time. The card
+            # still counts as resolved (it can block for free like any resolved card).
+            if card.group in play.owner.reloading:
+                play.owner.reloading.discard(card.group)
+                continue
+
             tgt = enemy_target[play.owner.team]
             if not _dead(tgt, health):
                 # A feint deals no damage even unblocked -- it only forces (and
@@ -770,6 +787,11 @@ def play_game(team_a: list, team_b: list, target_a: Frame, target_b: Frame,
                         for z, dmg in zip(ZONES, card.attacks):
                             if dmg:
                                 tgt.damage[z] += dmg
+
+                # A reload attack that fired now leaves the weapon needing a reload, so
+                # this group's next attack will dud.
+                if card.reload:
+                    play.owner.reloading.add(card.group)
 
             # Committed: discarded the moment it resolves, so it can no longer be
             # held back as a block for the rest of the round.
