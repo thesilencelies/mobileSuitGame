@@ -1,0 +1,27 @@
+# base5w1p_01: same 5 weapons as base6w_01, 6th slot = pilot 'Tactician' (dead-effect card, blocks High by rule) -- dead-card test
+# groups: Sniper Rifle, Knife, Great Axe, Cannon, Sword, Tactician
+
+card/Sniper Rifle_Headshot
+card/Sniper Rifle_Calibrated Hit
+card/Sniper Rifle_Heartpiercer
+card/Sniper Rifle_Patience's Reward
+card/Knife_Stab
+card/Knife_Cut
+card/Knife_Slit
+card/Knife_Lunge
+card/Great Axe_Cleave
+card/Great Axe_Split
+card/Great Axe_Whirl
+card/Great Axe_Eviscerate
+card/Cannon_Fullbore
+card/Cannon_Airburst
+card/Cannon_Cannon
+card/Cannon_Pummel
+card/Sword_Lunge
+card/Sword_Feint
+card/Sword_Slice
+card/Sword_Parry
+card/Tactician_Tactical broadcast
+card/Tactician_Fog of war
+card/Tactician_Set the trap
+card/Tactician_Outfox

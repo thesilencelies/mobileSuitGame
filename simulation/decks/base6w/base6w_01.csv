@@ -1,0 +1,27 @@
+# base6w_01: random baseline, 6 different weapons (all attack)
+# groups: Sniper Rifle, Knife, Great Axe, Cannon, Sword, Stun Baton
+
+card/Sniper Rifle_Headshot
+card/Sniper Rifle_Calibrated Hit
+card/Sniper Rifle_Heartpiercer
+card/Sniper Rifle_Patience's Reward
+card/Knife_Stab
+card/Knife_Cut
+card/Knife_Slit
+card/Knife_Lunge
+card/Great Axe_Cleave
+card/Great Axe_Split
+card/Great Axe_Whirl
+card/Great Axe_Eviscerate
+card/Cannon_Fullbore
+card/Cannon_Airburst
+card/Cannon_Cannon
+card/Cannon_Pummel
+card/Sword_Lunge
+card/Sword_Feint
+card/Sword_Slice
+card/Sword_Parry
+card/Stun Baton_Overcharge
+card/Stun Baton_Shock
+card/Stun Baton_Zap
+card/Stun Baton_Strike

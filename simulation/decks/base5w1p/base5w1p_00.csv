@@ -1,0 +1,26 @@
+# base5w1p_00: same 5 weapons as base6w_00, 6th slot = pilot 'Specialist' (dead-effect card, blocks High by rule) -- dead-card test
+# groups: Sword, Missile Rack, Greatsword, Chainsaw, Spear, Specialist
+
+card/Sword_Lunge
+card/Sword_Feint
+card/Sword_Slice
+card/Sword_Parry
+card/Missile Rack_Missile Rack 1
+card/Missile Rack_Missile Rack 2
+card/Missile Rack_Missile Rack 3
+card/Greatsword_Cleave
+card/Greatsword_Parry
+card/Greatsword_Grand Sweep
+card/Greatsword_Rising Cut
+card/Chainsaw_Disembowel
+card/Chainsaw_Rip
+card/Chainsaw_Grind
+card/Chainsaw_Tear
+card/Spear_Thrust
+card/Spear_Jab
+card/Spear_Impale
+card/Spear_Sweep
+card/Specialist_Combo strike
+card/Specialist_Snipers aim
+card/Specialist_Master duelist
+card/Specialist_Practiced Technique
