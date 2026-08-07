@@ -118,6 +118,32 @@ can never cover a high attack).
   moment any one zone takes *more* than `--health` (default 4) damage.
 * **Focus fire.** Every frame on a team funnels all attacks onto one designated
   target frame on the other team (`--target-a` / `--target-b`, default index 0).
+* **Keywords.** guard break, super block, feint, committed, close quarters, and
+  **reload** (a downside: after a reload attack fires, that weapon group's next
+  attack duds — no damage, no block spent — until it is spent reloading; the trigger
+  persists across rounds). Pilot cards get an implicit High block by rule.
+
+## Weapon analysis tools
+
+Four scripts characterise the WEAPON groups (each reads the live card data, so they
+stay honest as cards change):
+
+```bash
+# how strong is each weapon as a standalone deck, and WHY (features + summary stats)
+python simulation/weapon_power.py            # add --fit to refit the model to a live tournament
+
+# separate a weapon's OFFENCE from its blocking: drop it into an all-Basics deck
+# (Basic_Block covers every zone) and diff vs the pure weapon-group round-robin
+python simulation/weapon_quality_test.py
+
+# a weapon's power as a CONTRIBUTOR: avg lift when added to a deck already running
+# another weapon (~a Shapley value); reveals partners that solo win% hides
+python simulation/weapon_contribution.py
+
+# two-weapon pairings (+basics), best pairs and which weapons never partner well;
+# --team-size 2 shows how the meta shifts under 2v2 focus-fire pressure
+python simulation/weapon_pairs.py --team-size 2
+```
 
 ## Tests
 
