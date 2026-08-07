@@ -134,6 +134,7 @@ SIM_DECKS_DIR = ROOT / "simulation" / "decks" / "sim"
 WEAPON6_DECKS_DIR = ROOT / "simulation" / "decks" / "weapon6"
 BASE6W_DECKS_DIR = ROOT / "simulation" / "decks" / "base6w"      # 6 distinct weapons
 BASE5W1P_DECKS_DIR = ROOT / "simulation" / "decks" / "base5w1p"  # 5 weapons + 1 pilot
+BASE4W1P1I_DECKS_DIR = ROOT / "simulation" / "decks" / "base4w1p1i"  # 4 wpn+1 pilot+1 inert
 
 
 def weapon_groups() -> list:
@@ -1027,7 +1028,8 @@ def _run_cells(tasks: list, cfg: "SimConfig", jobs: int) -> list:
     return [_tourney_cell(t) for t in tasks]
 
 
-PROVENANCE_ORDER = ("Real", "Sim", "Weapon6", "Base6w", "Base5w1p", "Weapon", "Other")
+PROVENANCE_ORDER = ("Real", "Sim", "Weapon6",
+                    "Base6w", "Base5w1p", "Base4w1p1i", "Weapon", "Other")
 
 
 def _provenance_order(provenance: list) -> list:
@@ -1082,6 +1084,9 @@ def _gather_tournament_decks(args) -> tuple:
     if getattr(args, "base5w1p", False):
         for p in sorted(BASE5W1P_DECKS_DIR.glob("*.csv")):
             add(str(p), p.stem, "Base5w1p")
+    if getattr(args, "base4w1p1i", False):
+        for p in sorted(BASE4W1P1I_DECKS_DIR.glob("*.csv")):
+            add(str(p), p.stem, "Base4w1p1i")
     if getattr(args, "weapon_groups", False):
         for g in weapon_groups():
             add(f"weapon:{g}", g, "Weapon")
@@ -1850,6 +1855,9 @@ def main() -> None:
     t.add_argument("--base5w1p", action="store_true",
                    help="include the random 5-weapon + 1-pilot baseline decks "
                         "(simulation/decks/base5w1p/*.csv) -- the dead-card test")
+    t.add_argument("--base4w1p1i", action="store_true",
+                   help="include the 4-weapon + 1-pilot + 1-inert(Booster) baseline "
+                        "decks (simulation/decks/base4w1p1i/*.csv) -- real-deck shape")
     t.add_argument("--weapon-groups", action="store_true",
                    help="include one synthetic deck per weapon group (all its cards; "
                         "no CSV written) to pit each weapon against the field")

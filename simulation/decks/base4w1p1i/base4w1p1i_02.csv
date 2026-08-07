@@ -1,0 +1,27 @@
+# base4w1p1i_02: 4 weapons (Sword, Chainsaw, Stun Bow, Great Axe) + pilot 'Tactician' + Booster (inert) -- same shape as a typical real deck; real decks should go ~even vs this
+# groups: Sword, Chainsaw, Stun Bow, Great Axe, Tactician, Booster
+
+card/Sword_Lunge
+card/Sword_Feint
+card/Sword_Slice
+card/Sword_Parry
+card/Chainsaw_Disembowel
+card/Chainsaw_Rip
+card/Chainsaw_Grind
+card/Chainsaw_Tear
+card/Stun Bow_Rapid fire
+card/Stun Bow_Arc shot
+card/Stun Bow_Straight shot
+card/Stun Bow_Low blow
+card/Great Axe_Cleave
+card/Great Axe_Split
+card/Great Axe_Whirl
+card/Great Axe_Eviscerate
+card/Tactician_Tactical broadcast
+card/Tactician_Fog of war
+card/Tactician_Set the trap
+card/Tactician_Outfox
+card/Booster_Full speed ahead
+card/Booster_Quick Step
+card/Booster_Shoulder barge
+card/Booster_Accelerate
