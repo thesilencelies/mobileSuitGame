@@ -117,12 +117,13 @@ ROOT = Path(__file__).resolve().parent.parent
 
 # Action-card CSVs that decks draw from (frames / terrain are not action cards).
 WEAPON_CSV = "Weapon actions.csv"
+PILOT_CSV = "Pilot actions.csv"
 CARD_CSVS = [
     WEAPON_CSV,
     "Basic actions.csv",
     "Booster actions.csv",
     "Drone actions.csv",
-    "Pilot actions.csv",
+    PILOT_CSV,
 ]
 
 # Deck sources, by provenance. REAL = the actual game decks (one per pilot) the card
@@ -130,6 +131,7 @@ CARD_CSVS = [
 # are synthetic (see load_deck's `weapon:` handling) and carry provenance "Weapon".
 REAL_DECKS_DIR = ROOT / "decks"                       # deck_<faction>_<pilot>.csv
 SIM_DECKS_DIR = ROOT / "simulation" / "decks" / "sim"
+WEAPON6_DECKS_DIR = ROOT / "simulation" / "decks" / "weapon6"
 
 
 def weapon_groups() -> list:
@@ -219,8 +221,14 @@ def load_cards() -> dict:
                 key = f"{group}_{name}"
                 attacks = tuple(_to_int(row.get(f"{z}Attack", "")) for z in ZONES)
                 block_vals = {z: _to_int(row.get(f"{z}Block", "")) for z in ZONES}
-                blocks = frozenset(z for z in ZONES if block_vals[z] > 0)
+                blocks = set(z for z in ZONES if block_vals[z] > 0)
                 super_blocks = frozenset(z for z in ZONES if block_vals[z] >= 2)
+                # Every pilot card carries a High block by rule -- it isn't written in
+                # the CSV, so add it here now that real decks (which run pilot cards)
+                # are simulated. It's an ordinary block (spent when used), not a super.
+                if fname == PILOT_CSV:
+                    blocks.add("High")
+                blocks = frozenset(blocks)
                 # Ranged if any attacked zone carries a Range value.
                 ranged = any(_to_int(row.get(f"{z}Range", "")) > 0
                              for z, a in zip(ZONES, attacks) if a > 0)
@@ -971,7 +979,7 @@ def _run_cells(tasks: list, cfg: "SimConfig", jobs: int) -> list:
     return [_tourney_cell(t) for t in tasks]
 
 
-PROVENANCE_ORDER = ("Real", "Sim", "Weapon", "Other")
+PROVENANCE_ORDER = ("Real", "Sim", "Weapon6", "Weapon", "Other")
 
 
 def _provenance_order(provenance: list) -> list:
@@ -1017,6 +1025,9 @@ def _gather_tournament_decks(args) -> tuple:
     if getattr(args, "sim", False):
         for p in sorted(SIM_DECKS_DIR.glob("*.csv")):
             add(str(p), p.stem, "Sim")
+    if getattr(args, "weapon6", False):
+        for p in sorted(WEAPON6_DECKS_DIR.glob("*.csv")):
+            add(str(p), p.stem, "Weapon6")
     if getattr(args, "weapon_groups", False):
         for g in weapon_groups():
             add(f"weapon:{g}", g, "Weapon")
@@ -1747,6 +1758,8 @@ def main() -> None:
                    help="include the REAL game decks (decks/deck_*.csv, one per pilot)")
     t.add_argument("--sim", action="store_true",
                    help="include the SIM balance decks (simulation/decks/sim/*.csv)")
+    t.add_argument("--weapon6", action="store_true",
+                   help="include the 6-weapon-group decks (simulation/decks/weapon6/*.csv)")
     t.add_argument("--weapon-groups", action="store_true",
                    help="include one synthetic deck per weapon group (all its cards; "
                         "no CSV written) to pit each weapon against the field")
