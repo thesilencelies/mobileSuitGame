@@ -134,7 +134,9 @@
       "Bash(python generate_all_decks.py --skip-individual)",
       "Bash(echo \"exit $?\")",
       "Bash(grep -n \"^# Types$\\\\|^# ---\\\\|^def create_terrain_card\\\\|^def create_flipped\" /home/stephen/mobileSuitGame/generateCards.py)",
-      "Bash(python3 generate_all_decks.py --skip-individual)"
+      "Bash(python3 generate_all_decks.py --skip-individual)",
+      "Bash(python simulation/simulate.py tournament --help)",
+      "Bash(python simulation/simulate.py tournament --decks-dir simulation/decks --intelligent --pool 7 --sizes 1 --jobs 8)"
     ],
     "additionalDirectories": [
       "/tmp/cardtest",
