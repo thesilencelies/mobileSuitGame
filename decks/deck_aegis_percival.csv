@@ -5,10 +5,6 @@ Shield_Lock down
 Greatsword_Cleave
 Greatsword_Parry
 Greatsword_Grand Sweep
-Stun Baton_Overcharge
-Stun Baton_Shock
-Stun Baton_Zap
-Stun Baton_Strike
 Assault Rifle_Burst Fire
 Assault Rifle_Aimed Fire
 Assault Rifle_From the hip
@@ -19,3 +15,7 @@ Engineer_Precision Tuning
 Booster_Quick Step
 Booster_Accelerate
 Assault Rifle_Covering Fire
+Greatsword_Rising Cut
+Basic_Block
+Basic_Sprint
+Basic_Throw

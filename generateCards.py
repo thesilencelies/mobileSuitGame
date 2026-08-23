@@ -214,7 +214,7 @@ damage_type_dict = {
     }
 
 ability_dict = {
-    "Reload": "This frames next action from this weapon deals no damage.",
+    "Reload": "This frames next action from this weapon has no effect or attack.",
     "Guard Break": "This attack consumes one block per zone",
     "Feint": "This attack deals no damage",
     "Close Quarters": "Cannot be blocked by higher initiative attacks",

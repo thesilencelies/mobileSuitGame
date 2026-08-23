@@ -73,9 +73,11 @@ def process_deck(prefix):
     back_tex = f"{prefix}_back_image.tex"
     has_back = os.path.exists(f"build/back_{prefix}.tex")
 
-    # deck_terrain_* list terrain tiles; every other deck lists weapon/pilot/etc.
+    # deck_terrain_* and deck_objective_* both list terrain tiles (objectives are
+    # terrain cards that happen to score); every other deck lists weapon/pilot/etc.
     # cards. The type tells generate_card_sheet which build/ subfolder to prepend.
-    deck_type = "terrain" if prefix == "terrain" or prefix.startswith("terrain_") else "card"
+    is_terrain = prefix in ("terrain", "objective") or prefix.startswith(("terrain_", "objective_"))
+    deck_type = "terrain" if is_terrain else "card"
 
     cols = COLS
     rows = ROWS

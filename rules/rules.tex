@@ -21,7 +21,7 @@
  \setcounter{secnumdepth}{0}
 
 
-\title{NetFrame \\ \large{working title} \\ \small{Version 0.5}}
+\title{\Huge{NetFrame} \\ \small{Version 0.5}}
 %\author{Stephen Lilico}
 \date{}
 \ULCornerWallPaper{1.0}{../pictures/rules_background.png}
@@ -42,7 +42,7 @@
   \fill[#4!22!white] (#1,#2) circle (0.60);
   \begin{scope}
     \clip (#1,#2) circle (0.57);
-    \node at (#1,#2) {\includegraphics[height=1.55cm]{#3}};
+    \node at (#1,#2) {\includegraphics[height=1.25cm]{#3}};
   \end{scope}
   \draw[line width=3pt, #4] (#1,#2) circle (0.60);
 }
@@ -960,7 +960,7 @@ count & type & group & cards \\
   Feint & If this attack is not blocked, it deals no damage. (Blocks are compulsory) \\
   Close Quarters & This attack cannot be blocked by attacks that have already been resolved \\
   Knockback (X) & Move the target frame X steps in any direction away from the source (cannot move up elevation) \\
-  Reload & This card persists until this frame next resolves an attack from this weapon. That attack deals no damage, and then this card is discarded \\
+  Reload & This card persists until this frame next resolves an attack from this weapon. That card has no effect or attack --- it deals no damage, consumes no blocks and triggers no abilities (including any further Reload) --- though the frame still moves as normal. This card is then discarded \\
 \end{tabular}
 
 \subsection{Frame Keywords}
@@ -968,7 +968,7 @@ count & type & group & cards \\
   Flying & This frame does not spend movement to cross obstacles or move between floors.
    Obstacles do not block LoS to or from this frame. \\
   Shield (X) & When a card with shield (X) resolves, or a frame with shield (X) starts,
-   put X shield counters on the frame card. A frame can only have up to 1 more shield than its intital shield value.
+   put X shield counters on the frame card. A frame can only have up to 1 more shield than its initial shield value.
     Whenever a frame with a shield counter would take any amount of damage, instead remove one shield counter from the frame. \\
   Deathstrike & When this frame would be destroyed, they continue to fight until the end of the next turn,
   after which they are removed from play if they are still dead (they can be repaired)\\
@@ -987,6 +987,39 @@ Distances are measured with a tape measure and a fixed base unit should be estab
 (for example, 1" is one step is about correct for 28mm miniatures). 
 Deployment zones are 7 units away from the center line.
 
+
+
+\section{Tips}
+Here are some pointers to help you get started in your battles in NetFrame.
+\begin{itemize}
+\item \textbf{Heavy attacks root you in place.} If you intend to swing something big, be
+where you need to be already, or pair it with a booster.
+\item \textbf{Ranged attacks pay more movement.} Range is not free; gunners
+tend to have to stand still to shoot.
+
+\item \textbf{Attacking is how you spend your opponent's cards.} Blocking is compulsory
+and the blocking card is discarded, so every blocked attack strips a card from them.
+\item \textbf{A fast attack can delete a slow heavy one.} If their low initiative
+attack is still face down when your attack forces a block, they may have to
+expend it so it never resolves at all. This is what attacks with \feint are for.
+\item \textbf{High initiative is defensive gold} Resolved attacks hang around to block after
+so they can both remove an opponents action and then block as well.
+\item \textbf{Most weapons cannot block every zone.} Many cover only one. Attack the zone
+their weapon leaves open.
+\item \textbf{Watch the group indicator} at the bottom left of every weapon card. It shows
+what the whole weapon group can do. One card played tells you some of whats coming.
+\item \textbf{Almost every ranged attack blocks Mid, and only Mid.} A frame with only
+guns has a very predictable guard: hit it High or Low.
+\item \textbf{Deck size trades variety for consistency.} A small deck sees a large share of
+itself every turn and can rely on finding its key cards; a large one carries far more
+tools and finds any particular one far less often.
+\item \textbf{Duplicate weapon slots buy reliability, not extra shots.} Taking the same
+weapon twice makes it much likelier that one of its cards is among your seven, and lets
+you play the same attack more than once. It does not get around \reload: that debt belongs
+to the weapon, so the next attack from it has no effect or attack whichever copy it came from.
+\item \textbf{Cover your own blocking zones.} Check which zones your chosen weapons leave
+open and fill the gap - everyone has access to the basic attacks.
+\end{itemize}
 
 
 \section{Acknowledgments}
