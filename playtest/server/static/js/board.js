@@ -14,9 +14,31 @@
 //   * the legal destinations for a `move` decision come from the engine's own
 //     `pending.options`, so the green tiles are exactly the legal ones -- the
 //     client never guesses movement.
+//
+// Two ways to look at it, both kept (the `art` option):
+//
+//   * ABSTRACT -- flat elevation ramp, the fastest read of the shape of the
+//     fight, which is what you want at FIT;
+//   * ART -- the dealt terrain cards drawn behind the grid, clipped to their
+//     own 3x4 tile block and turned 180 degrees for the half of the board its
+//     owner laid out facing themselves, exactly as the cards sit on a table.
+//     The abstract markings stay on top, just quieter.
+
+import { terrainImageUrl, tokenImageUrl } from './api.js';
 
 const ELEV_FILL = ['#19212c', '#26323f', '#354557', '#48607a'];
 const ELEV_EDGE = ['#101720', '#1b242f', '#26333f', '#33455a'];
+
+// Over the art the elevation ramp becomes a wash rather than a fill, so the
+// battlefield shows through but height still reads at a glance.
+const ELEV_WASH = [
+  'rgba(9,13,19,0.30)', 'rgba(120,170,230,0.14)',
+  'rgba(150,195,245,0.24)', 'rgba(185,220,255,0.34)',
+];
+
+//: A terrain card is 3 tiles across and 4 down (rules; engine/terrain.py).
+const CARD_COLS = 3;
+const CARD_ROWS = 4;
 
 export class BoardView {
   constructor(canvas) {
@@ -31,7 +53,9 @@ export class BoardView {
     this.overlays = { reach: new Map(), los: new Set(), targets: new Set(), blocked: new Set() };
     this.selected = null;            // frame id
     this.acting = null;              // frame id currently resolving
-    this.options = { los: false, threat: true, cards: false, coords: false };
+    this.options = { los: false, threat: true, cards: false, coords: false, art: true };
+    this.cards = [];                 // dealt terrain cards, with their art
+    this._art = new Map();           // url -> HTMLImageElement (or null)
     this.onTapTile = () => {};
     this.onTapFrame = () => {};
     this._dirty = true;
@@ -60,8 +84,61 @@ export class BoardView {
     for (const obj of board.objectives || []) {
       for (const [x, y] of obj.tiles || []) this.objectiveTiles.set(`${x},${y}`, obj);
     }
+    this._layoutCards();
     if (first) this.fit();
     this._dirty = true;
+  }
+
+  /** Recover the dealt terrain cards from the tiles, so the art can be blitted.
+   *
+   * Every tile carries the name of the card it came from, and the deal is a
+   * fixed grid of 3x4-tile cards (`engine/setup.py`), so a card is the block of
+   * tiles at `(col*3, row*4)`. A block whose tiles disagree about their card is
+   * not a card this client understands, and is left to the abstract renderer.
+   *
+   * The top half of the board is the seat that laid its cards out facing
+   * itself, so its art is rotated 180 degrees -- the same thing you see looking
+   * across the table at an opponent's terrain.
+   */
+  _layoutCards() {
+    this.cards = [];
+    if (!this.w || !this.h) return;
+    if (this.w % CARD_COLS || this.h % CARD_ROWS) return;
+    const cardRows = this.h / CARD_ROWS;
+    for (let row = 0; row < cardRows; row++) {
+      for (let col = 0; col < this.w / CARD_COLS; col++) {
+        const x0 = col * CARD_COLS;
+        const y0 = row * CARD_ROWS;
+        const name = (this.tiles.get(`${x0},${y0}`) || {}).card;
+        if (!name) continue;
+        let uniform = true;
+        for (let dy = 0; dy < CARD_ROWS && uniform; dy++) {
+          for (let dx = 0; dx < CARD_COLS; dx++) {
+            const t = this.tiles.get(`${x0 + dx},${y0 + dy}`);
+            if (!t || t.card !== name) { uniform = false; break; }
+          }
+        }
+        if (!uniform) continue;
+        this.cards.push({
+          name, x: x0, y: y0,
+          rotated: row < Math.floor(cardRows / 2),
+          url: terrainImageUrl(name),
+        });
+      }
+    }
+  }
+
+  /** An <img> for a bundled asset, loaded once. `null` until it is ready. */
+  _image(url) {
+    if (!url) return null;
+    if (this._art.has(url)) return this._art.get(url);
+    const img = new Image();
+    img.decoding = 'async';
+    img.addEventListener('load', () => { this._dirty = true; });
+    img.addEventListener('error', () => { this._art.set(url, null); }, { once: true });
+    img.src = url;
+    this._art.set(url, img);
+    return img;
   }
 
   setOverlays(overlays) {
@@ -283,6 +360,7 @@ export class BoardView {
     const x1 = Math.min(this.w - 1, Math.ceil(br.x) + 1);
     const y1 = Math.min(this.h - 1, Math.ceil(br.y) + 1);
 
+    if (this.options.art) this._drawTerrainArt(ctx, x0, y0, x1, y1);
     this._drawTiles(ctx, x0, y0, x1, y1, s);
     this._drawOverlays(ctx, x0, y0, x1, y1, s);
     if (this.options.cards) this._drawCardSeams(ctx, x0, y0, x1, y1, s);
@@ -293,21 +371,61 @@ export class BoardView {
     if (this.zoomedIn) this._drawMinimap(ctx, w, h);
   }
 
+  /** The dealt terrain cards, each clipped to its own 3x4 block of tiles. */
+  _drawTerrainArt(ctx, x0, y0, x1, y1) {
+    for (const card of this.cards) {
+      if (card.x > x1 || card.x + CARD_COLS <= x0) continue;
+      if (card.y > y1 || card.y + CARD_ROWS <= y0) continue;
+      const img = this._image(card.url);
+      if (!img || !img.complete || !img.naturalWidth) continue;
+      ctx.save();
+      // A half-pixel bleed on each side: neighbouring cards must not show a
+      // seam of background between them when the camera lands off-pixel.
+      const bleed = 0.5 / this.cam.scale;
+      if (card.rotated) {
+        ctx.translate(card.x + CARD_COLS / 2, card.y + CARD_ROWS / 2);
+        ctx.rotate(Math.PI);
+        ctx.translate(-CARD_COLS / 2, -CARD_ROWS / 2);
+        ctx.drawImage(img, -bleed, -bleed,
+          CARD_COLS + 2 * bleed, CARD_ROWS + 2 * bleed);
+      } else {
+        ctx.drawImage(img, card.x - bleed, card.y - bleed,
+          CARD_COLS + 2 * bleed, CARD_ROWS + 2 * bleed);
+      }
+      ctx.restore();
+    }
+  }
+
   _drawTiles(ctx, x0, y0, x1, y1, s) {
+    const art = this.options.art;
     for (let y = y0; y <= y1; y++) {
       for (let x = x0; x <= x1; x++) {
         const t = this.tiles.get(`${x},${y}`);
         if (!t) continue;
         const elev = Math.max(0, Math.min(3, t.elev || 0));
-        ctx.fillStyle = t.impassable ? '#080c11' : ELEV_FILL[elev];
-        ctx.fillRect(x, y, 1, 1);
+        if (art) {
+          // Over the photograph the ramp is a wash, so the ground reads as
+          // ground and a rooftop still reads as three storeys up.
+          ctx.fillStyle = t.impassable ? 'rgba(6,9,13,0.72)' : ELEV_WASH[elev];
+          ctx.fillRect(x, y, 1, 1);
+        } else {
+          ctx.fillStyle = t.impassable ? '#080c11' : ELEV_FILL[elev];
+          ctx.fillRect(x, y, 1, 1);
+        }
 
         if (t.impassable) {
-          ctx.strokeStyle = '#232c38';
+          ctx.strokeStyle = art ? 'rgba(190,210,235,0.55)' : '#232c38';
           ctx.lineWidth = 1.4 / s;
           ctx.beginPath();
           ctx.moveTo(x + 0.15, y + 0.15); ctx.lineTo(x + 0.85, y + 0.85);
           ctx.moveTo(x + 0.85, y + 0.15); ctx.lineTo(x + 0.15, y + 0.85);
+          ctx.stroke();
+        } else if (t.obstacle && art) {
+          // Outlined rather than filled: the art already shows the thing that
+          // is in the way, and the marker only has to say it counts as one.
+          ctx.strokeStyle = 'rgba(200,220,245,0.6)';
+          ctx.lineWidth = 1.6 / s;
+          this._roundRect(ctx, x + 0.18, y + 0.18, 0.64, 0.64, 0.12);
           ctx.stroke();
         } else if (t.obstacle) {
           ctx.fillStyle = '#0f151d';
@@ -337,7 +455,7 @@ export class BoardView {
           ctx.fillStyle = 'rgba(242,193,78,0.5)';
           ctx.fillRect(x + 0.38, y + 0.38, 0.24, 0.24);
         }
-        ctx.strokeStyle = ELEV_EDGE[elev];
+        ctx.strokeStyle = art ? 'rgba(8,12,18,0.45)' : ELEV_EDGE[elev];
         ctx.lineWidth = 1 / s;
         ctx.strokeRect(x + 0.5 / s, y + 0.5 / s, 1 - 1 / s, 1 - 1 / s);
 
@@ -410,6 +528,21 @@ export class BoardView {
     for (const token of this.view.tokens || []) {
       if (!token.pos || token.alive === false) continue;
       const { x, y } = token.pos;
+      // The numbered piece art encodes remaining hit points, so an undamaged
+      // Tower and a Tower one hit from gone are different pictures -- which is
+      // a damage read-out you can take in without reading a number.
+      const art = this.options.art
+        ? this._image(tokenImageUrl(token.kind, token.hp)) : null;
+      if (art && art.complete && art.naturalWidth) {
+        ctx.drawImage(art, x + 0.04, y + 0.04, 0.92, 0.92);
+        if (token.carrier) {
+          ctx.strokeStyle = 'rgba(242,193,78,0.9)';
+          ctx.lineWidth = 2 / s;
+          this._roundRect(ctx, x + 0.06, y + 0.06, 0.88, 0.88, 0.16);
+          ctx.stroke();
+        }
+        continue;
+      }
       const colour = {
         reactor: '#f2c14e', tower: '#b9c6d6', shiny: '#ffe28a',
         fugitive: '#6fe3d0', egg: '#e9d7a0',

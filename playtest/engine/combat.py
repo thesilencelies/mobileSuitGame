@@ -319,18 +319,18 @@ def next_block_decision(
 
     Blocking is compulsory whenever an option exists, so this returning a
     value *is* the obligation -- there is no "decline" option.
+
+    The offer is always the *whole* set of still-unblocked zones, for both
+    kinds of attack. What differs is what spending a card does to that set
+    (see `apply_block`): an ordinary attack is stopped outright by one
+    matching zone, while Guard Break only clears the zones that card actually
+    covers and comes back for the rest.
     """
     target = attack.current
     if target is None or target.done or target.kind != "frame":
         return None
     defender = state.frames.get(target.id)
     if defender is None or not defender.alive or not target.pending_zones:
-        return None
-    if attack.guard_break:
-        for zone in target.pending_zones:
-            candidates = block_options(state, defender, attack, [zone])
-            if candidates:
-                return [zone], candidates
         return None
     zones = list(target.pending_zones)
     candidates = block_options(state, defender, attack, zones)
@@ -382,7 +382,13 @@ def apply_block(
     uid: str,
     zones: Sequence[str],
 ) -> None:
-    """Spend a card to block. Super blocks (and Hector's first) are kept."""
+    """Spend a card to block. Super blocks (and Hector's first) are kept.
+
+    Against Guard Break, "the same card can block multiple zones if it has
+    them" (rules.tex:956): the card covers *every* attacked zone it blocks,
+    and is still only spent once. Zones it does not cover stay open, and the
+    defender must keep blocking while any remaining card covers any of them.
+    """
     target = attack.current
     if target is None:
         return

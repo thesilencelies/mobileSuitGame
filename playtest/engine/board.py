@@ -26,14 +26,14 @@ TileGrid = Sequence[Sequence[Tile]]
 # Line-of-sight tuning
 # --------------------------------------------------------------------------
 
-#: Sample points per axis per tile when testing the permissive LoS rule. Each
-#: tile contributes ``n * n`` candidate endpoints, so ``n**4`` candidate lines
-#: are available (short-circuited on the first clear one). ``1`` degenerates to
+#: Sample points per axis across the *attacker's* tile. The line's far end is
+#: always the target's centre point (rules.tex:474), so a query tests ``n * n``
+#: candidate lines, short-circuited on the first clear one. ``1`` degenerates to
 #: the naive centre-to-centre test.
 LOS_SAMPLES_PER_AXIS = 5
 
-#: Sample points sit this far inside the tile edge, so every candidate endpoint
-#: is strictly interior and a line never starts or ends exactly on a grid line.
+#: Source samples sit this far inside the tile edge, so every candidate line
+#: starts strictly inside the attacker's tile rather than on its boundary.
 LOS_EDGE_INSET = 0.02
 
 _EPS = 1e-9
@@ -113,7 +113,7 @@ class Board:
                 yield Pos(x, y)
 
     def neighbours(self, pos: Pos) -> tuple[Pos, ...]:
-        """The up-to-8 adjacent tiles, diagonals included (rules.tex:285)."""
+        """The up-to-8 adjacent tiles, diagonals included (rules.tex:278)."""
         out = []
         for dy in (-1, 0, 1):
             for dx in (-1, 0, 1):
@@ -125,7 +125,7 @@ class Board:
         return tuple(out)
 
     def distance(self, a: Pos, b: Pos) -> int:
-        """Chebyshev distance -- range is reckoned as a square (rules.tex:286)."""
+        """Chebyshev distance -- range is reckoned as a square (rules.tex:279)."""
         return max(abs(a.x - b.x), abs(a.y - b.y))
 
     def is_adjacent(self, a: Pos, b: Pos) -> bool:
@@ -139,8 +139,8 @@ class Board:
     def step_cost(self, frm: Pos, to: Pos, *, flying: bool = False) -> Optional[int]:
         """Cost of one 8-way step, or ``None`` if the step is illegal.
 
-        Movement is counted in steps (rules.tex:288). A step costs 1, plus 1 per
-        elevation *level climbed* (rules.tex:404): entering an elevation-2 tile
+        Movement is counted in steps (rules.tex:280). A step costs 1, plus 1 per
+        elevation *level climbed* (rules.tex:450): entering an elevation-2 tile
         from the ground costs 3. Descending any number of levels is free, so a
         step down costs 1 however far it drops.
 
@@ -152,8 +152,8 @@ class Board:
         edge weights with a hard budget already refuses partial climbs.
 
         Obstacles and impassable terrain cannot be moved through
-        (rules.tex:405). ``flying`` frames "do not spend movement to cross
-        obstacles or move between floors" (rules.tex:968), so they pay a flat 1
+        (rules.tex:451). ``flying`` frames "do not spend movement to cross
+        obstacles or move between floors" (rules.tex:967), so they pay a flat 1
         per step and may cross -- and stop on -- obstacle tiles. Impassable
         terrain still stops everyone.
         """
@@ -254,11 +254,11 @@ class Board:
     # -- line of sight -----------------------------------------------------
 
     def effective_elevation(self, pos: Pos, occupied: Iterable[Pos] = ()) -> int:
-        """Tile elevation, +1 if a frame stands there (rules.tex:434).
+        """Tile elevation, +1 if a frame stands there (rules.tex:485).
 
         Used for *intervening* tiles only. The attacker's and target's own
         reference heights are their bare tile elevations -- the worked figures
-        require it: in rules.tex:441 an elevation-1 tile blocks an attacker
+        require it: in rules.tex:492 an elevation-1 tile blocks an attacker
         standing on the ground, which it would not if the attacker counted as
         elevation 1 itself.
         """
@@ -275,7 +275,7 @@ class Board:
     ) -> frozenset[Pos]:
         """Tiles that would obstruct a line from ``attacker`` to ``target``.
 
-        The four obstruction kinds (rules.tex:426):
+        The four obstruction kinds (rules.tex:477):
 
         * impassable terrain -- anywhere on the line;
         * terrain higher than the *attacker* -- anywhere on the line;
@@ -283,7 +283,7 @@ class Board:
         * terrain higher than the *target*, *adjacent to the target*.
 
         A tile holding a frame counts one elevation higher. Obstacles do not
-        block LoS to or from a ``Flying`` frame (rules.tex:968).
+        block LoS to or from a ``Flying`` frame (rules.tex:967).
 
         Only the bounding box of the two tiles is considered: a straight segment
         between two points of that box never leaves it, so nothing outside can
@@ -321,37 +321,32 @@ class Board:
         flying_target: bool = False,
         samples: Optional[int] = None,
     ) -> bool:
-        """Permissive LoS: clear if *any* line between the tiles is unobstructed.
+        """LoS: clear if *any* line from the attacker's tile to the target's
+        centre is unobstructed.
 
         The rule is "draw a line starting from anywhere on the attacking frame
-        to anywhere on the target" (rules.tex:424), so the whole tile counts as
-        the frame's extent, not just its centre.
+        to the center of the target" (rules.tex:474), so it is permissive at the
+        source -- the attacker's whole tile counts as its extent -- but pinned
+        at the far end to one point, the centre of the target's tile. All four
+        obstruction kinds are line-based: an obstruction matters only when the
+        line actually crosses it.
 
-        **Approximation.** Exact tile-to-tile visibility is a 4-parameter
-        problem; instead each tile is sampled on an ``n x n`` grid of interior
-        points (``n`` = :data:`LOS_SAMPLES_PER_AXIS`, inset from the edges by
-        :data:`LOS_EDGE_INSET` so no sample lies on a grid line), and every
-        attacker-sample to target-sample segment is tested. A segment is
-        obstructed when it crosses the *interior* of an obstructing tile;
-        grazing an edge or clipping a corner is not a crossing, which is what
-        makes "shoot along the row" resolve the way the first worked figure
-        does. Sampling is checked centre-first then corners-first and stops at
-        the first clear line.
+        **Approximation.** The source extent is sampled on an ``n x n`` grid of
+        interior points (``n`` = :data:`LOS_SAMPLES_PER_AXIS`, inset from the
+        edges by :data:`LOS_EDGE_INSET` so no sample sits on a grid line), and
+        each sample-to-target-centre segment is tested. A segment is obstructed
+        when it crosses the *interior* of an obstructing tile; grazing an edge
+        or clipping a corner is not a crossing, which is what makes "shoot along
+        the row" resolve the way the first worked figure does. Samples are tried
+        centre first, then corners, stopping at the first clear line.
 
         The approximation is one-sided: every line it accepts is a genuinely
         unobstructed line, so it never invents line of sight. It can only miss
-        one -- a gap so narrow that no sampled pair threads it. At n=5 the
-        sampled endpoints include the tile corners, which is what any
-        single-tile-wide gap needs.
+        one -- a source point too fine for the grid to land on. At n=5 the
+        samples include the tile corners, which is where the extreme lines are.
 
-        **Erratum.** The second worked figure (rules.tex:459) disagrees with
-        this, and the author has ruled that the rule is right and the figure is
-        wrong. Its right-hand shot is drawn through an obstacle sitting beside
-        the target and called blocked, but a line from the far corner of the
-        attacker's tile reaches the target's side edge without ever entering
-        that obstacle, so that target is in fact **visible**. The obstruction
-        model here is line-based for all four obstruction kinds, and the other
-        five verdicts across the three figures come out right.
+        All three worked figures (rules.tex:488-538) agree with this model; see
+        ``tests/test_board.py`` for all six of their verdicts.
         """
         if not (self.in_bounds(attacker) and self.in_bounds(target)):
             return False
@@ -370,12 +365,12 @@ class Board:
 
         cells = tuple((float(p.x), float(p.y)) for p in blockers)
         n = LOS_SAMPLES_PER_AXIS if samples is None else samples
+        tx, ty = target.x + 0.5, target.y + 0.5   # "the center of the target"
         for ax, ay in _sample_points(attacker, n):
-            for bx, by in _sample_points(target, n):
-                if not any(
-                    _segment_crosses_cell(ax, ay, bx, by, cx, cy) for cx, cy in cells
-                ):
-                    return True
+            if not any(
+                _segment_crosses_cell(ax, ay, tx, ty, cx, cy) for cx, cy in cells
+            ):
+                return True
         return False
 
 

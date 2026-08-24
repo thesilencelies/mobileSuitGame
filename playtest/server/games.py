@@ -28,13 +28,24 @@ from ..engine import (
     scores,
     view_for,
 )
-from . import ai_bridge
+from . import ai_bridge, readouts
 
 #: How many human decisions can be stepped back through `POST /undo`.
 UNDO_DEPTH = 40
 
 #: Safety net: the AI is asked for at most this many decisions in a row.
 MAX_AI_STEPS = 4000
+
+#: The AI's whole turn happens inside one `POST /command`, so by the time the
+#: human sees a view again several frames have moved, attacked and died. The
+#: server keeps a lightweight snapshot after each AI decision and ships them
+#: with the response as `replay`, and the client plays them back at a speed the
+#: player picks -- otherwise the AI's turn is a single jump-cut.
+#:
+#: The board is 240 tiles and never changes mid-turn, so a snapshot drops it;
+#: what is left is a couple of kB. This caps how many are kept, newest wins,
+#: because a very long AI turn is not worth megabytes on a phone.
+MAX_REPLAY_FRAMES = 60
 
 
 class GameNotFound(KeyError):
@@ -57,8 +68,10 @@ class Session:
     history: list[GameState] = field(default_factory=list)
     ai_source: str = "fallback"
     lock: threading.Lock = field(default_factory=threading.Lock)
+    #: Snapshots of the AI's decisions since the human last acted.
+    replay: list[dict[str, Any]] = field(default_factory=list)
 
-    def view(self) -> dict[str, Any]:
+    def view(self, *, with_replay: bool = True) -> dict[str, Any]:
         """The human seat's redacted view, with the server's game id on it."""
         out = view_for(self.state, self.human_seat)
         # The engine derives `game_id` from the seed, so two games started with
@@ -73,7 +86,81 @@ class Session:
             {"kind": c.kind, "payload": dict(c.payload)}
             for c in legal_commands(self.state, self.human_seat)
         ]
+        out["resolving"] = readouts.resolving(self.state, self.human_seat)
+        out["defence"] = readouts.defence_all(self.state, self.human_seat)
+        out["initiative"] = self._initiative()
+        if with_replay:
+            out["replay"] = list(self.replay)
         return out
+
+    def _initiative(self) -> dict[str, int]:
+        """`{uid: initiative}` for every committed card this seat can identify.
+
+        The *effective* number -- what the engine will actually queue on -- for
+        the cards whose identity this seat already has. A face-down card the
+        seat may not read is absent rather than guessed at: its uid in the view
+        is an opaque stand-in anyway.
+        """
+        out: dict[str, int] = {}
+        for frame in self.state.frames.values():
+            own = frame.seat == self.human_seat
+            for uid in frame.committed:
+                inst = self.state.cards.get(uid)
+                if inst is None or inst.location != "committed":
+                    continue
+                if inst.face_down and not own:
+                    continue
+                value = readouts.initiative_of(self.state, frame, uid)
+                if value is not None:
+                    out[uid] = value
+        return out
+
+    def snapshot(self) -> dict[str, Any]:
+        """One replay frame: what moved, and nothing that could identify a card.
+
+        Built from `view_for` like everything else, then narrowed twice over.
+
+        The board is 240 unchanging tiles, so it goes. **Card uids go too**, and
+        that is not just size: a snapshot is a picture of the *past*, and a card
+        that was face up while it resolved can be discarded, reshuffled and
+        drawn again -- so replaying its uid would hand the player a handle on a
+        card that is in the AI's hand *now*. Its `key` is already public (the
+        log says which card resolved), but without a uid there is nothing to
+        tie that to a face-down commitment. Counts replace the card rows, since
+        an animation only needs to know how many cards are standing.
+        """
+        full = view_for(self.state, self.human_seat)
+        frames = []
+        for frame in full["frames"]:
+            slim = {
+                key: frame[key] for key in (
+                    "id", "seat", "name", "pos", "elev", "alive", "armour",
+                    "damage", "lastHit", "movement", "shields", "statuses",
+                    "deckCount", "discardCount",
+                ) if key in frame
+            }
+            slim["committedCount"] = len(frame.get("committed") or [])
+            slim["onFieldCount"] = len(frame.get("onField") or [])
+            frames.append(slim)
+        return {
+            "turn": full["turn"],
+            "phase": full["phase"],
+            "frames": frames,
+            "tokens": full["tokens"],
+            "log": full["log"],
+            "vp": full["vp"],
+            "resolving": _without_uids(
+                readouts.resolving(self.state, self.human_seat)),
+        }
+
+
+def _without_uids(blob: Any) -> Any:
+    """The same structure with every `uid` key removed, at any depth."""
+    if isinstance(blob, dict):
+        return {k: _without_uids(v) for k, v in blob.items() if k != "uid"}
+    if isinstance(blob, list):
+        return [_without_uids(item) for item in blob]
+    return blob
 
 
 class Registry:
@@ -128,6 +215,9 @@ class Registry:
         with self._lock:
             self._games[session.id] = session
         advance_ai(session)
+        # Setup is not a thing to watch happen; the first view the player gets
+        # should be the board as it stands, not an animation of the deal.
+        session.replay.clear()
         return session
 
     def get(self, game_id: str) -> Session:
@@ -171,6 +261,7 @@ class Registry:
                 )
             session.history.append(session.state)
             del session.history[:-UNDO_DEPTH]
+            session.replay.clear()
             cmd = Command(kind, session.human_seat, dict(payload))
             try:
                 session.state = apply_command(session.state, cmd)
@@ -204,24 +295,36 @@ class Registry:
             if not session.history:
                 raise IllegalCommand("nothing to undo")
             session.state = session.history.pop()
+            session.replay.clear()
             session.updated = time.time()
         return session
 
 
 def advance_ai(session: Session) -> None:
-    """Let the AI seat act until the human is on the clock (or the game ends)."""
+    """Let the AI seat act until the human is on the clock (or the game ends).
+
+    A snapshot is taken after every AI decision that wrote to the log, so the
+    client can replay the AI's turn at a readable speed instead of being handed
+    the end state. Decisions that change nothing visible (a face-down commit)
+    add no snapshot -- there would be nothing to watch.
+    """
     steps = 0
+    logged = len(session.state.log)
     while True:
         state = session.state
         if is_over(state):
-            return
+            break
         pending = state.pending
         if pending is None or pending.seat != session.ai_seat:
-            return
+            break
         steps += 1
         if steps > MAX_AI_STEPS:               # pragma: no cover - safety net
             raise RuntimeError("AI failed to make progress")
         session.state = apply_command(state, _ai_command(session))
+        if len(session.state.log) != logged:
+            logged = len(session.state.log)
+            session.replay.append(session.snapshot())
+            del session.replay[:-MAX_REPLAY_FRAMES]
 
 
 def _ai_command(session: Session) -> Command:

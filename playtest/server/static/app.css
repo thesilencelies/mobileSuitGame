@@ -156,13 +156,58 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width:
 .fchip .fmeta { display: flex; gap: 6px; margin-top: 3px; font-size: 10px; color: var(--muted); }
 .fchip .fmeta em { font-style: normal; color: var(--amber); }
 
+/* selected-frame panel -- in the ribbon, never over the board */
+/* Capped hard: the board is the thing, and a read-out that pushes it off the
+   screen is the problem this panel was moved here to fix. */
+#frame-panel {
+  flex: 0 0 auto; background: var(--panel); border-bottom: 1px solid var(--line);
+  padding: 7px 8px; display: flex; gap: 9px; max-height: 186px; overflow-y: auto;
+}
+/* Panel and decision sheet both want the screen. The sheet yields, because the
+   panel is something you asked for and can dismiss with one tap. */
+#screen-game[data-panel="1"] #sheet { max-height: 32vh; }
+#frame-panel .fp-art { flex: 0 0 54px; }
+#frame-panel .fp-art img { width: 54px; border-radius: 6px; display: block;
+  border: 1px solid var(--line); background: #10151c; }
+#frame-panel .fp-art button { display: block; width: 100%; margin-top: 4px; padding: 3px 0;
+  font-size: 10px; border-radius: 6px; border: 1px solid var(--line);
+  background: var(--panel-2); color: var(--muted); cursor: pointer; }
+#frame-panel .fp-main { flex: 1 1 auto; min-width: 0; }
+#frame-panel .fp-name { font-size: 14px; font-weight: 700; display: flex;
+  align-items: baseline; gap: 6px; flex-wrap: wrap; }
+#frame-panel .fp-name small { font-weight: 500; font-size: 11px; color: var(--muted); }
+#frame-panel .fp-ability { font-size: 11.5px; color: #cbd7e6; background: var(--panel-2);
+  border-left: 2px solid var(--gold); border-radius: 0 6px 6px 0; padding: 4px 7px;
+  margin: 4px 0; white-space: pre-wrap; }
+#frame-panel .fp-stats { display: flex; gap: 8px; flex-wrap: wrap; font-size: 11px;
+  color: var(--muted); }
+#frame-panel .fp-stats b { color: var(--text); font-weight: 700; }
+#frame-panel .fp-close { flex: 0 0 28px; align-self: flex-start; }
+.zonebar { display: flex; gap: 6px; margin: 5px 0; }
+.zonebar .zb { flex: 1; background: var(--panel-2); border-radius: 6px; padding: 3px 5px;
+  border: 1px solid var(--line-soft); }
+.zonebar .zb u { display: block; text-decoration: none; font-size: 9.5px;
+  text-transform: uppercase; letter-spacing: 0.6px; color: var(--muted); }
+.zonebar .zb b { font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.zonebar .zb[data-last="1"] { border-color: var(--amber); }
+.zonebar .zb[data-last="1"] b { color: var(--amber); }
+.zonebar .zb[data-open="1"] { border-color: #5c2b2b; }
+
+/* the row of cards standing in front of a frame */
+.cardrow { display: flex; gap: 6px; overflow-x: auto; padding: 5px 0 2px;
+  scrollbar-width: none; }
+.cardrow::-webkit-scrollbar { display: none; }
+.cardrow .cardt { flex: 0 0 44px; width: 44px; }
+.tableau .cardrow .cardt { flex: 0 0 54px; width: 54px; }
+.cardrow .mini-tag { font-size: 9px; color: var(--muted); text-align: center; }
+
 /* ---------------------------------------------------------------- stage */
 
 #stage { flex: 1 1 auto; position: relative; min-height: 0; }
 .view { display: none; position: absolute; inset: 0; }
 .view[data-active] { display: block; }
-#view-plan, #view-order, #view-log { overflow-y: auto; -webkit-overflow-scrolling: touch;
-  padding-bottom: calc(var(--sheet-h) + 12px); }
+#view-plan, #view-order, #view-log, #view-field { overflow-y: auto;
+  -webkit-overflow-scrolling: touch; padding-bottom: calc(var(--sheet-h) + 12px); }
 
 /* board */
 #view-board { background: #0a0d12; }
@@ -182,12 +227,70 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width:
   font-size: 10.5px; padding: 2px 7px; border-radius: 999px;
   background: rgba(22,27,34,0.86); border: 1px solid var(--line); color: var(--muted);
 }
+/* The three board overlays stack up from the bottom edge and never collide:
+   tile read-out, then who is acting, then the replay bar. */
+/* `#stage` already ends where the sheet begins, so these offsets are measured
+   from the board's own bottom edge -- adding `--sheet-h` would count it twice
+   and float the panels in mid-air. */
 .tile-readout {
-  position: absolute; left: 8px; bottom: calc(var(--sheet-h) + 8px); right: 8px;
+  position: absolute; left: 8px; bottom: 74px; right: 92px;
   background: rgba(22,27,34,0.94); border: 1px solid var(--line); border-radius: 10px;
-  padding: 8px 10px; font-size: 12px; pointer-events: none;
+  padding: 6px 9px; font-size: 11.5px; pointer-events: none;
 }
 .tile-readout b { color: var(--gold); }
+
+/* who is acting, and with what */
+.acting-card {
+  position: absolute; left: 8px; bottom: 8px;
+  display: flex; gap: 8px; align-items: center;
+  background: rgba(14,18,25,0.94); border: 1px solid var(--gold); border-radius: 10px;
+  padding: 6px; max-width: min(78%, 320px); pointer-events: none;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+}
+#view-board[data-replay="1"] .acting-card { bottom: 52px; }
+#view-board[data-replay="1"] .tile-readout { display: none; }
+.acting-card img { width: 44px; border-radius: 5px; display: block; background: #10151c; }
+.acting-card .ac-text { min-width: 0; }
+.acting-card .ac-who { font-size: 9.5px; text-transform: uppercase; letter-spacing: 1px; }
+.acting-card[data-mine="1"] .ac-who { color: var(--mine); }
+.acting-card[data-mine="0"] .ac-who { color: var(--theirs); }
+.acting-card b { display: block; font-size: 13px; white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; }
+.acting-card small { color: var(--muted); font-size: 10.5px; }
+.acting-card .ac-init { flex: 0 0 auto; align-self: stretch; display: grid; place-items: center;
+  min-width: 26px; border-radius: 6px; background: #241f10; color: var(--gold);
+  font-weight: 800; font-size: 14px; }
+
+/* AI playback */
+.replay-bar {
+  position: absolute; left: 8px; right: 8px; bottom: 8px;
+  display: flex; align-items: center; gap: 8px; z-index: 3;
+  background: rgba(46,26,26,0.95); border: 1px solid #6a3232; border-radius: 10px;
+  padding: 5px 6px 5px 10px; font-size: 12px; color: #ffcaca;
+}
+.replay-bar .replay-dot { width: 8px; height: 8px; border-radius: 50%;
+  background: var(--theirs); animation: pulse 1s infinite; flex: 0 0 auto; }
+.replay-bar span:nth-child(2) { flex: 1 1 auto; min-width: 0; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.replay-bar .btn { flex: 0 0 auto; }
+
+/* ---------------------------------------------------------------- tableau */
+
+.tableau { padding: 8px 10px calc(var(--sheet-h) + 20px); }
+.tab-frame { border: 1px solid var(--line-soft); border-radius: 12px; background: var(--panel);
+  padding: 8px; margin-bottom: 8px; }
+.tab-frame[data-seat="mine"] { border-left: 3px solid var(--mine); }
+.tab-frame[data-seat="theirs"] { border-left: 3px solid var(--theirs); }
+.tab-frame[data-dead="1"] { opacity: 0.45; }
+.tab-head { display: flex; align-items: center; gap: 8px; }
+.tab-head b { font-size: 13.5px; }
+.tab-head small { color: var(--muted); font-size: 11px; }
+.tab-head .tab-counts { margin-left: auto; font-size: 11px; color: var(--muted);
+  text-align: right; }
+.tab-group { margin-top: 6px; }
+.tab-group h4 { margin: 0 0 3px; font-size: 10px; text-transform: uppercase;
+  letter-spacing: 1px; color: var(--muted); font-weight: 700; }
+.tab-empty { color: var(--muted); font-size: 11.5px; padding: 4px 0; }
 
 /* ---------------------------------------------------------------- plan */
 
@@ -311,6 +414,29 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width:
 .opt-main b { display: block; font-size: 13.5px; }
 .opt-main small { color: var(--muted); font-size: 11.5px; }
 .opt-go { flex: 0 0 auto; color: var(--mine); font-weight: 800; font-size: 12px; }
+/* what a target can still block -- the readout the whole game turns on */
+.target { border: 1px solid var(--line); border-radius: 10px; background: var(--panel-2);
+  padding: 8px; margin-bottom: 8px; }
+.target[data-open="1"] { border-color: var(--green); }
+.target-head { display: flex; align-items: baseline; gap: 8px; }
+.target-head b { font-size: 14px; }
+.target-head .t-cards { margin-left: auto; font-size: 11px; color: var(--muted); }
+.target-head .t-cards em { font-style: normal; color: var(--amber); font-weight: 700; }
+.zgrid { display: flex; flex-direction: column; gap: 4px; margin: 7px 0 6px; }
+.zrow { display: flex; align-items: center; gap: 7px; font-size: 11.5px;
+  border-radius: 7px; padding: 4px 6px; background: #12171f; }
+.zrow[data-hit="1"] { background: #1d1418; }
+.zrow .zname { flex: 0 0 34px; font-weight: 700; font-size: 11px; }
+.zrow .zdmg { flex: 0 0 auto; min-width: 34px; text-align: center; border-radius: 5px;
+  padding: 1px 5px; font-weight: 800; background: #4a2020; color: #ffb0b0; }
+.zrow .zdmg[data-none="1"] { background: #1c232d; color: var(--muted); font-weight: 500; }
+.zrow .zblock { flex: 1 1 auto; min-width: 0; color: var(--muted); }
+.zrow .zblock b { color: #8ed1ff; font-weight: 700; }
+.zrow .zblock i { font-style: normal; color: var(--amber); }
+.zrow[data-through="1"] .zblock { color: var(--green); font-weight: 700; }
+.target-note { font-size: 11px; color: var(--muted); }
+.target .btn { width: 100%; margin-top: 4px; }
+
 .step-row { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
 .step {
   padding: 9px 13px; border-radius: 10px; border: 1px solid var(--line);
@@ -327,7 +453,7 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width:
 /* ---------------------------------------------------------------- tabs */
 
 #tabs {
-  flex: 0 0 auto; display: grid; grid-template-columns: repeat(4, 1fr);
+  flex: 0 0 auto; display: grid; grid-template-columns: repeat(5, 1fr);
   background: var(--panel); border-top: 1px solid var(--line);
   padding-bottom: var(--safe-b);
 }

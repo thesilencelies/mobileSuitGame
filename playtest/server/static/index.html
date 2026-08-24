@@ -81,6 +81,10 @@
   </header>
 
   <div id="frame-strip"></div>
+  <!-- The selected frame's readout: its frame card, its ability text and the
+       cards standing in front of it. It lives in the ribbon rather than over
+       the board, so reading a frame never costs you sight of the battlefield. -->
+  <section id="frame-panel" hidden></section>
 
   <main id="stage">
     <div class="view" id="view-board" data-active="1">
@@ -91,9 +95,18 @@
         <button class="tool" id="tool-out" type="button" aria-label="Zoom out">&minus;</button>
         <button class="tool" id="tool-focus" type="button" title="Centre on the active frame">&#9678;</button>
         <button class="tool" id="tool-los" type="button" title="Show line of sight">LoS</button>
+        <button class="tool" id="tool-art" type="button" title="Terrain and piece art">ART</button>
       </div>
       <div class="board-legend" id="board-legend"></div>
+      <!-- Who is acting, and with what. Shown from the moment a card starts
+           resolving, including while the AI's turn plays back. -->
+      <div class="acting-card" id="acting-card" hidden></div>
       <div class="tile-readout" id="tile-readout" hidden></div>
+      <div class="replay-bar" id="replay-bar" hidden>
+        <span class="replay-dot"></span>
+        <span id="replay-text">The AI is acting</span>
+        <button class="btn ghost sm" id="replay-skip" type="button">Skip</button>
+      </div>
     </div>
 
     <div class="view" id="view-plan">
@@ -106,6 +119,13 @@
         <span class="hint" id="plan-count"></span>
       </div>
       <div class="hand-grid" id="hand-grid"></div>
+    </div>
+
+    <!-- The tableau: every card standing in front of every frame. This is live
+         state, not history -- a resolved card is still on the field and can
+         still be spent to block. -->
+    <div class="view" id="view-field">
+      <div class="tableau" id="tableau"></div>
     </div>
 
     <div class="view" id="view-order">
@@ -125,6 +145,7 @@
   <nav id="tabs">
     <button class="tab" data-view="board" data-active="1" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h18v18H3z"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg><span>Board</span></button>
     <button class="tab" data-view="plan" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h7v16H4zM13 4h7v16h-7z"/></svg><span>Plan</span></button>
+    <button class="tab" data-view="field" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h6v10H3zM10 5h5v14h-5zM16 8h5v8h-5z"/></svg><span>Field</span></button>
     <button class="tab" data-view="order" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h11M4 18h6"/></svg><span>Initiative</span></button>
     <button class="tab" data-view="log" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg><span>Log</span></button>
   </nav>
@@ -151,10 +172,18 @@
     </section>
     <section>
       <h3>Board</h3>
+      <label class="toggle"><input type="checkbox" id="opt-art" checked><span>Terrain and piece art <em class="hint">off = the abstract grid</em></span></label>
       <label class="toggle"><input type="checkbox" id="opt-los"><span>Shade line of sight for the selected frame</span></label>
       <label class="toggle"><input type="checkbox" id="opt-threat" checked><span>Shade enemy reach when an enemy is selected</span></label>
       <label class="toggle"><input type="checkbox" id="opt-cards"><span>Outline the dealt terrain cards</span></label>
       <label class="toggle"><input type="checkbox" id="opt-coords"><span>Tile coordinates</span></label>
+    </section>
+    <section>
+      <h3>Pace</h3>
+      <p class="hint">The AI's whole turn arrives at once. This is how fast it
+        is played back to you.</p>
+      <div class="preset-row" id="speed-row"></div>
+      <label class="toggle"><input type="checkbox" id="opt-autoscroll" checked><span>Follow the acting frame with the camera</span></label>
     </section>
     <section>
       <h3>AI parameters</h3>

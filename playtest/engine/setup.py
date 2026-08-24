@@ -1,6 +1,6 @@
 """Battlefield setup: dealing terrain, placing objectives, deployment (B1).
 
-Implements rules.tex:290 "Setup":
+Implements rules.tex:337 "Setup":
 
     Each player builds a grid of 2 rows of (number of frames + 2) from their
     terrain deck. First, each player takes one objective card for each of their
@@ -20,7 +20,7 @@ exhausted.
 
 Seat 0 owns the bottom half (largest y) and its cards are unrotated; seat 1 owns
 the top half and its two rows are dealt rotated 180 degrees, which is what makes
-the opponent's terrain read upside-down in the setup figure at rules.tex:305.
+the opponent's terrain read upside-down in the setup figure at rules.tex:412.
 
 Imports only ``types``, ``terrain`` and ``board`` -- no game state, no cards.
 """
@@ -38,10 +38,10 @@ from .types import Pos, Team
 
 DECKS_DIR = REPO_ROOT / "decks"
 
-#: Card rows each player lays out (rules.tex:291).
+#: Card rows each player lays out (rules.tex:338).
 ROWS_PER_SEAT = 2
 
-#: One objective per row (rules.tex:293).
+#: One objective per row (rules.tex:340).
 OBJECTIVES_PER_SEAT = ROWS_PER_SEAT
 
 #: Deck sizes each player brings (rules.tex:253). Both are larger than one
@@ -52,7 +52,7 @@ OBJECTIVE_DECK_SIZE = 5
 
 
 def cards_per_row(frames_per_side: int) -> int:
-    """Cards in one row: number of frames + 2 (rules.tex:291)."""
+    """Cards in one row: number of frames + 2 (rules.tex:338)."""
     return frames_per_side + 2
 
 
@@ -296,7 +296,7 @@ def deal_battlefield(
     ``decks[seat]`` is that seat's :class:`SeatDecks`. Each player takes one
     objective per row from their shuffled objective deck and fills the rest of
     their grid from their shuffled terrain deck -- both are drawn from, not
-    exhausted (rules.tex:292). A bare list is accepted and split by its points
+    exhausted (rules.tex:339). A bare list is accepted and split by its points
     columns, for decks assembled in code.
 
     ``objective_slots[seat]`` gives the card column chosen for the objective in
@@ -410,7 +410,7 @@ def deployment_tiles(board: Board, seat: Team, *, seats: int = 2) -> tuple[Pos, 
     """Legal deployment tiles for ``seat``: its outermost tile row.
 
     Impassable and obstacle tiles are excluded -- a frame cannot move through
-    them (rules.tex:405), so it cannot start on one either.
+    them (rules.tex:451), so it cannot start on one either.
     """
     y = deployment_row(board, seat, seats=seats)
     return tuple(
@@ -425,7 +425,7 @@ def deployment_order(frames_per_side: int, *, first_seat: Team = 0, seats: int =
 
     "Each player takes it in turns to put one of their frames on nearest edge
     [...] After all frames are deployed this way the player who deployed first
-    receives the priority marker" (rules.tex:298).
+    receives the priority marker" (rules.tex:347).
     """
     _check_seats(seats)
     order = [(first_seat + i) % seats for i in range(seats)]

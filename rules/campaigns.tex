@@ -1,0 +1,240 @@
+
+\documentclass[a4paper, twocolumn]{article}
+ \usepackage[left =2cm, right = 2cm, top = 1.4cm, bottom =1.4cm]{geometry} 
+ \usepackage{tikz} 
+ \usepackage[export]{adjustbox}
+\usepackage{wallpaper}
+\usepackage{makecell}
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{xcolor}
+\usepackage{amssymb}
+
+ \usetikzlibrary{positioning}
+ \usetikzlibrary{patterns}
+ \usetikzlibrary{calc}
+
+
+\usepackage{contour}
+\contourlength{0.8pt}
+
+ \setcounter{secnumdepth}{0}
+
+
+\title{\Huge{NetFrame: Campaigns} \\ \small{Version 0.1}}
+\author{Stephen Lilico}
+\date{}
+\ULCornerWallPaper{1.0}{../pictures/rules_background.png}
+
+
+\input{../build/card_macros.tex}
+
+\usetikzlibrary{arrows.meta}
+\usetikzlibrary{shapes.geometric}
+\usetikzlibrary{decorations.pathmorphing}
+
+% ---- Play-example helpers -------------------------------------------------
+% A standee: a frame's art on a coloured disc, used to mark a frame's position
+% on a terrain card. #1,#2 = centre (in the terrain card's own coordinates),
+% #3 = art, #4 = ring colour identifying the frame.
+\newcommand{\standee}[4]{%
+  \fill[white] (#1,#2) circle (0.60);
+  \fill[#4!22!white] (#1,#2) circle (0.60);
+  \begin{scope}
+    \clip (#1,#2) circle (0.57);
+    \node at (#1,#2-0.3) {\includegraphics[height=1.25cm]{#3}};
+  \end{scope}
+  \draw[line width=3pt, #4] (#1,#2) circle (0.60);
+}
+\newcommand{\kstandee}[2]{\standee{#1}{#2}{../pictures/foreground/ouwa_kuwagata.png}{purple!55!black}}
+\newcommand{\rstandee}[2]{\standee{#1}{#2}{../pictures/foreground/revolution_ripper.png}{yellow!75!black}}
+% a faded "was here" ghost marker
+\newcommand{\ghost}[3]{\draw[line width=1.2pt, #3, densely dotted, opacity=0.8] (#1,#2) circle (0.60);}
+% an impact / damage burst with a label
+\newcommand{\burst}[3]{% x, y, label
+  \node[star, star points=7, star point ratio=0.5, fill=orange!85!red, draw=red!60!black,
+        line width=0.5pt, minimum size=0.6cm, inner sep=0pt] at (#1,#2){};
+  \node[font=\bfseries\footnotesize] at (#1,#2){#3};
+}
+% a small block-shield marker placed beside a frame that blocked
+\newcommand{\blockmark}[3]{% x, y, colour
+  \node at (#1,#2){\resizebox{0.65cm}{!}{\begin{tikzpicture}\blockshield{0}{0}{#3}\end{tikzpicture}}};
+}
+% a numbered step / note label pinned to a movement route
+\newcommand{\steplabel}[3]{% x, y, text
+  \node[fill=white, draw=black, rounded corners=1.5pt, font=\scriptsize\bfseries,
+        inner sep=2pt, align=center] at (#1,#2){#3};}
+\tikzset{
+  moveline/.style={line width=2pt, dash pattern=on 3.5pt off 2.5pt, -{Stealth[length=3.2mm,width=3mm]}},
+  attackline/.style={line width=2.4pt, red!75!black, -{Latex[length=3.6mm]}},
+  shotline/.style={line width=1.7pt, red!70!black, densely dotted, -{Latex[length=3mm]}},
+}
+% ---- Line-of-sight diagram helpers ----------------------------------------
+% Attacker / target standees for the line-of-sight figures. A target carries a
+% green tick when it is in sight, a red cross when a blocked shot means it is not.
+\newcommand{\attackerframe}[2]{\standee{#1}{#2}{../pictures/foreground/revolution_ripper.png}{yellow!75!black}%
+  \node[circle, fill=yellow!75!black, text=white, font=\bfseries\footnotesize, inner sep=1.3pt] at (#1+0.42,#2+0.42){A};}
+\newcommand{\losok}[2]{\standee{#1}{#2}{../pictures/foreground/ouwa_kuwagata.png}{purple!55!black}%
+  \node[circle, fill=green!45!black, text=white, font=\bfseries\footnotesize, inner sep=1.1pt] at (#1+0.42,#2+0.42){\checkmark};}
+\newcommand{\losno}[2]{\standee{#1}{#2}{../pictures/foreground/ouwa_kuwagata.png}{purple!55!black}%
+  \node[circle, fill=red!80!black, text=white, font=\bfseries\footnotesize, inner sep=1.5pt] at (#1+0.42,#2+0.42){$\times$};}
+% a neutral third frame that merely sits in the way
+\newcommand{\otherframe}[2]{\standee{#1}{#2}{../pictures/foreground/guild_salaryman.png}{black!45!white}}
+% red marker placed on whatever breaks a line of sight
+\newcommand{\losx}[2]{\node[circle, fill=red!85!black, draw=white, line width=0.7pt,
+  minimum size=0.42cm, inner sep=0pt] at (#1,#2){\textcolor{white}{\footnotesize\bfseries$\times$}};}
+% small caption tag pinned inside a scene
+\newcommand{\lostag}[3]{\node[fill=white, draw=black!55, rounded corners=1.4pt,
+  font=\scriptsize\bfseries, inner sep=2.2pt, align=center] at (#1,#2){#3};}
+\tikzset{
+  clearlos/.style={line width=2.0pt, green!50!black, -{Latex[length=3.2mm]}},
+  blockedlos/.style={line width=1.9pt, red!75!black, densely dashed, -{Latex[length=2.8mm]}},
+}
+% ---- Blocking diagram helpers ---------------------------------------------
+% A schematic block ladder: three zone rows (High/Mid/Low), the attacking card
+% on the left and the defender's two remaining cards on the right. Attack marks
+% sit on the attacker; block shields on the defender's cards; a red arrow shows
+% each attack landing or being stopped by a matching-zone block.
+\newcommand{\zshield}[3]{\node at (#1,#2){\resizebox{0.60cm}{!}{\begin{tikzpicture}\blockshield{0}{0}{#3}\end{tikzpicture}}};}
+\newcommand{\zsuper}[3]{\node at (#1,#2){\resizebox{0.74cm}{!}{\begin{tikzpicture}\superblockshield{0}{0}{#3}\end{tikzpicture}}};}
+% a mini card frame: #1,#2 bottom-left; #3 width; #4 height; #5 fill; #6 title
+\newcommand{\zcard}[6]{%
+  \fill[#5, rounded corners=3pt] (#1,#2) rectangle ++(#3,#4);
+  \draw[black!50, line width=0.8pt, rounded corners=3pt] (#1,#2) rectangle ++(#3,#4);
+  \node[font=\scriptsize\bfseries, text=black!70] at ($(#1,#2)+(#3/2,#4-0.24)$){#6};}
+% an impact burst marking damage that lands
+\newcommand{\zburst}[3]{%
+  \node[star, star points=8, star point ratio=0.5, fill=orange!85!red, draw=red!60!black,
+        line width=0.5pt, minimum size=0.78cm, inner sep=0pt] at (#1,#2){};
+  \node[font=\bfseries\footnotesize] at (#1,#2){#3};}
+% the one-line scene caption pinned above a ladder
+\newcommand{\ztag}[3]{\node[fill=white, draw=black!55, rounded corners=1.6pt,
+  font=\scriptsize\bfseries, inner sep=2.6pt, align=center] at (#1,#2){#3};}
+\newcommand{\zdiscard}[2]{\node[fill=red!12, draw=red!60!black, rounded corners=1.4pt,
+  font=\scriptsize\bfseries, text=red!60!black, inner sep=2.2pt] at (#1,#2){discarded};}
+\newcommand{\zkept}[2]{\node[fill=green!16, draw=green!55!black, rounded corners=1.4pt,
+  font=\scriptsize\bfseries, text=green!45!black, inner sep=2.2pt] at (#1,#2){kept, not discarded};}
+\tikzset{
+  blockedatk/.style={line width=2.6pt, red!75!black, -{Latex[length=3.2mm]}},
+  landedatk/.style={line width=2.6pt, red!70!black, -{Latex[length=3.8mm]}},
+  deadatk/.style={line width=2.2pt, black!42, densely dashed, -{Latex[length=2.8mm]}},
+}
+% the three faint zone rows + High/Mid/Low labels, spanning x-range #1..#2
+\newcommand{\zrows}[2]{%
+  \foreach \yy in {2.0,1.1,0.2}{\draw[black!14, line width=6pt] (#1,\yy)--(#2,\yy);}
+  \node[font=\scriptsize\bfseries, text=black!55, anchor=east] at (0.85,2.0){High};
+  \node[font=\scriptsize\bfseries, text=black!55, anchor=east] at (0.85,1.1){Mid};
+  \node[font=\scriptsize\bfseries, text=black!55, anchor=east] at (0.85,0.2){Low};}
+% attacker card + the defender's two cards + top caption slot (#1) + bottom descriptor
+\newcommand{\zscaffold}[1]{%
+  \zrows{1.7}{7.4}
+  \zcard{1.0}{-0.25}{1.4}{3.1}{yellow!12}{attack}
+  \zcard{3.7}{-0.25}{1.15}{3.1}{purple!8}{card 1}
+  \zcard{5.0}{-0.25}{1.15}{3.1}{purple!8}{card 2}
+  \node[font=\scriptsize\bfseries, text=black!70] at (4.475,-1.05){the defender's two remaining cards};
+  \ztag{4.0}{3.45}{#1}}
+% ---- Board-setup diagram helpers ------------------------------------------
+% A full 5x4 grid of real terrain cards. Each card is pre-typeset into a named
+% save box in NORMAL context first (\prepcard) -- the card's \maxheight
+% background recomputes wrongly if \input inside a tikzpicture -- then dropped
+% into its grid cell (\usecard), optionally rotated 180 for the opponent rows.
+\def\Wd{6.5}   % terrain-card footprint width
+\def\Ht{9.0}   % terrain-card footprint height
+\newcommand{\prepcard}[2]{%
+  \expandafter\newsavebox\csname bc#1\endcsname
+  \expandafter\sbox\csname bc#1\endcsname{\input{#2}}}
+\newcommand{\usecard}[4][0]{% [rot]{boxname}{col}{row}
+  \pgfmathsetmacro{\bcx}{#3*\Wd+\Wd/2}%
+  \pgfmathsetmacro{\bcy}{#4*\Ht+\Ht/2}%
+  \node[anchor=center, inner sep=0pt, rotate=#1] at (\bcx,\bcy)
+    {\usebox{\csname bc#2\endcsname}};}
+\newcommand{\objring}[2]{% {col}{row} -- highlight an objective card
+  \pgfmathsetmacro{\bcx}{#1*\Wd+\Wd/2}%
+  \pgfmathsetmacro{\bcy}{#2*\Ht+\Ht/2}%
+  \draw[orange!85!red, line width=3pt, rounded corners=6pt]
+    (\bcx-3.15,\bcy-4.4) rectangle (\bcx+3.15,\bcy+4.4);}
+\newcommand{\myframe}[3]{\standee{#1}{#2}{../pictures/foreground/#3}{yellow!80!black}}
+\newcommand{\opframe}[3]{\standee{#1}{#2}{../pictures/foreground/#3}{purple!60!black}}
+\newcommand{\pptoken}[3]{\node at (#1,#2){\includegraphics[width=1.15cm]{../tts_assets/#3}};}
+% ---- The face-down / face-up / discarded card tableau ---------------------
+% Tracks the four chosen cards (2 per frame) through the round.
+\newlength{\tabcardh}\setlength{\tabcardh}{2.5cm}
+\newcommand{\cardfacedown}{\includegraphics[height=\tabcardh]{../tts_assets/normal_back.png}}
+\newcommand{\cardfaceup}[1]{\resizebox{!}{\tabcardh}{\input{#1}}}
+\newcommand{\carddiscarded}[1]{% a resolved card that has been spent as a block
+  \begin{tikzpicture}
+    \node[inner sep=0, opacity=0.30] (c) {\resizebox{!}{\tabcardh}{\input{#1}}};
+    \draw[red!80!black, line width=2pt] (c.south west)--(c.north east) (c.north west)--(c.south east);
+    \node[fill=red!80!black, text=white, font=\scriptsize\bfseries, rounded corners=1.5pt,
+          inner sep=2.5pt] at (c.center){DISCARDED};
+  \end{tikzpicture}%
+}
+% frame name tag with its standee ring colour
+\newcommand{\frametag}[2]{\tikz[baseline=-0.5ex]{\fill[#2] (0,0) circle (3.2pt);}~\textbf{#1}}
+% Lay out the four cards: #1 #2 = Ripper's slots, #3 #4 = Kuwagata's slots.
+% Each card carries a \maxheight background image that recomputes to the wrong
+% size if tikz re-typesets the node content during its layout passes, shifting
+% the card's contents out of place. So we typeset each slot into a save box in
+% normal outer context first (where \maxheight resolves correctly), then drop
+% the finished boxes into the nodes with \usebox -- no re-typesetting, no shift.
+\newsavebox{\slotAbox}\newsavebox{\slotBbox}\newsavebox{\slotCbox}\newsavebox{\slotDbox}
+\newcommand{\cardtableau}[4]{%
+  \sbox{\slotAbox}{#1}\sbox{\slotBbox}{#2}\sbox{\slotCbox}{#3}\sbox{\slotDbox}{#4}%
+  \begin{tikzpicture}[slot/.style={inner sep=0, anchor=south}]
+    \node[slot] (a) at (0,0) {\usebox{\slotAbox}};
+    \node[slot, right=0.22cm of a] (b) {\usebox{\slotBbox}};
+    \node[slot, right=0.7cm of b] (cc) {\usebox{\slotCbox}};
+    \node[slot, right=0.22cm of cc] (d) {\usebox{\slotDbox}};
+    \draw[gray!70, line width=0.9pt]
+      ($(b.north east)!0.5!(cc.north west)+(0,0.55)$) --
+      ($(b.south east)!0.5!(cc.south west)+(0,-0.15)$);
+    \node[anchor=south] at ($(a.north)!0.5!(b.north)+(0,0.18)$) {\frametag{RipperSmasher}{yellow!75!black}};
+    \node[anchor=south] at ($(cc.north)!0.5!(d.north)+(0,0.18)$) {\frametag{Kuwagata}{purple!55!black}};
+  \end{tikzpicture}%
+}
+% Wrap a terrain card so standees / arrows can be drawn on it in the terrain
+% card's own coordinates. #1 is the terrain card .tex. A terrain tikzpicture uses
+% a \maxheight background image, which is shifted out of place if the card is
+% \input directly inside a tikz node. So we first typeset the card into a save box
+% (normal context, where \maxheight resolves correctly) and then place that finished
+% box in the node -- no re-typesetting, no shift. The box carries the card's own
+% coordinates, so terrain-internal coordinates map straight through, offset only by
+% the card's bottom-left corner (0.05, 0.025).
+\newsavebox{\terraincardbox}
+\newenvironment{terrainscene}[1]
+  {\sbox{\terraincardbox}{\scalebox{0.8}{\input{#1}}}%
+   \begin{tikzpicture}[scale=0.8]
+     \node[anchor=south west, inner sep=0pt] (T) at (0,0){\usebox{\terraincardbox}};
+     \begin{scope}[shift={($(T.south west)+(-0.05,-0.025)$)}]}
+  {\end{scope}\end{tikzpicture}}
+% ---------------------------------------------------------------------------
+
+
+
+\begin{document}
+\maketitle
+
+These are the additional rules used for various campaign modes for NetFrame.
+A campaign is a series of interconnected battles, where between the battles the results of the battles
+affect each other. In general for each player they will have a fixed team of frames with decks that the rules
+of the campaign will decide how it will change.
+
+\tableofcontents
+\clearpage
+
+\section{Escalation}
+Each player starts with <Core product> plus X boosters
+
+Play games. After each game 
+
+Damage? Character loss? 
+
+
+\section{Narrative}
+% needs examples to be written up - maybe their own product? Would be good to have one per faction
+
+\section{Solo-play}
+%The X-Com like experience
+
+
+\end{document}

@@ -43,6 +43,11 @@ _BLOCKS_RE = re.compile(r"^(?P<who>.+?) blocks with (?P<key>.+?) \((?:kept|disca
 #: zone from turn one.
 PRIOR_PEAK_QUANTILE = 0.9
 
+#: How much cheaper each *extra* zone a card covers makes it when answering a
+#: Guard Break. Every zone the chosen blocker covers is a zone the defender
+#: does not have to spend a second card on, so this is worth roughly a card.
+GUARD_BREAK_WIDTH = 1.2
+
 #: Fewest candidates a decision will ever look at, however tight the budget.
 #: Below this the AI stops being an AI, so the time ceiling never goes here --
 #: it degrades to this floor and no further.
@@ -521,23 +526,49 @@ class Agent:
     def _resolving_card(
         self, snap: Snapshot, frame: Optional[FrameView]
     ) -> Optional[CardInfo]:
-        """Which of our cards the engine is resolving right now.
+        """Which of `frame`'s cards the engine is part-way through resolving.
 
-        The log names it (`"<frame> resolves <key> (initiative N)"`); the
-        face-up unresolved cards in front of the frame narrow it down when two
-        frames share a name.
+        `snap.resolving` answers this outright when the caller supplies it --
+        it comes from `GameState.resolution`, which carries the frame id and
+        the card uid, and the card is face up by the time it exists.
+
+        Without it (a bare `view_for`, as the arena uses) fall back to the
+        structural signal: the engine turns a card face up when it starts
+        resolving, so a face-up unresolved card in front of the frame is the
+        one. A card kept after a super block is face up too, so the log breaks
+        the tie -- but only when the frame's *name* is unambiguous, because the
+        log identifies frames by name and several decks share a frame.
         """
         if frame is None:
             return None
+        told = snap.resolving
+        if told is not None:
+            if str(told.get("frameId")) != frame.id:
+                return None          # the engine is resolving somebody else
+            key = told.get("key")
+            if key:
+                return self.card(str(key))
         face_up = [c.key for c in frame.committed if c.key and not c.face_down]
-        for entry in reversed(list(snap.log)):
-            match = _RESOLVES_RE.match(str(entry.get("text", "")))
-            if match and match.group("who") == frame.name:
-                key = match.group("key")
-                if not face_up or key in face_up:
-                    return self.card(key)
-                break
+        if len(face_up) == 1:
+            return self.card(face_up[0])
+        if self._name_is_unique(snap, frame.name):
+            for entry in reversed(list(snap.log)):
+                match = _RESOLVES_RE.match(str(entry.get("text", "")))
+                if match and match.group("who") == frame.name:
+                    key = match.group("key")
+                    if not face_up or key in face_up:
+                        return self.card(key)
+                    break
         return self.card(face_up[0]) if face_up else None
+
+    def _name_is_unique(self, snap: Snapshot, name: str) -> bool:
+        """True when exactly one frame on the board carries this name.
+
+        The event log says "Percival MkIV resolves ...", so with the same frame
+        on both sides the log cannot say whose it was -- and guessing produces
+        a confidently wrong answer rather than an error.
+        """
+        return sum(1 for f in snap.frames.values() if f.name == name) == 1
 
     def _resolving_uid(self, frame: Optional[FrameView], card: Optional[CardInfo]) -> Optional[str]:
         if frame is None:
@@ -687,23 +718,66 @@ class Agent:
             and frame.name == "Hector MkI"
             and not self._hector_used(snap, frame)
         )
+        # Against Guard Break the order matters and the engine deliberately
+        # leaves it to the player. Blocking continues while any remaining card
+        # covers any still-open zone, and one card clears every zone it has a
+        # block in -- so spending the widest blocker first can answer the whole
+        # attack with one card where spending a narrow one first costs two.
+        guard_break = self._incoming_is_guard_break(snap)
         for option in options:
             card = self.card(option.get("key"))
             zones = [str(z) for z in (option.get("zones") or ZONES)]
             if card is None:
                 costs.append(10.0)
                 continue
+            width = 0.0
+            if guard_break:
+                covered = sum(1 for z in zones if card.blocks.get(z, 0) > 0)
+                width = GUARD_BREAK_WIDTH * max(0, covered - 1)
             if any(card.blocks.get(z, 0) >= 2 for z in zones):
-                costs.append(-2.0)              # super block: never discarded
+                costs.append(-2.0 - width)      # super block: never discarded
                 continue
             cost = self._card_loss(snap, frame, card, option)
             # Hector's first block each turn is not discarded either, so the
             # first one is nearly as cheap as a super block.
-            costs.append(cost * 0.1 - 1.0 if hector_free else cost)
+            costs.append((cost * 0.1 - 1.0 if hector_free else cost) - width)
         index = min(range(len(costs)), key=lambda i: (costs[i], i))
         return Command(
             "choose_block", self.seat, {"uid": str(options[index]["uid"])}
         )
+
+    def _incoming_card(self, snap: Snapshot) -> Optional[CardInfo]:
+        """The card currently resolving -- during a block, the attack itself.
+
+        Deliberately not filtered to our own frames: what is hitting us belongs
+        to the opponent, so `snap.resolving["frameId"]` is the *attacker* while
+        `pending["frameId"]` is us, the defender. This wants the attacker.
+
+        The log fallback matches on the card key only, never on a frame name,
+        so it is unaffected by two frames sharing a name.
+        """
+        told = snap.resolving
+        if told is not None:
+            key = told.get("key")
+            return self.card(str(key)) if key else None
+        for entry in reversed(list(snap.log)):
+            match = _RESOLVES_RE.match(str(entry.get("text", "")))
+            if match:
+                return self.card(match.group("key"))
+        return None
+
+    def _incoming_is_guard_break(self, snap: Snapshot) -> bool:
+        """Is the attack we are being asked to block a Guard Break?
+
+        The engine says so directly on the attack in flight when the caller
+        supplies `resolving`; otherwise read it off the attacking card.
+        """
+        told = snap.resolving
+        attack = told.get("attack") if told else None
+        if attack is not None and "guardBreak" in attack:
+            return bool(attack["guardBreak"])
+        incoming = self._incoming_card(snap)
+        return bool(incoming and incoming.guard_break)
 
     def _hector_used(self, snap: Snapshot, frame: FrameView) -> bool:
         marker = "Hector's first block of the turn is not discarded"

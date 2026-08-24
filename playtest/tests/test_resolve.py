@@ -592,3 +592,80 @@ def test_the_two_seats_get_different_hidden_ids_for_the_same_card():
     state = start(seed=17)
     uid = next(iter(state.cards))
     assert hidden_id(state, 0, uid) != hidden_id(state, 1, uid)
+
+
+# --------------------------------------------------------------------------
+# The featureless board must not silently invent rules
+# --------------------------------------------------------------------------
+
+
+def test_a_featureless_board_refuses_to_judge_line_of_sight():
+    """`FlatBoard` has no terrain, so it cannot answer -- and must not guess.
+
+    Answering "clear" to everything would not fail; it would quietly hand
+    every ranged attack unlimited sight and play a different game.
+    """
+    board = R.FlatBoard(8, 8)
+    with pytest.raises(NotImplementedError) as excinfo:
+        board.has_line_of_sight(Pos(0, 0), Pos(4, 4))
+    assert "line of sight" in str(excinfo.value)
+    assert "los_always_clear" in str(excinfo.value), "the message names the opt-in"
+
+
+def test_ignoring_line_of_sight_has_to_be_asked_for_explicitly():
+    board = R.FlatBoard(8, 8, los_always_clear=True)
+    assert board.has_line_of_sight(Pos(0, 0), Pos(4, 4)) is True
+
+
+def test_the_featureless_board_still_does_real_geometry():
+    """Its movement and range are genuine -- only LoS is missing."""
+    board = R.FlatBoard(8, 8)
+    assert board.distance(Pos(0, 0), Pos(3, 2)) == 3
+    assert len(list(board.neighbours(Pos(0, 0)))) == 3
+    assert Pos(2, 0) in board.reachable(Pos(0, 0), 2)
+    assert Pos(5, 0) not in board.reachable(Pos(0, 0), 2)
+
+
+def test_a_ranged_attack_on_a_featureless_board_fails_loudly():
+    """The regression this guards: no silent "everything is visible"."""
+    from playtest.engine import combat
+    from playtest.tests._helpers import add_frame, give
+
+    state = make_state()
+    state.board = R.FlatBoard(10, 10)
+    gunner = add_frame(state, 0, "J7R-Salaryman", Pos(1, 1))
+    target = add_frame(state, 1, "Kuwagata", Pos(6, 1))
+    with pytest.raises(NotImplementedError):
+        combat.legal_targets(state, gunner, CATALOGUE["Cannon_Fullbore"])
+
+
+def test_a_board_factory_that_sets_no_board_is_an_error():
+    """A factory that forgets the board must stop the game, not fall back."""
+    R.set_board_factory(lambda state, config: None)
+    try:
+        with pytest.raises(RuntimeError) as excinfo:
+            start(seed=3)
+        assert "battlefield" in str(excinfo.value)
+    finally:
+        R.set_board_factory(None)
+
+
+def test_a_broken_terrain_deal_stops_the_game_instead_of_flattening_it():
+    """There is no fallback: a setup failure propagates."""
+    import playtest.engine.setup as setup_mod
+
+    original = setup_mod.deal_battlefield
+    setup_mod.deal_battlefield = lambda *a, **k: (_ for _ in ()).throw(
+        ValueError("terrain deck is broken")
+    )
+    try:
+        with pytest.raises(ValueError, match="terrain deck is broken"):
+            start(seed=3)
+    finally:
+        setup_mod.deal_battlefield = original
+
+
+def test_real_games_get_the_real_board_not_a_flat_one():
+    state = start(seed=3)
+    assert not isinstance(state.board, R.FlatBoard)
+    assert type(state.board).__name__ == "Board"

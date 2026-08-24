@@ -821,3 +821,306 @@ def test_fastapi_adapter_uses_the_same_router() -> None:
         bad = http.post(f"/api/game/{game_id}/command",
                         json={"kind": "move", "payload": {"x": 0, "y": 0}})
         assert bad.status_code == 400
+
+
+# --------------------------------------------------------------------------
+# Read-outs the client cannot derive: what is resolving, what can be blocked
+# --------------------------------------------------------------------------
+
+
+def _play_until(client: Client, game_id: str, view: dict, predicate,
+                rng: Optional[random.Random] = None, limit: int = 400):
+    """Play on until `predicate(view)`, or give up. Returns the view or None."""
+    rng = rng or random.Random(17)
+    for _ in range(limit):
+        if predicate(view):
+            return view
+        pending = view.get("pending")
+        if view["over"] or not pending:
+            return None
+        kind, payload = auto_payload(pending, rng)
+        view = send(client, game_id, kind, payload)
+    return None
+
+
+def test_view_says_which_card_is_resolving(client: Client) -> None:
+    """`PendingDecision` names the frame but not the card; `resolving` does.
+
+    Without it the only way to know what a `move` or `attack_target` decision
+    belongs to was to parse the log line, which is why this exists.
+    """
+    game_id, view = start(client, seed=7)
+    hit = _play_until(client, game_id, view, lambda v: v.get("resolving"))
+    assert hit is not None, "no card resolved in a whole game"
+    res = hit["resolving"]
+    assert res["frameId"] in {f["id"] for f in hit["frames"]}
+    assert res["frameName"] and isinstance(res["mine"], bool)
+    # It is face up by the time it resolves, so it may be named.
+    assert res["key"] in load_cards()
+    assert isinstance(res["initiative"], int)
+
+
+OWN_DECISIONS = {"move", "attack_target", "resolve_order", "effect_choice"}
+
+
+def test_resolving_matches_the_frame_the_engine_is_asking_about(client: Client) -> None:
+    """The acting frame, except for a block -- where the defender is deciding.
+
+    That distinction is the whole reason the corner display reads `resolving`
+    rather than `pending.frameId`: during a compulsory block the frame on the
+    clock is the one being hit, not the one acting.
+    """
+    game_id, view = start(client, seed=7)
+    rng = random.Random(17)
+    matched = blocks = 0
+    for _ in range(400):
+        pending = view.get("pending") or {}
+        res = view.get("resolving")
+        if res and pending.get("frameId"):
+            if pending["kind"] in OWN_DECISIONS:
+                assert res["frameId"] == pending["frameId"]
+                matched += 1
+            elif pending["kind"] == "choose_block":
+                assert res["frameId"] != pending["frameId"]
+                assert res["attack"]["targetId"] == pending["frameId"]
+                blocks += 1
+        if view["over"] or not view.get("pending"):
+            break
+        kind, payload = auto_payload(view["pending"], rng)
+        view = send(client, game_id, kind, payload)
+    assert matched, "never saw a decision belonging to the acting frame"
+    assert blocks, "never saw a compulsory block"
+
+
+def test_defence_readout_counts_blocks_per_zone(client: Client) -> None:
+    """The read the game turns on: what can this frame still cover?"""
+    game_id, view = start(client, seed=7)
+    hit = _play_until(
+        client, game_id, view,
+        lambda v: any(d["remaining"] for d in (v.get("defence") or {}).values()))
+    assert hit is not None
+    catalogue = load_cards()
+    for frame_id, defence in hit["defence"].items():
+        assert defence["frameId"] == frame_id
+        assert set(defence["zones"]) == {"High", "Mid", "Low"}
+        assert defence["remaining"] >= defence["faceDown"] >= 0
+        for zone, info in defence["zones"].items():
+            assert info["cards"] == len(info["known"])
+            assert info["super"] <= info["cards"]
+            for card in info["known"]:
+                # Every card offered as a blocker really does block that zone,
+                # and the super flag is the card's own Block value.
+                blocks = catalogue[card["key"]].blocks[zone]
+                assert blocks > 0
+                assert card["super"] == (blocks >= 2)
+
+
+def test_defence_never_describes_a_card_this_seat_cannot_see() -> None:
+    """The hidden half of the game stays hidden.
+
+    A face-down enemy card must not appear in the readout, and -- the subtler
+    one -- the readout must not say *how many* face-down cards block a zone
+    either: that is the identity leaking out one bit at a time. Only the
+    frame's total face-down count is public.
+    """
+    client = Client(Registry())
+    registry = client.registry
+    game_id, view = start(client, seed=99)
+    rng = random.Random(5)
+    checks = 0
+    for _ in range(400):
+        session = registry.get(game_id)
+        ai_seat = session.ai_seat
+        hidden = {
+            uid for frame in session.state.frames.values()
+            if frame.seat == ai_seat
+            for uid in frame.committed
+            if session.state.cards[uid].location == "committed"
+            and session.state.cards[uid].face_down
+        }
+        for frame in view["frames"]:
+            defence = (view.get("defence") or {}).get(frame["id"])
+            if defence is None:
+                continue
+            for info in defence["zones"].values():
+                assert "hidden" not in info, "per-zone hidden count leaks identity"
+                for card in info["known"]:
+                    assert card["uid"] not in hidden
+                    if frame["seat"] == ai_seat:
+                        assert card["faceDown"] is False
+            if frame["seat"] == ai_seat:
+                assert defence["faceDown"] == len(
+                    [c for c in frame["committed"] if c["faceDown"]])
+        checks += 1
+        pending = view.get("pending")
+        if view["over"] or not pending:
+            break
+        kind, payload = auto_payload(pending, rng)
+        view = send(client, game_id, kind, payload)
+    assert checks > 40, f"only made {checks} checks"
+
+
+def test_initiative_map_covers_only_cards_this_seat_can_identify() -> None:
+    client = Client(Registry())
+    registry = client.registry
+    game_id, view = start(client, seed=99)
+    rng = random.Random(9)
+    for _ in range(200):
+        session = registry.get(game_id)
+        state = session.state
+        for uid, value in (view.get("initiative") or {}).items():
+            inst = state.cards[uid]
+            frame = state.frames[inst.owner]
+            assert isinstance(value, int)
+            assert frame.seat == session.human_seat or not inst.face_down, (
+                f"initiative leaked for face-down AI card {uid}")
+        pending = view.get("pending")
+        if view["over"] or not pending:
+            break
+        kind, payload = auto_payload(pending, rng)
+        view = send(client, game_id, kind, payload)
+
+
+# --------------------------------------------------------------------------
+# Replaying the AI's turn
+# --------------------------------------------------------------------------
+
+
+def test_command_returns_replay_frames_for_the_ai_turn(client: Client) -> None:
+    """The AI's whole turn happens inside one POST, so it ships snapshots."""
+    game_id, view = start(client, seed=7)
+    rng = random.Random(3)
+    saw = 0
+    for _ in range(80):
+        pending = view.get("pending")
+        if view["over"] or not pending:
+            break
+        kind, payload = auto_payload(pending, rng)
+        view = send(client, game_id, kind, payload)
+        for snap in view.get("replay") or []:
+            saw += 1
+            assert "board" not in snap, "the board never changes mid-turn"
+            assert set(snap) >= {"turn", "phase", "frames", "tokens", "log", "vp"}
+            for frame in snap["frames"]:
+                assert isinstance(frame["committedCount"], int)
+                assert "committed" not in frame
+    assert saw, "the AI never produced a replay frame"
+
+
+def test_replay_frames_carry_no_card_uids() -> None:
+    """A replay is a picture of the past, and uids would leak into the present.
+
+    A card that was face up while it resolved can be discarded, reshuffled and
+    drawn again, so shipping its uid in a snapshot would hand the player a
+    handle on a card that is in the AI's hand *now*.
+    """
+    client = Client(Registry())
+    registry = client.registry
+    game_id, view = start(client, seed=99)
+    rng = random.Random(5)
+    for _ in range(300):
+        secrets = _ai_secret_keys(registry, game_id)
+        for snap in view.get("replay") or []:
+            assert not _uids_in(snap)
+            blob = json.dumps(snap)
+            for uid in secrets["hand"] | secrets["deck"]:
+                assert f'"{uid}"' not in blob, f"{uid} leaked into a replay frame"
+        pending = view.get("pending")
+        if view["over"] or not pending:
+            break
+        kind, payload = auto_payload(pending, rng)
+        view = send(client, game_id, kind, payload)
+
+
+def test_a_plain_get_does_not_replay_the_ai_turn_again(client: Client) -> None:
+    game_id, view = start(client, seed=7)
+    pending = view["pending"]
+    kind, payload = auto_payload(pending, random.Random(1))
+    after = send(client, game_id, kind, payload)
+    assert "replay" in after
+    refreshed = client.get(f"/api/game/{game_id}").json()
+    assert "replay" not in refreshed, "a refresh must not re-animate"
+
+
+def test_undo_drops_a_replay_that_no_longer_happened(client: Client) -> None:
+    game_id, view = start(client, seed=7)
+    kind, payload = auto_payload(view["pending"], random.Random(1))
+    send(client, game_id, kind, payload)
+    undone = client.post(f"/api/game/{game_id}/undo").json()
+    assert not undone.get("replay")
+
+
+# --------------------------------------------------------------------------
+# Terrain and token art
+# --------------------------------------------------------------------------
+
+
+def test_terrain_crop_is_the_playable_grid() -> None:
+    """3 tiles across by 4 down, so a card's pixels line up with its tiles."""
+    from playtest.server import assets
+
+    for size in ((640, 890), (640, 898)):
+        w, h, x, y = assets.grid_crop(*size)
+        assert x >= 0 and y >= 0
+        assert x + w <= size[0] and y + h <= size[1]
+        assert abs(w / h - 3 / 4) < 0.005, f"{size} cropped to {w}x{h}"
+
+
+def test_terrain_and_token_art_ships_with_the_app() -> None:
+    """The phone clones the repo and cannot regenerate art, so it must be there."""
+    from playtest.server import assets
+    from playtest.engine.terrain import load_terrain_cards
+
+    bundled = assets.terrain_files()
+    cards = load_terrain_cards()
+    missing = sorted(set(cards) - set(bundled))
+    assert not missing, f"no bundled terrain art for {missing}"
+    tokens = set(assets.token_files())
+    # The numbered ones are hit-point states: every step must exist or the
+    # board would fall back to a blank tile as a token takes damage.
+    for stem in ("Tower1", "Tower2", "Tower3", "Tower4",
+                 "PowerPlant1", "PowerPlant2", "Shiny", "Fugitive"):
+        assert stem in tokens, f"missing token art {stem}"
+
+
+def test_bundled_board_art_is_served_and_is_small(client: Client) -> None:
+    from playtest.server import assets
+
+    response = client.get(f"/static/terrain/{assets.slug('Power Reactors')}.jpg")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/jpeg"
+    assert len(response.content) < 60_000, "terrain art is going to a phone"
+
+    token = client.get("/static/tokens/Tower4.png")
+    assert token.status_code == 200
+    assert token.headers["content-type"] == "image/png"
+    assert len(token.content) < 30_000
+
+
+def test_the_client_names_board_art_the_way_the_bundle_does() -> None:
+    """`api.js` builds the URLs; `assets.py` writes the files. One naming rule.
+
+    The token map in the client also has to agree with the engine's token
+    kinds, or a Power Reactor would draw as nothing at all.
+    """
+    from pathlib import Path
+
+    from playtest.engine.objectives import OBJECTIVE_TOKENS
+    from playtest.server import assets
+
+    static = Path(images.__file__).resolve().parent / "static"
+    api_js = (static / "js" / "api.js").read_text(encoding="utf-8")
+
+    # `terrainImageUrl` is `/static/terrain/<slug>.jpg`, and the board asks for
+    # it by the card name the engine puts on every tile. Every file the bundler
+    # wrote must be findable that way.
+    on_disk = {p.name for p in (static / "terrain").glob("*.jpg")}
+    for name in assets.terrain_files():
+        assert f"{assets.slug(name)}.jpg" in on_disk, name
+    assert "/static/terrain/" in api_js and "/static/tokens/" in api_js
+
+    # Every token kind the engine can spawn needs an entry in the client's art
+    # map, or a Power Reactor draws as nothing at all.
+    for kind, _, _ in OBJECTIVE_TOKENS.values():
+        assert re.search(rf"^\s+{re.escape(kind)}:", api_js, re.M), (
+            f"api.js has no art for token kind {kind!r}")

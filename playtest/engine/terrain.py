@@ -21,14 +21,14 @@ the top of the printed card.
 
 Seat 0 sits at the bottom of the board (largest y, matching the deployment row
 in SPEC.md's client JSON, ``{"x":4,"y":15}``), so seat 0's cards are unrotated
-and seat 1's two rows are dealt rotated 180 degrees (rules.tex:290, and the
-setup figure at rules.tex:305 where the opponent's rows read upside-down):
+and seat 1's two rows are dealt rotated 180 degrees (rules.tex:337, and the
+setup figure at rules.tex:412 where the opponent's rows read upside-down):
 
     rotated[i][j]  ==  grid[3-i][2-j]  ==  csv cell tile_{i}_{2-j}
 
 Cell codes
 ----------
-Space separated and combinable (rules.tex:255): ``e1``/``e2``/``e3`` elevation,
+Space separated and combinable (rules.tex:266): ``e1``/``e2``/``e3`` elevation,
 ``im`` impassable, ``obs`` obstacle, ``obj`` objective, ``tkn`` token spawn. An
 empty cell is ground (elevation 0). Unknown tokens are ignored, matching
 ``terrain_cards.py``'s ``STYLE_DICT.get(element, {})`` -- see ``UNKNOWN_CODES``
@@ -48,7 +48,7 @@ from .types import Pos, Tile
 # Constants
 # --------------------------------------------------------------------------
 
-#: A terrain card is always this many tiles (rules.tex:254, Terrain_square.csv).
+#: A terrain card is always this many tiles (rules.tex:252, Terrain_square.csv).
 CARD_ROWS = 4
 CARD_COLS = 3
 

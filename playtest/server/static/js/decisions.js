@@ -158,13 +158,54 @@ function commitActions(host, ctx, pending) {
   host.appendChild(actions);
 }
 
+// Ordering the steps was three taps for what is usually the same answer every
+// time, so the previous order comes back as one tap, then every order the
+// engine offers as one tap each. The step-by-step picker is still there below
+// them -- the shortcut never removes the choice, it just stops charging for it.
 function resolveOrder(host, ctx, pending) {
   const steps = [...new Set(pending.options.flatMap((o) => o.order))];
   const picked = ctx.orderPick.filter((s) => steps.includes(s));
-  banner(host, 'Movement cannot be split around the other steps', 'info');
+  const orders = pending.options.map((o) => o.order).filter(Boolean);
+  const send = (order) => (ctx.sendOrder || ((o) => ctx.send('resolve_order', { order: o })))(order);
+
+  const remembered = ctx.rememberedOrder;
+  if (remembered) {
+    const repeat = document.createElement('button');
+    repeat.className = 'btn primary big';
+    repeat.innerHTML = `Same as last time<br><small>${orderWords(remembered)}</small>`;
+    repeat.addEventListener('click', () => send(remembered.slice()));
+    host.appendChild(repeat);
+  }
+
+  const list = document.createElement('div');
+  list.className = 'opt-list';
+  list.style.marginTop = remembered ? '8px' : '0';
+  for (const order of orders) {
+    if (remembered && order.join('>') === remembered.join('>')) continue;
+    optionRow(list, {
+      main: orderWords(order),
+      sub: order.map((s) => STEP_HELP[s] || s).join(' '),
+      go: 'go',
+      onTap: () => send(order.slice()),
+    });
+  }
+  host.appendChild(list);
+
+  const note = document.createElement('p');
+  note.className = 'sheet-sub';
+  note.style.marginTop = '10px';
+  note.textContent = 'Movement cannot be split around the other steps.';
+  host.appendChild(note);
+
+  const details = document.createElement('details');
+  const summary = document.createElement('summary');
+  summary.className = 'sheet-sub';
+  summary.textContent = 'Build the order step by step';
+  details.appendChild(summary);
 
   const row = document.createElement('div');
   row.className = 'step-row';
+  row.style.marginTop = '8px';
   for (const step of steps) {
     const btn = document.createElement('button');
     btn.type = 'button';
@@ -179,14 +220,7 @@ function resolveOrder(host, ctx, pending) {
     btn.addEventListener('click', () => ctx.toggleOrder(step));
     row.appendChild(btn);
   }
-  host.appendChild(row);
-
-  const help = document.createElement('p');
-  help.className = 'sheet-sub';
-  help.textContent = picked.length
-    ? picked.map((s) => STEP_HELP[s] || s).join(' ')
-    : 'Tap the steps in the order you want them to happen.';
-  host.appendChild(help);
+  details.appendChild(row);
 
   const actions = document.createElement('div');
   actions.className = 'sheet-actions';
@@ -198,9 +232,14 @@ function resolveOrder(host, ctx, pending) {
   go.className = 'btn primary';
   go.textContent = 'Resolve in this order';
   go.disabled = picked.length !== steps.length;
-  go.addEventListener('click', () => ctx.send('resolve_order', { order: picked }));
+  go.addEventListener('click', () => send(picked.slice()));
   actions.append(reset, go);
-  host.appendChild(actions);
+  details.appendChild(actions);
+  host.appendChild(details);
+}
+
+function orderWords(order) {
+  return (order || []).map((s) => s.charAt(0).toUpperCase() + s.slice(1)).join(' → ');
 }
 
 function movement(host, ctx, pending) {
@@ -231,45 +270,163 @@ function movement(host, ctx, pending) {
   host.appendChild(actions);
 }
 
+// The one read the whole game turns on: what can this target still cover, and
+// how many cards has it got left to cover it with?
+//
+// Every part comes off the server's `defence` readout, which is built with the
+// engine's own `combat.block_options` -- so Close Quarters barring resolved
+// cards, and Guard Break letting one wide card cover several zones at once,
+// are the engine's answers and not this file's guesses. What is *not* here is
+// how many of the face-down cards block each zone: that is the hidden half of
+// the game, and the count is deliberately given whole rather than per zone.
 function attackTarget(host, ctx, pending) {
-  banner(host, 'Only zones actually in range can be attacked', 'info');
-  const el = list(host);
+  const guardBreak = isGuardBreak(ctx);
+  banner(host, guardBreak
+    ? 'Guard Break — every zone must be blocked separately'
+    : 'One matching block stops the whole attack', 'info');
+
   for (const option of pending.options) {
     const zones = option.zones || {};
     const total = Object.values(zones).reduce((a, b) => a + b, 0);
     const target = (ctx.view.frames || []).find((f) => f.id === option.id);
-    const bits = Object.entries(zones).map(([z, n]) => `${z} ${n}`);
-    const sub = [
-      bits.join(' · ') || 'no marks',
-      target ? `damage ${['High', 'Mid', 'Low'].map((z) => `${target.damage[z]}/${target.armour[z]}`).join(' ')}` : '',
-    ].filter(Boolean).join('  ·  ');
-    optionRow(el, {
-      main: `${option.name || option.id}${option.kind === 'token' ? ' (token)' : ''}`,
-      sub,
-      go: `${total} mark${total === 1 ? '' : 's'}`,
-      onTap: () => ctx.send('attack_target', { kind: option.kind, id: option.id }),
+    const defence = (ctx.view.defence || {})[option.id];
+
+    const box = document.createElement('div');
+    box.className = 'target';
+
+    const head = document.createElement('div');
+    head.className = 'target-head';
+    head.innerHTML = `<b>${C.escapeHtml(option.name || option.id)}</b>
+      ${option.kind === 'token' ? '<small>token</small>' : ''}
+      <span class="t-cards">${defence
+        ? `${defence.remaining} card${defence.remaining === 1 ? '' : 's'} left`
+          + (defence.faceDown ? ` · <em>${defence.faceDown} face down</em>` : '')
+        : ''}</span>`;
+    box.appendChild(head);
+
+    let openZones = 0;
+    if (target && defence) {
+      const grid = document.createElement('div');
+      grid.className = 'zgrid';
+      for (const zone of C.ZONES) {
+        const damage = zones[zone] || 0;
+        const info = (defence.zones || {})[zone] || { cards: 0, super: 0, known: [] };
+        const row = document.createElement('div');
+        row.className = 'zrow';
+        if (damage) row.dataset.hit = '1';
+        const through = damage > 0 && info.cards === 0;
+        if (through && !defence.faceDown) row.dataset.through = '1';
+        if (through) openZones += 1;
+
+        const covers = info.known.map((c) => C.displayName(c.key)
+          + (c.super ? ' ★' : '') + (c.resolved ? '' : ' (face up)'));
+        const blockText = info.cards
+          ? `<b>${info.cards}</b> can block${info.super ? ` · <i>${info.super} super</i>` : ''}`
+          : (defence.faceDown ? 'nothing visible blocks it' : '<span>no block at all</span>');
+
+        row.innerHTML = `<span class="zname">${zone}</span>
+          <span class="zdmg"${damage ? '' : ' data-none="1"'}>${damage || '–'}</span>
+          <span class="zblock">${blockText}</span>`;
+        row.title = covers.length
+          ? `${zone}: ${covers.join(', ')}`
+          : `${zone}: no card this seat can see blocks it`;
+        grid.appendChild(row);
+      }
+      box.appendChild(grid);
+
+      const note = document.createElement('p');
+      note.className = 'target-note';
+      const armour = C.ZONES.map((z) => `${z[0]} ${target.damage[z]}/${target.armour[z]}`);
+      const bits = [`damage ${armour.join(' ')}`];
+      if (defence.keepsNextBlock) bits.push('keeps its next block (frame ability)');
+      if (defence.faceDown) {
+        bits.push(`${defence.faceDown} face-down card${defence.faceDown === 1 ? '' : 's'}`
+          + ' could cover anything');
+      }
+      note.textContent = bits.join(' · ');
+      box.appendChild(note);
+    }
+
+    const go = document.createElement('button');
+    go.className = 'btn primary';
+    go.textContent = `Attack — ${total} mark${total === 1 ? '' : 's'}`
+      + (openZones ? ` · ${openZones} zone${openZones === 1 ? '' : 's'} uncovered` : '');
+    go.addEventListener('click',
+      () => ctx.send('attack_target', { kind: option.kind, id: option.id }));
+    box.appendChild(go);
+    if (openZones) box.dataset.open = '1';
+
+    const look = document.createElement('button');
+    look.className = 'btn ghost sm';
+    look.style.width = '100%';
+    look.style.marginTop = '6px';
+    look.textContent = 'Show me on the board';
+    look.addEventListener('click', () => {
+      if (ctx.selectFrame) ctx.selectFrame(option.id);
+      ctx.showView('board');
     });
+    if (option.kind === 'frame') box.appendChild(look);
+
+    host.appendChild(box);
   }
+}
+
+/** Whether the card that is attacking has Guard Break, from the resolving card. */
+function isGuardBreak(ctx) {
+  const res = ctx.view.resolving;
+  if (!res || !res.key) return false;
+  const info = C.card(res.key);
+  return !!(info && (info.keywords || []).includes('guardbreak'));
 }
 
 function chooseBlock(host, ctx, pending) {
   const zones = [...new Set(pending.options.flatMap((o) => o.zones || []))];
+  const attack = (ctx.view.resolving || {}).attack || null;
+  const guardBreak = !!(attack && attack.guardBreak);
   banner(host, `Blocking is compulsory — ${zones.join(' / ') || 'attack'} must be blocked`);
   const note = document.createElement('p');
   note.className = 'sheet-sub';
-  note.textContent = 'One matching zone stops the whole attack. A normal block is '
-    + 'discarded and, if it had not resolved yet, its own action is forfeit. '
-    + 'A super block is kept.';
+  note.textContent = guardBreak
+    ? 'Guard Break: a card covers every one of these zones it blocks, and the '
+      + 'zones it does not cover come back for another block. Spending a card '
+      + 'that covers two of them costs you one card instead of two.'
+    : 'One matching zone stops the whole attack. A normal block is discarded '
+      + 'and, if it had not resolved yet, its own action is forfeit. A super '
+      + 'block is kept.';
   host.appendChild(note);
 
+  if (attack) {
+    const state = document.createElement('p');
+    state.className = 'sheet-sub';
+    const marks = Object.entries(attack.zones || {}).map(([z, n]) => `${z} ${n}`);
+    state.textContent = `Incoming: ${marks.join(' · ') || 'no marks'}`
+      + (attack.blocked && attack.blocked.length
+        ? ` · already blocked ${attack.blocked.join('/')}` : '');
+    host.appendChild(state);
+  }
+
   const el = list(host);
-  for (const option of pending.options) {
+  // Under Guard Break the widest card is the cheapest answer, so lead with it.
+  const covered = (option) => {
     const info = C.card(option.key);
-    const superBlock = info && (option.zones || []).some((z) => (info.blocks[z] || 0) >= 2);
+    if (!info) return [];
+    return (option.zones || []).filter((z) => (info.blocks[z] || 0) > 0);
+  };
+  const options = guardBreak
+    ? [...pending.options].sort((a, b) => covered(b).length - covered(a).length)
+    : pending.options;
+
+  for (const option of options) {
+    const info = C.card(option.key);
+    const mine = covered(option);
+    const superBlock = info && mine.some((z) => (info.blocks[z] || 0) >= 2);
     const committed = (ctx.view.frames || [])
       .flatMap((f) => f.committed || [])
       .some((c) => c.uid === option.uid && !c.resolved);
     const bits = [];
+    if (guardBreak && mine.length > 1) {
+      bits.push(`covers ${mine.join(' + ')} in one card`);
+    }
     bits.push(superBlock ? 'SUPER BLOCK — card is kept' : 'normal block — card is discarded');
     if (committed && !superBlock) bits.push('its own action is forfeit');
     if (info && info.initiative && info.initiative.length) {
@@ -279,7 +436,7 @@ function chooseBlock(host, ctx, pending) {
       thumbKey: option.key,
       main: C.displayName(option.key),
       sub: bits.join(' · '),
-      go: (option.zones || []).join('/'),
+      go: mine.join('/') || (option.zones || []).join('/'),
       onTap: () => ctx.send('choose_block', { uid: option.uid }),
     });
   }

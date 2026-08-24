@@ -10,10 +10,17 @@ import { cardImageUrl } from './api.js';
 export const ZONES = ['High', 'Mid', 'Low'];
 
 let CATALOGUE = {};
+let FRAMES = {};
 
 export function setCatalogue(catalogue) { CATALOGUE = catalogue || {}; }
 export function card(key) { return CATALOGUE[key] || null; }
 export function catalogue() { return CATALOGUE; }
+
+// Frame abilities are live rules -- Hector's free block, Adam's pierce
+// initiative, Kamikiri's bonus cut all change what a turn is worth -- so the
+// frame card has to be readable, not just its name.
+export function setFrames(frames) { FRAMES = frames || {}; }
+export function frame(name) { return FRAMES[name] || null; }
 
 export function displayName(key) {
   const info = card(key);
@@ -235,6 +242,83 @@ export function showCard(key) {
       text.textContent = cleanText(info.text);
       body.appendChild(text);
     }
+  }
+
+  const close = document.createElement('button');
+  close.className = 'btn big';
+  close.textContent = 'Close';
+  close.addEventListener('click', closeModal);
+  body.appendChild(close);
+
+  modalEl.hidden = false;
+}
+
+/** The frame's own card: art, armour, and the ability text that is live. */
+export function showFrame(name, live = null) {
+  const spec = frame(name);
+  const body = document.getElementById('modal-body');
+  body.innerHTML = '';
+
+  const art = document.createElement('img');
+  art.className = 'big-art';
+  art.loading = 'lazy';
+  art.src = cardImageUrl(name, 360);
+  art.alt = name;
+  art.addEventListener('error', () => art.remove(), { once: true });
+  body.appendChild(art);
+
+  const h = document.createElement('h2');
+  h.textContent = name;
+  body.appendChild(h);
+
+  const sub = document.createElement('div');
+  sub.className = 'sub';
+  sub.textContent = spec
+    ? `${spec.faction} · move ${spec.movement} · ${spec.weaponSlots} weapons, `
+      + `${spec.boosterSlots} boosters · deck ${spec.deckSize}`
+    : 'frame';
+  body.appendChild(sub);
+
+  if (spec && spec.ability) {
+    const text = document.createElement('div');
+    text.className = 'cardtext';
+    text.textContent = cleanText(spec.ability);
+    body.appendChild(text);
+  }
+
+  if (spec) {
+    const table = document.createElement('table');
+    table.className = 'zonetable';
+    table.innerHTML = `<thead><tr><th>Zone</th><th>Armour</th>${
+      live ? '<th>Damage</th><th>Left</th>' : ''}</tr></thead><tbody>${
+      ZONES.map((z) => {
+        const armour = (spec.armour || {})[z] || 0;
+        const dmg = live ? (live.damage[z] || 0) : 0;
+        return `<tr><td>${z}</td><td>${armour}</td>${
+          live ? `<td>${dmg}</td><td>${Math.max(0, armour - dmg)}</td>` : ''}</tr>`;
+      }).join('')}</tbody>`;
+    body.appendChild(table);
+
+    const dl = document.createElement('dl');
+    dl.className = 'statgrid';
+    const rows = [
+      ['Shield', spec.shield ? String(spec.shield) : '–'],
+      ['Keywords', (spec.keywords || []).join(', ') || '–'],
+    ];
+    if (live) {
+      const statuses = Object.entries(live.statuses || {}).filter(([, n]) => n > 0)
+        .map(([k, n]) => `${k} ${n}`).join(', ');
+      rows.push(['Statuses', statuses || 'none']);
+      rows.push(['Cards in play',
+        `${(live.committed || []).length} face down · ${(live.onField || []).length} on field`]);
+      rows.push(['Deck / discard', `${live.deckCount} / ${live.discardCount}`]);
+    }
+    for (const [k, v] of rows) {
+      const dt = document.createElement('dt'); dt.textContent = k;
+      const dd = document.createElement('dd'); dd.textContent = v;
+      dl.append(dt, dd);
+    }
+    body.appendChild(dl);
   }
 
   const close = document.createElement('button');

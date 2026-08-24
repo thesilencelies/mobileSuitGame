@@ -653,6 +653,265 @@ def test_objectives_pull_the_evaluator(cat, catalogue):
     assert S.objective_value(snap, me, Pos(9, 9), params.replace(objective_weight=0.0)) == 0.0
 
 
+def _mk(key, attacks, blocks, *, keywords=frozenset(), movement=0, init=5):
+    """A synthetic card, for scorer tests that need exact stats."""
+    from playtest.ai.view import CardInfo
+
+    return CardInfo(
+        key=key, name=key, group=key.split("_")[0], faction="",
+        card_type="weapon", initiative=(init,), movement=movement,
+        attacks={z: attacks.get(z, 0) for z in ZONES},
+        ranges={z: 0 for z in ZONES},
+        dtypes={z: None for z in ZONES},
+        blocks={z: blocks.get(z, 0) for z in ZONES},
+        text="", keywords=keywords, knockback=0, persistence=0,
+    )
+
+
+def test_guard_break_is_stopped_by_one_wide_blocker(cat, catalogue):
+    """One card covers every attacked zone it blocks, so a wide block ends it.
+
+    The engine used to demand a separate card per zone. Against a defender
+    holding a single all-zone blocker, a three-zone Guard Break now lands
+    nothing at all, and the scorer must say so.
+    """
+    breaker = _mk("ZZTest_Breaker", {"High": 2, "Mid": 2, "Low": 2}, {},
+                  keywords=frozenset({"guardbreak"}))
+    wide = _mk("ZZTest_Wide", {}, {"High": 1, "Mid": 1, "Low": 1})
+    S.set_catalogue({wide.key: wide})
+
+    prof = S.profile(list(cat.cards.values())[:60])
+    params = AIParams()
+    zones = {"High": 2, "Mid": 2, "Low": 2}
+
+    def value_against(on_field):
+        view = _flat_view(catalogue, next(iter(cat.cards)))
+        view["frames"][1]["onField"] = on_field
+        view["frames"][1]["committed"] = []
+        target = Snapshot(view).frames["b0"]
+        return S.zone_attack_value(breaker, zones, target, prof, params)
+
+    covered = value_against(
+        [{"uid": "z1", "key": wide.key, "resolved": True, "faceDown": False}]
+    )
+    naked = value_against([])
+    # One three-zone card answers all three zones, so the damage collapses and
+    # what is left is mostly the tempo of forcing that card out. Under the old
+    # per-zone rule this attack would have punched through two of the three.
+    assert covered < 0.5 * naked, f"covered={covered:.2f} naked={naked:.2f}"
+    # But it is not worthless: stripping a card is exactly what Guard Break is
+    # for now, so the scorer must still rate it above nothing.
+    assert covered > 0.0
+
+
+def test_guard_break_lands_on_the_zone_nothing_covers(cat, catalogue):
+    """A narrow blocker leaves its uncovered zones open, and those land."""
+    breaker = _mk("ZZTest_Breaker", {"High": 2, "Mid": 2, "Low": 2}, {},
+                  keywords=frozenset({"guardbreak"}))
+    narrow = _mk("ZZTest_Narrow", {}, {"High": 1})
+    S.set_catalogue({narrow.key: narrow})
+
+    view = _flat_view(catalogue, next(iter(cat.cards)))
+    view["frames"][1]["onField"] = [
+        {"uid": "z1", "key": narrow.key, "resolved": True, "faceDown": False}
+    ]
+    snap = Snapshot(view)
+    target = snap.frames["b0"]
+    prof = S.profile(list(cat.cards.values())[:60])
+    params = AIParams()
+
+    narrow_value = S.zone_attack_value(
+        breaker, {"High": 2, "Mid": 2, "Low": 2}, target, prof, params
+    )
+    S.set_catalogue({"ZZTest_Wide": _mk(
+        "ZZTest_Wide", {}, {"High": 1, "Mid": 1, "Low": 1})})
+    view2 = _flat_view(catalogue, next(iter(cat.cards)))
+    view2["frames"][1]["onField"] = [
+        {"uid": "z1", "key": "ZZTest_Wide", "resolved": True, "faceDown": False}
+    ]
+    wide_value = S.zone_attack_value(
+        breaker, {"High": 2, "Mid": 2, "Low": 2},
+        Snapshot(view2).frames["b0"], prof, params,
+    )
+    assert narrow_value > wide_value, (
+        "Guard Break must be worth more against a one-zone blocker than a "
+        "three-zone one"
+    )
+
+
+def test_guard_break_does_not_drain_the_block_budget_per_zone(cat):
+    """`score_hand` must spend the defender's capacity once, not once a zone.
+
+    Drawing it down zone by zone left the later zones looking undefended and
+    inflated every Guard Break card at `commit_actions`.
+    """
+    breaker = _mk("ZZTest_Breaker", {"High": 2, "Mid": 2, "Low": 2}, {},
+                  keywords=frozenset({"guardbreak"}))
+    plain = _mk("ZZTest_Plain", {"High": 2, "Mid": 2, "Low": 2}, {})
+    prof = S.profile(list(cat.cards.values())[:60])
+    params = AIParams()
+    health = {z: 4 for z in ZONES}
+
+    gb = S.score_hand([breaker], prof, params, health)
+    normal = S.score_hand([plain], prof, params, health)
+    # Guard Break is still better than the same attack without it -- each zone
+    # is answered separately -- but not by the runaway margin the per-zone
+    # drawdown produced.
+    assert gb >= normal
+    assert gb < normal * 2.0
+
+
+def test_block_choice_prefers_the_widest_blocker_against_guard_break(catalogue):
+    """The ordering win the engine leaves to the player.
+
+    Blocking continues while any card covers any open zone, so answering with
+    the three-zone card costs one card and answering with the one-zone card
+    costs two.
+    """
+    agent = Agent(seat=0, catalogue=catalogue, seed=1)
+    wide = next(
+        c for c in agent.catalogue.cards.values()
+        if len(c.block_zones) == 3 and 2 not in c.blocks.values()
+    )
+    narrow = next(
+        c for c in agent.catalogue.cards.values()
+        if len(c.block_zones) == 1 and not c.is_attack
+    )
+    breaker = next(
+        c for c in agent.catalogue.cards.values() if c.guard_break and c.is_attack
+    )
+
+    view = _flat_view(catalogue, next(iter(agent.catalogue.cards)))
+    mine = view["frames"][0]
+    mine["committed"] = [
+        {"uid": "w", "key": wide.key, "resolved": False, "faceDown": False},
+        {"uid": "n", "key": narrow.key, "resolved": False, "faceDown": False},
+    ]
+    view["log"] = [{"turn": 1, "text": f"Fb0 resolves {breaker.key} (initiative 5)"}]
+    view["pending"] = {
+        "seat": 0, "kind": "choose_block", "frameId": "a0",
+        "prompt": "Fa0 must block High/Mid/Low (blocking is compulsory)",
+        "options": [
+            {"uid": "w", "key": wide.key, "zones": ["High", "Mid", "Low"]},
+            {"uid": "n", "key": narrow.key, "zones": ["High", "Mid", "Low"]},
+        ],
+    }
+    command = agent.act(json.loads(json.dumps(view)))
+    assert command is not None
+    assert command.payload["uid"] == "w", (
+        f"expected the 3-zone {wide.key}, got {command.payload['uid']}"
+    )
+
+
+def test_resolving_readout_identifies_the_card(catalogue):
+    """`resolving` answers outright what the log was being parsed for."""
+    agent = Agent(seat=0, catalogue=catalogue, seed=1)
+    key = next(k for k, c in agent.catalogue.cards.items() if c.is_attack)
+    view = _flat_view(catalogue, key)
+    view["frames"][0]["committed"] = [
+        {"uid": "m1", "key": key, "resolved": False, "faceDown": False},
+    ]
+    view["resolving"] = {"frameId": "a0", "frameName": "Fa0", "seat": 0,
+                         "mine": True, "steps": ["attack"], "key": key}
+    snap = Snapshot(json.loads(json.dumps(view)))
+    assert agent._resolving_card(snap, snap.frames["a0"]).key == key
+    # And it declines to answer for a frame the engine is not resolving.
+    assert agent._resolving_card(snap, snap.frames["b0"]) is None
+
+
+def test_block_choice_reads_the_attackers_card_not_the_defenders(catalogue):
+    """During a compulsory block the two frame ids deliberately differ.
+
+    `resolving.frameId` is the attacker; `pending.frameId` is us. Guard Break
+    detection must follow the attacker, or a Guard Break coming in from a frame
+    with a different name goes unnoticed.
+    """
+    agent = Agent(seat=0, catalogue=catalogue, seed=1)
+    wide = next(
+        c for c in agent.catalogue.cards.values()
+        if len(c.block_zones) == 3 and 2 not in c.blocks.values()
+    )
+    narrow = next(
+        c for c in agent.catalogue.cards.values()
+        if len(c.block_zones) == 1 and not c.is_attack
+    )
+    breaker = next(
+        c for c in agent.catalogue.cards.values() if c.guard_break and c.is_attack
+    )
+    view = _flat_view(catalogue, next(iter(agent.catalogue.cards)))
+    view["frames"][0]["committed"] = [
+        {"uid": "w", "key": wide.key, "resolved": False, "faceDown": False},
+        {"uid": "n", "key": narrow.key, "resolved": False, "faceDown": False},
+    ]
+    # Attacker is b0; the decision belongs to a0. No log line at all, so the
+    # readout is the only source.
+    view["log"] = []
+    view["resolving"] = {
+        "frameId": "b0", "frameName": "Fb0", "seat": 1, "mine": False,
+        "steps": [], "key": breaker.key,
+        "attack": {"targetKind": "frame", "targetId": "a0",
+                   "zones": {"High": 2, "Mid": 2, "Low": 2},
+                   "blocked": [], "pendingZones": ["High", "Mid", "Low"],
+                   "guardBreak": True},
+    }
+    view["pending"] = {
+        "seat": 0, "kind": "choose_block", "frameId": "a0",
+        "prompt": "must block", "options": [
+            {"uid": "n", "key": narrow.key, "zones": ["High", "Mid", "Low"]},
+            {"uid": "w", "key": wide.key, "zones": ["High", "Mid", "Low"]},
+        ],
+    }
+    snap = Snapshot(json.loads(json.dumps(view)))
+    assert agent._incoming_is_guard_break(snap) is True
+    command = agent.act(json.loads(json.dumps(view)))
+    assert command.payload["uid"] == "w"
+
+
+def test_duplicate_frame_names_do_not_produce_a_wrong_answer(catalogue):
+    """Two frames sharing a name: the log cannot say whose card resolved.
+
+    The old code matched the log's frame name and would confidently hand back
+    the *other* frame's card. Now the name check is gated on uniqueness, so it
+    falls back to the structural face-up signal instead.
+    """
+    agent = Agent(seat=0, catalogue=catalogue, seed=1)
+    mine_key, theirs_key = [
+        k for k, c in list(agent.catalogue.cards.items()) if c.is_attack
+    ][:2]
+    view = _flat_view(catalogue, next(iter(agent.catalogue.cards)))
+    for frame in view["frames"]:
+        frame["name"] = "Percival MkIV"          # same frame on both sides
+    view["frames"][0]["committed"] = [
+        {"uid": "m1", "key": mine_key, "resolved": False, "faceDown": False},
+    ]
+    # The log's most recent line is the *opponent's* card, under the same name.
+    view["log"] = [
+        {"turn": 1, "text": f"Percival MkIV resolves {theirs_key} (initiative 5)"},
+    ]
+    snap = Snapshot(json.loads(json.dumps(view)))
+    got = agent._resolving_card(snap, snap.frames["a0"])
+    assert got is not None and got.key == mine_key, (
+        f"took the other frame's card: {got.key if got else None}"
+    )
+
+
+def test_block_probability_is_not_linear_in_hidden_cards(cat, catalogue):
+    """Two cards at a 0.4 block rate cover 64%, not 80%."""
+    view = _flat_view(catalogue, next(iter(cat.cards)))
+    view["frames"][1]["onField"] = []          # no known blocker, only hidden
+    view["frames"][1]["committed"] = [
+        {"uid": "h1", "resolved": False, "faceDown": True},
+        {"uid": "h2", "resolved": False, "faceDown": True},
+    ]
+    snap = Snapshot(view)
+    target = snap.frames["b0"]
+    prof = S.Profile(n=10)
+    for z in ZONES:
+        prof.block_freq[z] = 0.4
+    dummy = next(c for c in cat.cards.values() if c.is_attack)
+    assert S.block_probability(target, ["Mid"], dummy, prof) == pytest.approx(0.64)
+
+
 def test_shiny_thing_is_valued_even_though_it_has_no_tiles(cat, catalogue):
     """The one objective whose `tiles` are empty -- it lives on its token.
 

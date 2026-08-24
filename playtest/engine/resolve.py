@@ -55,20 +55,33 @@ class IllegalCommand(ValueError):
 
 
 # --------------------------------------------------------------------------
-# Fallback board
+# Featureless board (tests only)
 # --------------------------------------------------------------------------
 
 
 class FlatBoard:
-    """A featureless board, used until workstream B1's `board.py` is wired in.
+    """A featureless `BoardProtocol` for tests that do not care about terrain.
 
-    It satisfies `BoardProtocol` exactly, so swapping in the real board is a
-    one-line change and every test written against this one still applies.
+    Real games use `engine.board.Board`; this is **not** a fallback for it.
+    Its geometry (adjacency, Chebyshev range, movement with elevation and
+    obstacle costs) is real, so a test can build a board by editing tiles --
+    but it has no terrain to reason about, so it cannot judge line of sight
+    and refuses to pretend otherwise. See `has_line_of_sight`.
     """
 
-    def __init__(self, width: int = 15, height: int = 16) -> None:
+    def __init__(
+        self,
+        width: int = 15,
+        height: int = 16,
+        *,
+        los_always_clear: bool = False,
+    ) -> None:
         self.width = width
         self.height = height
+        #: Opt-in: answer every line-of-sight question with "clear". Only a
+        #: caller that has decided it does not care about LoS may ask for
+        #: this; the default refuses rather than inventing an answer.
+        self.los_always_clear = los_always_clear
         self._tiles = {
             Pos(x, y): Tile(Pos(x, y))
             for x in range(width) for y in range(height)
@@ -122,7 +135,21 @@ class FlatBoard:
 
     def has_line_of_sight(self, attacker, target, *, occupied=frozenset(),
                           flying_attacker=False, flying_target=False):
-        return True
+        """Refuses to answer unless the caller opted into `los_always_clear`.
+
+        Line of sight is a load-bearing rule -- it gates every ranged attack,
+        the AI's threat model and the client's shading. A featureless board
+        answering "clear" to everything would not fail; it would quietly play
+        a different game. So this raises instead of guessing.
+        """
+        if self.los_always_clear:
+            return True
+        raise NotImplementedError(
+            "FlatBoard has no terrain and cannot judge line of sight. Use "
+            "engine.board.Board for a real game, or construct "
+            "FlatBoard(los_always_clear=True) to state explicitly that this "
+            "caller does not care about LoS."
+        )
 
 
 #: The server or workstream B1 can install a real battlefield builder here.
@@ -135,17 +162,6 @@ _BOARD_FACTORY: Optional[BoardFactory] = None
 def set_board_factory(factory: Optional[BoardFactory]) -> None:
     global _BOARD_FACTORY
     _BOARD_FACTORY = factory
-
-
-def _default_battlefield(state: GameState, config: GameConfig) -> None:
-    """Flat board, frames on the outermost row of their own half."""
-    state.board = FlatBoard()
-    for seat in state.seats:
-        squad = state.frames_of(seat, alive_only=False)
-        row = state.board.height - 1 if seat == state.seats[0] else 0
-        spacing = max(1, state.board.width // (len(squad) + 1))
-        for index, frame in enumerate(squad):
-            frame.pos = Pos(min(state.board.width - 1, spacing * (index + 1)), row)
 
 
 def _real_battlefield(state: GameState, config: GameConfig) -> None:
@@ -226,19 +242,22 @@ def _place_fugitive(state: GameState, field: Any) -> None:
 
 
 def _build_battlefield(state: GameState, config: GameConfig) -> None:
+    """Deal the battlefield, or fail. There is deliberately no fallback.
+
+    This used to swallow any exception from `_real_battlefield` and carry on
+    with a featureless board. That is the worst possible failure mode: the
+    game would keep playing, but on flat ground with unlimited line of sight,
+    silently producing wrong rules. A broken setup must stop the game.
+    """
     if _BOARD_FACTORY is not None:
         _BOARD_FACTORY(state, config)
     else:
-        try:
-            _real_battlefield(state, config)
-        except Exception as exc:               # pragma: no cover - safety net
-            state.note(f"terrain dealing failed ({exc}); using a flat board")
-            state.board = None
-            state.objectives.clear()
-            state.tokens.clear()
-            _default_battlefield(state, config)
+        _real_battlefield(state, config)
     if state.board is None:
-        _default_battlefield(state, config)
+        raise RuntimeError(
+            "the board factory did not set state.board -- a game cannot be "
+            "played without a battlefield"
+        )
 
 
 # --------------------------------------------------------------------------

@@ -35,7 +35,7 @@ from ..engine import (
     load_frames,
     validate_all_decks,
 )
-from . import ai_bridge, images
+from . import ai_bridge, assets, images
 from .games import REGISTRY, GameNotFound, Registry, Session, default_decks
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
@@ -261,6 +261,8 @@ class Router:
             "frames": len(self.frames()),
             "decks": len(available_decks()),
             "images": len(images.available()),
+            "terrainArt": len(assets.terrain_files()),
+            "tokenArt": len(assets.token_files()),
             "ai": ai_bridge.param_schema()["source"],
             "server": "stdlib",
         }
@@ -329,7 +331,10 @@ class Router:
         return {"gameId": session.id, "view": session.view()}
 
     def _get_game(self, game_id: str, **_: Any) -> dict[str, Any]:
-        return self.registry.get(game_id).view()
+        # A plain GET is "what is on the table now" -- a refresh or a deep link.
+        # The AI replay belongs to the command that caused it, so it is not
+        # replayed again here.
+        return self.registry.get(game_id).view(with_replay=False)
 
     def _delete_game(self, game_id: str, **_: Any) -> dict[str, Any]:
         self.registry.get(game_id)

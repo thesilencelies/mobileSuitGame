@@ -23,6 +23,8 @@
 //   getThreat(gameId, frameId)      -> {reach, los, movement, ...}
 //   setAiParams(gameId, params)     -> view
 //   cardImageUrl(key, width)        -> a URL the client can put in an <img>
+//   terrainImageUrl(cardName)       -> the terrain card's playable grid
+//   tokenImageUrl(kind, hp)         -> the piece art for a token at that hp
 //
 // Nothing here may reference an external host: the app has to work with no
 // network at all.
@@ -77,6 +79,8 @@ export const api = {
     post(`/api/game/${gameId}/ai-params`, { aiParams: params }),
 
   cardImageUrl,
+  terrainImageUrl,
+  tokenImageUrl,
 };
 
 // Card art is named "{Group}_{Name}.png" -- the same string as the engine's
@@ -85,4 +89,41 @@ export const api = {
 // print-density original to a phone.
 export function cardImageUrl(key, width = 240) {
   return `/api/card-image/${encodeURIComponent(key)}?w=${width}`;
+}
+
+// Terrain and token art are plain static files rather than an API route: the
+// board asks for up to twenty terrain cards at once and they never change, so
+// they want to sit in the browser's cache like any other image. `assets.py`
+// writes them under these names -- keep `slug` in step with `assets.slug`.
+export function terrainImageUrl(cardName) {
+  return `/static/terrain/${slug(cardName)}.jpg`;
+}
+
+// The numbered token art *is* the damage state: `Tower4` is untouched and
+// `Tower1` is one hit from destroyed, and each Power Reactor has two states.
+// `hp` picks the file; anything without states ignores it.
+export function tokenImageUrl(kind, hp) {
+  const stem = TOKEN_ART[String(kind || '').toLowerCase()];
+  if (!stem) return null;
+  if (typeof stem === 'string') return `/static/tokens/${stem}.png`;
+  const step = Math.max(1, Math.min(stem.states, Number(hp) || 1));
+  return `/static/tokens/${stem.stem}${step}.png`;
+}
+
+const TOKEN_ART = {
+  tower: { stem: 'Tower', states: 4 },
+  reactor: { stem: 'PowerPlant', states: 2 },
+  shiny: 'Shiny',
+  fugitive: 'Fugitive',
+  barricade: 'Barricade',
+  gravitywell: 'GravityWell',
+  portal: 'Portal',
+  illusion: 'Illusion',
+  real: 'Real',
+  image: 'Image',
+};
+
+function slug(name) {
+  return String(name || '').trim().replace(/[^A-Za-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
 }

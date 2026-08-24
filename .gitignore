@@ -232,10 +232,11 @@ TSWLatexianTemp*
 !CardImages/*.png
 !RulesImages/*.png
 
-# the playtest app's downscaled card art ships WITH the app -- a phone clones the
-# repo and has no way to regenerate these, so they must be tracked
-!playtest/server/static/cards/*.jpg
-!playtest/server/static/icons/*.png
+# the playtest app's downscaled art ships WITH the app -- a phone clones the repo
+# and has no way to regenerate these, so everything under static/ must be tracked
+# (cards/, terrain/, tokens/ and the app icons)
+!playtest/server/static/**/*.jpg
+!playtest/server/static/**/*.png
 
 !tts_assets/*.png
 

@@ -271,8 +271,17 @@ def test_close_quarters_is_still_blocked_by_a_face_down_card():
 # --------------------------------------------------------------------------
 
 
-def test_guard_break_consumes_one_block_per_zone():
-    """`Great Axe_Split` has Guard Break with Mid 2 and Low 2."""
+def _gunner_duel(distance=5):
+    """A ranged duel, for the three-zone Guard Break attacks."""
+    return _duel(a=Pos(1, 1), b=Pos(1 + distance, 1))
+
+
+def test_guard_break_needs_a_block_for_each_zone():
+    """`Great Axe_Split` has Guard Break with Mid 2 and Low 2.
+
+    Neither of these one-zone cards spans both attacked zones, so both are
+    spent -- one block per zone.
+    """
     card = CATALOGUE["Great Axe_Split"]
     assert "guardbreak" in card.keywords
     state, atk, dfn = _duel()
@@ -292,6 +301,111 @@ def test_guard_break_zones_without_a_block_still_land():
     run_attack(state, atk, uid, dfn)
     assert dfn.damage["Mid"] == 0
     assert dfn.damage["Low"] == 2, "the unblocked zone deals its damage"
+
+
+def test_one_card_blocks_every_guard_break_zone_it_covers():
+    """"The same card can block multiple zones if it has them"
+    (rules.tex:956). `Cannon_Airburst` breaks guard on High 2 / Mid 2 / Low 1;
+    a single High+Mid card covers two of them by itself."""
+    state, atk, dfn = _gunner_duel()
+    blocker_card = CATALOGUE["Greatsword_Rising Cut"]    # blocks High 1, Mid 1
+    assert blocker_card.block_zones == {"High", "Mid"}
+    assert not blocker_card.super_block_zones
+
+    uid = give(state, atk, "Cannon_Airburst")
+    blocker = give(state, dfn, "Greatsword_Rising Cut")
+    run_attack(state, atk, uid, dfn)
+
+    assert dfn.damage["High"] == 0 and dfn.damage["Mid"] == 0
+    assert dfn.damage["Low"] == 1, "only the uncovered zone gets through"
+    assert state.cards[blocker].location == "discard"
+
+
+def test_a_card_spanning_every_zone_stops_a_guard_break_attack_alone():
+    state, atk, dfn = _gunner_duel()
+    uid = give(state, atk, "Cannon_Airburst")            # High/Mid/Low
+    blocker = give(state, dfn, "Basic_Block")            # blocks all three
+    spare = give(state, dfn, "Basic_Kick")
+    run_attack(state, atk, uid, dfn)
+
+    assert dfn.damage == {"High": 0, "Mid": 0, "Low": 0}
+    assert state.cards[blocker].location == "discard"
+    assert state.cards[spare].location == "committed", "spent once, not per zone"
+
+
+def test_a_super_block_covers_several_guard_break_zones_and_is_still_kept():
+    state, atk, dfn = _gunner_duel()
+    blocker_card = CATALOGUE["Shield_Lock down"]         # High 2 (super), Mid 1
+    assert blocker_card.block_zones == {"High", "Mid"}
+    assert blocker_card.super_block_zones == {"High"}
+
+    uid = give(state, atk, "Cannon_Airburst")
+    blocker = give(state, dfn, "Shield_Lock down")
+    run_attack(state, atk, uid, dfn)
+
+    assert dfn.damage["High"] == 0 and dfn.damage["Mid"] == 0
+    assert dfn.damage["Low"] == 1
+    assert state.cards[blocker].location == "committed", "a super block is kept"
+
+
+def test_guard_break_keeps_asking_while_a_card_still_covers_an_open_zone():
+    """The engine's reading of the multi-defender case.
+
+    The rulebook does not say who blocks what when several cards overlap. This
+    engine treats it as: blocking stays compulsory while *any* remaining card
+    covers *any* still-unblocked zone, and the defender picks which card each
+    time. So the order is a real decision -- covering wide first spends one
+    card, covering narrow first can cost a second.
+    """
+    def play(prefer_wide):
+        state, atk, dfn = _gunner_duel()
+        uid = give(state, atk, "Cannon_Airburst")        # High/Mid/Low
+        wide = give(state, dfn, "Basic_Block")           # all three
+        narrow = give(state, dfn, "Basic_Kick")          # Low only
+
+        def chooser(zones, candidates):
+            want = wide if prefer_wide else narrow
+            return want if want in candidates else candidates[0]
+
+        run_attack(state, atk, uid, dfn, chooser=chooser)
+        spent = [u for u in (wide, narrow)
+                 if state.cards[u].location == "discard"]
+        return dfn.damage, spent
+
+    damage, spent = play(prefer_wide=True)
+    assert damage == {"High": 0, "Mid": 0, "Low": 0}
+    assert len(spent) == 1, "the wide card covers everything on its own"
+
+    damage, spent = play(prefer_wide=False)
+    assert damage == {"High": 0, "Mid": 0, "Low": 0}
+    assert len(spent) == 2, "blocking Low first leaves High/Mid still compulsory"
+
+
+def test_guard_break_is_the_only_difference_from_an_ordinary_attack():
+    """Same blocker, same attacked zones -- only the keyword differs.
+
+    Ordinary: one matching zone stops the whole attack. Guard Break: the card
+    covers only the zones it blocks and the rest lands.
+    """
+    blocker_key = "Sword_Slice"                          # blocks High and Low
+    assert CATALOGUE[blocker_key].block_zones == {"High", "Low"}
+
+    # Ordinary attack on High and Mid.
+    state, atk, dfn = _duel()
+    assert "guardbreak" not in CATALOGUE["Greatsword_Cleave"].keywords
+    give(state, dfn, blocker_key)
+    run_attack(state, atk, give(state, atk, "Greatsword_Cleave"), dfn)
+    assert dfn.damage == {"High": 0, "Mid": 0, "Low": 0}, "one zone stops it all"
+
+    # Guard Break attack on High and Mid.
+    state2, atk2, dfn2 = _gunner_duel()
+    breaker = CATALOGUE["Missile Rack_Missile Rack 1"]   # High 2, Mid 2
+    assert "guardbreak" in breaker.keywords
+    give(state2, dfn2, blocker_key)
+    run_attack(state2, atk2, give(state2, atk2, "Missile Rack_Missile Rack 1"),
+               dfn2)
+    assert dfn2.damage["High"] == 0, "the card's High block still covers High"
+    assert dfn2.damage["Mid"] == 2, "Mid is not covered, so it lands"
 
 
 def test_a_feint_deals_no_damage_but_still_forces_a_block():

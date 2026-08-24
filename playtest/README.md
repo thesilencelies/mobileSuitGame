@@ -60,11 +60,11 @@ alone is not enough. Copy:
 
 | Path | Why | Size |
 |---|---|---|
-| `playtest/` | the app, including `server/static/cards/` | ~3.5 MB |
+| `playtest/` | the app, including its bundled art | ~4.0 MB |
 | `*.csv` at the repo root | card, frame and terrain data the engine parses | ~48 KB |
 | `decks/` | deck lists, terrain decks, objective decks | ~140 KB |
 
-**About 3.7 MB in total.** You do **not** need `AllCardImages/` (24 MB of
+**About 4.2 MB in total.** You do **not** need `AllCardImages/` (24 MB of
 print-density PNGs) — `playtest/server/static/cards/` already holds every card
 at phone size. Nor `build/`, `pictures/`, `rules/` or `simulation/`.
 
@@ -79,9 +79,9 @@ or, over USB / a cable / a share, copy the folder and delete `AllCardImages/`
 on the phone. Termux can read your Downloads folder after
 `termux-setup-storage` (`~/storage/downloads`).
 
-> `playtest/server/static/cards/` is **generated** but must travel with the app
-> — do not add it to `.gitignore`, or a `git clone` on the phone will arrive
-> with no card art.
+> `playtest/server/static/cards/`, `.../terrain/` and `.../tokens/` are
+> **generated** but must travel with the app — do not add them to
+> `.gitignore`, or a `git clone` on the phone will arrive with no art.
 
 ### 4. Run it
 
@@ -149,14 +149,22 @@ loopback: there is no authentication and no encryption, so do not expose it.
 
 ## Using the client
 
-Four tabs along the bottom, all reachable one-handed with a thumb:
+Five tabs along the bottom, all reachable one-handed with a thumb:
 
 | Tab | What it is |
 |---|---|
 | **Board** | The 15×16 battlefield. |
 | **Plan** | Your hand, and the two actions you are committing face down. |
+| **Field** | The tableau: every card standing in front of every frame. |
 | **Initiative** | Every committed card in initiative order, highest first. |
 | **Log** | The full event log, newest first. |
+
+Tapping a frame — on the board or in the strip along the top — opens its
+read-out **in the ribbon above the board**, not over it: its frame card, its
+ability text (which is live: Hector's free block, Adam's pierce initiative,
+Kamikiri's bonus cut), its damage by zone and the cards in front of it. Tapping
+it again closes it. A decision selects the frame it is about, but does not open
+the panel — the board stays visible.
 
 The **decision sheet** at the bottom always shows what the engine is waiting
 for. Drag its handle to collapse it when you want more board.
@@ -168,6 +176,13 @@ with its own camera rather than a table the browser scrolls:
 
 * **FIT** shows all 240 tiles at once, about 24 px per tile — enough to read the
   shape of the fight.
+* **ART** switches between two readings of the same board. With art on, the
+  dealt terrain cards are drawn *behind* the grid, each clipped to its own 3×4
+  tile block and turned 180° for the half its owner laid out facing themselves
+  — the board as it sits on a table — and the objective tokens use their piece
+  art, whose numbered variants *are* the damage state (`Tower4`…`Tower1`,
+  `PowerPlant2`…`PowerPlant1`). With it off you get the abstract elevation
+  ramp, which is still the faster read at FIT. Neither replaces the other.
 * **One finger pans, two fingers pinch.** **Double-tap** toggles between FIT and
   a tactical zoom centred on the tile you tapped, at which a tile is a
   comfortable finger-width — so a tile is always big enough to hit when you
@@ -186,8 +201,49 @@ Tapping:
   engine's own `pending.options`, never a client guess about reachability;
 * a **red pulsing frame** during an `attack_target` decision attacks it.
 
-Drawer toggles: line-of-sight shading for the selected frame, enemy reach
-shading, terrain-card outlines, tile coordinates.
+Drawer toggles: terrain and piece art, line-of-sight shading for the selected
+frame, enemy reach shading, terrain-card outlines, tile coordinates.
+
+### Choosing a target
+
+The target list is the read the game turns on, so it states, per zone, what the
+defender can still cover:
+
+* how many of the cards still standing in front of them block that zone, how
+  many of those are **super** blocks (kept, not discarded), and which cards
+  they are;
+* how many **face-down** cards they have left — any of which might cover
+  anything, which is why the count is given whole and never broken down by
+  zone;
+* which zones nothing they can see covers, summed up on the attack button
+  ("2 zones uncovered").
+
+All of it comes from the engine's own `combat.block_options`, so Close Quarters
+barring already-resolved cards, and Guard Break letting one wide card cover
+several zones at once, are the engine's answers rather than the client's guess.
+
+### Watching the AI move
+
+`POST /command` runs the AI until you are on the clock again, so one tap can
+cover three frames moving, an attack, a compulsory block and a death. The
+server ships a snapshot per logged AI decision and the client plays them
+through the board at the pace you pick — **Instant / Brisk / Steady / Slow** in
+the drawer, with a **Skip** button on the playback bar. The camera follows the
+acting frame unless you turn that off. Skipping always lands on exactly the
+same state as watching.
+
+A corner card on the board says which frame is acting, with which card, at what
+initiative, and how far through its steps it is — during your turn and during
+the playback alike.
+
+### Ordering the steps
+
+A card with more than one step asks how to order them. Since it is usually the
+same answer twice running, the last order you accepted comes back as a single
+**Same as last time** tap (remembered per frame, and only offered when it still
+answers the question being asked). Every order the engine offers is one tap
+below that, and the step-by-step picker is still there under *Build the order
+step by step*.
 
 ### What the UI is honest about
 
@@ -235,8 +291,26 @@ GET    /api/game/{id}/log          full event log
 GET    /api/game/{id}/threat?frame=a0   reach + line of sight, public info only
 ```
 
-`/?game=<id>` deep-links straight into a running game; `&view=board|plan|order|log`
-picks the tab.
+`/?game=<id>` deep-links straight into a running game;
+`&view=board|plan|field|order|log` picks the tab.
+
+### What a game view carries beyond `view_for`
+
+`Session.view()` adds four things the client cannot work out for itself, all of
+them assembled in `readouts.py` from engine calls rather than restated rules:
+
+| Key | What it is |
+|---|---|
+| `resolving` | The card mid-resolution: frame, card key, effective initiative, remaining steps, and the attack in flight. `PendingDecision` names only the frame, and during a compulsory block that frame is the *defender* — so this is not `pending.frameId`. |
+| `defence` | Per frame, per zone: how many cards still in front of it block that zone, how many are super blocks, which ones (when this seat may know), and how many cards are face down. |
+| `initiative` | `{uid: initiative}` as the engine will queue it, for cards this seat can identify. |
+| `replay` | Snapshots of the AI's decisions since you last acted. Present on a command response, absent from a plain `GET` — a refresh must not re-animate. |
+
+Redaction is the same rule as the rest of the view: a card this seat may not
+identify contributes to counts and nothing else. Replay snapshots go further
+and carry **no card uids at all** — a card that was face up while it resolved
+can be discarded, reshuffled and drawn again, so its uid in a snapshot would be
+a handle on a card that is in the AI's hand now.
 
 ### Command payloads
 
@@ -301,6 +375,31 @@ Filenames contain spaces, so clients must URL-encode the key.
 Override paths with `NETFRAME_CARD_IMAGES` (originals), `NETFRAME_CARD_THUMBS`
 (bundle) and `NETFRAME_THUMB_CACHE` (on-demand cache; defaults under the system
 temp dir so nothing generated lands in the repo).
+
+## Board art
+
+The board needs two more sets, built by `playtest/server/assets.py` and served
+as plain static files (the board asks for twenty terrain cards at once; they
+belong in the browser cache, not behind an API route):
+
+```bash
+python -m playtest.server.assets            # both
+python -m playtest.server.assets --what terrain --force
+```
+
+* **`static/terrain/`** — 31 cards, 0.57 MB. The printed terrain art in
+  `terrain/` is a 640×890 card; what the board wants is the 3×4 tile grid
+  inside it, so the builder crops to exactly the grid `terrain_cards.py` draws
+  (2.06 cm tiles from (0.1, 0.2), art placed 6.35 cm wide at (3.25, 4.45)) and
+  scales that to 240×320. The crop coming out 3:4 to within a pixel is the
+  check that the geometry is right — `test_terrain_crop_is_the_playable_grid`.
+* **`static/tokens/`** — 14 pieces from `tts_assets/`, 0.03 MB, 96 px PNG8 with
+  their transparency intact.
+
+**All of this is committed**, like the card bundle and for the same reason: the
+phone clones the repo and can neither regenerate it nor install ImageMagick.
+`.gitignore` has the negations. Total art carried to the phone: **3.09 MB**
+(2.46 cards + 0.57 terrain + 0.03 tokens + icons).
 
 ## Tests
 

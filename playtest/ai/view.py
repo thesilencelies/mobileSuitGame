@@ -313,6 +313,10 @@ class Snapshot:
         self.pending: Optional[Mapping[str, Any]] = view.get("pending")
         self.log: Sequence[Mapping[str, Any]] = view.get("log") or ()
         self.vp: Mapping[str, int] = view.get("vp") or {}
+        #: `readouts.resolving` when the caller supplies it: which frame and
+        #: which card the engine is part-way through, and the attack in flight.
+        #: Absent from a bare `view_for`, so every reader must tolerate `None`.
+        self.resolving: Optional[Mapping[str, Any]] = view.get("resolving")
 
         board_json = view.get("board") or {}
         self.board = board if board is not None else build_board(board_json)

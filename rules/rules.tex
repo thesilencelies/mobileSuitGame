@@ -610,6 +610,56 @@ After finishing the attack the card resolution ends, and the card remains on the
 
 If the defender fails to reveal any valid blocks they did have face down, those cards cannot be activated later in the round and are instead discarded.
 
+\subsubsection{Blocking a \guardbreak\ attack}
+\guardbreak\ (see Keywords) changes only \emph{how much} one block stops. Against an ordinary
+attack a single matching zone stops the whole thing; against \guardbreak\ each zone must be
+blocked on its own, and any zone left uncovered still deals its damage.
+A blocking card covers \emph{every} attacked zone it has a block in --- one card, spent once.
+
+\begin{figure}[!ht]
+  \centering
+  \resizebox{0.92\columnwidth}{!}{\begin{tikzpicture}
+    \zscaffold{\guardbreak: card 1 covers High and Mid, so only Low lands.}
+    \node at (1.9,2.0){\smallcut};
+    \node at (1.9,1.1){\smallcut};
+    \node at (1.9,0.2){\smallcut};
+    \zshield{4.275}{2.0}{cityblue}
+    \zshield{4.275}{1.1}{cityblue}
+    \zshield{5.575}{2.0}{cityblue}
+    \draw[blockedatk] (2.55,2.0)--(3.95,2.0);
+    \draw[blockedatk] (2.55,1.1)--(3.95,1.1);
+    \draw[landedatk] (2.55,0.2)--(6.5,0.2);
+    \zburst{6.95}{0.2}{$-1$}
+    \zdiscard{4.275}{-0.62}
+  \end{tikzpicture}}\par\smallskip
+  \resizebox{0.92\columnwidth}{!}{\begin{tikzpicture}
+    \zscaffold{The same cards without \guardbreak: one zone stops it all.}
+    \node at (1.9,2.0){\smallcut};
+    \node at (1.9,1.1){\smallcut};
+    \node at (1.9,0.2){\smallcut};
+    \zshield{4.275}{2.0}{cityblue}
+    \zshield{4.275}{1.1}{cityblue}
+    \zshield{5.575}{2.0}{cityblue}
+    \draw[blockedatk] (2.55,2.0)--(3.95,2.0);
+    \draw[deadatk] (2.55,1.1)--(3.55,1.1);
+    \draw[deadatk] (2.55,0.2)--(3.55,0.2);
+    \node[text=black!50, font=\scriptsize\bfseries] at (3.05,0.68){cancelled};
+    \zdiscard{4.275}{-0.62}
+  \end{tikzpicture}}
+  \caption{The same attack and the same defending cards, with and without \guardbreak.
+  Card 1 blocks High and Mid; card 2 blocks High only. \emph{Top:} under \guardbreak\ card 1
+  covers both of the zones it blocks by itself --- it is still discarded only once --- and the
+  unblocked Low mark deals its damage. \emph{Bottom:} without \guardbreak\ the High block alone
+  cancels the entire attack.}
+\end{figure}
+
+Blocking stays compulsory while any remaining card blocks any zone that is still unblocked,
+and the defender chooses which card to spend each time --- so the order matters.
+Against a \guardbreak\ attack on all three zones, a defender holding one card that blocks all
+three and another that blocks only Low spends a single card by blocking with the wide one
+first, but two cards if they spend the Low block first, since High and Mid are then still open
+and must still be blocked.
+
 \subsubsection{Melee between elevations}
 If the attack is a melee attack and the defender is at a different elevation to the attacker, the attacks are moved up one bracket per difference in elevation.
 Any attacks that are moved higher than High or lower than Low are considered out of range.

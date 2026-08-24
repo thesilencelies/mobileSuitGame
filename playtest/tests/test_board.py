@@ -1,6 +1,6 @@
 """Board geometry: adjacency, movement costs and line of sight (workstream B1).
 
-The three line-of-sight figures in rules.tex (lines 438-488) are reproduced
+The three line-of-sight figures in rules.tex (lines 488-538) are reproduced
 here against the real terrain cards they are drawn on.
 """
 
@@ -48,7 +48,7 @@ def printed(col: int, row_from_bottom: int) -> Pos:
 
 
 # --------------------------------------------------------------------------
-# Adjacency and range (rules.tex:285)
+# Adjacency and range (rules.tex:278)
 # --------------------------------------------------------------------------
 
 
@@ -76,7 +76,7 @@ def test_range_is_a_square():
     board = board_from_codes([["" for _ in range(7)] for _ in range(7)])
     centre = Pos(3, 3)
     within = {p for p in board.positions() if board.distance(centre, p) <= 2}
-    assert len(within) == 25  # (2*2+1)^2, rules.tex:286
+    assert len(within) == 25  # (2*2+1)^2, rules.tex:279
     assert board.distance(Pos(0, 0), Pos(3, 1)) == 3
 
 
@@ -89,7 +89,7 @@ def test_out_of_bounds():
 
 
 # --------------------------------------------------------------------------
-# Movement (rules.tex:396-406)
+# Movement (rules.tex:446-451)
 # --------------------------------------------------------------------------
 
 
@@ -131,7 +131,7 @@ def test_climb_descend_asymmetry_round_trip():
 
 
 def test_cannot_stop_part_way_up():
-    """The climb is paid on entry and is all-or-nothing (rules.tex:404).
+    """The climb is paid on entry and is all-or-nothing (rules.tex:450).
 
     A frame with 2 movement standing next to an elevation-2 tile cannot spend
     what it has to get half way -- the tile costs 3 or nothing.
@@ -189,12 +189,12 @@ def test_path_to_self_is_trivial():
 
 
 # --------------------------------------------------------------------------
-# Line of sight -- the three worked figures (rules.tex:438-488)
+# Line of sight -- the three worked figures (rules.tex:488-538)
 # --------------------------------------------------------------------------
 
 
 def test_los_figure_one_sports_field(cards):
-    """rules.tex:441. A on the ground, another frame beside it.
+    """rules.tex:492. A on the ground, another frame beside it.
 
     Top target in sight; middle target blocked by the intervening frame (a tile
     with a frame counts one elevation higher); bottom target blocked by an
@@ -221,42 +221,43 @@ def test_los_figure_one_sports_field(cards):
 
 
 def test_los_figure_two_waste_camp(cards):
-    """rules.tex:459. An obstacle only blocks when it is next to the target.
+    """rules.tex:512. An obstacle only blocks when it is next to the target.
 
-    The left shot passes through an obstacle two tiles from its target, which is
-    therefore not an obstruction at all, and the target is in sight -- the
-    figure's lesson, and its verdict.
+    Both shots pass through an obstacle. The left target is in sight because its
+    obstacle is a tile away and so is not an obstruction at all. The right
+    target is blocked by the obstacle sitting right beside it.
     """
     board = single_card_board(cards, "Waste Camp")
     attacker = printed(0, 0)
-    left = printed(0, 3)
+    left, right = printed(0, 3), printed(2, 3)
 
     assert board.has_line_of_sight(attacker, left)
     assert board.line_of_sight_blockers(attacker, left) == frozenset()
-    # the obstacle beside the *right* target is an obstruction for that shot
-    assert printed(2, 2) in board.line_of_sight_blockers(attacker, printed(2, 3))
+
+    assert not board.has_line_of_sight(attacker, right)
+    # the figure's red cross: the obstacle beside the right target
+    assert printed(2, 2) in board.line_of_sight_blockers(attacker, right)
 
 
-def test_los_figure_two_right_target_is_visible_erratum(cards):
-    """rules.tex:459's right-hand verdict is wrong; the rule wins.
+def test_los_figure_two_right_target_stays_blocked_however_finely_sampled(cards):
+    """The verdict the source-permissive reading used to get wrong.
 
-    The figure draws one line from A through the obstacle beside the target and
-    calls the target out of sight. rules.tex:424 lets the line start "anywhere
-    on the attacking frame" and end "anywhere on the target", and a line from
-    the corner of A's tile reaches the target's near edge without ever entering
-    that obstacle -- so the target is visible. The author has confirmed the rule
-    is right and the figure is in error.
+    While the line could also end anywhere on the target, a line from A's far
+    corner to the target's *side* slipped past the obstacle and made this target
+    visible, contradicting the figure. Pinning the far end to the target's
+    centre (rules.tex:474) closes that gap: every line from anywhere inside A's
+    tile to that one point crosses the obstacle. Only a line from the exact
+    corner of A's tile grazes the obstacle's corner, and a frame's extent is the
+    open tile, so no sampling density admits it.
     """
     board = single_card_board(cards, "Waste Camp")
     attacker, right = printed(0, 0), printed(2, 3)
-
-    assert board.has_line_of_sight(attacker, right)
-    # what the figure actually depicts: the centre line alone is blocked
-    assert not board.has_line_of_sight(attacker, right, samples=1)
+    for n in (1, 3, 5, 9, 21, 81):
+        assert not board.has_line_of_sight(attacker, right, samples=n)
 
 
 def test_los_figure_three_warehouse(cards):
-    """rules.tex:477. Terrain higher than the target behaves the same way.
+    """rules.tex:528. Terrain higher than the target behaves the same way.
 
     A stands on the raised block. The right target is in sight -- the high tile
     on that line is not next to it. The left target is blocked by the raised
@@ -283,8 +284,12 @@ def test_los_figure_three_warehouse(cards):
 # --------------------------------------------------------------------------
 
 
-def test_los_is_permissive_not_centre_to_centre():
-    """A blocker on the centre line that a corner-to-corner line misses."""
+def test_los_is_permissive_at_the_source():
+    """A blocker on the centre line that a line from A's corner misses.
+
+    Both lines end at the same point -- the target's centre -- so this is the
+    source permissiveness of rules.tex:474 doing the work, not the far end.
+    """
     board = board_from_codes([
         ["", "", "", ""],
         ["", "e1", "", ""],
@@ -296,6 +301,31 @@ def test_los_is_permissive_not_centre_to_centre():
     assert not board.has_line_of_sight(attacker, target, samples=1)
     # ...but a line from the attacker's far corner leaves the row before it
     assert board.has_line_of_sight(attacker, target)
+
+
+def test_the_line_must_end_at_the_target_centre():
+    """The far end is a point, not an extent (rules.tex:474).
+
+    Waste Camp's geometry in the abstract: an obstacle beside the target that a
+    line to the target's near *edge* would slip past, but a line to its centre
+    cannot. Shown on the segment primitive, since only the centre is reachable
+    through the public predicate.
+    """
+    board = board_from_codes([
+        ["", "", ""],
+        ["", "", "obs"],
+        ["", "", ""],
+        ["", "", ""],
+    ])
+    attacker, target = Pos(0, 3), Pos(2, 0)
+    assert board.line_of_sight_blockers(attacker, target) == frozenset({Pos(2, 1)})
+
+    corner = (0.98, 3.02)          # the most favourable point of A's tile
+    centre = (target.x + 0.5, target.y + 0.5)
+    near_edge = (target.x + 0.02, target.y + 0.02)
+    assert _segment_crosses_cell(*corner, *centre, 2, 1)        # the rule's line
+    assert not _segment_crosses_cell(*corner, *near_edge, 2, 1)  # the old one
+    assert not board.has_line_of_sight(attacker, target)
 
 
 def test_impassable_blocks_anywhere_on_the_line():
@@ -333,7 +363,7 @@ def test_a_frame_counts_one_elevation_higher():
 
 
 def test_flying_ignores_obstacles_for_line_of_sight():
-    """rules.tex:968: obstacles do not block LoS to or from a flying frame."""
+    """rules.tex:967: obstacles do not block LoS to or from a flying frame."""
     board = board_from_codes([["", "", "obs", ""]])
     attacker, target = Pos(0, 0), Pos(3, 0)
     assert not board.has_line_of_sight(attacker, target)

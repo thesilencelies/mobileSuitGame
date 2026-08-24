@@ -49,8 +49,15 @@ class AIParams:
     positioning: float = 1.0
     approach: float = 1.0
     elevation: float = 1.5
-    los_caution: float = 0.8
-    standoff: float = 0.8
+    # Both re-tuned after line of sight became source-permissive/target-centre.
+    # That change removed 17.7% of sight lines and added none, so terrain now
+    # breaks ranged threat on its own: paying position to dodge a line of sight
+    # that mostly is not there double-counts, and 0.8 was over-cautious
+    # (los_caution 0.3 beats 0.8 by 57.2/42.8 over 200 games). The mirror of the
+    # same fact is that getting inside the narrower band where you *do* have a
+    # line is worth more, so standoff went up (1.6 beats 0.8 by 54.2/45.8).
+    los_caution: float = 0.3
+    standoff: float = 1.6
 
     # -- policy -------------------------------------------------------------
     pool: int = 7
@@ -269,8 +276,8 @@ PRESETS: dict[str, dict[str, Any]] = {
         "positioning": 1.2,
         "approach": 1.2,
         "elevation": 2.0,
-        "los_caution": 0.9,
-        "standoff": 1.0,
+        "los_caution": 0.35,
+        "standoff": 1.8,
         "pool": 7,
         "search_width": 96,
         "think_ms": 1500,

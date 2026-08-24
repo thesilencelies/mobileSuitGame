@@ -381,12 +381,21 @@ def block_probability(
     card: CardInfo,
     prof: Profile,
 ) -> float:
-    """Chance the defender stops this attack.
+    """Chance the defender stops the zones in `zones`.
 
     Two sources, and the known one dominates: a card already face up in front
     of the target (resolved, or revealed while resolving) is a *fact*, and it
     blocks whatever it prints. Anything still face down is modelled from the
     opponent profile.
+
+    For the hidden cards this asks "does *any* of them cover this", which is
+    `1 - (1 - coverage) ** hidden`, not `coverage * hidden`. The linear form
+    over-counted badly once a frame had two or three cards out -- two cards at
+    a 0.4 block rate came out as 0.8 rather than the correct 0.64.
+
+    Call it with every attacked zone for an ordinary attack, where one
+    matching zone stops the whole thing. Call it one zone at a time for Guard
+    Break, where each zone is stopped or not on its own.
     """
     zones = list(zones)
     if not zones:
@@ -404,8 +413,8 @@ def block_probability(
         return MAX_BLOCK_PROB
     if hidden <= 0:
         return 0.0
-    coverage = max(prof.block_freq.get(z, 0.0) for z in zones)
-    return min(MAX_BLOCK_PROB, coverage * hidden)
+    coverage = min(1.0, max(prof.block_freq.get(z, 0.0) for z in zones))
+    return min(MAX_BLOCK_PROB, 1.0 - (1.0 - coverage) ** hidden)
 
 
 #: key -> CardInfo, for the known-blocker test. Registered by every
@@ -470,7 +479,17 @@ def zone_attack_value(
         return FORCE_WEIGHT * total * blocked
 
     if card.guard_break:
-        # Each zone must be blocked separately.
+        # Guard Break is a zone-by-zone question: each zone is stopped or not
+        # on its own, so what lands is exactly the zones nothing they hold
+        # covers. It is *not* a card-by-card question -- one blocking card
+        # covers every attacked zone it has a block in, so a single wide
+        # blocker turns the whole attack aside, and the defender's capacity is
+        # not consumed a zone at a time. That second half is what `score_hand`
+        # used to get wrong.
+        #
+        # Guard Break's remaining edge is attrition: every zone they have to
+        # answer can cost another card, so blocked damage earns tempo per zone
+        # rather than once for the whole attack.
         landed = 0.0
         forced = 0.0
         for zone, damage in zones.items():
@@ -677,6 +696,14 @@ def score_hand(
         cqm = 0.5 if card.close_quarters else 1.0
         zones = [(z, card.attacks[z]) for z in card.attack_zones]
         if card.guard_break:
+            # Each zone is answered on its own, so every zone is checked
+            # against the budget -- but one blocking card covers every zone it
+            # has a block in, so answering a Guard Break does *not* cost the
+            # defender a card per zone. Drawing the budget down zone by zone
+            # (as this did) left later zones looking undefended and made Guard
+            # Break score far above what it can actually do against a
+            # multi-zone blocker. Spend the budget once, like any other attack.
+            spent = 0.0
             for zone, damage in sorted(zones, key=lambda za: -za[1]):
                 blocked = min(1.0, max(0.0, budget[zone] * cqm))
                 land = damage * (1.0 - blocked)
@@ -685,7 +712,9 @@ def score_hand(
                 if blocked > 0.0 and forced[zone] < 1:
                     offense += FORCE_WEIGHT * damage * blocked * t * opp
                     forced[zone] += 1
-                budget[zone] = max(0.0, budget[zone] - 1.0)
+                spent = max(spent, blocked)
+            for zone, _damage in zones:
+                budget[zone] = max(0.0, budget[zone] - spent)
         else:
             zb = max(zones, key=lambda za: budget[za[0]])[0]
             blocked = min(1.0, max(0.0, budget[zb] * cqm))
