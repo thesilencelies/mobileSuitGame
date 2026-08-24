@@ -471,7 +471,8 @@ To select a target for a ranged attack the target must be:
 \item within the range of the attack
 \item not adjacent to the attacking frame
 \end{itemize}
-Then draw a line starting from anywhere on the the attacking frame to anywhere on the target. If there are no obstructions on that line, the target is valid.
+Then draw a line starting from anywhere on the the attacking frame to the center of the target.
+If there are no obstructions on that line, the target is valid.
 
 The following count as an obstruction:
 \begin{itemize}
@@ -952,12 +953,13 @@ count & type & group & cards \\
 \subsection{Attack Keywords}
 \begin{tabular}{p{0.2\linewidth} p{0.7\linewidth}}
   On Hit: & The ability text after the colon only applies if the attack hits (that is, is not blocked) \\ 
-  Guard Break & This attack consumes a block for each zone. Zones that are not blocked deal damage. \\
+  Guard Break & This attack consumes a block for each zone. The same card can block multiple zones if it has them. Zones that are not blocked deal damage. \\
   Committed & This attack is discarded after it resolves \\
   Feint & If this attack is not blocked, it deals no damage. (Blocks are compulsory) \\
   Close Quarters & This attack cannot be blocked by attacks that have already been resolved \\
   Knockback (X) & Move the target frame X steps in any direction away from the source (cannot move up elevation) \\
-  Reload & This card persists until this frame next resolves an attack from this weapon. That card has no effect or attack --- it deals no damage, consumes no blocks and triggers no abilities (including any further Reload) --- though the frame still moves as normal. This card is then discarded \\
+  Reload & This card persists until this frame next resolves an attack from this weapon. That card has no effect or attack. 
+  It deals no damage, consumes no blocks and triggers no abilities but still moves as normal. This card is then discarded \\
 \end{tabular}
 
 \subsection{Frame Keywords}
