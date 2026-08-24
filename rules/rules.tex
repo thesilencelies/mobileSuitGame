@@ -21,7 +21,7 @@
  \setcounter{secnumdepth}{0}
 
 
-\title{\Huge{NetFrame} \\ \small{Version 0.5}}
+\title{\Huge{NetFrame} \\ \small{Version 0.8}}
 %\author{Stephen Lilico}
 \date{}
 \ULCornerWallPaper{1.0}{../pictures/rules_background.png}
@@ -42,7 +42,7 @@
   \fill[#4!22!white] (#1,#2) circle (0.60);
   \begin{scope}
     \clip (#1,#2) circle (0.57);
-    \node at (#1,#2) {\includegraphics[height=1.25cm]{#3}};
+    \node at (#1,#2-0.3) {\includegraphics[height=1.25cm]{#3}};
   \end{scope}
   \draw[line width=3pt, #4] (#1,#2) circle (0.60);
 }
@@ -267,26 +267,73 @@ Tiles that contain obstacles have a yellow dashing on their border and yellow di
 Tiles that indicate objectives have green lines.
 Tiles where a token should be placed on them (explained in the rules text on the card) have orange hatching.
 
-\begin{figure}[!ht]
+\begin{figure}[!hb]
   \centering
   \textbf{Terrain card}\par\medskip
-  \input{../build/terrain/Fugitive.tex}
+  \resizebox{\textwidth/5}{!}{\input{../build/terrain/Fugitive.tex}}
+  \resizebox{\textwidth/5}{!}{\input{../build/terrain/Helpcard.tex}}
   \par example of a terrain card\par\medskip
 \end{figure}
-
-\begin{figure}[!ht]
-  \centering
-  \textbf{Terrain helper}\par\medskip
-  \input{../build/terrain/Helpcard.tex}
-  \par explanation of terrain card symbols \par\medskip
-\end{figure}
-
 
 Movement on these tiles is lateral and diagonal. The 8 tiles surrounding any one tile are all adjacent to it (so would count for melee attacks).
 Ranges are considered the same way (so you can consider the maximum range a square centered on the frame with sides of length twice the range + 1).
 Movement is counted in steps.
 
 
+
+\onecolumn
+\section{Card anatomy}
+
+\begin{figure*}[!ht]
+  \centering
+  \resizebox{\textwidth}{!}{\input{../build/rules_weapon_ranged.tex}}
+    \par A ranged Weapon Card
+\end{figure*}
+
+% \begin{figure*}[!ht]
+%   \centering
+%     \resizebox{\textwidth}{!}{\input{../build/rules_weapon_melee.tex}}
+%     \par A melee Weapon Card
+% \end{figure*}
+
+\begin{figure*}[!ht]
+  \centering
+    \resizebox{\textwidth}{!}{\input{../build/rules_weapon_superblock.tex}}
+    \par A Weapon Card with a super block
+\end{figure*}
+
+\begin{figure*}[!ht]
+    \centering
+      \resizebox{\textwidth}{!}{\input{../build/rules_pilot.tex}}
+    \par A Pilot Card
+\end{figure*}
+
+\renewcommand{\arraystretch}{1.0}
+\begin{tabular}{p{0.3\textwidth} | p{0.7\textwidth}}
+  \makecell[cl]{Initiative:\\  \includegraphics[width=0.5cm]{../icons/initImg.png} }&Marks when the card will resolve. Higher numbers resolve before lower numbers\\ \hline
+  \makecell[cl]{Movement:\\ \includegraphics[width=0.5cm]{../icons/mvimg_old.png}}&How much to add (or subtract if its negative) to the movement for the action with this card\\\hline
+  \makecell[cl]{Attack marks:\\ \smallprojectile \smallpierce \smallcut \smallimpact \smallenergy }& How much damage to deal at this zone if this attack hits (symbol indicates damage type)\\\hline
+  \makecell[cl]{Attack range:\\ \includegraphics[width=0.5cm]{../icons/rangeImg.png}} &Range of ranged attack\\\hline
+  \makecell[cl]{Block mark:\\ \resizebox{0.7cm}{!}{\begin{tikzpicture}\blockshield{0}{0}{gray}\end{tikzpicture}}} & This zone has a block. \\\hline
+  \makecell[cl]{Super block mark:\\ \resizebox{0.95cm}{!}{\begin{tikzpicture}\superblockshield{0}{0}{gray}\end{tikzpicture}}} &Same as a block but the blocking card is not discarded when it blocks.\\\hline
+  \makecell[cl]{Persistence mark:\\ \tikz{\node [circle, fill = red]{{\textbf{2}}}; }} &Indicates that the card stays on the field after resolving until its effects finish. N indicates how many turns that is.\\\hline
+  Ability text: &Effects that happen when this card is played or resolved.\\\hline
+  \makecell[cl]{Type info:\\\emph{(bottom)}} & What type of card it is, and categorization information. Used for deck building.\\
+\end{tabular}
+\renewcommand{\arraystretch}{1.0}
+
+\begin{figure}[!ht]
+  \centering
+  \resizebox{\textwidth}{!}{\input{../build/rules_drone.tex}}
+  \par Drone Card
+\end{figure}
+
+\begin{figure}[!ht]
+  \centering
+  \resizebox{\textwidth}{!}{\input{../build/rules_frame.tex}}
+\end{figure}
+
+\onecolumn
 \section{Setup}
 Each player builds a grid of 2 rows of (number of frames + 2) from their terrain deck.
 (for 2 players with 3 frames each that makes a 5x4 grid).
@@ -355,15 +402,18 @@ After all frames are deployed this way the player who deployed first receives th
           inner sep=3pt, text=orange!60!red] at (28.6,13.5){objective tokens};
     \draw[orange!85!red, line width=1.4pt, -{Latex[length=2.4mm]}] (26.9,13.5) -- (25.4,12.4);
     % labels
-    \node[font=\Large\bfseries, text=purple!60!black, anchor=south] at (16.25,36.2){Opponent's terrain --- two rows, dealt facing them (so they read upside-down to you)};
+    \node[font=\Large\bfseries, text=purple!60!black, anchor=south] at (16.25,36.2){Opponent's terrain --- two rows, dealt facing them};
     \node[font=\Large\bfseries, text=yellow!45!black, anchor=north] at (16.25,-0.4){Your terrain --- two rows};
     \node[fill=white, draw=orange!85!red, rounded corners=3pt, font=\bfseries\small, inner sep=3pt, text=orange!60!red, anchor=west] at (-0.5,18.9){\raisebox{-0.2ex}{\tikz\draw[orange!85!red, line width=2pt, rounded corners=1.5pt](0,0)rectangle(0.35,0.24);}~one objective per row};
   \end{tikzpicture}}
-  \caption{A 3-versus-3 game set up: each player deals their terrain deck into two rows of five (frames $+$ 2), so the battlefield is a $5\times4$ grid. Each player's two rows are dealt facing them, so one player's terrain reads upside-down to the other. Each player places one objective in each of their rows (orange outlines) and puts any tokens the objective calls for onto its card --- here the four Power Reactor tokens and The Tower's token. Frames are then deployed one at a time onto the nearest edge of their own terrain.}
+  \caption{A 3-versus-3 game set up: the battlefield is a $5\times4$ grid.
+  Each player places one objective in each of their rows (orange outlines) and puts any tokens the objective calls for onto its card --- here the four Power Reactor tokens and The Tower's token.
+  Each player deals two rows of their terrain facing them, so one player's terrain reads upside-down to the other. Frames are then deployed one at a time onto the nearest edge of their own terrain.}
   \label{fig:board-setup}
 \end{figure*}
 
-\section{The turn}
+
+\twocolumn[{\centering\LARGE\textbf{The Turn}\par\medskip}]
 On each turn of the game there are 3 phases: planning, action and cleanup. 
 
 \section{Planning}
@@ -569,10 +619,6 @@ Conversely if Frame C at elevation 2 were to attack Frame A with Thrust (\smallp
 
 Ranged attacks are not affected by elevation in this way.
 
-\begin{figure}[!ht]
-  \centering
-\includegraphics[width=\linewidth]{../pictures/ground_zero.png}
-\end{figure}
 
 \subsubsection{Damage}
 If a frame takes more damage in any zone than the number indicated on the frame card for that zone they are destroyed.
@@ -605,59 +651,6 @@ The priority marker then moves one step anticlockwise.
 
 
 \onecolumn
-\section{Card anatomy}
-
-\begin{figure*}[!ht]
-  \centering
-  \resizebox{\textwidth}{!}{\input{../build/rules_weapon_ranged.tex}}
-    \par A ranged Weapon Card
-\end{figure*}
-
-% \begin{figure*}[!ht]
-%   \centering
-%     \resizebox{\textwidth}{!}{\input{../build/rules_weapon_melee.tex}}
-%     \par A melee Weapon Card
-% \end{figure*}
-
-\begin{figure*}[!ht]
-  \centering
-    \resizebox{\textwidth}{!}{\input{../build/rules_weapon_superblock.tex}}
-    \par A Weapon Card with a super block
-\end{figure*}
-
-\begin{figure*}[!ht]
-    \centering
-      \resizebox{\textwidth}{!}{\input{../build/rules_pilot.tex}}
-    \par A Pilot Card
-\end{figure*}
-
-\renewcommand{\arraystretch}{1.0}
-\begin{tabular}{p{0.3\textwidth} | p{0.7\textwidth}}
-  \makecell[cl]{Initiative:\\  \includegraphics[width=0.5cm]{../icons/initImg.png} }&Marks when the card will resolve. Higher numbers resolve before lower numbers\\ \hline
-  \makecell[cl]{Movement:\\ \includegraphics[width=0.5cm]{../icons/mvimg_old.png}}&How much to add (or subtract if its negative) to the movement for the action with this card\\\hline
-  \makecell[cl]{Attack marks:\\ \smallprojectile \smallpierce \smallcut \smallimpact \smallenergy }& How much damage to deal at this zone if this attack hits (symbol indicates damage type)\\\hline
-  \makecell[cl]{Attack range:\\ \includegraphics[width=0.5cm]{../icons/rangeImg.png}} &Range of ranged attack\\\hline
-  \makecell[cl]{Block mark:\\ \resizebox{0.7cm}{!}{\begin{tikzpicture}\blockshield{0}{0}{gray}\end{tikzpicture}}} & This zone has a block. \\\hline
-  \makecell[cl]{Super block mark:\\ \resizebox{0.95cm}{!}{\begin{tikzpicture}\superblockshield{0}{0}{gray}\end{tikzpicture}}} &Same as a block but the blocking card is not discarded when it blocks.\\\hline
-  \makecell[cl]{Persistence mark:\\ \tikz{\node [circle, fill = red]{{\textbf{2}}}; }} &Indicates that the card stays on the field after resolving until its effects finish. N indicates how many turns that is.\\\hline
-  Ability text: &Effects that happen when this card is played or resolved.\\\hline
-  \makecell[cl]{Type info:\\\emph{(bottom)}} & What type of card it is, and categorization information. Used for deck building.\\
-\end{tabular}
-\renewcommand{\arraystretch}{1.0}
-
-\begin{figure}[!ht]
-  \centering
-  \resizebox{\textwidth}{!}{\input{../build/rules_drone.tex}}
-  \par Drone Card
-\end{figure}
-
-\begin{figure}[!ht]
-  \centering
-  \resizebox{\textwidth}{!}{\input{../build/rules_frame.tex}}
-\end{figure}
-
-
-
 \section{Play Example}
 % Covers: movement, melee, elevation, ranged + line of sight, melee between
 % elevations, damage, and attacking terrain.
@@ -825,6 +818,10 @@ That frame has a stats card with the following information:
 \item Frame ability (if any)
 \end{itemize}
 
+\begin{figure}[!ht]
+  \centering
+\includegraphics[width=\linewidth]{../pictures/ground_zero.png}
+\end{figure}
 
 The frame's deck must have exactly the number of cards in its deck size count in it.
 To build the deck, you can have:
@@ -953,7 +950,7 @@ count & type & group & cards \\
 \section{Keywords}
 
 \subsection{Attack Keywords}
-\begin{tabular}{l p{0.8\linewidth}}
+\begin{tabular}{p{0.2\linewidth} p{0.7\linewidth}}
   On Hit: & The ability text after the colon only applies if the attack hits (that is, is not blocked) \\ 
   Guard Break & This attack consumes a block for each zone. Zones that are not blocked deal damage. \\
   Committed & This attack is discarded after it resolves \\
@@ -964,7 +961,7 @@ count & type & group & cards \\
 \end{tabular}
 
 \subsection{Frame Keywords}
-\begin{tabular}{l p{0.8\linewidth}}
+\begin{tabular}{p{0.2\linewidth} p{0.7\linewidth}}
   Flying & This frame does not spend movement to cross obstacles or move between floors.
    Obstacles do not block LoS to or from this frame. \\
   Shield (X) & When a card with shield (X) resolves, or a frame with shield (X) starts,
@@ -1013,10 +1010,6 @@ guns has a very predictable guard: hit it High or Low.
 \item \textbf{Deck size trades variety for consistency.} A small deck sees a large share of
 itself every turn and can rely on finding its key cards; a large one carries far more
 tools and finds any particular one far less often.
-\item \textbf{Duplicate weapon slots buy reliability, not extra shots.} Taking the same
-weapon twice makes it much likelier that one of its cards is among your seven, and lets
-you play the same attack more than once. It does not get around \reload: that debt belongs
-to the weapon, so the next attack from it has no effect or attack whichever copy it came from.
 \item \textbf{Cover your own blocking zones.} Check which zones your chosen weapons leave
 open and fill the gap - everyone has access to the basic attacks.
 \end{itemize}
@@ -1028,7 +1021,7 @@ TTS: Chara
 
 \section{AI usage}
 AI was used to assist in the creation of the software tools used for card layout, simulation  and diagrams.
-All rules, card design, art and text is fully human authored. We haven't surrendered our humanity to the 
+All rules, card design, art and text is human authored. We haven't surrendered our humanity to the 
 entities of the Net yet.
 
 

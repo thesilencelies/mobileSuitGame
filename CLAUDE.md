@@ -105,6 +105,6 @@ Generated card docs reference assets with `../` relative to `build/`, so compile
 - `icons/` — mechanic icons
 - `terrain/` — terrain tile PNGs
 - `tts_assets/` — card back designs and tokens for tts
-- `decks/` — per-faction deck CSVs (one bare card name per row; `deck_terrain_*` list terrain tiles, other `deck_*` list cards — `generate_all_decks.py` picks the `--type` from the filename). `frames_deck.csv` lists bare frame names and is rendered with `--type frame` (see `.vscode/launch.json`). The root `individual_cards.csv` is a mixed deck that lists explicit folder-prefixed paths instead (no `--type`)
+- `decks/` — per-faction deck CSVs (one bare card name per row; `deck_terrain_*` list terrain tiles and `deck_objective_*` the scoring terrain that pairs with them — both render with `--type terrain` — while other `deck_*` list cards; `generate_all_decks.py` picks the `--type` from the filename). Per the rulebook each player brings a 10-card terrain deck plus a 5-card objective deck, so `deck_terrain_<name>.csv` and `deck_objective_<name>.csv` are used together. `frames_deck.csv` lists bare frame names and is rendered with `--type frame` (see `.vscode/launch.json`). The root `individual_cards.csv` is a mixed deck that lists explicit folder-prefixed paths instead (no `--type`)
 - `RulesImages/` — annotated rules-reference card PNGs (one per card type), rendered by `generate_all_decks.py`
 - `build/` — all generated output; do not edit by hand

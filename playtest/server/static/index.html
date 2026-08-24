@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#0d1117">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>NetFrame playtest</title>
+<link rel="icon" type="image/png" href="/static/favicon.png">
+<link rel="apple-touch-icon" href="/static/icon-192.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+
+<!-- ==================== SETUP ==================== -->
+<section class="screen" id="screen-setup" data-active="1">
+  <div class="setup-scroll">
+    <h1 class="brand">NetFrame<span>playtest</span></h1>
+
+    <div class="card-panel">
+      <h2>Your squad</h2>
+      <p class="hint" id="setup-squad-hint">Pick three decks.</p>
+      <div class="deck-grid" id="player-decks"></div>
+    </div>
+
+    <div class="card-panel">
+      <h2>Opposing squad</h2>
+      <div class="row-between">
+        <p class="hint">The AI's three frames.</p>
+        <button class="btn ghost sm" id="randomise-ai" type="button">Randomise</button>
+      </div>
+      <div class="deck-grid" id="ai-decks"></div>
+    </div>
+
+    <div class="card-panel">
+      <h2>Opponent</h2>
+      <div class="preset-row" id="preset-row"></div>
+      <div id="setup-params" class="params"></div>
+      <p class="hint" id="ai-source-note"></p>
+    </div>
+
+    <div class="card-panel">
+      <h2>Match</h2>
+      <label class="field">
+        <span>Seed <em class="hint">blank for random</em></span>
+        <input type="number" id="seed" inputmode="numeric" placeholder="random">
+      </label>
+      <label class="field">
+        <span>Frames per side</span>
+        <input type="number" id="frames-per-side" value="3" min="1" max="5" inputmode="numeric">
+      </label>
+    </div>
+
+    <p class="error" id="setup-error" hidden></p>
+    <div class="setup-actions">
+      <button class="btn primary big" id="start-game" type="button">Start game</button>
+      <button class="btn ghost" id="resume-game" type="button" hidden>Resume last game</button>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== GAME ==================== -->
+<section class="screen" id="screen-game">
+
+  <header id="hud">
+    <button class="icon-btn" id="open-drawer" type="button" aria-label="Settings">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+    </button>
+    <div class="hud-main">
+      <div class="hud-line1">
+        <span class="turn" id="hud-turn">Turn 1</span>
+        <span class="phase" id="hud-phase">planning</span>
+        <span class="prio" id="hud-priority" title="Priority marker">P</span>
+      </div>
+      <div class="hud-line2" id="hud-prompt">&nbsp;</div>
+    </div>
+    <div class="vp" id="hud-vp"><b>0</b><i>&ndash;</i><b>0</b></div>
+  </header>
+
+  <div id="frame-strip"></div>
+
+  <main id="stage">
+    <div class="view" id="view-board" data-active="1">
+      <canvas id="board-canvas"></canvas>
+      <div class="board-tools">
+        <button class="tool" id="tool-fit" type="button" title="Fit board to screen">FIT</button>
+        <button class="tool" id="tool-in" type="button" aria-label="Zoom in">+</button>
+        <button class="tool" id="tool-out" type="button" aria-label="Zoom out">&minus;</button>
+        <button class="tool" id="tool-focus" type="button" title="Centre on the active frame">&#9678;</button>
+        <button class="tool" id="tool-los" type="button" title="Show line of sight">LoS</button>
+      </div>
+      <div class="board-legend" id="board-legend"></div>
+      <div class="tile-readout" id="tile-readout" hidden></div>
+    </div>
+
+    <div class="view" id="view-plan">
+      <div class="plan-slots">
+        <div class="slot" data-slot="0"><span class="slot-label">Action 1</span></div>
+        <div class="slot" data-slot="1"><span class="slot-label">Action 2</span></div>
+      </div>
+      <div class="plan-head">
+        <span id="plan-frame">&nbsp;</span>
+        <span class="hint" id="plan-count"></span>
+      </div>
+      <div class="hand-grid" id="hand-grid"></div>
+    </div>
+
+    <div class="view" id="view-order">
+      <div class="ladder" id="ladder"></div>
+    </div>
+
+    <div class="view" id="view-log">
+      <div class="log" id="log"></div>
+    </div>
+  </main>
+
+  <div id="sheet" data-open="0">
+    <button class="sheet-grip" id="sheet-grip" type="button" aria-label="Toggle decision panel"><span></span></button>
+    <div class="sheet-body" id="sheet-body"></div>
+  </div>
+
+  <nav id="tabs">
+    <button class="tab" data-view="board" data-active="1" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h18v18H3z"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg><span>Board</span></button>
+    <button class="tab" data-view="plan" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h7v16H4zM13 4h7v16h-7z"/></svg><span>Plan</span></button>
+    <button class="tab" data-view="order" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h11M4 18h6"/></svg><span>Initiative</span></button>
+    <button class="tab" data-view="log" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg><span>Log</span></button>
+  </nav>
+</section>
+
+<!-- ==================== DRAWER ==================== -->
+<div id="drawer-scrim" hidden></div>
+<aside id="drawer" aria-hidden="true">
+  <div class="drawer-head">
+    <h2>Settings</h2>
+    <button class="icon-btn" id="close-drawer" type="button" aria-label="Close">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  </div>
+  <div class="drawer-scroll">
+    <section>
+      <h3>Game</h3>
+      <div class="btn-col">
+        <button class="btn ghost" id="drawer-undo" type="button">Undo my last decision</button>
+        <button class="btn ghost" id="drawer-refresh" type="button">Reload state</button>
+        <button class="btn danger" id="drawer-new" type="button">New game</button>
+      </div>
+      <p class="hint" id="drawer-game-info"></p>
+    </section>
+    <section>
+      <h3>Board</h3>
+      <label class="toggle"><input type="checkbox" id="opt-los"><span>Shade line of sight for the selected frame</span></label>
+      <label class="toggle"><input type="checkbox" id="opt-threat" checked><span>Shade enemy reach when an enemy is selected</span></label>
+      <label class="toggle"><input type="checkbox" id="opt-cards"><span>Outline the dealt terrain cards</span></label>
+      <label class="toggle"><input type="checkbox" id="opt-coords"><span>Tile coordinates</span></label>
+    </section>
+    <section>
+      <h3>AI parameters</h3>
+      <p class="hint" id="drawer-ai-note"></p>
+      <div class="preset-row" id="drawer-preset-row"></div>
+      <div id="drawer-params" class="params"></div>
+      <button class="btn primary" id="apply-params" type="button">Apply to this game</button>
+      <p class="hint" id="apply-note"></p>
+    </section>
+  </div>
+</aside>
+
+<!-- ==================== CARD MODAL ==================== -->
+<div id="modal" hidden>
+  <div class="modal-scrim" id="modal-scrim"></div>
+  <div class="modal-body" id="modal-body"></div>
+</div>
+
+<div id="toast" hidden></div>
+<div id="busy" hidden><div class="spinner"></div></div>
+
+<script type="module" src="/static/js/app.js"></script>
+</body>
+</html>

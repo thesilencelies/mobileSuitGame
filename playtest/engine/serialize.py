@@ -1,0 +1,229 @@
+"""`GameState` -> the client JSON in SPEC.md.
+
+`view_for` is the *only* thing the server sends to a seat, and it is built
+from scratch as plain dicts. Nothing in the returned structure references the
+`GameState`, so there is no path from a seat's view to another seat's hand,
+deck order or face-down commitments -- the redaction is structural rather
+than a matter of the caller behaving itself.
+"""
+
+from __future__ import annotations
+
+import hashlib
+from typing import Any, Mapping, Optional
+
+from . import objectives as objectivelib
+from .state import CardInstance, FrameState, GameState, victory_points
+from .types import Card, PendingDecision, Team, ZONES
+
+
+def hidden_id(state: GameState, seat: Team, uid: str) -> str:
+    """An opaque, stable stand-in for a uid the seat may not decode.
+
+    Card uids are allocated in deck-file order, and the deck CSVs ship with
+    the app -- so a raw uid *is* the card's identity to anyone who can count.
+    Hiding the `key` while still shipping the uid therefore hides nothing.
+
+    The stand-in is a keyed digest of the uid under a per-game secret that
+    never leaves the engine and is not derived from the seed, so it cannot be
+    reversed or replayed. It is stable for a given (game, seat, card), so the
+    client can still track a face-down card across polls.
+    """
+    material = f"{state.view_salt}|{seat}|{uid}".encode()
+    return "h" + hashlib.blake2b(material, digest_size=6).hexdigest()
+
+
+def _card_json(
+    state: GameState, uid: str, seat: Team, *, reveal: bool
+) -> dict[str, Any]:
+    """One card in a frame's row. `reveal=False` hides the identity.
+
+    The uid is redacted on exactly the same condition as the key: a card this
+    seat may not identify must not carry an id it can decode.
+    """
+    inst = state.cards[uid]
+    visible = reveal or not inst.face_down
+    out: dict[str, Any] = {
+        "uid": uid if visible else hidden_id(state, seat, uid),
+        "resolved": inst.resolved,
+        "faceDown": inst.face_down,
+    }
+    if inst.is_echo:
+        out["echo"] = True
+    if visible:
+        out["key"] = inst.key
+    return out
+
+
+def _frame_json(state: GameState, frame: FrameState, seat: Team) -> dict[str, Any]:
+    own = frame.seat == seat
+    committed = [
+        _card_json(state, uid, seat, reveal=own)
+        for uid in frame.committed
+        if state.cards[uid].location == "committed"
+    ]
+    view: dict[str, Any] = {
+        "id": frame.id,
+        "seat": frame.seat,
+        "name": frame.spec.name,
+        "faction": frame.spec.faction,
+        "pos": ({"x": frame.pos.x, "y": frame.pos.y} if frame.pos else None),
+        "elev": state.elevation(frame.pos),
+        "alive": frame.alive,
+        "armour": {z: frame.spec.armour[z] for z in ZONES},
+        "damage": {z: frame.damage[z] for z in ZONES},
+        "lastHit": {z: frame.zone_last_hit(z) for z in ZONES},
+        "movement": frame.base_movement,
+        "shields": frame.shields,
+        "statuses": dict(frame.statuses),
+        "committed": [c for c in committed if not c["resolved"]],
+        "onField": [c for c in committed if c["resolved"]],
+        "aside": [
+            {"uid": uid, "key": state.cards[uid].key}
+            for uid in frame.aside
+        ],
+        "deckCount": len(frame.deck),
+        "discardCount": len(frame.discard),
+        "deathstrike": frame.deathstrike_until is not None,
+    }
+    if own:
+        view["hand"] = [
+            {"uid": uid, "key": state.cards[uid].key} for uid in frame.hand
+        ]
+    else:
+        view["handCount"] = len(frame.hand)
+    return view
+
+
+def _pending_json(
+    pending: Optional[PendingDecision], seat: Team
+) -> Optional[dict[str, Any]]:
+    if pending is None:
+        return None
+    if pending.seat != seat:
+        # The other seat is deciding. Say so, but never say what the options
+        # are -- that is how simultaneous planning stays simultaneous.
+        return {"seat": pending.seat, "kind": pending.kind, "waiting": True}
+    return {
+        "seat": pending.seat,
+        "kind": pending.kind,
+        "prompt": pending.prompt,
+        "frameId": pending.frame_id,
+        "options": [dict(option) for option in pending.options],
+    }
+
+
+def _board_json(state: GameState) -> dict[str, Any]:
+    board = state.board
+    if board is None:
+        return {"width": 0, "height": 0, "tiles": [], "objectives": []}
+    tiles = []
+    for y in range(board.height):
+        for x in range(board.width):
+            from .types import Pos
+
+            tile = board.tile(Pos(x, y))
+            tiles.append({
+                "x": x,
+                "y": y,
+                "elev": tile.elevation,
+                "impassable": tile.impassable,
+                "obstacle": tile.obstacle,
+                "objective": tile.objective or None,
+                "card": tile.terrain_card,
+            })
+    objectives = []
+    for obj in state.objectives:
+        seat, value = objectivelib.objective_score(state, obj)
+        if obj.latched is not None:
+            status = f"scored by seat {obj.latched}"
+        elif seat is not None:
+            status = f"leaning seat {seat}"
+        else:
+            status = "unscored"
+        objectives.append({
+            "name": obj.name,
+            "owner": obj.owner,
+            "defend": obj.defend,
+            "attack": obj.attack,
+            "tiles": [[p.x, p.y] for p in obj.tiles],
+            "status": status,
+            "value": value,
+        })
+    return {
+        "width": board.width,
+        "height": board.height,
+        "tiles": tiles,
+        "objectives": objectives,
+    }
+
+
+def view_for(state: GameState, seat: Team) -> dict[str, Any]:
+    """The redacted client view for one seat."""
+    points = victory_points(state)
+    return {
+        "gameId": state.game_id,
+        "turn": state.turn,
+        "phase": state.phase,
+        "priority": state.priority,
+        "seat": seat,
+        "board": _board_json(state),
+        "frames": [
+            _frame_json(state, frame, seat) for frame in state.frames.values()
+        ],
+        "tokens": [
+            {
+                "id": token.id,
+                "kind": token.kind,
+                "pos": ({"x": token.pos.x, "y": token.pos.y} if token.pos else None),
+                "hp": token.hp,
+                "maxHp": token.max_hp,
+                "alive": token.alive,
+                "carrier": token.carrier,
+            }
+            for token in state.tokens.values()
+        ],
+        "pending": _pending_json(state.pending, seat),
+        "log": list(state.log),
+        "vp": {str(s): points.get(s, 0) for s in state.seats},
+        "over": state.phase == "finished",
+    }
+
+
+# --------------------------------------------------------------------------
+# Static catalogue for `GET /api/cards`
+# --------------------------------------------------------------------------
+
+
+def card_json(card: Card) -> dict[str, Any]:
+    return {
+        "key": card.key,
+        "name": card.name,
+        "group": card.group,
+        "faction": card.faction,
+        "type": card.card_type,
+        "initiative": list(card.initiative),
+        "movement": card.movement,
+        "attacks": {z: card.attacks[z] for z in ZONES},
+        "ranges": {z: card.ranges[z] for z in ZONES},
+        "dtypes": {z: card.dtypes[z] for z in ZONES},
+        "blocks": {z: card.blocks[z] for z in ZONES},
+        "text": card.text,
+        "keywords": sorted(card.keywords),
+        "knockback": card.knockback,
+        "persistence": card.persistence,
+        "image": f"{card.key}.png",
+    }
+
+
+def catalogue_json(catalogue: Mapping[str, Card]) -> dict[str, Any]:
+    from . import effects
+
+    deferred = effects.deferred_effects(catalogue)
+    out = {}
+    for key, card in catalogue.items():
+        entry = card_json(card)
+        if key in deferred:
+            entry["notImplemented"] = deferred[key].text
+        out[key] = entry
+    return out
