@@ -116,8 +116,9 @@ export function tokenImageUrl(kind, hp) {
 
 // The glyphs the printed terrain card stamps in a marked tile's corner: one
 // stacked cube per elevation level ("e1".."e3"), a boxed X for impassable
-// ("imp") and a boxed triangle for an obstacle ("obs").
-const TILE_ICONS = new Set(['e1', 'e2', 'e3', 'imp', 'obs']);
+// ("imp"), a boxed triangle for an obstacle ("obs"), and the objective ("obj")
+// and token-spawn ("tkn") marks.
+const TILE_ICONS = new Set(['e1', 'e2', 'e3', 'imp', 'obs', 'obj', 'tkn']);
 
 export function tileIconUrl(stem) {
   return TILE_ICONS.has(stem) ? `/static/tiles/${stem}.png` : null;

@@ -10,14 +10,14 @@ Encode the future,,Mystic,1,-3,Next turn: one allied frame \emph{(includes this)
 Tactical broadcast,,Tactician,4,-1,Allied frames within 8 get 2 \fulllucid,0,Tactician.png,proxy_background.png,,,1,GoodBoy
 Fog of war,,Tactician,3,0,Next turn: Allied frames within 7 of this frame cannot be targeted by ranged attacks,1,Tactician.png,proxy_background.png,,,1,GoodBoy
 Set the trap,,Tactician,3,0,Move an allied frame within 5 2 space. All enemies within 3 of them get \fullrevealed,0,Tactician.png,proxy_background.png,,,1,GoodBoy
-Outfox,,Tactician,4,-1,Targe frame within 7 gets 3 \fullrevealed and 2 \fulldazed,0,Tactician.png,proxy_background.png,,,1,GoodBoy
-Hyper,,Wunderkid,3,-4,Next turn: play 1 extra action,1,Wunderkid_1.png,proxy_background.png,,,1,GoodBoy
-Net Speed,,Wunderkid,5,0,This frame gets 2 \fullstimmed and 2 \fullboosted,0,Wunderkid_1.png,proxy_background.png,,,1,GoodBoy
-Portal,,Wunderkid,3,3,Create a portal at the start and end of this move. Those tiles are connected.,0,Wunderkid_1.png,proxy_background.png,,,1,GoodBoy
+Outfox,,Tactician,4,-1,Target frame within 7 gets 3 \fullrevealed and 2 \fulldazed,0,Tactician.png,proxy_background.png,,,1,GoodBoy
+Hyper,,Wunderkid,2,-4,Next turn: play 1 extra action,1,Wunderkid_1.png,proxy_background.png,,,1,GoodBoy
+Net Speed,,Wunderkid,7,0,This frame gets 3 \fullstimmed and 3 \fullboosted\\\fullcommitted,0,Wunderkid_1.png,proxy_background.png,,,1,GoodBoy
+Portal,,Wunderkid,3,-1,Create two portals within 7. Those tiles are connected.,0,Wunderkid_1.png,proxy_background.png,,,1,GoodBoy
 Ace Reflexes,,Wunderkid,8,1,"Whenever this frame is attacked this turn, move 2 after the attack",0,Wunderkid_1.png,proxy_background.png,,,1,GoodBoy
 Battlefield Repairs,,Engineer,4,-2,Repair 3 damage from an allied frame within 3,0,Engineer_1.png,proxy_background.png,,,1,GoodBoy
 Barricade,,Engineer,4,-3,Put up to 3 barricade tokens on unoccupied locations within 3: those locations becomes impassible,0,Engineer_1.png,proxy_background.png,,,1,GoodBoy
-Gravity Well,,Engineer,3,-2,Create a gravity well. Its an obstacle that adds an extra 1 movement penalty to any step away from it within 5,0,Engineer_1.png,proxy_background.png,,,1,GoodBoy
+Gravity Well,,Engineer,3,-2,Create a gravity well within 5. Its an obstacle that adds an extra 1 movement penalty to any step away from it within 5,0,Engineer_1.png,proxy_background.png,,,1,GoodBoy
 Precision Tuning,,Engineer,4,-3,This frame gets 4 \fullboosted,0,Engineer_1.png,proxy_background.png,,,1,GoodBoy
 Combo strike,,Specialist,8,-2,"When resolving the next attack from this frame, reveal the top 4 cards of its deck and choose up to 1 attack from the same weapon: add it's attacks to the attack\\\fullcommitted",0,Specialist_1.png,proxy_background.png,,,1,GoodBoy
 Snipers aim,,Specialist,7,-3,"Ranged attacks this turn can ignore obstacles, get + 4 range and deal 1 extra damage\\\fullcommitted",0,Specialist_1.png,proxy_background.png,,,1,GoodBoy

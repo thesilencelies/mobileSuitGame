@@ -518,13 +518,16 @@ class Agent:
         frame = snap.frame(pending.get("frameId"))
         uids = [str(o["uid"]) for o in options]
         keys = [str(o.get("key", "")) for o in options]
-        take = min(2, len(uids))
+        # Usually two, but Hyper buys a third and the engine says so on the
+        # decision. Taking the extra action is the entire point of the card,
+        # so the AI commits the ceiling rather than the constant.
+        take = min(int(pending.get("pickMax") or ACTIONS_PER_TURN), len(uids))
         if frame is None or take < 2:
             return Command("commit_actions", self.seat, {"uids": uids[:take]})
 
         cards = [self.catalogue.get(k) for k in keys]
         live = [i for i, c in enumerate(cards) if c is not None]
-        if len(live) < 2:
+        if len(live) < take:
             return Command("commit_actions", self.seat, {"uids": uids[:take]})
 
         prof = self.opponent_profile(snap)
@@ -657,23 +660,23 @@ class Agent:
             )
             for i in live
         }
-        pool = max(2, min(int(params.pool), len(live)))
+        pool = max(take, min(int(params.pool), len(live)))
         considered = sorted(live, key=lambda i: (-singles[i], i))[:pool]
 
-        pairs = list(combinations(considered, 2))
-        if not pairs:
+        hands = list(combinations(considered, take))
+        if not hands:
             return Command("commit_actions", self.seat, {"uids": uids[:take]})
 
         scores: list[float] = []
         deficits: list[float] = []
-        for a, b in pairs:
-            hand = [cards[a], cards[b]]
+        for combo in hands:
+            hand = [cards[i] for i in combo]
             scores.append(
                 S.score_hand(
                     hand, prof, params, health,
                     reloading=reloading,
-                    opportunity={0: opp_scale[a], 1: opp_scale[b]},
-                    board_value={0: board_value[a], 1: board_value[b]},
+                    opportunity={k: opp_scale[i] for k, i in enumerate(combo)},
+                    board_value={k: board_value[i] for k, i in enumerate(combo)},
                     pressure=pressure,
                 )
             )
@@ -689,13 +692,13 @@ class Agent:
             for i in considered
         }
         def has_dead(index: int) -> bool:
-            chosen = set(pairs[index])
-            return any(dominators[i] - chosen for i in pairs[index])
+            chosen = set(hands[index])
+            return any(dominators[i] - chosen for i in hands[index])
 
         keep = [i for i in safe if not has_dead(i)] or safe
         pick = keep[S.softmax_pick([scores[i] for i in keep], params.temperature, self.rng)]
-        a, b = pairs[pick]
-        return Command("commit_actions", self.seat, {"uids": [uids[a], uids[b]]})
+        return Command("commit_actions", self.seat,
+                       {"uids": [uids[i] for i in hands[pick]]})
 
     def _candidate_tiles(
         self,
@@ -1125,12 +1128,16 @@ class Agent:
     def _pick_tile(
         self, snap: Snapshot, options: Sequence[Mapping[str, Any]]
     ) -> Mapping[str, Any]:
-        """Close on the nearest enemy without walking into its face.
+        """Stand where whatever is going there can actually do its job.
 
-        Deliberately crude -- this answers a drone's move, a reflex step and a
-        Teleport with one rule, and none of them is worth a search. Distance 1
-        is best (a melee drone wants to be adjacent), then as close as it can
-        get; ties break toward the frame we are already focusing on.
+        Deliberately crude -- this answers a drone's move, a drone's placement,
+        a reflex step and a Teleport with one rule, and none of them is worth a
+        search. The rule is "get to the distance the thing wants to be at":
+        that is 1 for anything melee, and its printed range for something that
+        shoots, which the engine puts on the option as `reach`. Without that a
+        Gun Tower -- immobile, two hit points, range 8 -- would be built in the
+        enemy's face and die for nothing. Ties break toward the frame the team
+        is already focusing on.
         """
         focus_id, _ = self._focus_weight(self.team_plan(snap), 0.0)
         marks = [
@@ -1141,12 +1148,12 @@ class Agent:
         best, best_score = options[0], -1e9
         for option in options:
             pos = Pos(int(option["x"]), int(option["y"]))
-            score = 0.0
+            want = max(1, int(option.get("reach") or 0))
             gaps = [(snap.distance(pos, f.pos), f) for f in marks]
             gap, nearest = min(gaps, key=lambda pair: pair[0])
-            score -= float(gap)
-            if gap == 1:
-                score += 2.0
+            # For melee (`want` 1) this is the old "adjacent is best, then as
+            # close as you can get", in the same order.
+            score = -abs(float(gap) - want)
             if nearest.id == focus_id:
                 score += 0.5
             if score > best_score:

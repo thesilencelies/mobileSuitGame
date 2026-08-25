@@ -182,7 +182,7 @@ function list(host) {
 
 function prettyKind(kind) {
   return {
-    commit_actions: 'Commit two actions',
+    commit_actions: 'Commit your actions',
     resolve_order: 'Order of resolution',
     move: 'Move',
     attack_target: 'Choose a target',
@@ -197,9 +197,17 @@ function prettyKind(kind) {
 
 function commitActions(host, ctx, pending) {
   const chosen = ctx.commitSelection;
+  // Not always two: Hyper buys a third action, and the engine says so on the
+  // decision itself. `pickMin` is still two there -- the extra one is an
+  // option, not an obligation.
+  const { min, max } = ctx.commitLimits(pending);
+  const short = min - chosen.length;
   banner(host,
-    chosen.length === 2 ? 'Ready to commit' : `Pick ${2 - chosen.length} more from the hand`,
-    chosen.length === 2 ? 'info' : 'info');
+    short > 0 ? `Pick ${short} more from the hand`
+      : (chosen.length < max
+        ? `Ready to commit — or spend the extra action (${max} allowed)`
+        : 'Ready to commit'),
+    'info');
 
   const strip = document.createElement('div');
   strip.className = 'opt-list';
@@ -220,7 +228,7 @@ function commitActions(host, ctx, pending) {
   const go = document.createElement('button');
   go.className = 'btn primary';
   go.textContent = 'Commit face down';
-  go.disabled = chosen.length !== Math.min(2, pending.options.length);
+  go.disabled = chosen.length < min || chosen.length > max;
   go.addEventListener('click', () => ctx.send('commit_actions', { uids: chosen.slice() }));
   const open = document.createElement('button');
   open.className = 'btn ghost';
@@ -738,23 +746,69 @@ function genericDecision(host, ctx, pending) {
   }
 }
 
+/** The final score, itemised.
+ *
+ *  A victory point comes from one of two places -- "1 point per opposing frame
+ *  defeated" and each objective scored (rules.tex) -- and the total on its own
+ *  never showed the first of them, so a score could not be checked against the
+ *  board. Both halves are listed here, per side, and they add up to the total
+ *  in the header.
+ */
 function gameOver(host, ctx) {
+  const seat = ctx.view.seat;
   const vp = ctx.view.vp || {};
-  const mine = Number(vp[String(ctx.view.seat)] || 0);
+  const kills = ctx.view.kills || {};
+  const mine = Number(vp[String(seat)] || 0);
   const theirs = Object.entries(vp)
-    .filter(([s]) => Number(s) !== ctx.view.seat)
+    .filter(([s]) => Number(s) !== seat)
     .reduce((a, [, v]) => a + Number(v), 0);
   title(host, mine > theirs ? 'You win' : (mine < theirs ? 'You lose' : 'Draw'),
     `Victory points ${mine} – ${theirs} after ${ctx.view.turn - 1} turns`);
+
   const objectives = (ctx.view.board && ctx.view.board.objectives) || [];
-  const el = list(host);
-  for (const obj of objectives) {
+  const killsFor = (s) => Number(kills[String(s)] || 0);
+  const theirSeats = Object.keys(vp).map(Number).filter((s) => s !== seat);
+  const theirKills = theirSeats.reduce((a, s) => a + killsFor(s), 0);
+
+  const side = (label, total, killed, own) => {
+    banner(host, `${label} — ${total}`, own ? 'info' : '');
+    const el = list(host);
     optionRow(el, {
-      main: obj.name,
-      sub: `${obj.status} · defend ${obj.defend} / attack ${obj.attack}`,
-      go: obj.value ? `+${obj.value}` : '',
+      main: 'Frames defeated',
+      sub: killed
+        ? `${killed} enemy frame${killed === 1 ? '' : 's'} destroyed · 1 point each`
+        : 'no enemy frames destroyed',
+      go: killed ? `+${killed}` : '0',
       onTap: () => {},
     });
+    for (const obj of objectives) {
+      const scored = obj.scorer !== null && obj.scorer !== undefined
+        && (own ? Number(obj.scorer) === seat : Number(obj.scorer) !== seat);
+      if (!scored || !obj.value) continue;
+      optionRow(el, {
+        main: obj.name,
+        sub: `${obj.status} · defend ${obj.defend} / attack ${obj.attack}`,
+        go: `+${obj.value}`,
+        onTap: () => {},
+      });
+    }
+  };
+  side('Your score', mine, killsFor(seat), true);
+  side('Their score', theirs, theirKills, false);
+
+  const unscored = objectives.filter(
+    (o) => !o.value || o.scorer === null || o.scorer === undefined);
+  if (unscored.length) {
+    banner(host, 'Nobody scored');
+    const el = list(host);
+    for (const obj of unscored) {
+      optionRow(el, {
+        main: obj.name,
+        sub: `${obj.status} · defend ${obj.defend} / attack ${obj.attack}`,
+        go: '0',
+        onTap: () => {},
+      });
+    }
   }
   const actions = document.createElement('div');
   actions.className = 'sheet-actions';

@@ -916,3 +916,55 @@ def test_draw_and_reshuffle_lines_carry_counts_not_card_names():
     assert interesting, "no draw/reshuffle/commit lines to check"
     for text in interesting:
         assert not any(key in text for key in every_key), text
+
+
+def test_hyper_offers_a_third_action_and_the_engine_accepts_it():
+    """"Next turn: play 1 extra action" has to reach the decision itself.
+
+    The extra action is the whole card, and the client cannot infer it: the
+    ceiling is per-frame and per-turn. So the pending decision carries the
+    range, and `pick_max` is what a client sizes its slots from.
+    """
+    from playtest.engine import effects
+
+    state = start(frames=2)
+    frame = state.frames[state.pending.frame_id]
+    # Hyper resolved last turn, so it is set aside in front of the frame --
+    # which is where `card_active(..., this_turn=False)` looks for it.
+    give(state, frame, effects.HYPER, location="aside")
+    state.pending = None
+    assert R._planning_decision(state)
+
+    pending = state.pending
+    assert pending.frame_id == frame.id
+    assert (pending.pick_min, pending.pick_max) == (ACTIONS_PER_TURN,
+                                                    ACTIONS_PER_TURN + 1)
+    assert "2-3" in pending.prompt
+
+    picks = [o["uid"] for o in pending.options[:3]]
+    after = apply_command(
+        state, Command("commit_actions", pending.seat, {"uids": picks}))
+    assert after.frames[frame.id].committed == picks
+
+
+def test_a_frame_without_hyper_still_commits_exactly_two():
+    state = start(frames=2)
+    pending = state.pending
+    assert (pending.pick_min, pending.pick_max) == (ACTIONS_PER_TURN,
+                                                    ACTIONS_PER_TURN)
+    picks = [o["uid"] for o in pending.options[:3]]
+    with pytest.raises(IllegalCommand):
+        apply_command(state, Command("commit_actions", pending.seat, {"uids": picks}))
+
+
+def test_the_commit_range_reaches_the_client_view():
+    from playtest.engine import effects
+
+    state = start(frames=2)
+    frame = state.frames[state.pending.frame_id]
+    give(state, frame, effects.HYPER, location="aside")
+    state.pending = None
+    R._planning_decision(state)
+    view = view_for(state, frame.seat)
+    assert view["pending"]["pickMin"] == ACTIONS_PER_TURN
+    assert view["pending"]["pickMax"] == ACTIONS_PER_TURN + 1

@@ -110,15 +110,15 @@
       <div class="replay-bar" id="replay-bar" hidden>
         <span class="replay-dot"></span>
         <span id="replay-text">The AI is acting</span>
+        <span class="replay-count" id="replay-count"></span>
         <button class="btn ghost sm" id="replay-skip" type="button">Skip</button>
       </div>
     </div>
 
     <div class="view" id="view-plan">
-      <div class="plan-slots">
-        <div class="slot" data-slot="0"><span class="slot-label">Action 1</span></div>
-        <div class="slot" data-slot="1"><span class="slot-label">Action 2</span></div>
-      </div>
+      <!-- Rebuilt by `layoutPlanSlots`: how many actions a frame commits is
+           the engine's answer, and Hyper makes it three. -->
+      <div class="plan-slots"></div>
       <div class="plan-head">
         <span id="plan-frame">&nbsp;</span>
         <span class="hint" id="plan-count"></span>
@@ -185,8 +185,10 @@
     </section>
     <section>
       <h3>Pace</h3>
-      <p class="hint">The AI's whole turn arrives at once. This is how fast it
-        is played back to you.</p>
+      <p class="hint">The AI's whole turn arrives at once, so it is played back
+        beat by beat: each card it reveals, where it moves, what it attacks and
+        what landed or was blocked. This is how fast. <em>Instant</em> skips the
+        playback and jumps straight to the finished position.</p>
       <div class="preset-row" id="speed-row"></div>
       <label class="toggle"><input type="checkbox" id="opt-autoscroll" checked><span>Follow the acting frame with the camera</span></label>
     </section>

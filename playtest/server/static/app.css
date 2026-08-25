@@ -273,6 +273,8 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width:
 .replay-bar span:nth-child(2) { flex: 1 1 auto; min-width: 0; overflow: hidden;
   text-overflow: ellipsis; white-space: nowrap; }
 .replay-bar .btn { flex: 0 0 auto; }
+/* How far through the AI's turn we are, so "Skip" is an informed choice. */
+.replay-bar .replay-count { flex: 0 0 auto; color: #e6a3a3; font-variant-numeric: tabular-nums; }
 
 /* ---------------------------------------------------------------- tableau */
 
@@ -294,7 +296,12 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width:
 
 /* ---------------------------------------------------------------- plan */
 
-.plan-slots { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px 10px 6px; }
+.plan-slots {
+  display: grid; gap: 10px; padding: 10px 10px 6px;
+  /* One column per action this frame may commit -- two normally,
+     three under Hyper. `layoutPlanSlots` sets the count. */
+  grid-template-columns: repeat(var(--slots, 2), minmax(0, 1fr));
+}
 /* An empty slot is a short placeholder so the hand gets the screen; it grows
    to a real card once something is in it. */
 .slot {

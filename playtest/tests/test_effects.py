@@ -63,6 +63,23 @@ def answer(state, decision, option=None, index: int = 0):
     return nxt
 
 
+def summon(state, frame, key, *spots, resolved: bool = True):
+    """Play a drone card and answer the placement it asks for.
+
+    Every drone card now names where its tokens land -- "within 3" for a Gun
+    Tower, beside the frame otherwise -- so a test that wants a drone on a
+    particular tile says so here instead of moving the token afterwards.
+    """
+    uid, decision = play(state, frame, key, resolved=resolved)
+    wanted = list(spots)
+    while decision is not None:
+        spot = wanted.pop(0) if wanted else None
+        decision = answer(
+            state, decision, {"x": spot.x, "y": spot.y} if spot else None)
+    assert not wanted, "more placements given than the card asked for"
+    return uid
+
+
 def carry_over(state, *uids):
     """Roll into the next turn, setting persistent cards aside as cleanup does."""
     for uid in uids:
@@ -104,11 +121,17 @@ def test_every_decision_the_module_raises_has_a_handler():
 
 
 def test_all_pilot_and_drone_text_is_implemented_or_flagged():
+    """Asked through `_effect_handler`, not the table.
+
+    Drone cards are matched on their *type* rather than listed key by key --
+    every one of them summons, and the count and reach come off the text -- so
+    a new drone in the CSV is implemented the moment it is added.
+    """
     deferred = effects.deferred_effects(CATALOGUE)
     for key, card in CATALOGUE.items():
         if card.card_type not in ("pilot", "drone") or not card.text.strip():
             continue
-        assert key in effects.EFFECT_STEPS or key in deferred, (
+        assert effects._effect_handler(card) is not None or key in deferred, (
             f"{key} has text that is neither implemented nor flagged"
         )
 
@@ -498,38 +521,74 @@ def test_hyper_allows_one_extra_action_next_turn_only():
 
 
 def test_net_speed_stims_and_boosts_this_frame():
+    """The counts come off the card, so a balance edit needs no code change."""
     state, frame, _ = duel()
+    card = CATALOGUE[effects.NET_SPEED]
+    printed = dict(effects._parse_statuses(card.text))
     move, init = frame.base_movement, frame.initiative_mod
     play(state, frame, effects.NET_SPEED)
-    assert frame.statuses["stimmed"] == 2
-    assert frame.statuses["boosted"] == 2
+    assert frame.statuses["stimmed"] == printed["stimmed"] == 3
+    assert frame.statuses["boosted"] == printed["boosted"] == 3
     assert frame.base_movement > move
     assert frame.initiative_mod > init
+    assert "committed" in card.keywords, "it is spent when it resolves"
 
 
-def test_portal_links_both_ends_of_the_move_and_shortens_the_trip():
+def test_portal_names_its_own_two_tiles_and_links_them():
+    """"Create two portals within 7. Those tiles are connected."
+
+    It used to be a movement rider -- a portal at each end of the step it was
+    played with -- so the pair could only be known after the frame had walked.
+    The card now picks both tiles itself, which is two decisions and no
+    dependence on the move at all.
+    """
     state = make_state(width=12, height=12)
     state.phase = "action"
     frame = add_frame(state, 0, "Kuwagata", Pos(1, 1))
     uid = give(state, frame, effects.PORTAL)
     state.resolution = Resolution(frame_id=frame.id, uid=uid, steps=[])
-    effects.resolve_effect(state, frame, uid)
 
-    effects.after_move(state, frame, Pos(1, 1), Pos(6, 1))
-    frame.pos = Pos(6, 1)
+    first = effects.resolve_effect(state, frame, uid)
+    assert first is not None, "the card asks where the near end goes"
+    reach = max(state.board.distance(frame.pos, Pos(o["x"], o["y"]))
+                for o in first.options)
+    assert reach == 7, "'within 7' is read off the card"
+
+    second = answer(state, first, {"x": 6, "y": 1})
+    assert second is not None, "and then where the far end goes"
+    assert not any(o["x"] == 6 and o["y"] == 1 for o in second.options), (
+        "a portal cannot link a tile to itself"
+    )
+    assert not [t for t in state.tokens.values() if t.kind == fx.PORTAL], (
+        "neither end exists until the pair is complete"
+    )
+    assert answer(state, second, {"x": 1, "y": 3}) is None
+
     portals = [t for t in state.tokens.values() if t.kind == fx.PORTAL]
-    assert {t.pos for t in portals} == {Pos(1, 1), Pos(6, 1)}
+    assert {t.pos for t in portals} == {Pos(6, 1), Pos(1, 3)}
 
-    # Standing on one end, the other end is one step away instead of five.
+
+def test_a_portal_pair_shortens_the_trip():
+    state = make_state(width=12, height=12)
+    state.phase = "action"
+    frame = add_frame(state, 0, "Kuwagata", Pos(6, 1))
+    uid = give(state, frame, effects.PORTAL)
+    state.resolution = Resolution(frame_id=frame.id, uid=uid, steps=[])
+    answer(state, answer(state, effects.resolve_effect(state, frame, uid),
+                         {"x": 1, "y": 1}), {"x": 7, "y": 1})
+
+    # One step onto the near end, one more through the link, and you are out
+    # the far side five tiles away with a step left to spend.
     plain = [{"x": 6, "y": 1, "cost": 0}, {"x": 7, "y": 1, "cost": 1}]
-    options = effects.adjust_move_options(state, frame, 2, plain)
+    options = effects.adjust_move_options(state, frame, 3, plain)
     costs = {(o["x"], o["y"]): o["cost"] for o in options}
-    assert costs[(1, 1)] == 1, "the linked tile is a single step"
+    assert costs[(1, 1)] == 2, "step on, step through"
     assert (0, 0) in costs, "and you keep going from the far side"
-    assert costs[(0, 0)] == 2
+    assert costs[(0, 0)] == 3
 
 
-def test_portal_is_created_once_per_card():
+def test_a_move_no_longer_creates_portals_by_itself():
+    """The old card built its pair in `after_move`; nothing does now."""
     state = make_state(width=12, height=12)
     state.phase = "action"
     frame = add_frame(state, 0, "Kuwagata", Pos(1, 1))
@@ -537,7 +596,7 @@ def test_portal_is_created_once_per_card():
     state.resolution = Resolution(frame_id=frame.id, uid=uid, steps=[])
     effects.after_move(state, frame, Pos(1, 1), Pos(3, 1))
     effects.after_move(state, frame, Pos(3, 1), Pos(5, 1))
-    assert len([t for t in state.tokens.values() if t.kind == fx.PORTAL]) == 2
+    assert not [t for t in state.tokens.values() if t.kind == fx.PORTAL]
 
 
 def test_ace_reflexes_moves_the_frame_after_it_is_attacked():
@@ -770,21 +829,27 @@ def test_summoning_a_drone_puts_a_token_out_and_the_frame_does_not_swing():
     state.resolution = res
     uid = give(state, frame, "Swarm_Swarm")
     res.uid = uid
-    effects.resolve_effect(state, frame, uid)
+    decision = effects.resolve_effect(state, frame, uid)
     assert res.steps == ["effect"], "the frame's attack step is dropped"
+    assert decision is not None, "the controller chooses where it lands"
+    assert all(
+        state.board.distance(frame.pos, Pos(o["x"], o["y"])) == 1
+        for o in decision.options
+    ), "'Summon one Swarm' says nothing about range, so it lands beside you"
+    assert answer(state, decision, {"x": 2, "y": 3}) is None
 
     drones = [t for t in state.tokens.values() if t.kind == fx.DRONE]
     assert len(drones) == 1
     drone = drones[0]
     assert drone.hp == drone.max_hp == card.drone_health
     assert drone.owner == frame.seat
-    assert state.board.distance(frame.pos, drone.pos) == 1
+    assert drone.pos == Pos(2, 3)
 
 
 def test_the_drone_moves_and_attacks_every_turn():
     state, frame, enemy = duel(gap=4)
     state.resolution = None
-    uid, _ = play(state, frame, "Swarm_Swarm")
+    uid = summon(state, frame, "Swarm_Swarm")
     drone = next(t for t in state.tokens.values() if t.kind == fx.DRONE)
     drone.pos = Pos(4, 2)
 
@@ -808,7 +873,7 @@ def test_the_drone_moves_and_attacks_every_turn():
 
 def test_a_drones_attack_can_be_blocked_but_the_drone_itself_never_blocks():
     state, frame, enemy = duel(gap=4)
-    uid, _ = play(state, frame, "Swarm_Swarm")
+    summon(state, frame, "Swarm_Swarm")
     drone = next(t for t in state.tokens.values() if t.kind == fx.DRONE)
     drone.pos = Pos(4, 2)
     guard = give(state, enemy, "Spear_Thrust")             # blocks Mid
@@ -830,7 +895,7 @@ def test_a_drones_attack_can_be_blocked_but_the_drone_itself_never_blocks():
 
 def test_a_drone_can_be_attacked_and_dies_with_its_frame():
     state, frame, enemy = duel(gap=4)
-    play(state, frame, "Swarm_Swarm")
+    summon(state, frame, "Swarm_Swarm")
     drone = next(t for t in state.tokens.values() if t.kind == fx.DRONE)
     drone.pos = Pos(enemy.pos.x - 1, enemy.pos.y)
 
@@ -850,13 +915,80 @@ def test_a_drone_can_be_attacked_and_dies_with_its_frame():
 
 def test_crawl_summons_a_drone_that_attacks_low():
     state, frame, enemy = duel(gap=4)
-    play(state, frame, "Swarm_Crawl")
+    summon(state, frame, "Swarm_Crawl")
     next(t for t in state.tokens.values() if t.kind == fx.DRONE).pos = Pos(4, 2)
     assert effects.followup_decision(state) is True
     beside = Pos(enemy.pos.x - 1, enemy.pos.y)
     assert answer(state, state.pending, {"x": beside.x, "y": beside.y}) is None
     assert enemy.damage["Low"] == 1
     assert enemy.damage["Mid"] == 0
+
+
+def test_a_gun_tower_is_placed_at_range_and_shoots_without_moving():
+    """"Summon one Gun Tower within 3" -- a turret, not a pet.
+
+    Placement reach and count both come off the printed text, so the card
+    needed no handler of its own: `_effect_handler` matches it on being a
+    drone card at all.
+    """
+    state, frame, enemy = duel(gap=6)
+    card = CATALOGUE["Gun Tower_Gun Tower"]
+    assert card.drone_movement == 0, "it does not move"
+
+    uid, decision = play(state, frame, "Gun Tower_Gun Tower")
+    assert decision is not None
+    gaps = {state.board.distance(frame.pos, Pos(o["x"], o["y"]))
+            for o in decision.options}
+    assert gaps and max(gaps) == 3, "'within 3' is read off the card"
+    assert answer(state, decision, {"x": 4, "y": 2}) is None
+
+    towers = [t for t in state.tokens.values() if t.kind == fx.DRONE]
+    assert len(towers) == 1
+    tower = towers[0]
+    assert tower.pos == Pos(4, 2)
+    assert tower.hp == card.drone_health == 2
+
+    # It cannot close, but it does not need to: High 1 at range 8. With one
+    # target and nothing to block with there is nothing to ask, so the whole
+    # of the tower's turn happens inside this call.
+    assert effects.followup_decision(state) is False
+    assert tower.pos == Pos(4, 2), "a turret stays put"
+    assert enemy.damage["High"] == 1, "it shoots from where it was built"
+    assert state.board.distance(tower.pos, enemy.pos) == 4, "well out of reach"
+
+
+def test_attack_dogs_come_out_two_at_a_time():
+    """"Summon two attack dogs" -- one decision each, two tokens."""
+    state, frame, _ = duel(gap=4)
+    first = play(state, frame, "Attack Dog_Attack Dog")[1]
+    assert first is not None and "2 left" in first.prompt
+    second = answer(state, first, {"x": 2, "y": 1})
+    assert second is not None, "the second dog is a decision of its own"
+    assert not any(o["x"] == 2 and o["y"] == 1 for o in second.options), (
+        "the first dog is standing there"
+    )
+    assert answer(state, second, {"x": 2, "y": 3}) is None
+
+    dogs = [t for t in state.tokens.values() if t.kind == fx.DRONE]
+    assert {d.pos for d in dogs} == {Pos(2, 1), Pos(2, 3)}
+    assert all(d.hp == 1 for d in dogs), "one hit each"
+    assert len(fx.slot(state, "drones")) == 2, "both act on their own"
+
+
+def test_a_drone_card_needs_no_entry_in_the_effect_table():
+    """The point of matching drones by type: new ones just work.
+
+    Both cards added since this test was written -- the Gun Tower and the
+    Attack Dog -- resolve through the same handler as the Swarm, and neither
+    is named anywhere in `effects.py`.
+    """
+    source = Path(effects.__file__).read_text()
+    drones = [c for c in CATALOGUE.values() if c.card_type == "drone"]
+    assert len(drones) >= 4, "the catalogue has grown -- keep this honest"
+    for card in drones:
+        assert card.key not in effects.EFFECT_STEPS
+        assert f'"{card.key}"' not in source, f"{card.key} is special-cased"
+        assert effects._effect_handler(card) is effects._effect_summon_drone
 
 
 # --------------------------------------------------------------------------

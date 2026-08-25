@@ -9,6 +9,7 @@ and not this module's.
 
 from __future__ import annotations
 
+import json
 import threading
 import time
 import uuid
@@ -27,6 +28,7 @@ from ..engine import (
     new_game,
     scores,
     view_for,
+    watching,
 )
 from . import ai_bridge, readouts
 
@@ -38,9 +40,17 @@ MAX_AI_STEPS = 4000
 
 #: The AI's whole turn happens inside one `POST /command`, so by the time the
 #: human sees a view again several frames have moved, attacked and died. The
-#: server keeps a lightweight snapshot after each AI decision and ships them
+#: server keeps a lightweight snapshot at each beat of that turn and ships them
 #: with the response as `replay`, and the client plays them back at a speed the
 #: player picks -- otherwise the AI's turn is a single jump-cut.
+#:
+#: A beat is not the same thing as an AI *decision*. Plenty of what the AI does
+#: needs no decision at all -- a card with one legal target, an effect with no
+#: choices, a card that only blocks -- and those used to be folded silently
+#: into the next decision's snapshot, which is exactly the part players
+#: reported as mysterious. So the engine is watched (`engine.watching`) and a
+#: snapshot is taken whenever an AI frame reveals a card, moves, resolves an
+#: effect or lands an attack, in addition to after each AI decision.
 #:
 #: The board is 240 tiles and never changes mid-turn, so a snapshot drops it;
 #: what is left is a couple of kB. This caps how many are kept, newest wins,
@@ -68,8 +78,15 @@ class Session:
     history: list[GameState] = field(default_factory=list)
     ai_source: str = "fallback"
     lock: threading.Lock = field(default_factory=threading.Lock)
-    #: Snapshots of the AI's decisions since the human last acted.
+    #: Snapshots of what the AI did since the human last acted.
     replay: list[dict[str, Any]] = field(default_factory=list)
+    #: The frames as of the last snapshot taken, so the next one can say what
+    #: *changed* -- who moved from where, which zone took how much. A snapshot
+    #: on its own is a still; the marks the client draws need the difference.
+    prev_frames: dict[str, dict[str, Any]] = field(default_factory=dict)
+    #: Digest of the last snapshot appended, so a beat and the decision that
+    #: follows it do not both record the same moment.
+    last_digest: str = ""
 
     def view(self, *, with_replay: bool = True) -> dict[str, Any]:
         """The human seat's redacted view, with the server's game id on it."""
@@ -115,7 +132,9 @@ class Session:
                     out[uid] = value
         return out
 
-    def snapshot(self) -> dict[str, Any]:
+    def snapshot(
+        self, state: Optional[GameState] = None, event: str = ""
+    ) -> dict[str, Any]:
         """One replay frame: what moved, and nothing that could identify a card.
 
         Built from `view_for` like everything else, then narrowed twice over.
@@ -128,20 +147,14 @@ class Session:
         log says which card resolved), but without a uid there is nothing to
         tie that to a face-down commitment. Counts replace the card rows, since
         an animation only needs to know how many cards are standing.
+
+        `state` is the live state a watcher was handed, which during
+        `apply_command` is *not* `self.state` -- the engine works on a private
+        copy and only the finished one is assigned back.
         """
-        full = view_for(self.state, self.human_seat)
-        frames = []
-        for frame in full["frames"]:
-            slim = {
-                key: frame[key] for key in (
-                    "id", "seat", "name", "pos", "elev", "alive", "armour",
-                    "damage", "lastHit", "movement", "shields", "statuses",
-                    "deckCount", "discardCount",
-                ) if key in frame
-            }
-            slim["committedCount"] = len(frame.get("committed") or [])
-            slim["onFieldCount"] = len(frame.get("onField") or [])
-            frames.append(slim)
+        state = self.state if state is None else state
+        full = view_for(state, self.human_seat)
+        frames = [_slim_frame(frame) for frame in full["frames"]]
         return {
             "turn": full["turn"],
             "phase": full["phase"],
@@ -150,8 +163,115 @@ class Session:
             "log": full["log"],
             "vp": full["vp"],
             "resolving": _without_uids(
-                readouts.resolving(self.state, self.human_seat)),
+                readouts.resolving(state, self.human_seat)),
+            "beat": self._delta(event, frames),
         }
+
+    def _delta(
+        self, event: str, frames: list[dict[str, Any]]
+    ) -> dict[str, Any]:
+        """What changed since the previous snapshot, in board terms.
+
+        The client draws the rulebook's own marks from this -- a dashed line
+        from where a frame was to where it is, a burst on each zone that took
+        damage -- so it is the *difference* that matters, not the still.
+
+        A frame the seat may not see (Ephemeral Images hides its position) has
+        no `pos` in the view at all, so it contributes no move line. The
+        redaction is upstream and this cannot leak around it.
+        """
+        moves = []
+        hits = []
+        dead = []
+        for frame in frames:
+            before = self.prev_frames.get(frame["id"])
+            if before is None:
+                continue
+            was, now = before.get("pos"), frame.get("pos")
+            if was and now and (was["x"], was["y"]) != (now["x"], now["y"]):
+                moves.append({"id": frame["id"], "from": was, "to": now})
+            for zone, amount in (frame.get("damage") or {}).items():
+                gained = int(amount) - int((before.get("damage") or {}).get(zone, 0))
+                if gained > 0:
+                    hits.append({"id": frame["id"], "zone": zone, "amount": gained})
+            if before.get("alive") and not frame.get("alive"):
+                # A destroyed frame loses its position, so the tile to mark is
+                # the one it was standing on a moment ago.
+                dead.append({"id": frame["id"], "pos": before.get("pos")})
+        return {"event": event, "moves": moves, "hits": hits, "dead": dead}
+
+    def record(self, state: GameState, event: str = "") -> None:
+        """Append a replay frame, unless it would repeat the one before it.
+
+        Two paths lead here -- the engine's beats and the loop that drives the
+        AI -- and they meet on the last beat of a decision, which both would
+        otherwise record. Comparing the snapshot itself (bar its delta, which
+        is derived) is the honest test of "nothing new to see".
+        """
+        snap = self.snapshot(state, event)
+        digest = json.dumps(
+            {k: v for k, v in snap.items() if k != "beat"}, sort_keys=True
+        )
+        if digest == self.last_digest:
+            return
+        self.last_digest = digest
+        self.prev_frames = {f["id"]: f for f in snap["frames"]}
+        self.replay.append(snap)
+        del self.replay[:-MAX_REPLAY_FRAMES]
+
+    def reset_replay(self) -> None:
+        """Forget the recorded turn and re-baseline the diff on the present."""
+        self.replay.clear()
+        self.last_digest = ""
+        self.rebase()
+
+    def rebase(self, state: Optional[GameState] = None) -> None:
+        """Move the diff's baseline to now without recording anything.
+
+        For the beats that are *not* replayed. Without this, everything they
+        changed would surface on the next beat that is -- the player's own
+        attack landing would draw its burst on top of whatever the AI did
+        next, which is worse than not drawing it at all.
+        """
+        state = self.state if state is None else state
+        self.prev_frames = {
+            frame["id"]: frame
+            for frame in (
+                _slim_frame(entry)
+                for entry in view_for(state, self.human_seat)["frames"]
+            )
+        }
+
+    def watcher(self):
+        """The callback for `engine.watching`, scoped to the AI's own frames.
+
+        The human's cards resolve under their own hand and are already on
+        screen as they happen; replaying those would only put a delay between
+        a tap and its result. What needs showing is the half of the turn that
+        happens inside someone else's decision.
+        """
+        def observe(state: GameState, event: str) -> None:
+            res = getattr(state, "resolution", None)
+            frame = state.frames.get(res.frame_id) if res is not None else None
+            if frame is not None and frame.seat == self.ai_seat:
+                self.record(state, event)
+            else:
+                self.rebase(state)
+
+        return observe
+
+
+def _slim_frame(frame: Mapping[str, Any]) -> dict[str, Any]:
+    slim = {
+        key: frame[key] for key in (
+            "id", "seat", "name", "pos", "elev", "alive", "armour",
+            "damage", "lastHit", "movement", "shields", "statuses",
+            "deckCount", "discardCount", "cloaked",
+        ) if key in frame
+    }
+    slim["committedCount"] = len(frame.get("committed") or [])
+    slim["onFieldCount"] = len(frame.get("onField") or [])
+    return slim
 
 
 def _without_uids(blob: Any) -> Any:
@@ -217,7 +337,7 @@ class Registry:
         advance_ai(session)
         # Setup is not a thing to watch happen; the first view the player gets
         # should be the board as it stands, not an animation of the deal.
-        session.replay.clear()
+        session.reset_replay()
         return session
 
     def get(self, game_id: str) -> Session:
@@ -261,17 +381,23 @@ class Registry:
                 )
             session.history.append(session.state)
             del session.history[:-UNDO_DEPTH]
-            session.replay.clear()
+            session.reset_replay()
             cmd = Command(kind, session.human_seat, dict(payload))
-            try:
-                session.state = apply_command(session.state, cmd)
-            except IllegalCommand:
-                session.history.pop()
-                raise
-            except (KeyError, ValueError, TypeError) as exc:
-                session.history.pop()
-                raise IllegalCommand(str(exc) or type(exc).__name__) from exc
-            advance_ai(session)
+            # The watch covers the human's own command as well as the AI loop:
+            # answering a block declares the damage, and the AI's next few
+            # cards can resolve, all inside this one `apply_command`.
+            with watching(session.watcher()):
+                try:
+                    session.state = apply_command(session.state, cmd)
+                except IllegalCommand:
+                    session.history.pop()
+                    session.reset_replay()
+                    raise
+                except (KeyError, ValueError, TypeError) as exc:
+                    session.history.pop()
+                    session.reset_replay()
+                    raise IllegalCommand(str(exc) or type(exc).__name__) from exc
+                _drive_ai(session)
             session.updated = time.time()
         return session
 
@@ -295,7 +421,7 @@ class Registry:
             if not session.history:
                 raise IllegalCommand("nothing to undo")
             session.state = session.history.pop()
-            session.replay.clear()
+            session.reset_replay()
             session.updated = time.time()
         return session
 
@@ -307,7 +433,18 @@ def advance_ai(session: Session) -> None:
     client can replay the AI's turn at a readable speed instead of being handed
     the end state. Decisions that change nothing visible (a face-down commit)
     add no snapshot -- there would be nothing to watch.
+
+    The engine's own beats (see `Session.watcher`) fill in everything between
+    those decisions. `Session.record` drops a snapshot that repeats the one
+    before it, so the two sources overlapping on the last beat of a decision
+    costs nothing.
     """
+    with watching(session.watcher()):
+        _drive_ai(session)
+
+
+def _drive_ai(session: Session) -> None:
+    """The loop itself, for a caller that already has the watch open."""
     steps = 0
     logged = len(session.state.log)
     while True:
@@ -324,8 +461,7 @@ def advance_ai(session: Session) -> None:
         session.state = apply_command(state, ai_cmd)
         if len(session.state.log) != logged:
             logged = len(session.state.log)
-            session.replay.append(session.snapshot())
-            del session.replay[:-MAX_REPLAY_FRAMES]
+            session.record(session.state, "decision")
 
 
 def _ai_command(session: Session) -> Command:

@@ -14,14 +14,20 @@ const PREFS_KEY = 'netframe.prefs';
 const ZONES = ['High', 'Mid', 'Low'];
 
 // The AI's whole turn arrives in one response, so it is played back rather
-// than shown. These are milliseconds per logged event. "Instant" is the old
-// behaviour and is kept for anyone who finds the pacing tedious.
+// than shown. These are milliseconds per beat -- a card revealed, a frame
+// moved, an attack landed. "Instant" skips the playback entirely and jumps to
+// the end state: that is the behaviour this replaced, kept for anyone who
+// finds the pacing tedious.
 const SPEEDS = [
   { id: 'instant', label: 'Instant', ms: 0 },
-  { id: 'brisk', label: 'Brisk', ms: 400 },
-  { id: 'steady', label: 'Steady', ms: 850 },
-  { id: 'slow', label: 'Slow', ms: 1500 },
+  { id: 'brisk', label: 'Brisk', ms: 450 },
+  { id: 'steady', label: 'Steady', ms: 900 },
+  { id: 'slow', label: 'Slow', ms: 1600 },
 ];
+
+// A revealed card is the beat you actually *read*, so it is held longer than a
+// move or a hit, which you take in at a glance.
+const CARD_BEAT_DWELL = 1.35;
 
 const app = {
   catalogue: {},
@@ -435,14 +441,19 @@ function playReplay(finalView) {
     if (!state.queue.length || state.at >= state.queue.length) { finishReplay(); return; }
     const snap = state.queue[state.at++];
     setView(mergeSnapshot(state.base, snap), { replaying: true });
+    // The marks for *this* beat: who moved from where, what landed, what was
+    // blocked. Set after `setView`, which clears them for the resting board.
+    app.board.setBeat(snap.beat || null);
     const acting = (app.view.resolving || {}).frameId;
     const frame = (app.view.frames || []).find((f) => f.id === acting);
-    if (app.autoFollow && frame && frame.pos) {
-      app.board.centreOn(frame.pos.x, frame.pos.y);
-    }
-    const newest = (snap.log || [])[(snap.log || []).length - 1];
-    $('replay-text').textContent = newest ? newest.text : 'The AI is acting';
-    state.timer = setTimeout(step, ms);
+    // Follow the action rather than the actor: a shot from off screen is worth
+    // watching at the end that takes the damage.
+    const focus = beatFocus(snap, frame);
+    if (app.autoFollow && focus) app.board.centreOn(focus.x, focus.y);
+    $('replay-text').textContent = beatText(snap);
+    $('replay-count').textContent = `${state.at}/${state.queue.length}`;
+    const dwell = (snap.beat || {}).event === 'card' ? ms * CARD_BEAT_DWELL : ms;
+    state.timer = setTimeout(step, dwell);
   }
 }
 
@@ -462,6 +473,7 @@ function mergeSnapshot(base, snap) {
     vp: snap.vp || base.vp,
     tokens: snap.tokens || base.tokens,
     resolving: snap.resolving || null,
+    beat: snap.beat || null,
     pending: null,
     // `over` belongs to the end of the turn, not to the middle of it: the
     // final view may be a finished game, but this snapshot is not it yet.
@@ -479,6 +491,32 @@ function mergeSnapshot(base, snap) {
       return merged;
     }),
   };
+}
+
+/** The tile the camera should be looking at for this beat. */
+function beatFocus(snap, actor) {
+  const beat = snap.beat || {};
+  const hit = (beat.hits || [])[0] || (beat.dead || [])[0];
+  if (hit) {
+    const victim = (snap.frames || []).find((f) => f.id === hit.id);
+    const at = (victim && victim.pos) || hit.pos;
+    if (at) return at;
+  }
+  const move = (beat.moves || [])[0];
+  if (move && move.to) return move.to;
+  return actor && actor.pos ? actor.pos : null;
+}
+
+/** What the replay bar says, favouring the beat over the raw log tail. */
+function beatText(snap) {
+  const res = snap.resolving || {};
+  const beat = snap.beat || {};
+  if (res.key && beat.event === 'card') {
+    return `${C.frameLabel(res.frameId, res.frameName)} plays ${C.displayName(res.key)}`;
+  }
+  const newest = (snap.log || [])[(snap.log || []).length - 1];
+  if (newest && newest.text) return newest.text;
+  return 'The AI is acting';
 }
 
 function cancelReplay() {
@@ -529,6 +567,9 @@ function setView(view, opts = {}) {
   app.board.setView(view, view.seat);
   app.board.setActing(actingFrameId());
   app.board.setSelected(app.selectedFrame);
+  // Marks belong to a replay beat; the live board is the state, not an event.
+  // `playReplay` puts them back straight after this call.
+  app.board.setBeat(null);
   renderHud();
   renderFrameStrip();
   renderFramePanel();
@@ -1380,18 +1421,21 @@ function renderPlan() {
     || (view.frames || []).find((f) => f.seat === view.seat && f.alive);
 
   $('plan-frame').textContent = frame ? C.frameLabel(frame.id, frame.name) : '';
-  const slots = document.querySelectorAll('.plan-slots .slot');
-  slots.forEach((slot, i) => {
-    slot.innerHTML = '<span class="slot-label">Action ' + (i + 1) + '</span>';
-    delete slot.dataset.filled;
-  });
+  // How many slots there are is the engine's answer, not a constant: Hyper
+  // ("next turn: play 1 extra action") makes it three, so the row is rebuilt
+  // to the size the pending decision asks for.
+  const limits = commitLimits(committing ? pending : null);
+  const slots = layoutPlanSlots(limits.max);
 
   const hand = $('hand-grid');
   hand.innerHTML = '';
 
   if (committing) {
+    const short = limits.max - app.commitSelection.length;
     $('plan-count').textContent =
-      `${frame ? frame.hand.length : 0} in hand · commit 2 face down`;
+      `${frame ? frame.hand.length : 0} in hand · commit ${
+        limits.min === limits.max ? limits.max : `${limits.min}-${limits.max}`
+      } face down`;
     app.commitSelection.forEach((uid, i) => {
       const slot = slots[i];
       if (!slot) return;
@@ -1408,7 +1452,7 @@ function renderPlan() {
       const el = C.thumb(option.key, {
         width: 240,
         selected,
-        dim: !selected && app.commitSelection.length >= 2,
+        dim: !selected && short <= 0,
         onTap: () => toggleCommit(option.uid),
       });
       attachLongPress(el, option.key);
@@ -1473,11 +1517,48 @@ function toggleCommit(uid) {
   const at = app.commitSelection.indexOf(uid);
   if (at >= 0) app.commitSelection.splice(at, 1);
   else {
-    if (app.commitSelection.length >= 2) app.commitSelection.shift();
+    const { max } = commitLimits(app.view.pending);
+    // Full: the oldest pick makes way, so a tap always does something.
+    while (app.commitSelection.length >= max) app.commitSelection.shift();
     app.commitSelection.push(uid);
   }
   renderPlan();
   renderSheet();
+}
+
+/** How many cards this commit takes, as `{min, max}`.
+ *
+ *  The engine says so on the decision (`pickMin`/`pickMax`) because the answer
+ *  is not a constant -- Hyper raises the ceiling to three, and a client that
+ *  assumed two made the card's whole effect unspendable. Both ends are clamped
+ *  to the number of cards actually offered, for the frame down to its last one.
+ */
+function commitLimits(pending) {
+  const offered = pending ? (pending.options || []).length : 0;
+  const asked = Number(pending && pending.pickMax);
+  const max = Math.max(1, Math.min(Number.isFinite(asked) && asked > 0 ? asked : 2,
+    offered || 2));
+  const floor = Number(pending && pending.pickMin);
+  const min = Math.max(1, Math.min(Number.isFinite(floor) && floor > 0 ? floor : max, max));
+  return { min, max };
+}
+
+/** Rebuild the action-slot row to `count` slots and return them. */
+function layoutPlanSlots(count) {
+  const row = document.querySelector('.plan-slots');
+  row.style.setProperty('--slots', String(count));
+  while (row.children.length > count) row.lastElementChild.remove();
+  while (row.children.length < count) {
+    const slot = document.createElement('div');
+    slot.className = 'slot';
+    row.appendChild(slot);
+  }
+  return Array.from(row.children).map((slot, i) => {
+    slot.dataset.slot = String(i);
+    slot.innerHTML = `<span class="slot-label">Action ${i + 1}</span>`;
+    delete slot.dataset.filled;
+    return slot;
+  });
 }
 
 // ---------------------------------------------------------------- ladder
@@ -1655,6 +1736,7 @@ function renderSheet() {
     setDeployFrame,
     uidKey,
     toggleCommit,
+    commitLimits,
     toggleOrder,
     setOrder: (order) => { app.orderPick = order; renderSheet(); },
     sendOrder,

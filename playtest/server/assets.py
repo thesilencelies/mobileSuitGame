@@ -78,10 +78,13 @@ TOKEN_WIDTH = 96
 #: it sharp on a 3x phone and the three files come to about 3 kB.
 TILE_ICON_WIDTH = 64
 
-#: The glyph files: the three elevation levels, impassable and obstacle.
-#: Ground has none, and objectives and token spawns are marked by the client's
-#: own overlays rather than the card's glyph.
-TILE_ICON_FILES: tuple[str, ...] = ("e1", "e2", "e3", "imp", "obs")
+#: The glyph files: the three elevation levels, impassable, obstacle,
+#: objective and token spawn. Ground has none. Every code the printed card
+#: stamps a glyph for is here -- the board draws the card's marking, not an
+#: overlay of its own.
+TILE_ICON_FILES: tuple[str, ...] = (
+    "e1", "e2", "e3", "imp", "obs", "obj", "tkn",
+)
 
 #: A standee is drawn about one and a sixth tiles tall, anchored to the bottom
 #: of its tile. A tile is ~52 CSS px at the tactical zoom, so ~60 px tall; 128

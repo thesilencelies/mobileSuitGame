@@ -334,6 +334,13 @@ class PendingDecision:
     options: Sequence[Mapping[str, object]]
     #: Which frame the decision is about, when it is about one.
     frame_id: Optional[str] = None
+    #: How many options must be picked, for the decisions that take a *set* of
+    #: them rather than one. `commit_actions` is the only one today, and its
+    #: range is not a constant: Hyper raises the maximum to three. A client
+    #: that assumes two is a client that cannot play the card, so the engine
+    #: states the range rather than leaving it to be inferred.
+    pick_min: int = 1
+    pick_max: int = 1
 
 
 @dataclass(frozen=True)

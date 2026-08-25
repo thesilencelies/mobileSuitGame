@@ -145,6 +145,71 @@ def test_agent_emits_only_legal_commands(catalogue):
     assert is_over(state)
 
 
+def test_the_agent_spends_the_extra_action_hyper_buys(catalogue):
+    """Hyper's whole effect is the third card, so the AI has to take it.
+
+    The ceiling is on the decision, not in a constant, and the engine offers
+    both two- and three-card commits -- an agent that still assumed two would
+    play the card and then throw the action away.
+    """
+    from playtest.engine import effects
+    from playtest.engine import resolve as R
+    from playtest.engine.state import CardInstance
+
+    state = deployed(make_game(seed=11), seed=11)
+    assert state.pending.kind == "commit_actions"
+    frame = state.frames[state.pending.frame_id]
+
+    # Hyper resolved last turn: set aside in front of the frame.
+    uid = state.next_uid()
+    state.cards[uid] = CardInstance(
+        uid=uid, key=effects.HYPER, owner=frame.id, location="aside")
+    frame.aside.append(uid)
+    state.pending = None
+    assert R._planning_decision(state)
+    assert state.pending.pick_max == 3
+
+    seat = int(state.pending.seat)
+    agent = Agent(seat=seat, catalogue=catalogue, seed=4)
+    command = agent.act(json.loads(json.dumps(view_for(state, seat))))
+    assert len(command.payload["uids"]) == 3, "the extra action went unspent"
+    assert _matches(command, legal_commands(state, seat))
+    after = apply_command(state, command)
+    assert len(after.frames[frame.id].committed) == 3
+
+
+def test_a_turret_is_not_built_in_the_enemys_face(catalogue):
+    """A Gun Tower is immobile with two hit points and a range of 8.
+
+    `_pick_tile` answers every "where do you want to stand" question with one
+    rule, and that rule used to be "as close to the enemy as possible" -- which
+    for a turret is the one placement that gets it killed for nothing. The
+    engine puts the drone's printed reach on each option so the same rule can
+    ask for a standoff instead.
+    """
+    from playtest.engine.types import Pos as EnginePos
+
+    state = deployed(make_game(seed=11), seed=11)
+    view = json.loads(json.dumps(view_for(state, 0)))
+    agent = Agent(seat=0, catalogue=catalogue, seed=2)
+    snap = agent._snapshot(view)
+    enemy = next(f for f in snap.enemies() if f.pos is not None)
+
+    ring = [
+        {"x": enemy.pos.x + dx, "y": enemy.pos.y, "reach": reach}
+        for dx in (1, 4, 7)
+        for reach in (0, 8)
+    ]
+    melee = [o for o in ring if o["reach"] == 0]
+    ranged = [o for o in ring if o["reach"] == 8]
+    assert agent._pick_tile(snap, melee)["x"] == enemy.pos.x + 1, (
+        "something that has to bite still closes"
+    )
+    assert agent._pick_tile(snap, ranged)["x"] == enemy.pos.x + 7, (
+        "something that shoots 8 keeps its distance"
+    )
+
+
 def test_agent_never_sends_a_rejected_command(catalogue):
     """Belt and braces: the engine itself never raises on an agent command."""
     for seed in (3, 8):

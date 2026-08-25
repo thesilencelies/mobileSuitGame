@@ -278,21 +278,17 @@ class ObjectiveView:
     attack: int
     tiles: tuple[Pos, ...]
     status: str
+    #: Which seat the points currently go to, and whether that is final. Both
+    #: come straight off the view: `status` is prose for the player and is not
+    #: something to parse.
+    scorer: Optional[int] = None
+    settled: bool = False
 
     def value_for(self, seat: int) -> int:
         return self.defend if seat == self.owner else self.attack
 
-    @property
-    def settled(self) -> bool:
-        return self.status.startswith("scored by")
-
     def scored_by(self) -> Optional[int]:
-        if self.settled:
-            try:
-                return int(self.status.rsplit(" ", 1)[1])
-            except (IndexError, ValueError):
-                return None
-        return None
+        return self.scorer if self.settled else None
 
 
 @dataclass
@@ -338,6 +334,8 @@ class Snapshot:
                 attack=int(o.get("attack", 0)),
                 tiles=tuple(Pos(int(t[0]), int(t[1])) for t in (o.get("tiles") or ())),
                 status=str(o.get("status", "")),
+                scorer=(None if o.get("scorer") is None else int(o["scorer"])),
+                settled=bool(o.get("settled")),
             )
             for o in (board_json.get("objectives") or ())
         ]

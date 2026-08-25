@@ -155,7 +155,7 @@ Five tabs along the bottom, all reachable one-handed with a thumb:
 | Tab | What it is |
 |---|---|
 | **Board** | The 15×16 battlefield. |
-| **Plan** | Your hand, and the two actions you are committing face down. |
+| **Plan** | Your hand, and the actions you are committing face down. |
 | **Field** | The tableau: every card standing in front of every frame. |
 | **Initiative** | Every committed card in initiative order, highest first. |
 | **Log** | The full event log, newest first. |
@@ -202,21 +202,25 @@ with its own camera rather than a table the browser scrolls:
     building's flank; and the stacked-cube glyph in the corner.
   * **Impassable** — black at half opacity under a 5 pt *red* border, and a
     boxed X. A tile you cannot enter is not shaded like one you can.
-  * **Obstacle** — a yellow crosshatch under a dashed yellow outline, and a
-    boxed triangle. It sets no border of its own, so an obstacle standing on a
-    rooftop keeps the rooftop's blue wall and reads as both at once — which is
-    what the "should not set the line style cause they can appear at any
-    elevation" comment in `terrain_cards.py` is protecting.
+  * **Obstacle** — a yellow crosshatch, **objective** — a green field of
+    vertical lines, **token spawn** — a purple field of horizontal ones. All
+    three are pgf patterns at `fill opacity=0.5`, so they show through each
+    other where a tile carries more than one, and none of them sets a border —
+    an obstacle standing on a rooftop keeps the rooftop's blue wall and reads
+    as both at once, which is what the "should not set the line style cause
+    they can appear at any elevation" comment in `terrain_cards.py` is
+    protecting. The obstacle adds the card's dashed yellow outline on top.
 
-  The glyphs are the card's own `icons/{e1,e2,e3,imp,obs}.png`, bundled into
-  `static/tiles/`; a tile carrying two of them stacks the second one width to
-  the left, as the card does. The pt-to-tile conversions and the mixed colours
-  are hard-coded in `board.js` because a canvas cannot share TikZ's constants —
-  `test_the_board_draws_elevation_the_way_the_card_does` re-derives them from
-  `terrain_cards.py` and is what stops the two drifting apart.
-* Objective tiles are outlined gold and tokens are discs with their remaining
-  HP. Those two still use the client's own markings rather than the card's
-  green and purple hatches.
+  The glyphs are the card's own `icons/{e1,e2,e3,imp,obs,obj,tkn}.png`, bundled
+  into `static/tiles/`; a tile carrying two of them stacks the second one width
+  to the left, as the card does. The pt-to-tile conversions, the mixed colours
+  and the xcolor base colours behind the hatches are hard-coded in `board.js`
+  because a canvas cannot share TikZ's constants —
+  `test_the_board_draws_elevation_the_way_the_card_does` and
+  `test_the_board_hatches_a_tile_the_way_the_card_does` re-derive them from
+  `terrain_cards.py` and are what stop the two drifting apart.
+* Tokens are discs with their remaining HP — the one board marking that is the
+  client's own, because nothing is printed for them.
 
 Tapping:
 
@@ -278,11 +282,40 @@ several zones at once, are the engine's answers rather than the client's guess.
 
 `POST /command` runs the AI until you are on the clock again, so one tap can
 cover three frames moving, an attack, a compulsory block and a death. The
-server ships a snapshot per logged AI decision and the client plays them
+server records a snapshot at each **beat** of that and the client plays them
 through the board at the pace you pick — **Instant / Brisk / Steady / Slow** in
-the drawer, with a **Skip** button on the playback bar. The camera follows the
-acting frame unless you turn that off. Skipping always lands on exactly the
-same state as watching.
+the drawer, with a **Skip** button and an `n/total` counter on the playback bar.
+The camera follows the action — the frame that took the damage, else the tile
+that was moved to — unless you turn that off. Skipping always lands on exactly
+the same state as watching, and **Instant** skips the playback entirely.
+
+A beat is not the same thing as an AI *decision*. Plenty of what the AI does
+needs no decision at all: a card with one legal target, an effect with no
+choices, a card that only ever blocks. Those used to be folded silently into
+the next decision's snapshot, which is the part that read as the AI acting off
+screen. The engine is watched instead (`engine.watching`, a per-thread
+observer) and a beat is recorded whenever an AI frame **reveals a card**,
+**moves**, **resolves an effect** or **lands an attack** — as well as after
+each AI decision. The human's own cards are deliberately *not* recorded: they
+resolve under your own hand and are already on screen, and replaying them would
+only put a delay between a tap and its result.
+
+Each snapshot carries what *changed* since the one before it, because the marks
+are a difference rather than a still:
+
+| `beat` key | What it is |
+|---|---|
+| `event` | `card` / `move` / `effect` / `attack` / `decision` |
+| `moves` | `{id, from, to}` per frame that moved |
+| `hits` | `{id, zone, amount}` per zone that took damage |
+| `dead` | `{id, pos}` per frame destroyed — with the tile it was on, since a destroyed frame has no position any more |
+
+The board draws those with the rulebook's own vocabulary (`rules/rules.tex`,
+the play-example helpers), not a second invented language: a dotted ring where
+a frame was and a dashed arrow to where it is; a red arrow attacker → target,
+solid at melee reach and dotted for a shot; a burst carrying the number of
+marks that landed; and the block shield itself — the same shape
+`card_macros.tex` prints on the cards — on each zone that was stopped.
 
 A corner card on the board says which frame is acting, with which card, at what
 initiative, and how far through its steps it is — during your turn and during
@@ -299,11 +332,12 @@ step by step*.
 
 ### What the UI is honest about
 
-* **26 cards have unimplemented text** — all 24 pilot cards and both drone
-  cards. They load, block and deal damage correctly, but their printed effect
-  does nothing in v1. Each carries a `TEXT NOT IMPLEMENTED` ribbon on its
-  thumbnail, a warning in its detail view, and a note in the initiative list.
-  Do not read a pilot card's text as active when judging balance.
+* **Every card's text is implemented.** `effects.deferred_effects()` is empty,
+  and the machinery for saying otherwise is still in place: a card the engine
+  does not understand gets a `TEXT NOT IMPLEMENTED` ribbon on its thumbnail, a
+  warning in its detail view and a note in the initiative list, and
+  `test_all_pilot_and_drone_text_is_implemented_or_flagged` fails the build if
+  one appears. Add a card to a CSV and that is the test that tells you.
 * **Blocking is compulsory**, and each block option states whether the card is
   discarded (normal block) or kept (super block), and whether its own action is
   forfeit.
@@ -349,6 +383,43 @@ That one decision settles what used to be several problems:
 Nothing in the client identifies a frame from prompt text. The engine's
 `prompt` is shown as its own explanation, but *who* a decision is about is read
 from `pending.frameId` (or, for a deploy, from the frame you picked).
+
+### How many actions
+
+`commit_actions` is the one decision that takes a *set* of options rather than
+one, and the size of that set is not a constant: `Wunderkid_Hyper` ("next turn:
+play 1 extra action") raises it to three. So the decision carries the range —
+`pickMin` / `pickMax` on the view, `pick_min` / `pick_max` on
+`PendingDecision` — and everything downstream reads it rather than assuming
+two: the Plan screen builds that many slots, the sheet enables **Commit** over
+that range, and the AI commits the ceiling. A client that assumed two made the
+card's whole effect unspendable.
+
+### Card text, and adding a card
+
+Every pilot and drone card's printed text is implemented, and each one is
+registered in `engine/effects.py` by its key — except drones, which are matched
+on their **type**. Every drone card does the same thing (summon tokens that
+repeat the card each turn), and the two numbers that differ are read off the
+printed text:
+
+* `_count_from_text` — "Summon **two** attack dogs" → two tokens, one placement
+  decision each;
+* `_reach_from_text` — "Summon one Gun Tower **within 3**" → placed up to three
+  tiles away, rather than beside the frame.
+
+So a new drone in `Drone actions.csv` works with no engine change at all. The
+same two helpers now drive Barricade's count and Gravity Well's placement
+reach, so a balance edit to those numbers is a CSV edit too.
+
+Each placement option carries the drone's printed `reach`, which is what stops
+the AI building an immobile, two-hit-point, range-8 Gun Tower in the enemy's
+face: `Agent._pick_tile` aims for the distance the thing wants to be at rather
+than always closing.
+
+Pilot cards are not like this — each one's text is its own — so an unlisted
+pilot card is deferred on purpose and
+`test_all_pilot_and_drone_text_is_implemented_or_flagged` says so.
 
 ### Ephemeral Images
 
@@ -418,7 +489,8 @@ them assembled in `readouts.py` from engine calls rather than restated rules:
 | `resolving` | The card mid-resolution: frame, card key, effective initiative, remaining steps, and the attack in flight. `PendingDecision` names only the frame, and during a compulsory block that frame is the *defender* — so this is not `pending.frameId`. |
 | `defence` | Per frame, per zone: how many cards still in front of it block that zone, how many are super blocks, which ones (when this seat may know), and how many cards are face down. |
 | `initiative` | `{uid: initiative}` as the engine will queue it, for cards this seat can identify. |
-| `replay` | Snapshots of the AI's decisions since you last acted. Present on a command response, absent from a plain `GET` — a refresh must not re-animate. |
+| `replay` | Snapshots of what the AI did since you last acted, one per beat — see [Watching the AI move](#watching-the-ai-move). Present on a command response, absent from a plain `GET` — a refresh must not re-animate. |
+| `kills` | `{seat: n}` — "1 point per opposing frame defeated". Credited when the frame dies, so it cannot be recounted from the board afterwards; the final score itemises this half against the objectives. |
 
 Redaction is the same rule as the rest of the view: a card this seat may not
 identify contributes to counts and nothing else. Replay snapshots go further

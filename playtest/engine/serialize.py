@@ -15,7 +15,7 @@ from typing import Any, Mapping, Optional
 from . import effects_state as fx
 from . import objectives as objectivelib
 from .state import CardInstance, FrameState, GameState, victory_points
-from .types import Card, PendingDecision, Team, ZONES
+from .types import Card, PendingDecision, Team, ZONES, team_name
 
 
 def hidden_id(state: GameState, seat: Team, uid: str) -> str:
@@ -114,13 +114,21 @@ def _pending_json(
         # The other seat is deciding. Say so, but never say what the options
         # are -- that is how simultaneous planning stays simultaneous.
         return {"seat": pending.seat, "kind": pending.kind, "waiting": True}
-    return {
+    out = {
         "seat": pending.seat,
         "kind": pending.kind,
         "prompt": pending.prompt,
         "frameId": pending.frame_id,
         "options": [dict(option) for option in pending.options],
     }
+    # How many of the options make one answer. Only interesting when it is not
+    # exactly one -- committing actions, where Hyper raises the ceiling to
+    # three. The client must read this rather than assume two, or the extra
+    # action the card buys is unspendable.
+    if pending.pick_min != 1 or pending.pick_max != 1:
+        out["pickMin"] = pending.pick_min
+        out["pickMax"] = pending.pick_max
+    return out
 
 
 def _board_json(state: GameState) -> dict[str, Any]:
@@ -140,15 +148,21 @@ def _board_json(state: GameState) -> dict[str, Any]:
                 "impassable": tile.impassable,
                 "obstacle": tile.obstacle,
                 "objective": tile.objective or None,
+                # The `tkn` code. The card marks it as plainly as it marks an
+                # obstacle, so the board needs it to draw the same thing.
+                "tokenSpawn": tile.token_spawn or None,
                 "card": tile.terrain_card,
             })
     objectives = []
     for obj in state.objectives:
         seat, value = objectivelib.objective_score(state, obj)
+        # Prose for the player; `scorer`/`settled` below for anything that has
+        # to act on it. Naming the team rather than a seat number matches the
+        # rest of the view -- a frame id already says "Blue" or "Red".
         if obj.latched is not None:
-            status = f"scored by seat {obj.latched}"
+            status = f"scored by {team_name(obj.latched)}"
         elif seat is not None:
-            status = f"leaning seat {seat}"
+            status = f"leaning {team_name(seat)}"
         else:
             status = "unscored"
         objectives.append({
@@ -158,6 +172,11 @@ def _board_json(state: GameState) -> dict[str, Any]:
             "attack": obj.attack,
             "tiles": [[p.x, p.y] for p in obj.tiles],
             "status": status,
+            # Who the points go to, as a seat number rather than prose --
+            # the final score has to attribute each one to a side, and the AI
+            # has to reason about it without parsing English.
+            "scorer": seat,
+            "settled": obj.latched is not None,
             "value": value,
         })
     return {
@@ -217,6 +236,11 @@ def view_for(state: GameState, seat: Team) -> dict[str, Any]:
         "pending": _pending_json(state.pending, seat),
         "log": list(state.log),
         "vp": {str(s): points.get(s, 0) for s in state.seats},
+        # Victory points are kills *plus* objectives, and the final score has
+        # to be able to say which is which. The kill half is only knowable
+        # here: a frame is destroyed once and the point is credited then, so
+        # it cannot be recounted from the board afterwards.
+        "kills": {str(s): state.kills.get(s, 0) for s in state.seats},
         "over": state.phase == "finished",
     }
 

@@ -84,11 +84,23 @@ const IMPASSABLE_WALL = 0.0856;
 
 //: OBSTACLE_STYLE: a yellow crosshatch, and a 3 pt dashed yellow outline on
 //: 2 mm / off 2 mm. The hatch is pgf's `crosshatch` -- hairlines at +/-45.
-const OBSTACLE_CSS = 'rgba(255,255,0,0.5)';
-const OBSTACLE_HATCH_STEP = 0.0856;
-const OBSTACLE_HATCH_W = 0.0069;
 const OBSTACLE_DASH_W = 0.0514;
 const OBSTACLE_DASH = 0.0971;
+
+//: The three hatched codes, exactly as `STYLE_DICT` gives them: pgf's
+//: `crosshatch` / `vertical lines` / `horizontal lines` at `fill opacity=0.5`,
+//: in the xcolor base colours the card names. pgf lays all three on a 5 pt
+//: grid in hairline (0.4 pt), which in tile units is the step and width below.
+//: The angles are the directions of the lines pgf draws.
+const HATCH_STEP = 0.0856;
+const HATCH_W = 0.0069;
+//: `_hatch` draws each line along y and steps along x, so an angle of 0 is a
+//: field of *vertical* lines and a quarter turn makes them horizontal.
+const HATCH = {
+  obstacle: { css: 'rgba(255,255,0,0.5)', angles: [Math.PI / 4, -Math.PI / 4] },
+  objective: { css: 'rgba(0,255,0,0.5)', angles: [0] },
+  spawn: { css: 'rgba(191,0,64,0.5)', angles: [Math.PI / 2] },
+};
 
 //: The glyph is 0.6 cm in a 2.06 cm tile, inset by half its width plus the
 //: base border -- `terrain_iconwidth_value` and the offsets beside it. A tile
@@ -107,6 +119,10 @@ const GROUND_EDGE = '#101720';
 const ELEV_FLAT = ['#19212c', '#384266', '#3c4e7a', '#415e96'];
 
 //: A terrain card is 3 tiles across and 4 down (rules; engine/terrain.py).
+//: Zone order, top to bottom -- the order a card prints them in, so the marks
+//: on the board stack the same way.
+const ZONE_ORDER = ['High', 'Mid', 'Low'];
+
 const CARD_COLS = 3;
 const CARD_ROWS = 4;
 
@@ -126,6 +142,7 @@ export class BoardView {
     };
     this.selected = null;            // frame id
     this.acting = null;              // frame id currently resolving
+    this.beat = null;                // what changed since the last replay frame
     this.options = { los: false, threat: true, cards: false, coords: false, art: true };
     this.cards = [];                 // dealt terrain cards, with their art
     this._art = new Map();           // url -> HTMLImageElement (or null)
@@ -221,6 +238,9 @@ export class BoardView {
     };
     this._dirty = true;
   }
+
+  /** What just happened, for the replay marks. `null` clears them. */
+  setBeat(beat) { this.beat = beat || null; this._dirty = true; }
 
   setSelected(frameId) { this.selected = frameId; this._dirty = true; }
   setActing(frameId) { this.acting = frameId; this._dirty = true; }
@@ -442,6 +462,7 @@ export class BoardView {
     if (this.options.cards) this._drawCardSeams(ctx, x0, y0, x1, y1, s);
     this._drawTokens(ctx, s);
     this._drawFrames(ctx, s);
+    this._drawBeat(ctx, s);
     ctx.restore();
 
     if (this.zoomedIn) this._drawMinimap(ctx, w, h);
@@ -495,17 +516,12 @@ export class BoardView {
           ctx.fillStyle = IMPASSABLE_FILL;
           ctx.fillRect(x, y, 1, 1);
         }
-        if (t.obstacle) this._crosshatch(ctx, x, y);
-
-        const obj = this.objectiveTiles.get(`${x},${y}`);
-        if (obj) {
-          ctx.strokeStyle = 'rgba(242,193,78,0.85)';
-          ctx.lineWidth = 2 / s;
-          ctx.strokeRect(x + 1.5 / s, y + 1.5 / s, 1 - 3 / s, 1 - 3 / s);
-        } else if (t.objective) {
-          ctx.fillStyle = 'rgba(242,193,78,0.5)';
-          ctx.fillRect(x + 0.38, y + 0.38, 0.24, 0.24);
-        }
+        // The hatched codes, in the card's own order: an obstacle can sit on
+        // an objective and both hatches show through each other, which is the
+        // point of drawing them at half opacity.
+        if (t.obstacle) this._hatch(ctx, x, y, 'obstacle');
+        if (t.objective) this._hatch(ctx, x, y, 'objective');
+        if (t.tokenSpawn) this._hatch(ctx, x, y, 'spawn');
 
         // The border last, so nothing is drawn over it: on a raised tile it
         // *is* the height, and on an impassable one it is the whole marking.
@@ -584,19 +600,26 @@ export class BoardView {
     ctx.restore();
   }
 
-  /** An obstacle's yellow crosshatch: pgf's pattern, hairlines at +/-45. */
-  _crosshatch(ctx, x, y) {
+  /** One of the card's hatch patterns, clipped to the tile.
+   *
+   *  pgf draws a pattern as parallel hairlines on a fixed grid; a crosshatch
+   *  is two of those at right angles. So one routine covers all three codes,
+   *  and which one a tile gets is only a colour and a list of angles.
+   */
+  _hatch(ctx, x, y, kind) {
+    const style = HATCH[kind];
+    if (!style) return;
     ctx.save();
     ctx.beginPath();
     ctx.rect(x, y, 1, 1);
     ctx.clip();
     ctx.translate(x + 0.5, y + 0.5);
-    ctx.strokeStyle = OBSTACLE_CSS;
-    ctx.lineWidth = OBSTACLE_HATCH_W;
-    for (const angle of [Math.PI / 4, -Math.PI / 4]) {
+    ctx.strokeStyle = style.css;
+    ctx.lineWidth = HATCH_W;
+    for (const angle of style.angles) {
       ctx.save();
       ctx.rotate(angle);
-      for (let o = -0.75; o <= 0.75; o += OBSTACLE_HATCH_STEP) {
+      for (let o = -0.75; o <= 0.75; o += HATCH_STEP) {
         ctx.beginPath();
         ctx.moveTo(o, -0.75);
         ctx.lineTo(o, 0.75);
@@ -610,7 +633,7 @@ export class BoardView {
   /** An obstacle's dashed yellow outline -- the card's `postaction`. */
   _dashedOutline(ctx, x, y) {
     ctx.save();
-    ctx.strokeStyle = OBSTACLE_CSS;
+    ctx.strokeStyle = HATCH.obstacle.css;
     ctx.lineWidth = OBSTACLE_DASH_W;
     ctx.setLineDash([OBSTACLE_DASH, OBSTACLE_DASH]);
     // Inset by half the stroke. The card lets it straddle the tile edge, but
@@ -632,6 +655,8 @@ export class BoardView {
     if (elev > 0) stems.push(`e${elev}`);
     if (t.impassable) stems.push('imp');
     if (t.obstacle) stems.push('obs');
+    if (t.objective) stems.push('obj');
+    if (t.tokenSpawn) stems.push('tkn');
     let cx = x + 1 - TILE_ICON_INSET;
     const cy = y + 1 - TILE_ICON_INSET;
     for (const stem of stems) {
@@ -900,6 +925,207 @@ export class BoardView {
     }
   }
 
+  // ------------------------------------------------- what just happened
+  //
+  // The replay marks. The rulebook draws its own play examples with a small,
+  // fixed vocabulary (`rules/rules.tex`, the play-example helpers), and these
+  // are those marks on the live board rather than a second invented language:
+  //
+  //   * a dotted ring where a frame was, and a dashed arrow to where it is
+  //     (`\ghost` and the `moveline` style);
+  //   * a red arrow from attacker to target -- solid at melee reach, dotted
+  //     for a shot (`attackline` / `shotline`);
+  //   * a burst carrying the number of marks that landed (`\burst`);
+  //   * the block shield itself on a zone that was stopped (`\blockmark`),
+  //     drawn from the same path the printed cards use.
+  //
+  // They are drawn on top of everything, and only while a replay frame is on
+  // screen -- `setBeat(null)` is the resting state.
+
+  _drawBeat(ctx, s) {
+    const beat = this.beat;
+    if (!beat) return;
+    for (const move of beat.moves || []) this._moveMark(ctx, move, s);
+    this._attackMark(ctx, s);
+    for (const hit of beat.hits || []) this._burst(ctx, hit, s);
+    for (const gone of beat.dead || []) this._deadMark(ctx, gone, s);
+  }
+
+  /** Where a frame was, and the route it took to where it is now. */
+  _moveMark(ctx, move, s) {
+    const a = { x: move.from.x + 0.5, y: move.from.y + 0.5 };
+    const b = { x: move.to.x + 0.5, y: move.to.y + 0.5 };
+    ctx.save();
+    ctx.strokeStyle = '#f2c14e';
+    ctx.lineWidth = 2.2 / s;
+    ctx.setLineDash([0.1, 0.07]);
+    ctx.beginPath();
+    ctx.arc(a.x, a.y, 0.34, 0, Math.PI * 2);
+    ctx.stroke();
+    // Stop the shaft short of the destination so the arrowhead is the thing
+    // that touches the tile, not a line ending under the standee.
+    const len = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+    const ux = (b.x - a.x) / len;
+    const uy = (b.y - a.y) / len;
+    ctx.beginPath();
+    ctx.moveTo(a.x + ux * 0.36, a.y + uy * 0.36);
+    ctx.lineTo(b.x - ux * 0.34, b.y - uy * 0.34);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    this._arrowHead(ctx, b.x - ux * 0.32, b.y - uy * 0.32, ux, uy, 0.26, '#f2c14e');
+    ctx.restore();
+  }
+
+  /** Attacker to target, with a shield on every zone the block stopped. */
+  _attackMark(ctx, s) {
+    const res = this.view.resolving;
+    const attack = res && res.attack;
+    if (!attack) return;
+    const from = this._posOf('frame', res.frameId);
+    const to = this._posOf(attack.targetKind, attack.targetId);
+    if (!from || !to) return;                 // one of them is hidden from us
+    const a = { x: from.x + 0.5, y: from.y + 0.5 };
+    const b = { x: to.x + 0.5, y: to.y + 0.5 };
+    const reach = Math.max(Math.abs(from.x - to.x), Math.abs(from.y - to.y));
+    ctx.save();
+    ctx.strokeStyle = '#e0503c';
+    ctx.lineWidth = (reach > 1 ? 1.9 : 2.6) / s;
+    if (reach > 1) ctx.setLineDash([0.05, 0.06]);   // a shot, not a swing
+    const len = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+    const ux = (b.x - a.x) / len;
+    const uy = (b.y - a.y) / len;
+    ctx.beginPath();
+    ctx.moveTo(a.x + ux * 0.34, a.y + uy * 0.34);
+    ctx.lineTo(b.x - ux * 0.40, b.y - uy * 0.40);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    this._arrowHead(ctx, b.x - ux * 0.38, b.y - uy * 0.38, ux, uy, 0.28, '#e0503c');
+    ctx.restore();
+
+    const blocked = attack.blocked || [];
+    const zones = attack.zones || {};
+    // Stacked down the target's left edge, High at the top -- the same order
+    // the zones run in on a card.
+    ZONE_ORDER.forEach((zone, i) => {
+      if (!blocked.includes(zone) || !zones[zone]) return;
+      this._blockShield(ctx, to.x - 0.10, to.y + 0.22 + i * 0.28,
+        (zones[zone] || 0) > 1, s);
+    });
+  }
+
+  /** The printed block marker: the shape from `card_macros.tex`, on canvas.
+   *
+   *  `\normalblockpath` is a flat top with a pointed bottom; `\superblockpath`
+   *  notches the top and pinches the sides, and is drawn wider. Keeping the
+   *  same silhouette here means a player who has learned to read the card can
+   *  read the board without translating.
+   */
+  _blockShield(ctx, cx, cy, superBlock, s) {
+    const hw = (superBlock ? 0.13 * 1.3 : 0.13);
+    const hh = 0.145;
+    const path = () => {
+      ctx.beginPath();
+      if (superBlock) {
+        ctx.moveTo(cx - hw, cy - hh);
+        ctx.lineTo(cx, cy - 0.66 * hh);
+        ctx.lineTo(cx + hw, cy - hh);
+        ctx.lineTo(cx + 0.8 * hw, cy + 0.35 * hh);
+        ctx.lineTo(cx, cy + hh);
+        ctx.lineTo(cx - 0.8 * hw, cy + 0.35 * hh);
+      } else {
+        ctx.moveTo(cx - hw, cy - hh);
+        ctx.lineTo(cx + hw, cy - hh);
+        ctx.lineTo(cx + hw, cy + 0.35 * hh);
+        ctx.lineTo(cx, cy + hh);
+        ctx.lineTo(cx - hw, cy + 0.35 * hh);
+      }
+      ctx.closePath();
+    };
+    ctx.save();
+    ctx.lineJoin = 'round';
+    // Black rim first, behind the fill, exactly as the macro stacks them.
+    ctx.strokeStyle = '#05070a';
+    ctx.lineWidth = 5 / s;
+    path(); ctx.stroke();
+    ctx.fillStyle = 'rgba(160,205,255,0.55)';
+    path(); ctx.fill();
+    ctx.strokeStyle = '#9fd0ff';
+    ctx.lineWidth = 2.6 / s;
+    path(); ctx.stroke();
+    ctx.restore();
+  }
+
+  /** Damage that landed: the rulebook's burst, carrying the number of marks. */
+  _burst(ctx, hit, s) {
+    const pos = this._posOf('frame', hit.id);
+    if (!pos) return;
+    const i = Math.max(0, ZONE_ORDER.indexOf(hit.zone));
+    const cx = pos.x + 1.06;
+    const cy = pos.y + 0.24 + i * 0.28;
+    ctx.save();
+    ctx.beginPath();
+    for (let k = 0; k < 16; k++) {
+      const r = k % 2 ? 0.075 : 0.165;
+      const t = (k / 16) * Math.PI * 2 - Math.PI / 2;
+      const px = cx + Math.cos(t) * r;
+      const py = cy + Math.sin(t) * r;
+      if (k) ctx.lineTo(px, py); else ctx.moveTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fillStyle = '#ff8a2b';
+    ctx.fill();
+    ctx.strokeStyle = '#7a1d0c';
+    ctx.lineWidth = 1.6 / s;
+    ctx.stroke();
+    ctx.fillStyle = '#22120a';
+    ctx.font = `800 ${0.17}px system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(String(hit.amount), cx, cy + 0.005);
+    ctx.restore();
+  }
+
+  /** A frame that died on this beat.
+   *
+   *  It has no position any more -- the engine takes a destroyed frame off the
+   *  board -- so the tile comes from where it was standing when the previous
+   *  replay frame was taken.
+   */
+  _deadMark(ctx, gone, s) {
+    const pos = gone && gone.pos;
+    if (!pos) return;
+    const cx = pos.x + 0.5;
+    const cy = pos.y + 0.5;
+    ctx.save();
+    ctx.strokeStyle = '#ff5d5d';
+    ctx.lineWidth = 4 / s;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 0.46, 0, Math.PI * 2);
+    ctx.moveTo(cx - 0.3, cy - 0.3); ctx.lineTo(cx + 0.3, cy + 0.3);
+    ctx.moveTo(cx + 0.3, cy - 0.3); ctx.lineTo(cx - 0.3, cy + 0.3);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  _arrowHead(ctx, x, y, ux, uy, size, colour) {
+    const px = -uy;
+    const py = ux;
+    ctx.beginPath();
+    ctx.moveTo(x + ux * size, y + uy * size);
+    ctx.lineTo(x - px * size * 0.42, y - py * size * 0.42);
+    ctx.lineTo(x + px * size * 0.42, y + py * size * 0.42);
+    ctx.closePath();
+    ctx.fillStyle = colour;
+    ctx.fill();
+  }
+
+  /** The tile a frame or token is on, or `null` when this seat cannot see it. */
+  _posOf(kind, id) {
+    const source = kind === 'token' ? (this.view.tokens || []) : (this.view.frames || []);
+    const found = source.find((e) => e.id === id);
+    return found && found.pos ? found.pos : null;
+  }
+
   /** The mech itself, standing on its tile, on a seat-coloured base. */
   _drawStandee(ctx, f, art, s, mine) {
     const { x, y } = f.pos;
@@ -980,9 +1206,11 @@ export class BoardView {
       else continue;
       ctx.fillRect(ox + x * cell, oy + y * cell, cell, cell);
     }
+    // A minimap cell is a few pixels -- too small for the card's hatch, so
+    // the objective tiles get its colour as a flat block instead.
     for (const [key] of this.objectiveTiles) {
       const [x, y] = key.split(',').map(Number);
-      ctx.fillStyle = 'rgba(242,193,78,0.6)';
+      ctx.fillStyle = 'rgba(0,255,0,0.6)';
       ctx.fillRect(ox + x * cell, oy + y * cell, cell, cell);
     }
     for (const f of this.view.frames || []) {

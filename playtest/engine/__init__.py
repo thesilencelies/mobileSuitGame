@@ -35,7 +35,7 @@ from .types import (
 )
 from .state import GameState, victory_points
 from . import resolve as _resolve
-from .resolve import IllegalCommand, FlatBoard, set_board_factory
+from .resolve import IllegalCommand, FlatBoard, set_board_factory, watching
 from .serialize import view_for as _view_for, catalogue_json, card_json
 from .cards import (
     DeckReport,
@@ -53,7 +53,7 @@ __all__ = [
     # supporting types and helpers the server and AI need
     "GameState", "GameConfig", "Command", "PendingDecision", "IllegalCommand",
     "Card", "FrameSpec", "Pos", "Tile", "Zone", "ZONES", "Team", "Phase",
-    "DecisionKind", "FlatBoard", "set_board_factory",
+    "DecisionKind", "FlatBoard", "set_board_factory", "watching",
     "load_cards", "load_frames", "load_deck", "available_decks",
     "validate_deck", "validate_all_decks", "DeckReport",
     "catalogue_json", "card_json",

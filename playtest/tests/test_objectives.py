@@ -412,6 +412,36 @@ def test_victory_points_are_kills_plus_objectives():
     assert points[1] == 0
 
 
+def test_the_view_itemises_the_score_into_kills_and_objectives():
+    """The total alone cannot be checked against the board.
+
+    "1 point per opposing frame defeated" is credited once, when the frame
+    dies, so it cannot be recounted afterwards -- the view has to carry it,
+    and each objective has to say which seat its points went to.
+    """
+    from playtest.engine.serialize import view_for
+    from playtest.engine.state import check_destruction
+
+    state = make_state()
+    victim = add_frame(state, 1, "Kuwagata", Pos(1, 1))
+    killer = add_frame(state, 0, "Kuwagata", Pos(2, 1))
+    victim.damage["Mid"] = 4
+    check_destruction(state, victim, killer=killer)
+
+    obj = setup_objective(state, "The Tower", owner=1, tiles=[Pos(5, 5)],
+                          spawns=[Pos(5, 5)])
+    damage_token(state, O.tokens_of(state, obj)[0], 4)
+    latch_objectives(state)
+
+    view = view_for(state, 0)
+    assert view["kills"] == {"0": 1, "1": 0}
+    scored = [o for o in view["board"]["objectives"] if o["value"]]
+    assert [o["scorer"] for o in scored] == [0]
+    # The halves add up to the total the header shows.
+    assert view["vp"]["0"] == view["kills"]["0"] + sum(
+        o["value"] for o in scored if o["scorer"] == 0)
+
+
 def test_unsettled_objectives_are_worth_nothing_mid_game():
     state = make_state()
     add_frame(state, 0, "Kuwagata", Pos(4, 4))

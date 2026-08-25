@@ -11,10 +11,12 @@ Turn structure (rules.tex:366): planning -> action -> cleanup, five times.
 
 from __future__ import annotations
 
+import contextlib
 import itertools
 import random
+import threading
 import uuid
-from typing import Any, Callable, Iterable, Mapping, Optional, Sequence
+from typing import Any, Callable, Iterable, Iterator, Mapping, Optional, Sequence
 
 from . import cards as cardlib
 from . import combat
@@ -54,6 +56,49 @@ STEPS = ("movement", "effect", "attack")
 
 class IllegalCommand(ValueError):
     """The command was not one the engine offered."""
+
+
+# --------------------------------------------------------------------------
+# Watching the game happen
+# --------------------------------------------------------------------------
+#
+# A single `apply_command` can cover a great deal: the AI's whole turn runs
+# inside the call that answers the human's last decision, and cards that need
+# no decision resolve invisibly inside it. To a player that is a jump cut --
+# three frames have moved, something is on fire and nothing said so.
+#
+# `watching()` lets a caller see the beats in between. The callback is handed
+# the live state at each moment worth looking at, and is expected to *read* it
+# (the server takes a redacted snapshot) and nothing else -- an observer that
+# mutates the state would break the purity `apply_command` promises.
+#
+# Watchers are per-thread: the server runs one game per request thread, and a
+# global list would hand one game's callback another game's state.
+
+#: `(state, event) -> None`. `event` is one of "card", "move", "effect",
+#: "attack" -- the beat that just finished.
+Watcher = Callable[[GameState, str], None]
+
+_watchers = threading.local()
+
+
+@contextlib.contextmanager
+def watching(callback: Watcher) -> Iterator[None]:
+    """Call `callback(state, event)` at each beat of resolution, in this thread."""
+    active = getattr(_watchers, "list", None)
+    if active is None:
+        active = []
+        _watchers.list = active
+    active.append(callback)
+    try:
+        yield
+    finally:
+        active.remove(callback)
+
+
+def _beat(state: GameState, event: str) -> None:
+    for callback in list(getattr(_watchers, "list", None) or ()):
+        callback(state, event)
 
 
 # --------------------------------------------------------------------------
@@ -451,16 +496,19 @@ def _planning_decision(state: GameState) -> bool:
                 frame_id=frame.id,
             )
             return True
-        allowed = effects.actions_to_commit(state, frame)
+        pool = effects.commit_pool(state, frame)
+        low, high = _commit_range(state, frame, len(pool))
+        how_many = str(low) if low == high else f"{low}-{high}"
         state.pending = PendingDecision(
             kind="commit_actions",
             seat=frame.seat,
-            prompt=f"Commit {allowed} actions for {frame.id}",
+            prompt=f"Commit {how_many} actions for {frame.id}",
             options=[
-                {"uid": uid, "key": state.cards[uid].key}
-                for uid in effects.commit_pool(state, frame)
+                {"uid": uid, "key": state.cards[uid].key} for uid in pool
             ],
             frame_id=frame.id,
+            pick_min=low,
+            pick_max=high,
         )
         return True
     return _echo_decision(state)
@@ -589,6 +637,7 @@ def _begin_resolution(state: GameState, frame: FrameState, uid: str) -> None:
         f"{frame.id} resolves {card.key} "
         f"(initiative {kw.effective_initiative(state, frame, card, inst.init_index)})"
     )
+    _beat(state, "card")
     if len(steps) > 1:
         state.pending = PendingDecision(
             kind="resolve_order",
@@ -660,6 +709,7 @@ def _run_steps(state: GameState) -> bool:
                 res.effect_state["awaiting"] = True
                 state.pending = decision
                 return True
+            _beat(state, "effect")
         else:
             res.steps.pop(0)
             if _attack_step(state, frame, res.uid):
@@ -752,6 +802,7 @@ def _block_loop(state: GameState) -> bool:
             res.effect_state["block_zones"] = list(zones)
             return True
         combat.finish_target(state, attack)
+        _beat(state, "attack")
         combat.advance_attack(state, attack)
     res.attack = None
     return False
@@ -1039,6 +1090,8 @@ def _handle_move(state: GameState, pending: PendingDecision, cmd: Command) -> No
         state.note(f"{frame.id} moves to ({dest.x},{dest.y})")
     objectivelib.on_move(state, frame, old)
     effects.after_move(state, frame, old, dest)
+    if dest != old:
+        _beat(state, "move")
     res = state.resolution
     if res is not None and res.steps and res.steps[0] == "movement":
         res.steps.pop(0)

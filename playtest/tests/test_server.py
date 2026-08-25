@@ -1057,6 +1057,123 @@ def test_replay_frames_carry_no_card_uids() -> None:
         view = send(client, game_id, kind, payload)
 
 
+def test_the_replay_shows_every_card_the_ai_resolves(client: Client) -> None:
+    """Not just the decisions -- the cards in between them too.
+
+    Plenty of what the AI does needs no decision at all: a card with one legal
+    target, an effect with no choices, a card that only ever blocks. Those used
+    to be folded silently into the next decision's snapshot, which is the part
+    that read as the AI doing things off screen. Every card an AI frame reveals
+    now gets a beat of its own.
+    """
+    game_id, view = start(client, seed=7)
+    rng = random.Random(3)
+    revealed = set()
+    beat_cards = set()
+    for _ in range(120):
+        pending = view.get("pending")
+        if view["over"] or not pending:
+            break
+        kind, payload = auto_payload(pending, rng)
+        view = send(client, game_id, kind, payload)
+        for snap in view.get("replay") or []:
+            res = snap.get("resolving") or {}
+            beat = snap.get("beat") or {}
+            if beat.get("event") == "card" and res.get("key"):
+                beat_cards.add((res["frameId"], res["key"], snap["turn"]))
+        for entry in view["log"]:
+            text = entry["text"] if isinstance(entry, dict) else str(entry)
+            if " resolves " in text and text.startswith("Red "):
+                who, _, rest = text.partition(" resolves ")
+                revealed.add((who, rest.split(" (initiative")[0]))
+    assert beat_cards, "no card ever got a beat of its own"
+    assert revealed, "the AI never resolved anything -- the test proves nothing"
+    seen = {(who, key) for who, key, _ in beat_cards}
+    missed = revealed - seen
+    assert not missed, f"resolved off screen: {sorted(missed)[:5]}"
+
+
+def test_a_replay_frame_says_what_changed(client: Client) -> None:
+    """The marks the client draws are the *difference*, not the still."""
+    game_id, view = start(client, seed=11)
+    rng = random.Random(8)
+    moves = []
+    hits = []
+    for _ in range(120):
+        pending = view.get("pending")
+        if view["over"] or not pending:
+            break
+        kind, payload = auto_payload(pending, rng)
+        view = send(client, game_id, kind, payload)
+        for snap in view.get("replay") or []:
+            beat = snap["beat"]
+            assert set(beat) == {"event", "moves", "hits", "dead"}
+            for move in beat["moves"]:
+                frame = next(f for f in snap["frames"] if f["id"] == move["id"])
+                assert frame["pos"] == move["to"], "the move must land where it says"
+                assert move["from"] != move["to"]
+            moves.extend(beat["moves"])
+            hits.extend(beat["hits"])
+    assert moves, "nobody ever moved"
+    assert hits, "nothing ever landed"
+    assert all(h["amount"] > 0 and h["zone"] in ("High", "Mid", "Low") for h in hits)
+
+
+def test_a_beat_reports_only_what_that_beat_did(client: Client) -> None:
+    """The marks are a difference, so the baseline has to keep up.
+
+    Beats that are *not* replayed -- the player's own cards resolving inside
+    the same call -- still move the baseline. Without that, everything they
+    changed surfaces on the next beat that is replayed: the player's own
+    attack would draw its burst over whatever the AI did next, attributed to
+    the wrong card. A card being revealed is the sharpest case, since nothing
+    can have landed between the reveal and the beat.
+    """
+    game_id, view = start(client, seed=7)
+    rng = random.Random(3)
+    reveals = 0
+    for _ in range(120):
+        pending = view.get("pending")
+        if view["over"] or not pending:
+            break
+        kind, payload = auto_payload(pending, rng)
+        view = send(client, game_id, kind, payload)
+        for snap in view.get("replay") or []:
+            beat = snap["beat"]
+            if beat["event"] != "card":
+                continue
+            reveals += 1
+            assert not beat["hits"], (
+                f"damage attributed to revealing "
+                f"{(snap.get('resolving') or {}).get('key')}: {beat['hits']}"
+            )
+            assert not beat["moves"], "a card cannot have moved anyone yet"
+    assert reveals, "no card was ever revealed on its own beat"
+
+
+def test_the_human_s_own_cards_do_not_become_a_replay(client: Client) -> None:
+    """Replaying your own tap would only put a delay between it and its result.
+
+    A beat is recorded for the AI's frames. The human's cards resolve under
+    their own hand and are on screen as they happen.
+    """
+    game_id, view = start(client, seed=7)
+    rng = random.Random(3)
+    for _ in range(120):
+        pending = view.get("pending")
+        if view["over"] or not pending:
+            break
+        kind, payload = auto_payload(pending, rng)
+        view = send(client, game_id, kind, payload)
+        for snap in view.get("replay") or []:
+            if (snap.get("beat") or {}).get("event") == "decision":
+                continue          # the AI answering something, whoever acts
+            res = snap.get("resolving") or {}
+            assert res.get("mine") is not True, (
+                f"a beat for the player's own {res.get('key')}"
+            )
+
+
 def test_a_plain_get_does_not_replay_the_ai_turn_again(client: Client) -> None:
     game_id, view = start(client, seed=7)
     pending = view["pending"]
@@ -1122,21 +1239,24 @@ def test_bundled_board_art_is_served_and_is_small(client: Client) -> None:
     assert len(token.content) < 30_000
 
 
-def test_the_elevation_glyphs_are_bundled_and_match_the_printed_card() -> None:
-    """The board stamps a raised tile with the card's own glyph, so it needs it.
+def test_the_tile_glyphs_are_bundled_and_match_the_printed_card() -> None:
+    """The board stamps a marked tile with the card's own glyph, so it needs it.
 
     A phone clones the repo and cannot run ImageMagick, so a missing glyph is
-    a tile that says nothing about its height at all.
+    a tile that says nothing about what it is at all. Every code the card
+    stamps is covered -- the board draws the card's marking rather than an
+    overlay of its own invention.
     """
     from playtest.server import assets
 
     bundled = set(assets.tile_icon_files())
-    assert bundled == {"e1", "e2", "e3", "imp", "obs"}, bundled
+    assert bundled == {"e1", "e2", "e3", "imp", "obs", "obj", "tkn"}, bundled
     # And they are the same files the terrain cards use.
     import terrain_cards
 
     for code, stem in (("e1", "e1"), ("e2", "e2"), ("e3", "e3"),
-                       ("im", "imp"), ("obs", "obs")):
+                       ("im", "imp"), ("obs", "obs"),
+                       ("obj", "obj"), ("tkn", "tkn")):
         style = terrain_cards.STYLE_DICT[code]
         assert style["icon"] == f"{stem}.png", (
             f"the card stamps {style['icon']} on a {code} tile, the board {stem}.png"
@@ -1144,11 +1264,52 @@ def test_the_elevation_glyphs_are_bundled_and_match_the_printed_card() -> None:
 
 
 def test_elevation_glyphs_are_served_small(client: Client) -> None:
-    for stem in ("e1", "e2", "e3", "imp", "obs"):
+    for stem in ("e1", "e2", "e3", "imp", "obs", "obj", "tkn"):
         response = client.get(f"/static/tiles/{stem}.png")
         assert response.status_code == 200, stem
         assert response.headers["content-type"] == "image/png"
         assert len(response.content) < 4_000, stem
+
+
+def test_the_board_hatches_a_tile_the_way_the_card_does() -> None:
+    """Obstacle, objective and token spawn are hatches on the printed card.
+
+    The objective used to get a gold outline of the client's own invention,
+    drawn before the tile border and so painted over by it. It gets the card's
+    green vertical lines now, and the spawn its purple horizontal ones -- the
+    colours below are xcolor's base definitions of the names `STYLE_DICT` uses.
+    """
+    from pathlib import Path
+
+    import terrain_cards
+
+    static = Path(images.__file__).resolve().parent / "static"
+    board_js = (static / "js" / "board.js").read_text(encoding="utf-8")
+
+    xcolor = {                       # xcolor's `base` set, as 8-bit rgb
+        "yellow": (255, 255, 0),
+        "green": (0, 255, 0),
+        "purple": (191, 0, 64),
+    }
+    #: The card's code -> (the board's key, how `_hatch` is told to angle it).
+    #: `_hatch` draws along y and steps along x, so 0 is vertical.
+    wanted = {
+        "obs": ("obstacle", "[Math.PI / 4, -Math.PI / 4]"),
+        "obj": ("objective", "[0]"),
+        "tkn": ("spawn", "[Math.PI / 2]"),
+    }
+    for code, (key, angles) in wanted.items():
+        style = terrain_cards.STYLE_DICT[code]
+        rgb = xcolor[style["hatch_color"]]
+        assert f"{key}: {{ css: " in board_js or f"{key}: {{ css:" in board_js, key
+        line = next(l for l in board_js.splitlines() if l.strip().startswith(f"{key}:"))
+        assert f"{rgb[0]},{rgb[1]},{rgb[2]}" in line, (
+            f"the card hatches a {code} tile in {style['hatch_color']} = rgb{rgb}"
+        )
+        assert "0.5)" in line, "the card draws every hatch at fill opacity 0.5"
+        assert angles in line, (
+            f"the card's '{style['hatch']}' should be angles {angles}"
+        )
 
 
 def test_the_board_draws_elevation_the_way_the_card_does() -> None:
@@ -1194,13 +1355,13 @@ def test_the_board_draws_elevation_the_way_the_card_does() -> None:
     assert "IMPASSABLE_FILL = 'rgba(0,0,0,0.5)'" in board_js
 
     # An obstacle is a yellow crosshatch under a dashed yellow outline, and
-    # sets no colour or width of its own so it can sit on any elevation.
+    # sets no colour or width of its own so it can sit on any elevation. The
+    # hatch itself is checked against the card by the test above.
     obstacle = terrain_cards.OBSTACLE_STYLE
     assert obstacle["hatch"] == "crosshatch" and obstacle["hatch_color"] == "yellow"
     assert "color" not in obstacle and "thickness" not in obstacle, (
         "an obstacle that sets a border would hide the elevation it sits on"
     )
-    assert "OBSTACLE_CSS = 'rgba(255,255,0,0.5)'" in board_js
     for pt, name in ((3.0, "OBSTACLE_DASH_W"),):
         assert f"{name} = {pt * per_pt:.4f}" in board_js, name
     assert f"OBSTACLE_DASH = {0.2 / tile_cm:.4f}" in board_js, "2 mm on, 2 mm off"

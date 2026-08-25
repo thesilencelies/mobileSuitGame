@@ -74,6 +74,10 @@ _SELECT_MOVE_RE = re.compile(
     r"select an opposing frame within\s*(\d+)\s*:\s*move them\s*(\d+)", re.I
 )
 _WITHIN_RE = re.compile(r"within\s*(\d+)", re.I)
+#: "Summon two attack dogs" -- how many of the thing the card makes. Spelled
+#: out on every card that has one, so the words are part of the pattern.
+_COUNT_RE = re.compile(r"\b(?:summon|create|put)\s+(?:up to\s+)?(\d+|one|two|three)\b", re.I)
+_COUNT_WORDS = {"one": 1, "two": 2, "three": 3}
 
 #: Keywords the attack pipeline handles, in any of their printed spellings
 #: (`\kw`, `\fullkw`, `\smallkw` -- the backslashes are stripped first).
@@ -102,6 +106,15 @@ def _parse_statuses(text: str) -> list[tuple[StatusKind, int]]:
 def _reach_from_text(text: str, default: int) -> int:
     match = _WITHIN_RE.search(text or "")
     return int(match.group(1)) if match else default
+
+
+def _count_from_text(text: str, default: int) -> int:
+    """How many the card makes: "Summon two attack dogs" -> 2."""
+    match = _COUNT_RE.search(text or "")
+    if match is None:
+        return default
+    word = match.group(1).lower()
+    return _COUNT_WORDS.get(word, int(word) if word.isdigit() else default)
 
 
 # --------------------------------------------------------------------------
@@ -194,7 +207,7 @@ def is_keyword_only(card: Card) -> bool:
 
 def effect_kind(card: Card) -> str:
     """`"none"`, `"handled"` or `"deferred"` for this card's effect step."""
-    if card.key in EFFECT_STEPS:
+    if _effect_handler(card) is not None:
         return "handled"
     text = (card.text or "").lower()
     if not text.strip():
@@ -670,11 +683,65 @@ def _effect_self_status(state: GameState, frame: FrameState, uid: str):
 
 
 def _effect_portal(state: GameState, frame: FrameState, uid: str):
-    """The pair is created by `after_move`, which knows both ends of the step."""
-    if fx.slot(state, "portal_done").get(uid):
+    """"Create two portals within 7. Those tiles are connected."
+
+    The card used to read "a portal at the start and end of this move", which
+    made it a movement rider; it now names its own two tiles, so the pair is
+    chosen here rather than inferred from where the frame walked.
+    """
+    return _portal_step(
+        state, frame,
+        reach=_reach_from_text(state.card(uid).text, 7),
+        first=None,
+    )
+
+
+def _portal_step(
+    state: GameState, frame: FrameState, *, reach: int, first: Optional[Pos]
+):
+    """Ask for one end of the pair. `first` is the end already chosen."""
+    tiles = [p for p in fx.free_tiles(state, frame.pos, reach) if p != first]
+    if not tiles:
+        if first is not None:
+            state.note(f"{frame.id} finds nowhere to anchor the far end")
         return None
-    state.note(f"{frame.id} anchors a portal at each end of this move")
-    return None
+    return _ask(
+        state,
+        "portal",
+        seat=frame.seat,
+        frame_id=frame.id,
+        prompt=(
+            f"Portal: choose the first tile (within {reach})" if first is None
+            else f"Portal: choose the tile to link ({first.x},{first.y}) to"
+        ),
+        options=[{"x": p.x, "y": p.y} for p in tiles],
+        ctx={"reach": reach, "first": ([first.x, first.y] if first else None)},
+    )
+
+
+def _choice_portal(
+    state: GameState, frame: FrameState, choice: Mapping, ctx: Mapping
+) -> None:
+    pos = Pos(int(choice["x"]), int(choice["y"]))
+    raw = ctx.get("first")
+    if raw is None:
+        nxt = _portal_step(state, frame, reach=int(ctx.get("reach", 7)), first=pos)
+        if nxt is not None:
+            state.pending = nxt
+        else:
+            # Nowhere for the far end: one portal on its own connects nothing,
+            # so the card simply does not go up.
+            state.note(f"{frame.id} cannot open a pair of portals")
+        return
+    near = fx.spawn_token(state, fx.PORTAL, Pos(int(raw[0]), int(raw[1])),
+                          owner=frame.seat)
+    far = fx.spawn_token(state, fx.PORTAL, pos, owner=frame.seat)
+    pairs = fx.slot(state, "portals")
+    pairs[near.id] = far.id
+    pairs[far.id] = near.id
+    state.note(
+        f"a portal links ({near.pos.x},{near.pos.y}) and ({far.pos.x},{far.pos.y})"
+    )
 
 
 def _effect_ace_reflexes(state: GameState, frame: FrameState, uid: str):
@@ -742,8 +809,12 @@ def _barricade_step(
 
 
 def _effect_barricade(state: GameState, frame: FrameState, uid: str):
-    reach = _reach_from_text(state.card(uid).text, 3)
-    return _barricade_step(state, frame, reach, BARRICADE_COUNT)
+    text = state.card(uid).text
+    return _barricade_step(
+        state, frame,
+        _reach_from_text(text, 3),
+        _count_from_text(text, BARRICADE_COUNT),
+    )
 
 
 def _choice_barricade(
@@ -762,13 +833,15 @@ def _choice_barricade(
 
 
 def _effect_gravity_well(state: GameState, frame: FrameState, uid: str):
-    """"Create a gravity well. Its an obstacle that adds an extra 1 movement
-    penalty to any step away from it within 5."
+    """"Create a gravity well within 5. Its an obstacle that adds an extra 1
+    movement penalty to any step away from it within 5."
 
-    The card does not say where it lands; the engine puts it on a free tile
-    next to the frame, chosen by the controller.
+    Two 5s in that sentence and they mean different things: the first is how
+    far the well can be *placed*, the second the radius it drags inside.
+    `_reach_from_text` takes the first, which is the placement one.
     """
-    tiles = fx.free_tiles(state, frame.pos, 1)
+    reach = _reach_from_text(state.card(uid).text, 1)
+    tiles = fx.free_tiles(state, frame.pos, reach)
     if not tiles:
         return None
     if len(tiles) == 1:
@@ -779,7 +852,7 @@ def _effect_gravity_well(state: GameState, frame: FrameState, uid: str):
         "gravity_well",
         seat=frame.seat,
         frame_id=frame.id,
-        prompt="Gravity Well: choose an adjacent tile",
+        prompt=f"Gravity Well: choose a tile within {reach}",
         options=[{"x": p.x, "y": p.y} for p in tiles],
     )
 
@@ -908,22 +981,80 @@ def _effect_practiced_technique(state: GameState, frame: FrameState, uid: str):
 # --------------------------------------------------------------------------
 
 
-def _drone_spawn_tile(state: GameState, frame: FrameState) -> Optional[Pos]:
-    tiles = fx.free_tiles(state, frame.pos, 1)
-    return tiles[0] if tiles else None
+def _drone_reach(card: Card) -> int:
+    """The furthest the drone's own printed attack carries. 0 = melee."""
+    return max((card.ranges[z] for z in ZONES if card.attacks[z] > 0), default=0)
+
+
+def _placement_options(
+    state: GameState, frame: FrameState, reach: int, card: Card
+) -> list[dict[str, Any]]:
+    """Free tiles to put a drone on, each carrying what it will shoot with.
+
+    `reach` rides along because the choice is not "somewhere useful to stand"
+    -- an immobile Gun Tower shooting 8 tiles wants very different ground from
+    an Attack Dog that has to bite. Nothing is obliged to read it.
+    """
+    return [
+        {"x": pos.x, "y": pos.y, "reach": _drone_reach(card)}
+        for pos in fx.free_tiles(state, frame.pos, reach)
+    ]
 
 
 def _effect_summon_drone(state: GameState, frame: FrameState, uid: str):
-    """"Summon one <drone>": a token that repeats this card every turn."""
+    """"Summon <n> <drone>[ within <r>]": tokens that repeat this card each turn.
+
+    Every drone card resolves through here -- the count and the placement reach
+    are read off the printed text, so a new drone in `Drone actions.csv` needs
+    no code. "Summon one Swarm" is one token beside the frame; "Summon one Gun
+    Tower within 3" is one token up to three tiles away; "Summon two attack
+    dogs" is two, one decision each.
+    """
     card = state.card(uid)
     res = state.resolution
     if res is not None and "attack" in res.steps:
         # The drone makes the attack printed on this card, not the frame.
         res.steps.remove("attack")
-    pos = _drone_spawn_tile(state, frame)
-    if pos is None:
+    return _summon_step(
+        state, frame, uid,
+        reach=_reach_from_text(card.text, 1),
+        left=_count_from_text(card.text, 1),
+    )
+
+
+def _summon_step(
+    state: GameState, frame: FrameState, uid: str, *, reach: int, left: int
+):
+    """Place one drone, then come back for the next. `None` when done."""
+    if left <= 0:
+        return None
+    card = state.card(uid)
+    options = _placement_options(state, frame, reach, card)
+    if not options:
         state.note(f"{frame.id} has no room to deploy a {card.name}")
         return None
+    if len(options) == 1:
+        _deploy_drone(state, frame, uid, Pos(options[0]["x"], options[0]["y"]))
+        return _summon_step(state, frame, uid, reach=reach, left=left - 1)
+    where = "beside it" if reach <= 1 else f"within {reach}"
+    return _ask(
+        state,
+        "summon_drone",
+        seat=frame.seat,
+        frame_id=frame.id,
+        prompt=(
+            f"Deploy {card.name} {where}"
+            + (f" ({left} left)" if left > 1 else "")
+        ),
+        options=options,
+        ctx={"reach": reach, "left": left, "uid": uid},
+    )
+
+
+def _deploy_drone(
+    state: GameState, frame: FrameState, uid: str, pos: Pos
+) -> None:
+    card = state.card(uid)
     token = fx.spawn_token(
         state, fx.DRONE, pos, hp=max(1, card.drone_health), owner=frame.seat
     )
@@ -936,7 +1067,20 @@ def _effect_summon_drone(state: GameState, frame: FrameState, uid: str):
     state.note(
         f"{frame.id} deploys its {card.name} drone at ({pos.x},{pos.y})"
     )
-    return None
+
+
+def _choice_summon_drone(
+    state: GameState, frame: FrameState, choice: Mapping, ctx: Mapping
+) -> None:
+    uid = str(ctx.get("uid", ""))
+    _deploy_drone(state, frame, uid, Pos(int(choice["x"]), int(choice["y"])))
+    nxt = _summon_step(
+        state, frame, uid,
+        reach=int(ctx.get("reach", 1)),
+        left=int(ctx.get("left", 1)) - 1,
+    )
+    if nxt is not None:
+        state.pending = nxt
 
 
 # --------------------------------------------------------------------------
@@ -1193,10 +1337,23 @@ EFFECT_STEPS: Mapping[str, EffectFn] = {
     SNIPERS_AIM: _effect_snipers_aim,
     MASTER_DUELIST: _effect_master_duelist,
     PRACTICED: _effect_practiced_technique,
-    # Drones
-    "Swarm_Swarm": _effect_summon_drone,
-    "Swarm_Crawl": _effect_summon_drone,
+    # Drone cards are not listed here one by one -- see `_effect_handler`.
 }
+
+
+def _effect_handler(card: Card) -> Optional[EffectFn]:
+    """The effect step for a card, or `None` if it has no implemented one.
+
+    Every drone card summons, and `_effect_summon_drone` reads the count and
+    the placement reach off the printed text -- so drones are matched on their
+    *type* rather than listed key by key, and a new one in `Drone actions.csv`
+    works without an engine change. That is not true of anything else: a pilot
+    card's text is its own, and an unlisted one is deferred on purpose.
+    """
+    handler = EFFECT_STEPS.get(card.key)
+    if handler is not None:
+        return handler
+    return _effect_summon_drone if card.card_type == "drone" else None
 
 #: Effect-choice handlers keyed by card, for effects whose decision is raised
 #: straight out of the effect step and answered with no extra context.
@@ -1213,6 +1370,8 @@ CHOICE_HANDLERS: Mapping[str, ChoiceFn] = {
     "repairs": _choice_repairs,
     "barricade": _choice_barricade,
     "gravity_well": _choice_gravity_well,
+    "portal": _choice_portal,
+    "summon_drone": _choice_summon_drone,
     "combo": _choice_combo,
 }
 
@@ -1227,7 +1386,7 @@ def resolve_effect(
         decision = _combo_decision(state, frame, uid)
         if decision is not None:
             return decision
-    handler = EFFECT_STEPS.get(card.key)
+    handler = _effect_handler(card)
     if handler is not None:
         return handler(state, frame, uid)
     if effect_kind(card) == "deferred":
@@ -1449,24 +1608,15 @@ def adjust_move_options(
 def after_move(
     state: GameState, frame: FrameState, old: Optional[Pos], new: Optional[Pos]
 ) -> None:
-    """Portal: "create a portal at the start and end of this move"."""
-    res = state.resolution
-    if res is None or res.frame_id != frame.id or old is None or new is None:
-        return
-    if old == new or state.cards[res.uid].key != PORTAL:
-        return
-    done = fx.slot(state, "portal_done")
-    if done.get(res.uid):
-        return
-    done[res.uid] = True
-    near = fx.spawn_token(state, fx.PORTAL, old, owner=frame.seat)
-    far = fx.spawn_token(state, fx.PORTAL, new, owner=frame.seat)
-    pairs = fx.slot(state, "portals")
-    pairs[near.id] = far.id
-    pairs[far.id] = near.id
-    state.note(
-        f"a portal links ({old.x},{old.y}) and ({new.x},{new.y})"
-    )
+    """Nothing keys off a completed move any more.
+
+    Portal used to: it read "create a portal at the start and end of this
+    move", so the pair could only be known once the frame had walked. The card
+    now names its own two tiles and builds the pair in its effect step. The
+    hook stays because it is the engine's one "a frame finished moving" seam
+    and `resolve` calls it unconditionally.
+    """
+    return
 
 
 def after_card_resolved(state: GameState, frame: FrameState, uid: str) -> None:
