@@ -1,0 +1,1654 @@
+{
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Spear_Thrust.png":
+  {
+    "name": "Spear Thrust",
+    "description": "",
+    "gm_notes": "7init\n0mv\natk:1M pierce\nBlk:1M",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Spear_Jab.png":
+  {
+    "name": "Spear Jab",
+    "description": "Feint: if this attack is not blocked it deals no damage (blocks are compulsory)",
+    "gm_notes": "8init\n0mv\natk:1H,1M pierce\nBlk:1H\nFeint (This attack deals no damage)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Spear_Impale.png":
+  {
+    "name": "Spear Impale",
+    "description": "",
+    "gm_notes": "5init\n-2mv\natk:1H,2L pierce\nBlk:1H",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Spear_Sweep.png":
+  {
+    "name": "Spear Sweep",
+    "description": "On Hit: the text after the colon only applies if the attack hits (that is, is not blocked)\nSlowed: while slowed a frame gets -2 mv",
+    "gm_notes": "7init\n0mv\natk:1L impact\nBlk:1L\nOn Hit: target gets 2 Slowed (-2 mv)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Sword_Lunge.png":
+  {
+    "name": "Sword Lunge",
+    "description": "Committed: this attack is discarded after it resolves",
+    "gm_notes": "7init\n1mv\natk:1M cut\nBlk:1L\nCommitted (this attack is discarded after resolving)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Sword_Feint.png":
+  {
+    "name": "Sword Feint",
+    "description": "Feint: if this attack is not blocked it deals no damage (blocks are compulsory)",
+    "gm_notes": "7init\n1mv\natk:1H,1M cut\nBlk:1M\nFeint (This attack deals no damage)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Sword_Slice.png":
+  {
+    "name": "Sword Slice",
+    "description": "",
+    "gm_notes": "5init\n-2mv\natk:1H,1M cut\nBlk:1H,1L",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Sword_Parry.png":
+  {
+    "name": "Sword Parry",
+    "description": "On Block: the text after the colon only applies if this card blocks an attack\nSuper block: a block value above 1; a zone blocked by a super block is not discarded, the card stays on the field revealed",
+    "gm_notes": "3init\n0mv\nBlk:1H,2M\nOn Block: deals mid cut",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Shield_Bash.png":
+  {
+    "name": "Shield Bash",
+    "description": "On Hit: the text after the colon only applies if the attack hits (that is, is not blocked)\nDazed: while dazed a frame gets -2 cards\nSuper block: a block value above 1; a zone blocked by a super block is not discarded, the card stays on the field revealed",
+    "gm_notes": "5init\n-1mv\natk:1H impact\nBlk:2M\nOn Hit: target gets 2 Dazed (-2 card)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Shield_Full%20Guard.png":
+  {
+    "name": "Shield Full Guard",
+    "description": "Super block: a block value above 1; a zone blocked by a super block is not discarded, the card stays on the field revealed",
+    "gm_notes": "4init\n-2mv\nBlk:2H,1M,1L",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Shield_Push%20on.png":
+  {
+    "name": "Shield Push on",
+    "description": "Super block: a block value above 1; a zone blocked by a super block is not discarded, the card stays on the field revealed",
+    "gm_notes": "8init\n-1mv\nBlk:1M,2L",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Shield_Lock%20down.png":
+  {
+    "name": "Shield Lock down",
+    "description": "Feint: if this attack is not blocked it deals no damage (blocks are compulsory)\nSuper block: a block value above 1; a zone blocked by a super block is not discarded, the card stays on the field revealed",
+    "gm_notes": "6init\n-1mv\natk:1H,1M impact\nBlk:2H,1M\nFeint (This attack deals no damage)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Stun%20Baton_Overcharge.png":
+  {
+    "name": "Stun Baton Overcharge",
+    "description": "Guard Break: this attack consumes one block per zone; zones that are not blocked still deal damage\nOn Hit: the text after the colon only applies if the attack hits (that is, is not blocked)\nStunned: while stunned a frame gets -2 init\nReload: this card persists until this frame next resolves an attack from this weapon; that card deals no damage and triggers no abilities, then both are discarded",
+    "gm_notes": "3init\n-2mv\natk:1H,1M,1L energy\nBlk:1H\npersist:permanent\nGuard Break\nOn Hit: target gets 2 Stunned (-2 init)\nReload (This frames next action from this weapon has no effect or attack.)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Stun%20Baton_Shock.png":
+  {
+    "name": "Stun Baton Shock",
+    "description": "On Hit: the text after the colon only applies if the attack hits (that is, is not blocked)\nStunned: while stunned a frame gets -2 init",
+    "gm_notes": "6init\n0mv\natk:1M energy\nBlk:1L\nOn Hit: target gets 2 Stunned (-2 init)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Stun%20Baton_Zap.png":
+  {
+    "name": "Stun Baton Zap",
+    "description": "On Hit: the text after the colon only applies if the attack hits (that is, is not blocked)\nStunned: while stunned a frame gets -2 init",
+    "gm_notes": "7init\n-1mv\natk:1H energy\nBlk:1L\nOn Hit: target gets 2 Stunned (-2 init)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Stun%20Baton_Strike.png":
+  {
+    "name": "Stun Baton Strike",
+    "description": "On Hit: the text after the colon only applies if the attack hits (that is, is not blocked)\nStunned: while stunned a frame gets -2 init",
+    "gm_notes": "5init\n-1mv\natk:1L energy\nBlk:1H\nOn Hit: target gets 2 Stunned (-2 init)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Assault%20Rifle_Burst%20Fire.png":
+  {
+    "name": "Assault Rifle Burst Fire",
+    "description": "",
+    "gm_notes": "4init\n-2mv\natk:1M@9,1L@9 projectile\nBlk:1M",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Assault%20Rifle_Aimed%20Fire.png":
+  {
+    "name": "Assault Rifle Aimed Fire",
+    "description": "",
+    "gm_notes": "3init\n-2mv\natk:2H@9 projectile\nBlk:1M",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Assault%20Rifle_From%20the%20hip.png":
+  {
+    "name": "Assault Rifle From the hip",
+    "description": "",
+    "gm_notes": "5init\n-1mv\natk:1M@6 projectile\nBlk:1M",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Assault%20Rifle_Covering%20Fire.png":
+  {
+    "name": "Assault Rifle Covering Fire",
+    "description": "Feint: if this attack is not blocked it deals no damage (blocks are compulsory)",
+    "gm_notes": "6init\n-2mv\natk:1H@6,1M@6,1L@6 projectile\nBlk:1M\nFeint (This attack deals no damage)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Stun%20Bow_Rapid%20fire.png":
+  {
+    "name": "Stun Bow Rapid fire",
+    "description": "On Hit: the text after the colon only applies if the attack hits (that is, is not blocked)\nStunned: while stunned a frame gets -2 init\nGuard Break: this attack consumes one block per zone; zones that are not blocked still deal damage",
+    "gm_notes": "3init\n-3mv\natk:1H@6,1M@10 pierce\nBlk:1M\nOn Hit: target gets 2 Stunned (-2 init)\nGuard Break",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Stun%20Bow_Arc%20shot.png":
+  {
+    "name": "Stun Bow Arc shot",
+    "description": "On Hit: the text after the colon only applies if the attack hits (that is, is not blocked)\nStunned: while stunned a frame gets -2 init",
+    "gm_notes": "3init\n-2mv\natk:2H@10 pierce\nBlk:1M\nOn Hit: target gets 2 Stunned (-2 init)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Stun%20Bow_Straight%20shot.png":
+  {
+    "name": "Stun Bow Straight shot",
+    "description": "On Hit: the text after the colon only applies if the attack hits (that is, is not blocked)\nStunned: while stunned a frame gets -2 init",
+    "gm_notes": "5init\n-1mv\natk:1M@10 pierce\nBlk:1M\nOn Hit: target gets 2 Stunned (-2 init)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Stun%20Bow_Low%20blow.png":
+  {
+    "name": "Stun Bow Low blow",
+    "description": "On Hit: the text after the colon only applies if the attack hits (that is, is not blocked)\nStunned: while stunned a frame gets -2 init",
+    "gm_notes": "5init\n-1mv\natk:1L@10 pierce\nBlk:1M\nOn Hit: target gets 2 Stunned (-2 init)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Cannon_Fullbore.png":
+  {
+    "name": "Cannon Fullbore",
+    "description": "Reload: this card persists until this frame next resolves an attack from this weapon; that card deals no damage and triggers no abilities, then both are discarded",
+    "gm_notes": "2init\n-3mv\natk:3M@12 projectile\nBlk:1M\npersist:permanent\nReload (This frames next action from this weapon has no effect or attack.)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Cannon_Airburst.png":
+  {
+    "name": "Cannon Airburst",
+    "description": "Guard Break: this attack consumes one block per zone; zones that are not blocked still deal damage\nReload: this card persists until this frame next resolves an attack from this weapon; that card deals no damage and triggers no abilities, then both are discarded",
+    "gm_notes": "2init\n-2mv\natk:2H@12,2M@12,1L@8 projectile\nBlk:1M\npersist:permanent\nGuard Break (This attack consumes one block per zone)\nReload (This frames next action from this weapon has no effect or attack.)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Cannon_Cannon.png":
+  {
+    "name": "Cannon",
+    "description": "Guard Break: this attack consumes one block per zone; zones that are not blocked still deal damage\nReload: this card persists until this frame next resolves an attack from this weapon; that card deals no damage and triggers no abilities, then both are discarded",
+    "gm_notes": "2init\n-3mv\natk:1H@8,2M@12,2L@12 projectile\nBlk:1M\npersist:permanent\nGuard Break (This attack consumes one block per zone)\nReload (This frames next action from this weapon has no effect or attack.)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Cannon_Pummel.png":
+  {
+    "name": "Cannon Pummel",
+    "description": "Reload: this card persists until this frame next resolves an attack from this weapon; that card deals no damage and triggers no abilities, then both are discarded",
+    "gm_notes": "2init\n-3mv\natk:3L@12 projectile\nBlk:1M\npersist:permanent\nReload (This frames next action from this weapon has no effect or attack.)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Halberd_Crush.png":
+  {
+    "name": "Halberd Crush",
+    "description": "",
+    "gm_notes": "4init\n-2mv\natk:3L impact\nBlk:1M",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Halberd_Eviscerate.png":
+  {
+    "name": "Halberd Eviscerate",
+    "description": "",
+    "gm_notes": "4init\n-2mv\natk:3M cut\nBlk:1H",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Halberd_Thrust.png":
+  {
+    "name": "Halberd Thrust",
+    "description": "Committed: this attack is discarded after it resolves",
+    "gm_notes": "7init\n1mv\natk:1H pierce\nBlk:1M\nCommitted (this attack is discarded after resolving)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Halberd_Sweep.png":
+  {
+    "name": "Halberd Sweep",
+    "description": "On Hit: the text after the colon only applies if the attack hits (that is, is not blocked)\nSlowed: while slowed a frame gets -2 mv",
+    "gm_notes": "5init\n0mv\natk:1L cut\nBlk:1H\nOn Hit: target gets 2 Slowed (-2 mv)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Chainsaw_Disembowel.png":
+  {
+    "name": "Chainsaw Disembowel",
+    "description": "",
+    "gm_notes": "3init\n-4mv\natk:4M cut\nBlk:1M",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Chainsaw_Rip.png":
+  {
+    "name": "Chainsaw Rip",
+    "description": "",
+    "gm_notes": "3init\n-4mv\natk:4H cut\nBlk:1M",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Chainsaw_Grind.png":
+  {
+    "name": "Chainsaw Grind",
+    "description": "",
+    "gm_notes": "5init\n-2mv\natk:1H,1M cut\nBlk:1M",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Chainsaw_Tear.png":
+  {
+    "name": "Chainsaw Tear",
+    "description": "",
+    "gm_notes": "3init\n-3mv\natk:3H,3M cut\nBlk:1M",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Chain_Whip.png":
+  {
+    "name": "Chain Whip",
+    "description": "On Hit: the text after the colon only applies if the attack hits (that is, is not blocked)\nSlowed: while slowed a frame gets -2 mv",
+    "gm_notes": "6init\n0mv\natk:1M@3 impact\nBlk:1M\nOn Hit: target gets 2 Slowed (-2 mv)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Chain_Tangle.png":
+  {
+    "name": "Chain Tangle",
+    "description": "On Hit: the text after the colon only applies if the attack hits (that is, is not blocked)\nSlowed: while slowed a frame gets -2 mv",
+    "gm_notes": "6init\n-1mv\natk:1L@3 impact\nBlk:1M\nOn Hit: target gets 2 Slowed (-2 mv)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Chain_Throttle.png":
+  {
+    "name": "Chain Throttle",
+    "description": "On Hit: the text after the colon only applies if the attack hits (that is, is not blocked)\nDazed: while dazed a frame gets -2 cards",
+    "gm_notes": "4init\n-1mv\natk:2H impact\nBlk:1H\nOn Hit: target gets 2 Dazed (-2 card)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Chain_Catch.png":
+  {
+    "name": "Chain Catch",
+    "description": "On Block: the text after the colon only applies if this card blocks an attack\nDazed: while dazed a frame gets -2 cards\nSuper block: a block value above 1; a zone blocked by a super block is not discarded, the card stays on the field revealed",
+    "gm_notes": "6init\n0mv\nBlk:2H,1M\nOn Block: attacker gets Dazed (-2 card)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Knife_Stab.png":
+  {
+    "name": "Knife Stab",
+    "description": "Close Quarters: this attack cannot be blocked by attacks that have already resolved",
+    "gm_notes": "5init\n0mv\natk:1H cut\nBlk:1H\nClose Quarters (Cannot be blocked by higher initiative attacks)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Knife_Cut.png":
+  {
+    "name": "Knife Cut",
+    "description": "Close Quarters: this attack cannot be blocked by attacks that have already resolved",
+    "gm_notes": "5init\n0mv\natk:1M cut\nBlk:1M\nClose Quarters (Cannot be blocked by higher initiative attacks)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Knife_Slit.png":
+  {
+    "name": "Knife Slit",
+    "description": "Close Quarters: this attack cannot be blocked by attacks that have already resolved",
+    "gm_notes": "5init\n0mv\natk:1L cut\nBlk:1L\nClose Quarters (Cannot be blocked by higher initiative attacks)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Knife_Lunge.png":
+  {
+    "name": "Knife Lunge",
+    "description": "Close Quarters: this attack cannot be blocked by attacks that have already resolved\nCommitted: this attack is discarded after it resolves",
+    "gm_notes": "5init\n1mv\natk:1M cut\nBlk:1H\nClose Quarters (Cannot be blocked by higher initiative attacks)\nCommitted (this attack is discarded after resolving)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Missile%20Rack_Missile%20Rack%201.png":
+  {
+    "name": "Missile Rack 1",
+    "description": "Guard Break: this attack consumes one block per zone; zones that are not blocked still deal damage",
+    "gm_notes": "2init\n-3mv\natk:2H@8,2M@8 projectile\nBlk:1M\nfaction:Guild\nGuard Break (This attack consumes one block per zone)\nCan only be used by J7R-Salryman",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Guild"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Missile%20Rack_Missile%20Rack%202.png":
+  {
+    "name": "Missile Rack 2",
+    "description": "Guard Break: this attack consumes one block per zone; zones that are not blocked still deal damage",
+    "gm_notes": "2init\n-3mv\natk:2M@8,2L@8 projectile\nBlk:1M\nfaction:Guild\nGuard Break (This attack consumes one block per zone)\nCan only be used by J7R-Salryman",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Guild"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Missile%20Rack_Missile%20Rack%203.png":
+  {
+    "name": "Missile Rack 3",
+    "description": "Guard Break: this attack consumes one block per zone; zones that are not blocked still deal damage",
+    "gm_notes": "2init\n-3mv\natk:2H@8,2L@8 projectile\nBlk:1M\nfaction:Guild\nGuard Break (This attack consumes one block per zone)\nCan only be used by J7R-Salryman",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Guild"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Greatsword_Cleave.png":
+  {
+    "name": "Greatsword Cleave",
+    "description": "",
+    "gm_notes": "4init\n-2mv\natk:2H,2M cut\nBlk:1H",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Greatsword_Parry.png":
+  {
+    "name": "Greatsword Parry",
+    "description": "On Block: the text after the colon only applies if this card blocks an attack\nSuper block: a block value above 1; a zone blocked by a super block is not discarded, the card stays on the field revealed",
+    "gm_notes": "3init\n-1mv\nBlk:1M,2L\nOn Block: deals mid cut",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Greatsword_Grand%20Sweep.png":
+  {
+    "name": "Greatsword Grand Sweep",
+    "description": "",
+    "gm_notes": "4init\n-2mv\natk:2M cut\nBlk:1L\nHits all adjacent enemies",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Greatsword_Rising%20Cut.png":
+  {
+    "name": "Greatsword Rising Cut",
+    "description": "",
+    "gm_notes": "4init\n-1mv\natk:2L cut\nBlk:1H,1M",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Kinetic%20Hammer_Slam.png":
+  {
+    "name": "Kinetic Hammer Slam",
+    "description": "",
+    "gm_notes": "4init\n-3mv\natk:2L impact\nBlk:1L\nAlso hits any enemies adjacent to the target",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Kinetic%20Hammer_Strike.png":
+  {
+    "name": "Kinetic Hammer Strike",
+    "description": "On Hit: the text after the colon only applies if the attack hits (that is, is not blocked)\nDazed: while dazed a frame gets -2 cards",
+    "gm_notes": "4init\n-2mv\natk:3H impact\nBlk:1L\nOn Hit: target gets 2 Dazed (-2 card)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Kinetic%20Hammer_Heavy%20Swing.png":
+  {
+    "name": "Kinetic Hammer Heavy Swing",
+    "description": "On Hit: the text after the colon only applies if the attack hits (that is, is not blocked)\nDazed: while dazed a frame gets -2 cards",
+    "gm_notes": "4init\n-3mv\natk:2H,2M impact\nBlk:1L\nOn Hit: target gets 2 Dazed (-2 card)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Kinetic%20Hammer_Batter.png":
+  {
+    "name": "Kinetic Hammer Batter",
+    "description": "Knockback X: move the target frame X steps in any direction away from the source (it cannot move up elevation)",
+    "gm_notes": "6init\n-2mv\natk:1H,1M impact\nBlk:1L\nKnockback 2 (Move the target frame 2 steps in any direction away from the source)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Plasma%20Rifle_Charged%20Shot.png":
+  {
+    "name": "Plasma Rifle Charged Shot",
+    "description": "Guard Break: this attack consumes one block per zone; zones that are not blocked still deal damage\nReload: this card persists until this frame next resolves an attack from this weapon; that card deals no damage and triggers no abilities, then both are discarded",
+    "gm_notes": "3init\n-3mv\natk:2H@9,1M@9 energy\nBlk:1M\npersist:permanent\nGuard Break (This attack consumes one block per zone)\nReload (This frames next action from this weapon has no effect or attack.)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Plasma%20Rifle_Single%20Shot.png":
+  {
+    "name": "Plasma Rifle Single Shot",
+    "description": "",
+    "gm_notes": "5init\n-2mv\natk:2M@9 energy\nBlk:1M",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Plasma%20Rifle_Plasma%20Stream.png":
+  {
+    "name": "Plasma Rifle Plasma Stream",
+    "description": "Guard Break: this attack consumes one block per zone; zones that are not blocked still deal damage",
+    "gm_notes": "4init\n-2mv\natk:1M@8,1L@8 energy\nBlk:1M\nGuard Break (This attack consumes one block per zone)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Plasma%20Rifle_Vent.png":
+  {
+    "name": "Plasma Rifle Vent",
+    "description": "Feint: if this attack is not blocked it deals no damage (blocks are compulsory)",
+    "gm_notes": "6init\n1mv\natk:1H,1M energy\nBlk:1M\nFeint (This attack deals no damage)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Railgun_Hypervelocity%20Shot.png":
+  {
+    "name": "Railgun Hypervelocity Shot",
+    "description": "Knockback X: move the target frame X steps in any direction away from the source (it cannot move up elevation)",
+    "gm_notes": "2init\n-3mv\natk:2M@12,2L@12 projectile\nBlk:1M\nKnockback 2 (Move the target frame 2 steps in any direction away from the source)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Railgun_Piercing%20Round.png":
+  {
+    "name": "Railgun Piercing Round",
+    "description": "Knockback X: move the target frame X steps in any direction away from the source (it cannot move up elevation)\nClose Quarters: this attack cannot be blocked by attacks that have already resolved",
+    "gm_notes": "2init\n-3mv\natk:2M@12 projectile\nBlk:1M\nKnockback 2 (Move the target frame 2 steps in any direction away from the source)\nClose Quarters (Cannot be blocked by higher initiative attacks)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Railgun_Snipe.png":
+  {
+    "name": "Railgun Snipe",
+    "description": "Knockback X: move the target frame X steps in any direction away from the source (it cannot move up elevation)",
+    "gm_notes": "1init\n-3mv\natk:2H@12,2M@12 projectile\nBlk:1M\nKnockback 2 (Move the target frame 2 steps in any direction away from the source)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Railgun_Kinetic%20Barrage.png":
+  {
+    "name": "Railgun Kinetic Barrage",
+    "description": "Knockback X: move the target frame X steps in any direction away from the source (it cannot move up elevation)\nGuard Break: this attack consumes one block per zone; zones that are not blocked still deal damage\nReload: this card persists until this frame next resolves an attack from this weapon; that card deals no damage and triggers no abilities, then both are discarded",
+    "gm_notes": "1init\n-3mv\natk:2H@8,2M@8,2L@8 projectile\nBlk:1M\nKnockback 2\nGuard Break\nReload (This frames next action from this weapon has no effect or attack.)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Sniper%20Rifle_Headshot.png":
+  {
+    "name": "Sniper Rifle Headshot",
+    "description": "",
+    "gm_notes": "3init\n-3mv\natk:2H@16 projectile\nBlk:1M\nDeals + 2 projectile if the target didnt move",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Sniper%20Rifle_Calibrated%20Hit.png":
+  {
+    "name": "Sniper Rifle Calibrated Hit",
+    "description": "",
+    "gm_notes": "3init\n-3mv\natk:2L@16 projectile\nBlk:1M\nDeals + 2 projectile if the target didnt move",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Sniper%20Rifle_Heartpiercer.png":
+  {
+    "name": "Sniper Rifle Heartpiercer",
+    "description": "",
+    "gm_notes": "3init\n-3mv\natk:2M@16 projectile\nBlk:1M\nDeals + 2 projectile if the target didnt move",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Sniper%20Rifle_Patience%27s%20Reward.png":
+  {
+    "name": "Sniper Rifle Patience's Reward",
+    "description": "",
+    "gm_notes": "2init\n-3mv\natk:2M@16 projectile\nBlk:1M\nDeals + 2 projectile if the target didnt move",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Axe_Chop.png":
+  {
+    "name": "Axe Chop",
+    "description": "",
+    "gm_notes": "4init\n0mv\natk:2H cut\nBlk:1H",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Axe_Hook.png":
+  {
+    "name": "Axe Hook",
+    "description": "On Hit: the text after the colon only applies if the attack hits (that is, is not blocked)\nDazed: while dazed a frame gets -2 cards",
+    "gm_notes": "4init\n0mv\natk:1M cut\nBlk:1H\nOn Hit: target gets 2 Dazed (-2 card)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Axe_Split.png":
+  {
+    "name": "Axe Split",
+    "description": "",
+    "gm_notes": "3init\n-1mv\natk:2H,2M cut\nBlk:1M",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Axe_Throw.png":
+  {
+    "name": "Axe Throw",
+    "description": "Committed: this attack is discarded after it resolves",
+    "gm_notes": "5init\n0mv\natk:2M@8 cut\nBlk:1M\nCommitted (this attack is discarded after resolving)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Great%20Axe_Cleave.png":
+  {
+    "name": "Great Axe Cleave",
+    "description": "",
+    "gm_notes": "3init\n-2mv\natk:3M,2L cut\nBlk:1L",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Great%20Axe_Split.png":
+  {
+    "name": "Great Axe Split",
+    "description": "Guard Break: this attack consumes one block per zone; zones that are not blocked still deal damage",
+    "gm_notes": "2init\n-2mv\natk:2M,2L cut\nBlk:1M\nGuard Break (This attack consumes one block per zone)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Great%20Axe_Whirl.png":
+  {
+    "name": "Great Axe Whirl",
+    "description": "",
+    "gm_notes": "4init\n-2mv\natk:2M,1L cut\nBlk:1M\nHits all adjacent enemies",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Great%20Axe_Eviscerate.png":
+  {
+    "name": "Great Axe Eviscerate",
+    "description": "",
+    "gm_notes": "3init\n-3mv\natk:2M,3L cut\nBlk:1L",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Basic_Punch.png":
+  {
+    "name": "Basic Punch",
+    "description": "",
+    "gm_notes": "6init\n0mv\natk:1M impact\nBlk:1M",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Basic",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Basic_Kick.png":
+  {
+    "name": "Basic Kick",
+    "description": "",
+    "gm_notes": "6init\n0mv\natk:1L impact\nBlk:1L",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Basic",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Basic_Block.png":
+  {
+    "name": "Basic Block",
+    "description": "",
+    "gm_notes": "3init\n-1mv\nBlk:1H,1M,1L",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Basic",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Basic_Dodge.png":
+  {
+    "name": "Basic Dodge",
+    "description": "",
+    "gm_notes": "8init\n2mv\nRanged attacks target at -8 range",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Basic",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Basic_Throw.png":
+  {
+    "name": "Basic Throw",
+    "description": "",
+    "gm_notes": "4init\n-2mv\natk:1H@6 impact\nBlk:1M",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Basic",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Basic_Sprint.png":
+  {
+    "name": "Basic Sprint",
+    "description": "",
+    "gm_notes": "1init\n2mv\nBlk:1L",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Basic",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Frame_Bio-regen.png":
+  {
+    "name": "Frame Bio-regen",
+    "description": "",
+    "gm_notes": "3init\n-2mv\nBlk:1M\nfaction:Collective\nRepair 2",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Basic",
+      "4": "Collective"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Frame_Call%20of%20Nature.png":
+  {
+    "name": "Frame Call of Nature",
+    "description": "",
+    "gm_notes": "6init\n-2mv\nBlk:1M\nfaction:Collective\nSelect an opposing frame within 6: move them 2",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Basic",
+      "4": "Collective"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Frame_Shield.png":
+  {
+    "name": "Frame Shield",
+    "description": "Shield X: put X shield counters on the frame; a counter is removed instead of taking any damage, and one counter stops a whole attack however many zones it landed in",
+    "gm_notes": "1init\n-2mv\nBlk:1M\nfaction:Church of the Net\nAdd a shield",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Basic",
+      "4": "Church of the Net"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Booster_Full%20speed%20ahead.png":
+  {
+    "name": "Booster Full speed ahead",
+    "description": "",
+    "gm_notes": "9init\n+5mv",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Booster",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Booster_Quick%20Step.png":
+  {
+    "name": "Booster Quick Step",
+    "description": "",
+    "gm_notes": "8,3init\n+1mv\nBlk:1L\nActs twice if not comsumed",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Booster",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Booster_Shoulder%20barge.png":
+  {
+    "name": "Booster Shoulder barge",
+    "description": "",
+    "gm_notes": "6init\n+3mv\natk:1M impact\nBlk:1M",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Booster",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Booster_Accelerate.png":
+  {
+    "name": "Booster Accelerate",
+    "description": "",
+    "gm_notes": "9init\n+1mv\nOther actions this turn get +3 mv",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Booster",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Bruiser_Relentless%20Assault.png":
+  {
+    "name": "Bruiser Relentless Assault",
+    "description": "Committed: this attack is discarded after it resolves",
+    "gm_notes": "7init\n-2mv\nBlk:1H\nAll other actions this frame takes this turn resolve twice at -2mv\nCommitted (this attack is discarded after resolving)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Pilot",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Bruiser_Intimidate.png":
+  {
+    "name": "Bruiser Intimidate",
+    "description": "Committed: this attack is discarded after it resolves",
+    "gm_notes": "8init\n0mv\nBlk:1H\nAll enemies within 5 must consume one block\nCommitted (this attack is discarded after resolving)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Pilot",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Bruiser_Net%20Strength.png":
+  {
+    "name": "Bruiser Net Strength",
+    "description": "Guard Break: this attack consumes one block per zone; zones that are not blocked still deal damage\nOn Hit: the text after the colon only applies if the attack hits (that is, is not blocked)\nDazed: while dazed a frame gets -2 cards",
+    "gm_notes": "5init\n-2mv\nBlk:1H\npersist:1 turn\nAll attacks you make this turn and next gain guard break and gain \"On Hit: target gets Dazed (-2 card)\"",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Pilot",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Bruiser_Lockdown.png":
+  {
+    "name": "Bruiser Lockdown",
+    "description": "Slowed: while slowed a frame gets -2 mv\nCommitted: this attack is discarded after it resolves",
+    "gm_notes": "5init\n-1mv\nBlk:1H\nTarget frame within 3 gets 3 Slowed (-2 mv)\nCommitted (this attack is discarded after resolving)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Pilot",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Mystic_Ephemeral%20Images.png":
+  {
+    "name": "Mystic Ephemeral Images",
+    "description": "",
+    "gm_notes": "1init\n-1mv\nBlk:1H\npersist:permanent\nReplace this frame with 3 tokens, one of which is secretly marked to be this frame. All tokens move as this frame and the fakes are removed if attacked.",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Pilot",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Mystic_Teleport.png":
+  {
+    "name": "Mystic Teleport",
+    "description": "",
+    "gm_notes": "1init\n-4mv\nBlk:1H\npersist:1 turn\nNext turn: Reposition this frame anywhere on the map at initiative 4",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Pilot",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Mystic_Utter%20darkness.png":
+  {
+    "name": "Mystic Utter darkness",
+    "description": "",
+    "gm_notes": "1init\n-4mv\nBlk:1H\npersist:1 turn\nNext turn: While any frame is within 5 of this frame it cannot be attacked",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Pilot",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Mystic_Encode%20the%20future.png":
+  {
+    "name": "Mystic Encode the future",
+    "description": "",
+    "gm_notes": "1init\n-3mv\nBlk:1H\npersist:1 turn\nNext turn: one allied frame (includes this) chooses cards from their deck",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Pilot",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Tactician_Tactical%20broadcast.png":
+  {
+    "name": "Tactician Tactical broadcast",
+    "description": "Lucid: while lucid a frame gets +2 cards",
+    "gm_notes": "4init\n-1mv\nBlk:1H\nAllied frames within 8 get 2 Lucid (+2 cards)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Pilot",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Tactician_Fog%20of%20war.png":
+  {
+    "name": "Tactician Fog of war",
+    "description": "",
+    "gm_notes": "3init\n0mv\nBlk:1H\npersist:1 turn\nNext turn: Allied frames within 7 of this frame cannot be targeted by ranged attacks",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Pilot",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Tactician_Set%20the%20trap.png":
+  {
+    "name": "Tactician Set the trap",
+    "description": "Revealed: while revealed a frame's chosen actions are turned face up",
+    "gm_notes": "3init\n0mv\nBlk:1H\nMove an allied frame within 5 2 space. All enemies within 3 of them get Revealed (chosen actions are turned face up)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Pilot",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Tactician_Outfox.png":
+  {
+    "name": "Tactician Outfox",
+    "description": "Revealed: while revealed a frame's chosen actions are turned face up\nDazed: while dazed a frame gets -2 cards",
+    "gm_notes": "4init\n-1mv\nBlk:1H\nTarget frame within 7 gets 3 Revealed (chosen actions are turned face up) and 2 Dazed (-2 card)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Pilot",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Wunderkid_Hyper.png":
+  {
+    "name": "Wunderkid Hyper",
+    "description": "",
+    "gm_notes": "2init\n-4mv\nBlk:1H\npersist:1 turn\nNext turn: play 1 extra action",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Pilot",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Wunderkid_Net%20Speed.png":
+  {
+    "name": "Wunderkid Net Speed",
+    "description": "Stimmed: while stimmed a frame gets +2 init\nBoosted: while boosted a frame gets +2 mv\nCommitted: this attack is discarded after it resolves",
+    "gm_notes": "7init\n0mv\nBlk:1H\nThis frame gets 3 Stimmed (+2 init) and 3 Boosted (+2 mv)\nCommitted (this attack is discarded after resolving)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Pilot",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Wunderkid_Portal.png":
+  {
+    "name": "Wunderkid Portal",
+    "description": "",
+    "gm_notes": "3init\n-1mv\nBlk:1H\nCreate two portals within 7. Those tiles are connected.",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Pilot",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Wunderkid_Ace%20Reflexes.png":
+  {
+    "name": "Wunderkid Ace Reflexes",
+    "description": "",
+    "gm_notes": "8init\n1mv\nBlk:1H\nWhenever this frame is attacked this turn, move 2 after the attack",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Pilot",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Engineer_Battlefield%20Repairs.png":
+  {
+    "name": "Engineer Battlefield Repairs",
+    "description": "",
+    "gm_notes": "4init\n-2mv\nBlk:1H\nRepair 3 damage from an allied frame within 3",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Pilot",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Engineer_Barricade.png":
+  {
+    "name": "Engineer Barricade",
+    "description": "",
+    "gm_notes": "4init\n-3mv\nBlk:1H\nPut up to 3 barricade tokens on unoccupied locations within 3: those locations becomes impassible",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Pilot",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Engineer_Gravity%20Well.png":
+  {
+    "name": "Engineer Gravity Well",
+    "description": "",
+    "gm_notes": "3init\n-2mv\nBlk:1H\nCreate a gravity well within 5. Its an obstacle that adds an extra 1 movement penalty to any step away from it within 5",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Pilot",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Engineer_Precision%20Tuning.png":
+  {
+    "name": "Engineer Precision Tuning",
+    "description": "Boosted: while boosted a frame gets +2 mv",
+    "gm_notes": "4init\n-3mv\nBlk:1H\nThis frame gets 4 Boosted (+2 mv)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Pilot",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Specialist_Combo%20strike.png":
+  {
+    "name": "Specialist Combo strike",
+    "description": "Committed: this attack is discarded after it resolves",
+    "gm_notes": "8init\n-2mv\nBlk:1H\nWhen resolving the next attack from this frame, reveal the top 4 cards of its deck and choose up to 1 attack from the same weapon: add it's attacks to the attack\nCommitted (this attack is discarded after resolving)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Pilot",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Specialist_Snipers%20aim.png":
+  {
+    "name": "Specialist Snipers aim",
+    "description": "Committed: this attack is discarded after it resolves",
+    "gm_notes": "7init\n-3mv\nBlk:1H\nRanged attacks this turn can ignore obstacles, get + 4 range and deal 1 extra damage\nCommitted (this attack is discarded after resolving)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Pilot",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Specialist_Master%20duelist.png":
+  {
+    "name": "Specialist Master duelist",
+    "description": "Revealed: while revealed a frame's chosen actions are turned face up",
+    "gm_notes": "3init\n-2mv\nBlk:1H\npersist:3 turns\nFor the next 3 turns: Enemies targeted by melee attacks get Revealed and you choose which card blocks",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Pilot",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Specialist_Practiced%20Technique.png":
+  {
+    "name": "Specialist Practiced Technique",
+    "description": "Lucid: while lucid a frame gets +2 cards",
+    "gm_notes": "5init\n-1mv\nBlk:1H\npersist:1 turn\nLucid (+2 cards)\nNext turn: attacks deal 1 extra damage for each other attack played from the same weapon",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Pilot",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Swarm_Swarm.png":
+  {
+    "name": "Swarm",
+    "description": "Drone: a token that takes this card's action every turn, using the movement and health printed beside it, until it is destroyed",
+    "gm_notes": "3init\n-2mv\natk:1M cut\nBlk:1M\ndrone:3hp 3mv\nfaction:Ouwa\npersist:permanent\nSummon one Swarm (A unit that attacks once each turn with this card, with its own movement and health.)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Drone",
+      "4": "Ouwa"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Swarm_Crawl.png":
+  {
+    "name": "Swarm Crawl",
+    "description": "Drone: a token that takes this card's action every turn, using the movement and health printed beside it, until it is destroyed",
+    "gm_notes": "3init\n-2mv\natk:1L cut\nBlk:1M\ndrone:3hp 3mv\nfaction:Ouwa\npersist:permanent\nSummon one Swarm (A unit that attacks once each turn with this card, with its own movement and health.)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Drone",
+      "4": "Ouwa"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Gun%20Tower_Gun%20Tower.png":
+  {
+    "name": "Gun Tower",
+    "description": "Drone: a token that takes this card's action every turn, using the movement and health printed beside it, until it is destroyed",
+    "gm_notes": "2init\n-2mv\natk:1H@8 projectile\nBlk:1L\ndrone:2hp 0mv\nfaction:Guild\npersist:permanent\nSummon one Gun Tower within 3 (A unit that attacks once each turn with this card, with its own movement and health.)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Drone",
+      "4": "Guild"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Attack%20Dog_Attack%20Dog.png":
+  {
+    "name": "Attack Dog",
+    "description": "Drone: a token that takes this card's action every turn, using the movement and health printed beside it, until it is destroyed",
+    "gm_notes": "5init\n-3mv\natk:1L energy\nBlk:1L\ndrone:1hp 4mv\nfaction:Aegis\npersist:permanent\nSummon two attack dogs (A unit that attacks once each turn with this card, with its own movement and health.)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Drone",
+      "4": "Aegis"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Percival_MkIV.png":
+  {
+    "name": "Percival MkIV",
+    "description": "",
+    "gm_notes": "4mv\narmour:4H/4M/4L\nweapons:3\nboosters:2\ndeck:21\nfaction:Aegis\nAttacks with multiple blocks reduce movement by 2 less",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Frame",
+      "3": "Aegis"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Kuwagata.png":
+  {
+    "name": "Kuwagata",
+    "description": "",
+    "gm_notes": "4mv\narmour:4H/4M/4L\nweapons:4\nboosters:3\ndeck:21\nfaction:Ouwa\nonce, during planning; discard your hand and draw a new one",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Frame",
+      "3": "Ouwa"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/VX4-Nautilus.png":
+  {
+    "name": "VX4-Nautilus",
+    "description": "",
+    "gm_notes": "3mv\narmour:3H/4M/4L\nweapons:4\nboosters:2\ndeck:21\nfaction:Guild\nRanged attacks reduce movement by 2 less",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Frame",
+      "3": "Guild"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Adam.png":
+  {
+    "name": "Adam",
+    "description": "",
+    "gm_notes": "5mv\narmour:4H/3M/3L\nweapons:2\nboosters:0\ndeck:14\nfaction:Collective\npierce Attacks get +2 initiative",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Frame",
+      "3": "Collective"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/RipperSmasher.png":
+  {
+    "name": "RipperSmasher",
+    "description": "Deathstrike: when this frame would be destroyed it fights on until the end of the next turn, and is only removed if it is still dead",
+    "gm_notes": "3mv\narmour:4H/3M/4L\nweapons:3\nboosters:2\ndeck:21\nfaction:Revolution\nDeathstrike\nactions reduce movement by a maximum of -1",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Frame",
+      "3": "Revolution"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Hannael.png":
+  {
+    "name": "Hannael",
+    "description": "Flying: this frame spends no movement to cross obstacles or change floor, and obstacles do not block line of sight to or from it\nShield X: put X shield counters on the frame; a counter is removed instead of taking any damage, and one counter stops a whole attack however many zones it landed in",
+    "gm_notes": "4mv\narmour:3H/3M/3L\nweapons:3\nboosters:3\ndeck:21\nfaction:Church of the Net\nFlying\nShield 1",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Frame",
+      "3": "Church of the Net"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Elemiah.png":
+  {
+    "name": "Elemiah",
+    "description": "Shield X: put X shield counters on the frame; a counter is removed instead of taking any damage, and one counter stops a whole attack however many zones it landed in\nKnockback X: move the target frame X steps in any direction away from the source (it cannot move up elevation)",
+    "gm_notes": "4mv\narmour:3H/3M/3L\nweapons:3\nboosters:3\ndeck:21\nfaction:Church of the Net\nShield 2\nimpact attacks gain Knockback 1 (Move the target frame 1 steps in any direction away from the source)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Frame",
+      "3": "Church of the Net"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/J7R-Salaryman.png":
+  {
+    "name": "J7R-Salaryman",
+    "description": "",
+    "gm_notes": "4mv\narmour:3H/3M/4L\nweapons:5\nboosters:1\ndeck:25\nfaction:Guild\nRanged attacks get +4 range",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Frame",
+      "3": "Guild"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Flamekin.png":
+  {
+    "name": "Flamekin",
+    "description": "Deathstrike: when this frame would be destroyed it fights on until the end of the next turn, and is only removed if it is still dead",
+    "gm_notes": "4mv\narmour:2H/2M/2L\nweapons:3\nboosters:3\ndeck:21\nfaction:Revolution\nDeathstrike\nAt the end of each turn, repair 1",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Frame",
+      "3": "Revolution"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Fenrir.png":
+  {
+    "name": "Fenrir",
+    "description": "",
+    "gm_notes": "6mv\narmour:3H/4M/3L\nweapons:2\nboosters:0\ndeck:14\nfaction:Collective\nCan't use ranged weapons",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Frame",
+      "3": "Collective"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Hector_MkI.png":
+  {
+    "name": "Hector MkI",
+    "description": "",
+    "gm_notes": "3mv\narmour:5H/4M/4L\nweapons:3\nboosters:2\ndeck:21\nfaction:Aegis\nThe first time you block each turn that block is not discarded",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Frame",
+      "3": "Aegis"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Kamikiri.png":
+  {
+    "name": "Kamikiri",
+    "description": "",
+    "gm_notes": "4mv\narmour:4H/4M/3L\nweapons:4\nboosters:2\ndeck:18\nfaction:Ouwa\nThe first melee attack each turn deals an additional cut mid",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Frame",
+      "3": "Ouwa"
+    }
+  }
+}

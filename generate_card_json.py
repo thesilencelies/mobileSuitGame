@@ -2,17 +2,19 @@
 """
 generate_card_json.py
 
-Writes one Tabletop Simulator card-metadata JSON file per card into json/.
+Writes json/cards.json: every card's Tabletop Simulator metadata in one file,
+each keyed by the GitHub URL of its card image.
 
 The schema is fixed by TTS, so no fields can be added:
 
     {
-      "<raw.githubusercontent URL of the card's AllCardImages PNG>": {
+      "<raw.githubusercontent URL of a card's AllCardImages PNG>": {
         "name":        "<Group> <Name>",
         "description": "<one clarifying line per keyword printed on the card>",
         "gm_notes":    "<every stat, then the card text, newline separated>",
         "tags":        {"1": "Card", "2": "Action", "3": "Weapon", "4": "Aegis"}
-      }
+      },
+      "<... one entry per card, in CSV order ...>": { }
     }
 
 Sources, all read straight from the repo-root CSVs (PrintID == 0 rows skipped,
@@ -36,7 +38,7 @@ loudly if a keyword exists in generateCards.py without a GLOSSARY entry.
 
 Usage:
     python generate_card_json.py
-    python generate_card_json.py --output-dir json --quiet
+    python generate_card_json.py --output json/cards.json --quiet
 """
 
 from __future__ import annotations
@@ -404,7 +406,7 @@ def description_for(text: str, row: dict, is_pilot: bool) -> str:
 # --------------------------------------------------------------------------
 
 class CardEntry:
-    """One card's finished JSON payload plus the filenames it needs."""
+    """One card's finished JSON payload, keyed by its card-image URL."""
 
     def __init__(self, image_name: str, name: str, description: str, gm_notes: str, tags: dict):
         self.image_name = image_name
@@ -414,19 +416,11 @@ class CardEntry:
         self.tags = tags
 
     @property
-    def json_name(self) -> str:
-        """Sanitised like the PNG so json/<x>.json sits beside AllCardImages/<x>.png."""
-        return card_image_name(self.image_name).replace(".png", ".json")
-
-    @property
     def url(self) -> str:
         # AllCardImages filenames keep the spaces and apostrophes of the card
         # names ("Sniper Rifle_Patience's Reward.png"), so the URL must escape them
         return GITHUB_RAW_BASE + quote(self.image_name)
 
-    def payload(self) -> dict:
-        return {self.url: {"name": self.name, "description": self.description,
-                           "gm_notes": self.gm_notes, "tags": self.tags}}
 
 
 def read_rows(csv_name: str) -> list[dict]:
@@ -475,36 +469,40 @@ def enumerate_cards() -> list[CardEntry]:
 # Output
 # --------------------------------------------------------------------------
 
-def json_text(entry: CardEntry) -> str:
-    """Written by hand rather than json.dump so the file keeps the layout of the
-    TTS exports it has to sit alongside (the URL key on its own line)."""
-    def esc(value: str) -> str:
-        return (value.replace("\\", "\\\\").replace('"', '\\"')
-                .replace("\n", "\\n").replace("\t", "\\t"))
+def _esc(value: str) -> str:
+    return (value.replace("\\", "\\\\").replace('"', '\\"')
+            .replace("\n", "\\n").replace("\t", "\\t"))
 
-    tags = ",\n".join(f'      "{key}": "{esc(value)}"' for key, value in entry.tags.items())
+
+def json_entry(entry: CardEntry) -> str:
+    """One URL -> card block, indented to sit inside the cards.json object."""
+    tags = ",\n".join(f'      "{key}": "{_esc(value)}"' for key, value in entry.tags.items())
     return (
-        "{\n"
-        f'  "{esc(entry.url)}":\n'
+        f'  "{_esc(entry.url)}":\n'
         "  {\n"
-        f'    "name": "{esc(entry.name)}",\n'
-        f'    "description": "{esc(entry.description)}",\n'
-        f'    "gm_notes": "{esc(entry.gm_notes)}",\n'
+        f'    "name": "{_esc(entry.name)}",\n'
+        f'    "description": "{_esc(entry.description)}",\n'
+        f'    "gm_notes": "{_esc(entry.gm_notes)}",\n'
         '    "tags":\n'
         "    {\n"
         f"{tags}\n"
         "    }\n"
-        "  }\n"
-        "}\n"
+        "  }"
     )
+
+
+def json_document(entries: list[CardEntry]) -> str:
+    """Written by hand rather than json.dump so the file keeps the layout of the
+    TTS exports it has to sit alongside (each URL key on its own line)."""
+    return "{\n" + ",\n".join(json_entry(entry) for entry in entries) + "\n}\n"
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Write one Tabletop Simulator metadata JSON per card into json/."
+        description="Write every card's Tabletop Simulator metadata to json/cards.json."
     )
-    parser.add_argument("--output-dir", default="json",
-                        help="Directory to write the JSON files to (default: json).")
+    parser.add_argument("--output", default="json/cards.json",
+                        help="File to write (default: json/cards.json).")
     parser.add_argument("--quiet", action="store_true",
                         help="Only print the summary and any warnings.")
     args = parser.parse_args()
@@ -512,24 +510,26 @@ def main():
     _check_card_type_tags()
     _check_glossary_covers_keywords()
 
-    output_dir = WORKSPACE / args.output_dir
-    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = WORKSPACE / args.output
+    output_path.parent.mkdir(parents=True, exist_ok=True)
 
     entries = enumerate_cards()
 
+    # the URL is the key, so two cards resolving to one image would silently
+    # overwrite each other once TTS parsed the file
     seen: dict[str, str] = {}
     for entry in entries:
-        clash = seen.get(entry.json_name)
+        clash = seen.get(entry.url)
         if clash:
-            sys.exit(f"Error: '{entry.name}' and '{clash}' both write {entry.json_name}")
-        seen[entry.json_name] = entry.name
+            sys.exit(f"Error: '{entry.name}' and '{clash}' share the image {entry.image_name}")
+        seen[entry.url] = entry.name
 
-    for entry in entries:
-        (output_dir / entry.json_name).write_text(json_text(entry), encoding="utf-8")
-        if not args.quiet:
-            print(f"  {entry.json_name}  <- {entry.name}")
+    output_path.write_text(json_document(entries), encoding="utf-8")
+    if not args.quiet:
+        for entry in entries:
+            print(f"  {entry.name}  <- {entry.image_name}")
 
-    print(f"\nWrote {len(entries)} card JSON file(s) to {output_dir}/")
+    print(f"\nWrote {len(entries)} card(s) to {output_path.relative_to(WORKSPACE)}")
 
     missing = [entry.image_name for entry in entries
                if not (IMAGE_DIR / entry.image_name).is_file()]
@@ -539,11 +539,11 @@ def main():
         for name in missing:
             print(f"  {name}")
 
-    orphans = sorted(p.name for p in output_dir.glob("*.json") if p.name not in seen)
-    if orphans:
-        print(f"\nWarning: {len(orphans)} JSON file(s) in {output_dir.name}/ match no current "
-              "card (renamed or removed?):")
-        for name in orphans:
+    strays = sorted(p.name for p in output_path.parent.glob("*.json") if p != output_path)
+    if strays:
+        print(f"\nWarning: {len(strays)} other JSON file(s) sit alongside {output_path.name} "
+              f"in {output_path.parent.name}/; every card is in {output_path.name} now:")
+        for name in strays:
             print(f"  {name}")
 
     if _unknown_macros:
