@@ -1,0 +1,13 @@
+{
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Axe_Hook.png":
+  {
+    "name": "Axe Hook",
+    "description": "Dazed: while dazed a frame gets -2 cards",
+    "gm_notes": "4init\n0mv\natk:1M\nBlk:1H\nOn Hit: target gets 2 Dazed (-2 card)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action"
+    }
+  }
+}

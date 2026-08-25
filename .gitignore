@@ -230,6 +230,7 @@ TSWLatexianTemp*
 
 # individual card renders from generate_card_images.py are checked in
 !CardImages/*.png
+!AllCardImages/*.png
 !RulesImages/*.png
 !pictures/*.png
 
@@ -240,10 +241,6 @@ TSWLatexianTemp*
 !playtest/server/static/**/*.png
 
 !tts_assets/*.png
-
-# bulk per-card renders from generate_card_images.py --all: regenerated on
-# demand for the companion app, not checked in (no negation, unlike above)
-AllCardImages/
 
 build
 .idea
