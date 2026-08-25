@@ -17,25 +17,94 @@
 //
 // Two ways to look at it, both kept (the `art` option):
 //
-//   * ABSTRACT -- flat elevation ramp, the fastest read of the shape of the
-//     fight, which is what you want at FIT;
+//   * ABSTRACT -- the terrain markings on a flat dark ground, the fastest read
+//     of the shape of the fight, which is what you want at FIT;
 //   * ART -- the dealt terrain cards drawn behind the grid, clipped to their
 //     own 3x4 tile block and turned 180 degrees for the half of the board its
 //     owner laid out facing themselves, exactly as the cards sit on a table.
-//     The abstract markings stay on top, just quieter.
+//
+// The markings themselves are the same in both, and they are the *printed*
+// ones: raised ground is drawn with the terrain card's own colour ramp, walls
+// and glyphs (see below), so a rooftop looks the same on the phone as it does
+// on the table.
 
-import { frameImageUrl, terrainImageUrl, tokenImageUrl } from './api.js';
+import {
+  frameImageUrl, terrainImageUrl, tokenImageUrl, tileIconUrl,
+} from './api.js';
 import { frameMark } from './cards.js';
 
-const ELEV_FILL = ['#19212c', '#26323f', '#354557', '#48607a'];
-const ELEV_EDGE = ['#101720', '#1b242f', '#26333f', '#33455a'];
+// ------------------------------------------------------- the tile, as printed
+//
+// A marked tile is drawn the way the printed terrain card draws it, so a
+// rooftop or a blocked tile looks the same on the table and on the phone.
+// Everything here is lifted from `terrain_cards.py` (TERRAIN_STYLE = "full"):
+//
+//   * the colour ramp is `cityblue!N!citysteel` mixed in `generateCards.py`
+//     (cityblue 105,156,255 -- citysteel 78,76,118), so e1 is a desaturated
+//     steel blue and e3 the vivid glass-tower blue;
+//   * it is laid over the photograph at `fill opacity=0.5`, not as a neutral
+//     wash, so height reads as *blue* and the ground still shows through;
+//   * and the height itself comes from the **walls**: each edge is drawn at
+//     `ELEVATION_WALL_PER_LEVEL_PT` (3.5 pt) extra width per level this tile
+//     stands above the neighbour across it. A tile flush with its neighbours
+//     gets a hairline; one standing three levels proud of open ground gets a
+//     band an eighth of the tile wide down that side. That is what fakes the
+//     perspective onto a building's flank.
+//
+// Impassable and obstacle tiles come from the same place, and they are the
+// reason the border is a routine rather than a `strokeRect`: the card gives a
+// tile one colour and one base width from whichever code it carries, then adds
+// the elevation walls on top of that.
+//
+//   * IMPASSIBLE_STYLE -- black at half opacity, and a 5 pt *red* border,
+//     which is the whole of it: a tile you cannot enter is not shaded like one
+//     you can.
+//   * OBSTACLE_STYLE -- a yellow crosshatch at half opacity plus a dashed
+//     yellow outline, and deliberately *no* colour or width of its own, so an
+//     obstacle sitting on a rooftop keeps the rooftop's blue border and reads
+//     as both. That is what the "these should not set the line style cause
+//     they can appear at any elevation" comment in `terrain_cards.py` is for.
+//
+// Widths are in tile units: a printed tile is 2.06 cm, so 1 pt is 1/58.4 of a
+// tile. The board's own tiles are square too, so the conversion is exact.
+const ELEV_RGB = ['', '86,100,159', '94,124,200', '105,156,255'];
+const ELEV_CSS = ['', '#56649f', '#5e7cc8', '#699cff'];
 
-// Over the art the elevation ramp becomes a wash rather than a fill, so the
-// battlefield shows through but height still reads at a glance.
-const ELEV_WASH = [
-  'rgba(9,13,19,0.30)', 'rgba(120,170,230,0.14)',
-  'rgba(150,195,245,0.24)', 'rgba(185,220,255,0.34)',
-];
+//: The card lays every fill and hatch on at half opacity, over its photograph.
+const ELEV_ALPHA = 0.5;
+
+//: `semithick` (0.6 pt) and ELEVATION_WALL_PER_LEVEL_PT (3.5 pt), in tiles.
+const WALL_BASE = 0.0103;
+const WALL_PER_DROP = 0.0599;
+
+//: IMPASSIBLE_STYLE: `fill=black` at half opacity, `draw=red` at 5 pt.
+const IMPASSABLE_FILL = 'rgba(0,0,0,0.5)';
+const IMPASSABLE_CSS = '#ff0000';
+const IMPASSABLE_WALL = 0.0856;
+
+//: OBSTACLE_STYLE: a yellow crosshatch, and a 3 pt dashed yellow outline on
+//: 2 mm / off 2 mm. The hatch is pgf's `crosshatch` -- hairlines at +/-45.
+const OBSTACLE_CSS = 'rgba(255,255,0,0.5)';
+const OBSTACLE_HATCH_STEP = 0.0856;
+const OBSTACLE_HATCH_W = 0.0069;
+const OBSTACLE_DASH_W = 0.0514;
+const OBSTACLE_DASH = 0.0971;
+
+//: The glyph is 0.6 cm in a 2.06 cm tile, inset by half its width plus the
+//: base border -- `terrain_iconwidth_value` and the offsets beside it. A tile
+//: carrying two of them stacks the second one width to the left, as the card's
+//: `hoffset` loop does.
+const TILE_ICON_W = 0.291;
+const TILE_ICON_INSET = 0.156;
+
+// Ground has no printed styling, so the abstract view keeps its own dark
+// ground for it and lets the ramp above sit on that instead of a photograph.
+const GROUND_FILL = '#19212c';
+const GROUND_EDGE = '#101720';
+
+//: Flat versions of the ramp over `GROUND_FILL`, for the minimap -- too small
+//: for a wall or a glyph, so the colour has to carry the height on its own.
+const ELEV_FLAT = ['#19212c', '#384266', '#3c4e7a', '#415e96'];
 
 //: A terrain card is 3 tiles across and 4 down (rules; engine/terrain.py).
 const CARD_COLS = 3;
@@ -410,49 +479,24 @@ export class BoardView {
         const t = this.tiles.get(`${x},${y}`);
         if (!t) continue;
         const elev = Math.max(0, Math.min(3, t.elev || 0));
-        if (art) {
-          // Over the photograph the ramp is a wash, so the ground reads as
-          // ground and a rooftop still reads as three storeys up.
-          ctx.fillStyle = t.impassable ? 'rgba(6,9,13,0.72)' : ELEV_WASH[elev];
-          ctx.fillRect(x, y, 1, 1);
-        } else {
-          ctx.fillStyle = t.impassable ? '#080c11' : ELEV_FILL[elev];
+        // Ground first -- the photograph in ART, a flat dark tile otherwise --
+        // and then the card's own fill over it at half opacity, which is
+        // exactly what the printed card does over its own photo. Elevation
+        // wins over impassable where a tile is both, because `_merge_style`
+        // keeps the first non-default value and the elevation code comes first.
+        if (!art) {
+          ctx.fillStyle = GROUND_FILL;
           ctx.fillRect(x, y, 1, 1);
         }
+        if (elev > 0) {
+          ctx.fillStyle = `rgba(${ELEV_RGB[elev]},${ELEV_ALPHA})`;
+          ctx.fillRect(x, y, 1, 1);
+        } else if (t.impassable) {
+          ctx.fillStyle = IMPASSABLE_FILL;
+          ctx.fillRect(x, y, 1, 1);
+        }
+        if (t.obstacle) this._crosshatch(ctx, x, y);
 
-        if (t.impassable) {
-          ctx.strokeStyle = art ? 'rgba(190,210,235,0.55)' : '#232c38';
-          ctx.lineWidth = 1.4 / s;
-          ctx.beginPath();
-          ctx.moveTo(x + 0.15, y + 0.15); ctx.lineTo(x + 0.85, y + 0.85);
-          ctx.moveTo(x + 0.85, y + 0.15); ctx.lineTo(x + 0.15, y + 0.85);
-          ctx.stroke();
-        } else if (t.obstacle && art) {
-          // Outlined rather than filled: the art already shows the thing that
-          // is in the way, and the marker only has to say it counts as one.
-          ctx.strokeStyle = 'rgba(200,220,245,0.6)';
-          ctx.lineWidth = 1.6 / s;
-          this._roundRect(ctx, x + 0.18, y + 0.18, 0.64, 0.64, 0.12);
-          ctx.stroke();
-        } else if (t.obstacle) {
-          ctx.fillStyle = '#0f151d';
-          this._roundRect(ctx, x + 0.16, y + 0.16, 0.68, 0.68, 0.12);
-          ctx.fill();
-          ctx.fillStyle = '#2c3a4a';
-          this._roundRect(ctx, x + 0.16, y + 0.16, 0.68, 0.5, 0.1);
-          ctx.fill();
-        }
-        if (elev > 0 && !t.impassable) {
-          // A lit top edge reads as height at any zoom.
-          ctx.fillStyle = 'rgba(255,255,255,0.10)';
-          ctx.fillRect(x, y, 1, 0.09 + 0.03 * elev);
-          if (s > 20) {
-            ctx.fillStyle = 'rgba(230,240,255,0.5)';
-            ctx.font = `${0.3}px system-ui, sans-serif`;
-            ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
-            ctx.fillText(String(elev), x + 0.94, y + 0.96);
-          }
-        }
         const obj = this.objectiveTiles.get(`${x},${y}`);
         if (obj) {
           ctx.strokeStyle = 'rgba(242,193,78,0.85)';
@@ -462,9 +506,12 @@ export class BoardView {
           ctx.fillStyle = 'rgba(242,193,78,0.5)';
           ctx.fillRect(x + 0.38, y + 0.38, 0.24, 0.24);
         }
-        ctx.strokeStyle = art ? 'rgba(8,12,18,0.45)' : ELEV_EDGE[elev];
-        ctx.lineWidth = 1 / s;
-        ctx.strokeRect(x + 0.5 / s, y + 0.5 / s, 1 - 1 / s, 1 - 1 / s);
+
+        // The border last, so nothing is drawn over it: on a raised tile it
+        // *is* the height, and on an impassable one it is the whole marking.
+        this._drawTileBorder(ctx, x, y, t, elev, s);
+        if (t.obstacle) this._dashedOutline(ctx, x, y);
+        this._drawTileGlyphs(ctx, x, y, t, elev, s);
 
         if (this.options.coords && s > 34) {
           ctx.fillStyle = 'rgba(200,215,235,0.35)';
@@ -473,6 +520,136 @@ export class BoardView {
           ctx.fillText(`${x},${y}`, x + 0.06, y + 0.05);
         }
       }
+    }
+  }
+
+  /** How many levels this tile stands above the neighbour across one edge.
+   *
+   *  Off the board counts as ground, which is what the printed card assumes
+   *  of its own edge -- but on the assembled board the neighbour is usually a
+   *  real tile from the card next door, so a wall only appears where there is
+   *  actually a drop.
+   */
+  _drop(x, y, elev) {
+    const at = (px, py) => {
+      const t = this.tiles.get(`${px},${py}`);
+      return t ? Math.max(0, Math.min(3, t.elev || 0)) : 0;
+    };
+    return {
+      top: Math.max(0, elev - at(x, y - 1)),
+      bottom: Math.max(0, elev - at(x, y + 1)),
+      left: Math.max(0, elev - at(x - 1, y)),
+      right: Math.max(0, elev - at(x + 1, y)),
+    };
+  }
+
+  /** One border, one edge at a time, the way `_tikz_square_lines` draws it.
+   *
+   *  The tile's code decides the colour and the base width -- a raised tile is
+   *  its own blue at a hairline, an impassable one is red at 5 pt, plain ground
+   *  is the grid line. On top of that each edge is widened by however far this
+   *  tile stands above the neighbour across it, which is the wall.
+   */
+  _drawTileBorder(ctx, x, y, t, elev, s) {
+    let css;
+    let base;
+    if (elev > 0) { css = ELEV_CSS[elev]; base = WALL_BASE; }
+    else if (t.impassable) { css = IMPASSABLE_CSS; base = IMPASSABLE_WALL; }
+    else {
+      // Nothing printed here: the plain grid line, at a fixed pixel width so
+      // it stays a hairline at any zoom rather than growing into a wall.
+      ctx.strokeStyle = this.options.art ? 'rgba(8,12,18,0.45)' : GROUND_EDGE;
+      ctx.lineWidth = 1 / s;
+      ctx.strokeRect(x + 0.5 / s, y + 0.5 / s, 1 - 1 / s, 1 - 1 / s);
+      return;
+    }
+    const drops = this._drop(x, y, elev);
+    ctx.save();
+    ctx.strokeStyle = css;
+    ctx.lineCap = 'butt';
+    for (const [edge, drop] of Object.entries(drops)) {
+      const w = base + WALL_PER_DROP * drop;
+      // Inset by half the width so the stroke stays inside the cell, exactly
+      // as `_tikz_square_lines` does -- two neighbouring walls must not
+      // overlap into a double-thick seam.
+      const i = w / 2;
+      ctx.lineWidth = w;
+      ctx.beginPath();
+      if (edge === 'top') { ctx.moveTo(x, y + i); ctx.lineTo(x + 1, y + i); }
+      else if (edge === 'bottom') { ctx.moveTo(x, y + 1 - i); ctx.lineTo(x + 1, y + 1 - i); }
+      else if (edge === 'left') { ctx.moveTo(x + i, y); ctx.lineTo(x + i, y + 1); }
+      else { ctx.moveTo(x + 1 - i, y); ctx.lineTo(x + 1 - i, y + 1); }
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  /** An obstacle's yellow crosshatch: pgf's pattern, hairlines at +/-45. */
+  _crosshatch(ctx, x, y) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x, y, 1, 1);
+    ctx.clip();
+    ctx.translate(x + 0.5, y + 0.5);
+    ctx.strokeStyle = OBSTACLE_CSS;
+    ctx.lineWidth = OBSTACLE_HATCH_W;
+    for (const angle of [Math.PI / 4, -Math.PI / 4]) {
+      ctx.save();
+      ctx.rotate(angle);
+      for (let o = -0.75; o <= 0.75; o += OBSTACLE_HATCH_STEP) {
+        ctx.beginPath();
+        ctx.moveTo(o, -0.75);
+        ctx.lineTo(o, 0.75);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+
+  /** An obstacle's dashed yellow outline -- the card's `postaction`. */
+  _dashedOutline(ctx, x, y) {
+    ctx.save();
+    ctx.strokeStyle = OBSTACLE_CSS;
+    ctx.lineWidth = OBSTACLE_DASH_W;
+    ctx.setLineDash([OBSTACLE_DASH, OBSTACLE_DASH]);
+    // Inset by half the stroke. The card lets it straddle the tile edge, but
+    // the board fills tiles one at a time and a spilled outline would be
+    // painted over by the neighbour drawn after it.
+    const i = OBSTACLE_DASH_W / 2;
+    ctx.strokeRect(x + i, y + i, 1 - 2 * i, 1 - 2 * i);
+    ctx.restore();
+  }
+
+  /** The glyphs the card stamps in the tile's bottom-right corner.
+   *
+   *  More than one code on a tile means more than one glyph, and the card lays
+   *  them out right to left from that corner, so this does too.
+   */
+  _drawTileGlyphs(ctx, x, y, t, elev, s) {
+    if (s < 20) return;                 // smaller than a few pixels: pointless
+    const stems = [];
+    if (elev > 0) stems.push(`e${elev}`);
+    if (t.impassable) stems.push('imp');
+    if (t.obstacle) stems.push('obs');
+    let cx = x + 1 - TILE_ICON_INSET;
+    const cy = y + 1 - TILE_ICON_INSET;
+    for (const stem of stems) {
+      const art = this._image(tileIconUrl(stem));
+      if (art && art.complete && art.naturalWidth) {
+        ctx.save();
+        // The glyph is black line art, drawn on a bright aerial photograph on
+        // the card. Here it can land on a dark tile, so it gets a pale halo
+        // rather than a repaint -- the shape stays the printed one.
+        ctx.shadowColor = 'rgba(232,242,255,0.85)';
+        ctx.shadowBlur = 3;
+        const w = TILE_ICON_W;
+        const h = w * (art.naturalHeight / art.naturalWidth);
+        ctx.drawImage(art, cx - w / 2, cy - h / 2, w, h);
+        ctx.restore();
+      }
+      cx -= TILE_ICON_W;
+      if (cx < TILE_ICON_INSET) break;  // no room left in the row
     }
   }
 
@@ -799,7 +976,7 @@ export class BoardView {
     for (const [key, t] of this.tiles) {
       const [x, y] = key.split(',').map(Number);
       if (t.impassable) ctx.fillStyle = '#0a0e13';
-      else if (t.elev > 0) ctx.fillStyle = ELEV_FILL[Math.min(3, t.elev)];
+      else if (t.elev > 0) ctx.fillStyle = ELEV_FLAT[Math.min(3, t.elev)];
       else continue;
       ctx.fillRect(ox + x * cell, oy + y * cell, cell, cell);
     }

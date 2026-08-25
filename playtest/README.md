@@ -182,8 +182,9 @@ with its own camera rather than a table the browser scrolls:
   tile block and turned 180° for the half its owner laid out facing themselves
   — the board as it sits on a table — and the objective tokens use their piece
   art, whose numbered variants *are* the damage state (`Tower4`…`Tower1`,
-  `PowerPlant2`…`PowerPlant1`). With it off you get the abstract elevation
-  ramp, which is still the faster read at FIT. Neither replaces the other.
+  `PowerPlant2`…`PowerPlant1`). With it off you get the same markings on a flat
+  dark ground, which is still the faster read at FIT. Neither replaces the
+  other.
 * **One finger pans, two fingers pinch.** **Double-tap** toggles between FIT and
   a tactical zoom centred on the tile you tapped, at which a tile is a
   comfortable finger-width — so a tile is always big enough to hit when you
@@ -191,9 +192,31 @@ with its own camera rather than a table the browser scrolls:
 * A **minimap** appears bottom-right whenever you are zoomed past FIT, showing
   the viewport rectangle, the terrain and every frame, so you cannot get lost.
 * **◎** centres on whichever frame is acting; **FIT** always gets you back.
-* Elevation is a lightness ramp with a lit top edge and a digit; impassable
-  tiles are crossed out; obstacles are blocks; objective tiles are outlined
-  gold; tokens are discs with their remaining HP.
+* **Terrain is drawn the way the card prints it**, so a rooftop or a blocked
+  tile looks the same on the phone as on the table. Everything comes from
+  `terrain_cards.py` (`TERRAIN_STYLE = "full"`):
+  * **Elevation** — the `cityblue!N!citysteel` colour ramp laid on at half
+    opacity, so height reads as *blue* and the ground still shows through; the
+    per-edge **walls**, drawn 3.5 pt wider for each level this tile stands above
+    the neighbour across that edge, which is what fakes the perspective onto a
+    building's flank; and the stacked-cube glyph in the corner.
+  * **Impassable** — black at half opacity under a 5 pt *red* border, and a
+    boxed X. A tile you cannot enter is not shaded like one you can.
+  * **Obstacle** — a yellow crosshatch under a dashed yellow outline, and a
+    boxed triangle. It sets no border of its own, so an obstacle standing on a
+    rooftop keeps the rooftop's blue wall and reads as both at once — which is
+    what the "should not set the line style cause they can appear at any
+    elevation" comment in `terrain_cards.py` is protecting.
+
+  The glyphs are the card's own `icons/{e1,e2,e3,imp,obs}.png`, bundled into
+  `static/tiles/`; a tile carrying two of them stacks the second one width to
+  the left, as the card does. The pt-to-tile conversions and the mixed colours
+  are hard-coded in `board.js` because a canvas cannot share TikZ's constants —
+  `test_the_board_draws_elevation_the_way_the_card_does` re-derives them from
+  `terrain_cards.py` and is what stops the two drifting apart.
+* Objective tiles are outlined gold and tokens are discs with their remaining
+  HP. Those two still use the client's own markings rather than the card's
+  green and purple hatches.
 
 Tapping:
 

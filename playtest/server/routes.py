@@ -265,6 +265,7 @@ class Router:
             "terrainArt": len(assets.terrain_files()),
             "tokenArt": len(assets.token_files()),
             "frameArt": len(assets.frame_files()),
+            "tileArt": len(assets.tile_icon_files()),
             "ai": ai_bridge.param_schema()["source"],
             "server": "stdlib",
         }

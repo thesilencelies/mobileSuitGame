@@ -49,6 +49,13 @@ TERRAIN_DIR = STATIC_DIR / "terrain"
 TOKEN_SOURCE = REPO_ROOT / "tts_assets"
 TOKEN_DIR = STATIC_DIR / "tokens"
 
+#: The tile glyphs the printed terrain cards stamp in a tile's corner
+#: (`terrain_cards.py`: the `icon` of each entry in `STYLE_DICT`). The board
+#: draws the same ones, so a rooftop or a blocked tile on screen is marked the
+#: way it is marked on the card.
+TILE_ICON_SOURCE = REPO_ROOT / "icons"
+TILE_DIR = STATIC_DIR / "tiles"
+
 #: The frame artwork `Frames.csv` points at (`CardImg`, e.g.
 #: `foreground/ouwa_kuwagata.png`), relative to `pictures/`. These are the
 #: standees: the board draws the mech itself standing on its tile rather than
@@ -65,6 +72,16 @@ TERRAIN_QUALITY = 78
 
 #: A token is drawn inside one tile.
 TOKEN_WIDTH = 96
+
+#: A tile glyph is drawn about a third of a tile wide -- the card puts it at
+#: 0.6 cm in a 2.06 cm tile. That is ~17 px at the tactical zoom, so 64 keeps
+#: it sharp on a 3x phone and the three files come to about 3 kB.
+TILE_ICON_WIDTH = 64
+
+#: The glyph files: the three elevation levels, impassable and obstacle.
+#: Ground has none, and objectives and token spawns are marked by the client's
+#: own overlays rather than the card's glyph.
+TILE_ICON_FILES: tuple[str, ...] = ("e1", "e2", "e3", "imp", "obs")
 
 #: A standee is drawn about one and a sixth tiles tall, anchored to the bottom
 #: of its tile. A tile is ~52 CSS px at the tactical zoom, so ~60 px tall; 128
@@ -423,6 +440,59 @@ def build_frames(
     return summary
 
 
+def build_tile_icons(
+    source: Optional[Path] = None,
+    out_dir: Optional[Path] = None,
+    *,
+    width: int = TILE_ICON_WIDTH,
+    force: bool = False,
+    quiet: bool = False,
+) -> dict[str, object]:
+    """Shrink the glyphs the terrain cards stamp in a marked tile's corner."""
+    source = Path(source) if source else TILE_ICON_SOURCE
+    out_dir = Path(out_dir) if out_dir else TILE_DIR
+    tool = _imagemagick()
+    if tool is None:
+        raise RuntimeError("ImageMagick is needed to build the tile glyphs.")
+    out_dir.mkdir(parents=True, exist_ok=True)
+    written = skipped = 0
+    failed: list[str] = []
+    wanted: set[str] = set()
+    for stem in TILE_ICON_FILES:
+        art = source / f"{stem}.png"
+        if not art.is_file():
+            failed.append(stem)
+            continue
+        target = out_dir / f"{stem}.png"
+        wanted.add(target.name)
+        if target.is_file() and not force \
+                and target.stat().st_mtime_ns >= art.stat().st_mtime_ns:
+            skipped += 1
+            continue
+        argv = _convert_argv(tool) + [
+            str(art), "-resize", f"{width}x{width}>", "-strip",
+            "-colors", "32", "-define", "png:compression-level=9",
+            f"PNG8:{target}",
+        ]
+        if _run(argv) and target.is_file():
+            written += 1
+        else:
+            failed.append(stem)
+    removed = 0
+    for path in _files(out_dir):
+        if path.name not in wanted:
+            path.unlink()
+            removed += 1
+    summary = _summary("tiles", out_dir, written, skipped, removed, failed)
+    if not quiet:
+        _report(summary)
+    return summary
+
+
+def tile_icon_files() -> list[str]:
+    return sorted(p.stem for p in _files(TILE_DIR))
+
+
 def _summary(
     what: str, out_dir: Path, written: int, skipped: int,
     removed: int, failed: Iterable[str],
@@ -458,10 +528,11 @@ def main(argv: Optional[list[str]] = None) -> int:   # pragma: no cover - CLI
 
     parser = argparse.ArgumentParser(
         prog="python -m playtest.server.assets",
-        description="Build the bundled terrain, token and frame art for the board.",
+        description="Build the bundled terrain, token, frame and tile art for the board.",
     )
     parser.add_argument(
-        "--what", choices=("all", "terrain", "tokens", "frames"), default="all")
+        "--what", choices=("all", "terrain", "tokens", "frames", "tiles"),
+        default="all")
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--terrain-width", type=int, default=TERRAIN_WIDTH)
     parser.add_argument("--token-width", type=int, default=TOKEN_WIDTH)
@@ -474,6 +545,8 @@ def main(argv: Optional[list[str]] = None) -> int:   # pragma: no cover - CLI
             build_tokens(width=args.token_width, force=args.force)
         if args.what in ("all", "frames"):
             build_frames(width=args.frame_width, force=args.force)
+        if args.what in ("all", "tiles"):
+            build_tile_icons(force=args.force)
     except (RuntimeError, FileNotFoundError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1

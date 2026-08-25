@@ -1122,6 +1122,90 @@ def test_bundled_board_art_is_served_and_is_small(client: Client) -> None:
     assert len(token.content) < 30_000
 
 
+def test_the_elevation_glyphs_are_bundled_and_match_the_printed_card() -> None:
+    """The board stamps a raised tile with the card's own glyph, so it needs it.
+
+    A phone clones the repo and cannot run ImageMagick, so a missing glyph is
+    a tile that says nothing about its height at all.
+    """
+    from playtest.server import assets
+
+    bundled = set(assets.tile_icon_files())
+    assert bundled == {"e1", "e2", "e3", "imp", "obs"}, bundled
+    # And they are the same files the terrain cards use.
+    import terrain_cards
+
+    for code, stem in (("e1", "e1"), ("e2", "e2"), ("e3", "e3"),
+                       ("im", "imp"), ("obs", "obs")):
+        style = terrain_cards.STYLE_DICT[code]
+        assert style["icon"] == f"{stem}.png", (
+            f"the card stamps {style['icon']} on a {code} tile, the board {stem}.png"
+        )
+
+
+def test_elevation_glyphs_are_served_small(client: Client) -> None:
+    for stem in ("e1", "e2", "e3", "imp", "obs"):
+        response = client.get(f"/static/tiles/{stem}.png")
+        assert response.status_code == 200, stem
+        assert response.headers["content-type"] == "image/png"
+        assert len(response.content) < 4_000, stem
+
+
+def test_the_board_draws_elevation_the_way_the_card_does() -> None:
+    """The colours and wall widths in `board.js` are the card's, converted.
+
+    They are hard-coded there because the board is a canvas and the card is
+    TikZ, so nothing can share the constants -- which makes this the only
+    thing stopping them drifting apart.
+    """
+    from pathlib import Path
+
+    import terrain_cards
+
+    static = Path(images.__file__).resolve().parent / "static"
+    board_js = (static / "js" / "board.js").read_text(encoding="utf-8")
+
+    # cityblue!N!citysteel, mixed the way xcolor mixes it.
+    blue, steel = (105, 156, 255), (78, 76, 118)
+    for mix, level in ((0.30, 1), (0.60, 2), (1.0, 3)):
+        rgb = tuple(round(mix * b + (1 - mix) * s) for b, s in zip(blue, steel))
+        assert f"'{rgb[0]},{rgb[1]},{rgb[2]}'" in board_js, (
+            f"e{level} should be rgb{rgb} -- the card's cityblue!{int(mix * 100)}!citysteel"
+        )
+
+    # A tile is 2.06 cm on the card, so a point is 1/58.4 of it.
+    tile_cm = 2.06
+    per_pt = terrain_cards._PT_TO_CM / tile_cm
+    wanted = terrain_cards.ELEVATION_WALL_PER_LEVEL_PT * per_pt
+    assert f"WALL_PER_DROP = {wanted:.4f}" in board_js, (
+        f"a level of drop is {terrain_cards.ELEVATION_WALL_PER_LEVEL_PT} pt "
+        f"= {wanted:.4f} tiles"
+    )
+
+    # An impassable tile's border is the card's `line width=5pt`, in red.
+    thickness = terrain_cards.IMPASSIBLE_STYLE["thickness"]
+    wall = terrain_cards._thickness_to_cm(thickness) / tile_cm
+    assert f"IMPASSABLE_WALL = {wall:.4f}" in board_js, (
+        f"the card draws it at {thickness} = {wall:.4f} tiles"
+    )
+    assert terrain_cards.IMPASSIBLE_STYLE["color"] == "red"
+    assert terrain_cards.IMPASSIBLE_STYLE["fill"] == "black"
+    assert "IMPASSABLE_CSS = '#ff0000'" in board_js
+    assert "IMPASSABLE_FILL = 'rgba(0,0,0,0.5)'" in board_js
+
+    # An obstacle is a yellow crosshatch under a dashed yellow outline, and
+    # sets no colour or width of its own so it can sit on any elevation.
+    obstacle = terrain_cards.OBSTACLE_STYLE
+    assert obstacle["hatch"] == "crosshatch" and obstacle["hatch_color"] == "yellow"
+    assert "color" not in obstacle and "thickness" not in obstacle, (
+        "an obstacle that sets a border would hide the elevation it sits on"
+    )
+    assert "OBSTACLE_CSS = 'rgba(255,255,0,0.5)'" in board_js
+    for pt, name in ((3.0, "OBSTACLE_DASH_W"),):
+        assert f"{name} = {pt * per_pt:.4f}" in board_js, name
+    assert f"OBSTACLE_DASH = {0.2 / tile_cm:.4f}" in board_js, "2 mm on, 2 mm off"
+
+
 def test_the_client_names_board_art_the_way_the_bundle_does() -> None:
     """`api.js` builds the URLs; `assets.py` writes the files. One naming rule.
 

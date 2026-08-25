@@ -83,6 +83,8 @@ export const api = {
   terrainImageUrl,
   tokenImageUrl,
   frameImageUrl,
+  elevationIconUrl,
+  tileIconUrl,
 };
 
 // Card art is named "{Group}_{Name}.png" -- the same string as the engine's
@@ -110,6 +112,19 @@ export function tokenImageUrl(kind, hp) {
   if (typeof stem === 'string') return `/static/tokens/${stem}.png`;
   const step = Math.max(1, Math.min(stem.states, Number(hp) || 1));
   return `/static/tokens/${stem.stem}${step}.png`;
+}
+
+// The glyphs the printed terrain card stamps in a marked tile's corner: one
+// stacked cube per elevation level ("e1".."e3"), a boxed X for impassable
+// ("imp") and a boxed triangle for an obstacle ("obs").
+const TILE_ICONS = new Set(['e1', 'e2', 'e3', 'imp', 'obs']);
+
+export function tileIconUrl(stem) {
+  return TILE_ICONS.has(stem) ? `/static/tiles/${stem}.png` : null;
+}
+
+export function elevationIconUrl(level) {
+  return tileIconUrl(`e${level}`);
 }
 
 // The standees: the mech itself, cut out of its artwork by `assets.py` and
