@@ -24,7 +24,8 @@
 //     owner laid out facing themselves, exactly as the cards sit on a table.
 //     The abstract markings stay on top, just quieter.
 
-import { terrainImageUrl, tokenImageUrl } from './api.js';
+import { frameImageUrl, terrainImageUrl, tokenImageUrl } from './api.js';
+import { frameMark } from './cards.js';
 
 const ELEV_FILL = ['#19212c', '#26323f', '#354557', '#48607a'];
 const ELEV_EDGE = ['#101720', '#1b242f', '#26333f', '#33455a'];
@@ -50,7 +51,10 @@ export class BoardView {
     this.w = 0; this.h = 0;
     this.cam = { x: 0, y: 0, scale: 24 };
     this.fitScale = 24;
-    this.overlays = { reach: new Map(), los: new Set(), targets: new Set(), blocked: new Set() };
+    this.overlays = {
+      reach: new Map(), los: new Set(), targets: new Set(), blocked: new Set(),
+      deploy: new Set(), confirm: null,
+    };
     this.selected = null;            // frame id
     this.acting = null;              // frame id currently resolving
     this.options = { los: false, threat: true, cards: false, coords: false, art: true };
@@ -142,7 +146,10 @@ export class BoardView {
   }
 
   setOverlays(overlays) {
-    this.overlays = { reach: new Map(), los: new Set(), targets: new Set(), blocked: new Set(), ...overlays };
+    this.overlays = {
+      reach: new Map(), los: new Set(), targets: new Set(), blocked: new Set(),
+      deploy: new Set(), confirm: null, ...overlays,
+    };
     this._dirty = true;
   }
 
@@ -487,7 +494,19 @@ export class BoardView {
   }
 
   _drawOverlays(ctx, x0, y0, x1, y1, s) {
-    const { reach, los, targets } = this.overlays;
+    const { reach, los, targets, deploy, confirm } = this.overlays;
+    if (deploy && deploy.size) {
+      const pulse = 0.5 + 0.5 * Math.sin((performance.now() - this._t0) / 420);
+      for (const key of deploy) {
+        const [x, y] = key.split(',').map(Number);
+        if (x < x0 || x > x1 || y < y0 || y > y1) continue;
+        ctx.fillStyle = `rgba(120,200,255,${0.16 + 0.10 * pulse})`;
+        ctx.fillRect(x, y, 1, 1);
+        ctx.strokeStyle = 'rgba(140,215,255,0.8)';
+        ctx.lineWidth = 1.4 / s;
+        ctx.strokeRect(x + 1 / s, y + 1 / s, 1 - 2 / s, 1 - 2 / s);
+      }
+    }
     if (this.options.los && los && los.size) {
       ctx.fillStyle = 'rgba(255,110,90,0.13)';
       for (const key of los) {
@@ -522,6 +541,45 @@ export class BoardView {
         ctx.strokeRect(x + 2 / s, y + 2 / s, 1 - 4 / s, 1 - 4 / s);
       }
     }
+    if (confirm) this._drawConfirm(ctx, confirm, s);
+  }
+
+  /** The tile a tap has *proposed*, waiting for the second tap that commits it.
+   *
+   *  A phone makes a misfire far too cheap, and a move cannot be taken back,
+   *  so a destination is picked twice: once to say where, once to mean it. The
+   *  marker has to be unmistakable at FIT as well as zoomed in, hence the
+   *  ring, the corner ticks and the pulse rather than a subtle tint.
+   */
+  _drawConfirm(ctx, confirm, s) {
+    const { x, y } = confirm;
+    const pulse = 0.5 + 0.5 * Math.sin((performance.now() - this._t0) / 190);
+    ctx.save();
+    ctx.fillStyle = `rgba(242,193,78,${0.18 + 0.14 * pulse})`;
+    ctx.fillRect(x, y, 1, 1);
+    ctx.strokeStyle = `rgba(255,214,110,${0.75 + 0.25 * pulse})`;
+    ctx.lineWidth = 3.5 / s;
+    this._roundRect(ctx, x + 0.06, y + 0.06, 0.88, 0.88, 0.16);
+    ctx.stroke();
+    // Corner ticks: at FIT the ring alone is only a few pixels across.
+    ctx.lineWidth = 2.5 / s;
+    ctx.beginPath();
+    for (const [cx, cy, dx, dy] of [
+      [0.02, 0.02, 1, 1], [0.98, 0.02, -1, 1],
+      [0.02, 0.98, 1, -1], [0.98, 0.98, -1, -1]]) {
+      ctx.moveTo(x + cx + 0.26 * dx, y + cy);
+      ctx.lineTo(x + cx, y + cy);
+      ctx.lineTo(x + cx, y + cy + 0.26 * dy);
+    }
+    ctx.stroke();
+    if (s > 26) {
+      ctx.fillStyle = 'rgba(255,236,180,0.95)';
+      ctx.font = `800 ${0.24}px system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('TAP AGAIN', x + 0.5, y + 0.5);
+    }
+    ctx.restore();
   }
 
   _drawTokens(ctx, s) {
@@ -531,8 +589,15 @@ export class BoardView {
       // The numbered piece art encodes remaining hit points, so an undamaged
       // Tower and a Tower one hit from gone are different pictures -- which is
       // a damage read-out you can take in without reading a number.
+      // Ephemeral Images ship as three different pictures on purpose: the
+      // side projecting them sees which one it is standing on and which are
+      // decoys, and everyone else sees three identical images.
+      let kind = token.kind;
+      if (kind === 'image' && token.owner === this.seat) {
+        kind = token.real ? 'real' : 'illusion';
+      }
       const art = this.options.art
-        ? this._image(tokenImageUrl(token.kind, token.hp)) : null;
+        ? this._image(tokenImageUrl(kind, token.hp)) : null;
       if (art && art.complete && art.naturalWidth) {
         ctx.drawImage(art, x + 0.04, y + 0.04, 0.92, 0.92);
         if (token.carrier) {
@@ -546,6 +611,7 @@ export class BoardView {
       const colour = {
         reactor: '#f2c14e', tower: '#b9c6d6', shiny: '#ffe28a',
         fugitive: '#6fe3d0', egg: '#e9d7a0',
+        image: '#b9a6ff', drone: '#8fe0a0',
       }[token.kind] || '#c8b6ff';
       ctx.beginPath();
       ctx.arc(x + 0.5, y + 0.5, 0.3, 0, Math.PI * 2);
@@ -565,13 +631,30 @@ export class BoardView {
     }
   }
 
+  /** Every frame on the board, back to front.
+   *
+   *  With art on, a frame is a **standee**: the mech itself, cut out of its
+   *  card artwork, standing on the bottom edge of its tile. It is drawn taller
+   *  than one tile because a mech that fits inside a 24-pixel square is a
+   *  smudge -- so the drawing order matters, and frames are painted from the
+   *  top of the board down, letting a nearer standee overlap the one behind
+   *  it exactly as a model would on a table.
+   *
+   *  With art off you get the abstract counter, which is still the faster read
+   *  at FIT: a coloured box with three letters and a damage strip.
+   */
   _drawFrames(ctx, s) {
     const now = performance.now();
-    for (const f of this.view.frames || []) {
-      if (!f.pos) continue;
+    const order = (this.view.frames || [])
+      .filter((f) => f.pos)
+      .slice()
+      .sort((a, b) => (a.pos.y - b.pos.y) || (a.pos.x - b.pos.x));
+    for (const f of order) {
       const mine = f.seat === this.seat;
       const { x, y } = f.pos;
       const alive = f.alive;
+      const art = this.options.art ? this._image(frameImageUrl(f.name)) : null;
+      const standee = !!(art && art.complete && art.naturalWidth);
       ctx.globalAlpha = alive ? 1 : 0.35;
 
       if (f.id === this.acting) {
@@ -588,21 +671,26 @@ export class BoardView {
         ctx.stroke();
       }
 
-      ctx.fillStyle = mine ? '#1d5a8f' : '#8f2626';
-      this._roundRect(ctx, x + 0.11, y + 0.11, 0.78, 0.78, 0.16);
-      ctx.fill();
-      ctx.strokeStyle = mine ? '#3fa7ff' : '#ff5d5d';
-      ctx.lineWidth = 2 / s;
-      this._roundRect(ctx, x + 0.11, y + 0.11, 0.78, 0.78, 0.16);
-      ctx.stroke();
+      if (standee) {
+        this._drawStandee(ctx, f, art, s, mine);
+      } else {
+        ctx.fillStyle = mine ? '#1d5a8f' : '#8f2626';
+        this._roundRect(ctx, x + 0.11, y + 0.11, 0.78, 0.78, 0.16);
+        ctx.fill();
+        ctx.strokeStyle = mine ? '#3fa7ff' : '#ff5d5d';
+        ctx.lineWidth = 2 / s;
+        this._roundRect(ctx, x + 0.11, y + 0.11, 0.78, 0.78, 0.16);
+        ctx.stroke();
 
-      if (s > 14) {
-        ctx.fillStyle = '#f2f7ff';
-        ctx.font = `800 ${0.3}px system-ui, sans-serif`;
-        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        // Left of centre: the right-hand strip is the damage read-out.
-        ctx.fillText(abbrev(f.name), x + 0.45, y + 0.5);
+        if (s > 14) {
+          ctx.fillStyle = '#f2f7ff';
+          ctx.font = `800 ${0.3}px system-ui, sans-serif`;
+          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          // Left of centre: the right-hand strip is the damage read-out.
+          ctx.fillText(abbrev(f.name), x + 0.45, y + 0.5);
+        }
       }
+
       // Damage: three ticks down the right edge, High at the top.
       const zones = ['High', 'Mid', 'Low'];
       for (let i = 0; i < 3; i++) {
@@ -619,6 +707,10 @@ export class BoardView {
           ctx.fillRect(x + 0.80, top + 0.21 * (1 - share), 0.09, 0.21 * share);
         }
       }
+      // Two frames of the same model look *identical* as standees, so the
+      // ordinal off the frame's id is not decoration -- it is the only thing
+      // telling them apart.
+      this._drawFrameMark(ctx, f, s);
       if (!alive) {
         ctx.strokeStyle = '#ff8f8f';
         ctx.lineWidth = 2.5 / s;
@@ -629,6 +721,60 @@ export class BoardView {
       }
       ctx.globalAlpha = 1;
     }
+  }
+
+  /** The mech itself, standing on its tile, on a seat-coloured base. */
+  _drawStandee(ctx, f, art, s, mine) {
+    const { x, y } = f.pos;
+    // The base does the work the counter used to: it says whose it is, and it
+    // keeps the frame findable when the standee is a dark silhouette against
+    // dark terrain.
+    ctx.save();
+    ctx.beginPath();
+    ctx.ellipse(x + 0.5, y + 0.80, 0.38, 0.15, 0, 0, Math.PI * 2);
+    ctx.fillStyle = mine ? 'rgba(29,90,143,0.85)' : 'rgba(143,38,38,0.85)';
+    ctx.fill();
+    ctx.lineWidth = 2 / s;
+    ctx.strokeStyle = mine ? '#3fa7ff' : '#ff5d5d';
+    ctx.stroke();
+
+    // Fit the art into 1.15 tiles tall, standing on the base, never wider than
+    // the tile -- a wide mech must not cover its neighbours' tiles. The height
+    // cap is what keeps the *tall, thin* designs in proportion: they are the
+    // ones the width cap never bites on, so a generous cap let them tower over
+    // the squat mechs beside them for no reason but their silhouette.
+    const maxH = 1.15;
+    const maxW = 1.0;
+    const ratio = art.naturalWidth / art.naturalHeight;
+    let h = maxH;
+    let w = h * ratio;
+    if (w > maxW) { w = maxW; h = w / ratio; }
+    ctx.shadowColor = 'rgba(0,0,0,0.55)';
+    ctx.shadowBlur = 6;
+    ctx.shadowOffsetY = 1;
+    ctx.drawImage(art, x + 0.5 - w / 2, y + 0.86 - h, w, h);
+    ctx.restore();
+  }
+
+  /** The ordinal that tells one Kuwagata from the other, top-left of the tile. */
+  _drawFrameMark(ctx, f, s) {
+    const mark = frameMark(f.id);
+    if (!mark || s < 16) return;
+    const { x, y } = f.pos;
+    ctx.save();
+    ctx.fillStyle = 'rgba(9,13,19,0.88)';
+    this._roundRect(ctx, x + 0.04, y + 0.04, 0.30, 0.24, 0.06);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(242,193,78,0.9)';
+    ctx.lineWidth = 1.4 / s;
+    this._roundRect(ctx, x + 0.04, y + 0.04, 0.30, 0.24, 0.06);
+    ctx.stroke();
+    ctx.fillStyle = '#ffe6a8';
+    ctx.font = `800 ${0.19}px system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(mark, x + 0.19, y + 0.17);
+    ctx.restore();
   }
 
   _drawMinimap(ctx, w, h) {

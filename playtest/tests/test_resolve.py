@@ -29,19 +29,24 @@ from playtest.engine.types import (
     Pos,
 )
 
-from ._helpers import CATALOGUE, add_frame, give, make_state, play_out
+from ._helpers import (
+    CATALOGUE, add_frame, deploy_all, give, make_state, play_out,
+)
 
 PLAYER_DECKS = ["deck_aegis_hector", "deck_ouwa_kuwagata", "deck_guild_nautilus"]
 AI_DECKS = ["deck_collective_adam", "deck_revolution_ripper", "deck_church_hannael"]
 
 
-def start(seed: int = 1, frames: int = 3):
-    return new_game(GameConfig(
+def start(seed: int = 1, frames: int = 3, *, deploy: bool = True):
+    """A new game. By default it is played past setup into turn 1 planning;
+    `deploy=False` leaves it parked on the first `deploy` decision."""
+    state = new_game(GameConfig(
         player_decks=PLAYER_DECKS[:frames],
         ai_decks=AI_DECKS[:frames],
         seed=seed,
         frames_per_side=frames,
     ))
+    return deploy_all(state, seed) if deploy else state
 
 
 # --------------------------------------------------------------------------
@@ -669,3 +674,245 @@ def test_real_games_get_the_real_board_not_a_flat_one():
     state = start(seed=3)
     assert not isinstance(state.board, R.FlatBoard)
     assert type(state.board).__name__ == "Board"
+
+
+# --------------------------------------------------------------------------
+# Setup: deployment (rules.tex Setup)
+# --------------------------------------------------------------------------
+
+
+def test_a_new_game_opens_on_a_deployment_decision():
+    state = start(seed=5, deploy=False)
+    assert state.phase == "setup"
+    assert state.pending.kind == "deploy"
+    assert all(f.pos is None for f in state.frames.values())
+
+
+def test_deploy_options_pair_a_frame_with_a_legal_tile():
+    state = start(seed=5, deploy=False)
+    seat = state.pending.seat
+    tiles = R.deployment_tiles(state, seat)
+    own = {f.id for f in state.frames_of(seat, alive_only=False)}
+    assert state.pending.options
+    for option in state.pending.options:
+        assert set(option) == {"frame", "name", "x", "y"}
+        assert option["frame"] in own, "a seat only places its own frames"
+        assert Pos(option["x"], option["y"]) in tiles
+    # every undeployed frame is offered, on every free tile
+    assert len(state.pending.options) == len(own) * len(tiles)
+
+
+def test_deployment_alternates_between_seats():
+    """"Each player takes it in turns to put one of their frames"."""
+    state = start(seed=5, deploy=False)
+    seats = []
+    while state.phase == "setup":
+        seats.append(state.pending.seat)
+        state = apply_command(state, legal_commands(state, state.pending.seat)[0])
+    assert seats == [0, 1, 0, 1, 0, 1]
+
+
+def test_deployment_places_every_frame_on_its_own_edge_and_no_two_share_a_tile():
+    state = start(seed=5)
+    assert state.phase == "planning"
+    positions = [f.pos for f in state.frames.values()]
+    assert all(p is not None for p in positions)
+    assert len(set(positions)) == len(positions), "no two frames on one tile"
+    for frame in state.frames.values():
+        row = state.board.height - 1 if frame.seat == 0 else 0
+        assert frame.pos.y == row, "frames deploy on their own nearest edge"
+
+
+def test_a_seat_cannot_deploy_the_other_seats_frame():
+    state = start(seed=5, deploy=False)
+    seat = state.pending.seat
+    enemy_frame = next(f for f in state.frames.values() if f.seat != seat)
+    option = dict(state.pending.options[0])
+    option["frame"] = enemy_frame.id
+    with pytest.raises(IllegalCommand):
+        apply_command(state, Command("deploy", seat, option))
+
+
+def test_a_frame_cannot_be_deployed_onto_an_occupied_tile():
+    state = start(seed=5, deploy=False)
+    seat = state.pending.seat
+    first = dict(state.pending.options[0])
+    state = apply_command(state, Command("deploy", seat, first))
+    taken = Pos(first["x"], first["y"])
+    # come back round to the same seat
+    while state.pending.seat != seat:
+        state = apply_command(state, legal_commands(state, state.pending.seat)[0])
+    assert all(
+        Pos(o["x"], o["y"]) != taken for o in state.pending.options
+    ), "the tile just used is no longer offered"
+
+
+def test_a_deployed_frame_is_not_offered_again():
+    state = start(seed=5, deploy=False)
+    seat = state.pending.seat
+    first = dict(state.pending.options[0])
+    state = apply_command(state, Command("deploy", seat, first))
+    while state.pending.seat != seat:
+        state = apply_command(state, legal_commands(state, state.pending.seat)[0])
+    assert all(o["frame"] != first["frame"] for o in state.pending.options)
+
+
+def test_the_priority_marker_goes_to_whoever_deployed_first():
+    state = start(seed=5, deploy=False)
+    first_seat = state.pending.seat
+    state = deploy_all(state, 5)
+    assert state.priority == first_seat
+
+
+def test_the_fugitive_is_placed_after_deployment_on_a_free_tile():
+    """"Put a fugitive token anywhere in the enemy back row after deployment"."""
+    for seed in range(12):
+        state = start(seed=seed)
+        fugitives = [t for t in state.tokens.values() if t.kind == "fugitive"]
+        if not fugitives:
+            continue
+        for token in fugitives:
+            assert token.pos is not None
+            assert state.frame_at(token.pos) is None, "not under a frame"
+            objective = next(o for o in state.objectives if o.name == "Fugitive")
+            enemy_row = state.board.height - 1 if objective.owner == 1 else 0
+            assert token.pos.y == enemy_row, "it starts in the enemy back row"
+        return
+    pytest.skip("no Fugitive objective came up in the sampled seeds")
+
+
+def test_deployment_is_deterministic_for_a_seed():
+    a = start(seed=21)
+    b = start(seed=21)
+    assert [f.pos for f in a.frames.values()] == [f.pos for f in b.frames.values()]
+
+
+# --------------------------------------------------------------------------
+# The log is a public channel
+# --------------------------------------------------------------------------
+
+SEED_LITERAL = 987654321
+
+
+def test_the_seed_never_reaches_either_seats_view():
+    """Seed + the shipped deck CSVs would replay `rng` and expose the
+    opponent's deck order and future draws -- strictly worse than reading a
+    face-down card, because it exposes the future."""
+    import json
+
+    state = start(seed=SEED_LITERAL)
+    for seat in (0, 1):
+        blob = json.dumps(view_for(state, seat))
+        assert str(SEED_LITERAL) not in blob, f"seat {seat} can read the seed"
+        assert "seed" not in blob.lower()
+
+
+def test_the_seed_stays_available_privately_for_replay():
+    state = start(seed=SEED_LITERAL)
+    assert state.seed == SEED_LITERAL
+    assert any(str(SEED_LITERAL) in e["text"] for e in state.private_log)
+
+
+def test_the_private_log_is_never_shipped():
+    state = start(seed=SEED_LITERAL)
+    state.note_private("operator only: nothing here is for a player")
+    for seat in (0, 1):
+        view = view_for(state, seat)
+        assert "private_log" not in view and "privateLog" not in view
+        texts = [e["text"] for e in view["log"]]
+        assert not any("operator only" in t for t in texts)
+
+
+def test_an_autogenerated_seed_is_also_kept_out_of_the_view():
+    """A game started without an explicit seed still must not leak the one
+    the engine picked for it."""
+    import json
+
+    state = new_game(GameConfig(
+        player_decks=PLAYER_DECKS[:1], ai_decks=AI_DECKS[:1], frames_per_side=1,
+    ))
+    assert state.seed is not None
+    assert str(state.seed) not in json.dumps(view_for(state, 0))
+
+
+def _keys_named_in(text: str, keys: list[str]) -> list[str]:
+    """Card keys a log line names, ignoring ones covered by a longer key.
+
+    "Axe_Split" is a substring of "Great Axe_Split", so a naive scan
+    double-counts.
+    """
+    matched: list[str] = []
+    for key in keys:
+        if key in text and not any(key in longer for longer in matched):
+            matched.append(key)
+    return matched
+
+
+def test_the_public_log_only_ever_names_cards_that_are_public():
+    """The log ships wholesale to both seats, so it is public by construction.
+
+    The invariant: no log line names a card that is still hidden once the
+    command that wrote it has finished. It is checked per command rather than
+    against the finished log because card *keys* are not unique -- decks hold
+    duplicates and cards recycle through reshuffles -- so scanning the whole
+    log for a key proves nothing on its own.
+    """
+    from playtest.engine.state import GameState
+
+    pending_checks: list[tuple[str, str, bool]] = []
+    original = GameState.note
+
+    def spy(self, text: str) -> None:
+        keys = sorted({c.key for c in self.cards.values()}, key=len, reverse=True)
+        for key in _keys_named_in(text, keys):
+            public_now = any(
+                c.key == key and not c.face_down for c in self.cards.values()
+            )
+            pending_checks.append((text, key, public_now))
+        original(self, text)
+
+    GameState.note = spy
+    try:
+        state = start(seed=31)
+        checked = 0
+        for _ in range(140):
+            if is_over(state):
+                break
+            pending_checks.clear()
+            state = apply_command(
+                state, legal_commands(state, state.pending.seat)[0]
+            )
+            for text, key, public_at_write in pending_checks:
+                if public_at_write:
+                    checked += 1
+                    continue
+                # Some effects log the card and reveal it in the next
+                # statement; what matters is that it is public by the time
+                # the client can see the line.
+                public_after = any(
+                    c.key == key and not c.face_down for c in state.cards.values()
+                )
+                assert public_after, f"log names hidden card {key!r}: {text!r}"
+                checked += 1
+    finally:
+        GameState.note = original
+    assert checked > 40, f"only {checked} named cards seen -- test is not biting"
+
+
+def test_draw_and_reshuffle_lines_carry_counts_not_card_names():
+    """Deck contents are the other thing the log must never expose."""
+    state = start(seed=31)
+    for _ in range(80):
+        if is_over(state):
+            break
+        state = apply_command(state, legal_commands(state, state.pending.seat)[0])
+
+    every_key = {c.key for c in state.cards.values()}
+    interesting = [
+        e["text"] for e in state.log
+        if "draws" in e["text"] or "reshuffles" in e["text"]
+        or "commits" in e["text"]
+    ]
+    assert interesting, "no draw/reshuffle/commit lines to check"
+    for text in interesting:
+        assert not any(key in text for key in every_key), text

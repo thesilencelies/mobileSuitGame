@@ -25,6 +25,7 @@
 //   cardImageUrl(key, width)        -> a URL the client can put in an <img>
 //   terrainImageUrl(cardName)       -> the terrain card's playable grid
 //   tokenImageUrl(kind, hp)         -> the piece art for a token at that hp
+//   frameImageUrl(frameName)        -> the frame's standee, cut out of its art
 //
 // Nothing here may reference an external host: the app has to work with no
 // network at all.
@@ -81,6 +82,7 @@ export const api = {
   cardImageUrl,
   terrainImageUrl,
   tokenImageUrl,
+  frameImageUrl,
 };
 
 // Card art is named "{Group}_{Name}.png" -- the same string as the engine's
@@ -110,6 +112,13 @@ export function tokenImageUrl(kind, hp) {
   return `/static/tokens/${stem.stem}${step}.png`;
 }
 
+// The standees: the mech itself, cut out of its artwork by `assets.py` and
+// standing on its tile. Same `slug` rule as the terrain, keyed by the frame's
+// name -- which is what a frame in the view carries.
+export function frameImageUrl(frameName) {
+  return `/static/frames/${slug(frameName)}.png`;
+}
+
 const TOKEN_ART = {
   tower: { stem: 'Tower', states: 4 },
   reactor: { stem: 'PowerPlant', states: 2 },
@@ -121,6 +130,7 @@ const TOKEN_ART = {
   illusion: 'Illusion',
   real: 'Real',
   image: 'Image',
+  drone: 'Swarm',
 };
 
 function slug(name) {

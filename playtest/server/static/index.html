@@ -23,6 +23,10 @@
     <div class="card-panel">
       <h2>Your squad</h2>
       <p class="hint" id="setup-squad-hint">Pick three decks.</p>
+      <!-- The squad in the order it will be built, one slot per frame. Tapping
+           a deck adds another copy: fielding two of the same frame is legal,
+           and the picker used to make it impossible. -->
+      <div class="squad-row" id="player-squad"></div>
       <div class="deck-grid" id="player-decks"></div>
     </div>
 
@@ -32,6 +36,7 @@
         <p class="hint">The AI's three frames.</p>
         <button class="btn ghost sm" id="randomise-ai" type="button">Randomise</button>
       </div>
+      <div class="squad-row" id="ai-squad"></div>
       <div class="deck-grid" id="ai-decks"></div>
     </div>
 

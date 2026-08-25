@@ -43,6 +43,8 @@ from .types import (
     PendingDecision,
     Pos,
     Team,
+    frame_id_for,
+    team_name,
     Tile,
     ZONES,
 )
@@ -183,7 +185,7 @@ def _real_battlefield(state: GameState, config: GameConfig) -> None:
         # One call loads and validates the 10-card terrain deck and its
         # 5-card objective deck (rules.tex:253).
         decks[seat] = _setup.load_deck_pair(name)
-        state.note(f"seat {seat} brings terrain deck {name}")
+        state.note(f"{team_name(seat)} brings terrain deck {name}")
 
     field = _setup.deal_battlefield(
         decks, rng=state.rng, frames_per_side=config.frames_per_side
@@ -199,42 +201,37 @@ def _real_battlefield(state: GameState, config: GameConfig) -> None:
             tiles=info.tiles,
             spawns=info.token_tiles,
         )
-    # Deployment alternates, each frame onto its own outermost tile row.
-    # (A human deployment step would be a `deploy` decision; the default
-    # spreads each squad evenly across its own edge.)
+    # Deployment is a real decision, one frame at a time, alternating seats
+    # (rules.tex Setup). `state.queue` holds the seats still to place.
+    # "the player who deployed first receives the priority marker".
     order = _setup.deployment_order(config.frames_per_side, first_seat=state.seats[0])
-    squads = {seat: list(state.frames_of(seat, alive_only=False)) for seat in state.seats}
-    placed = {seat: 0 for seat in state.seats}
-    taken: set[Pos] = set()
-    for seat in order:
-        squad = squads.get(seat)
-        if not squad:
-            continue
-        frame = squad.pop(0)
-        tiles = [p for p in field.deployment[seat] if p not in taken]
-        if not tiles:
-            continue
-        index = placed[seat] + 1
-        pos = tiles[min(len(tiles) - 1, len(tiles) * index // (len(squads[seat]) + index + 1))]
-        placed[seat] = index
-        taken.add(pos)
-        frame.pos = pos
-
-    _place_fugitive(state, field)
+    state.queue = list(order)
+    state.priority = order[0] if order else state.seats[0]
 
 
-def _place_fugitive(state: GameState, field: Any) -> None:
+def deployment_tiles(state: GameState, seat: Team) -> list[Pos]:
+    """Legal, unoccupied deployment tiles for `seat` -- its own nearest edge."""
+    from . import setup as _setup
+
+    return [
+        pos for pos in _setup.deployment_tiles(state.board, seat)
+        if state.frame_at(pos) is None
+    ]
+
+
+def _place_fugitive(state: GameState) -> None:
     """"Put a fugitive token anywhere in the enemy back row after deployment."
 
     The Fugitive card carries no `tkn` cell, so the token does not start on the
     card: it starts in the *attacker's* back row and the defender must escort
-    it to the objective tile.
+    it to the objective tile. Runs once deployment is finished, so it can avoid
+    the tiles frames actually took.
     """
     for objective in state.objectives:
         if objective.name != "Fugitive":
             continue
         enemy = objectivelib.other_seat(state, objective.owner)
-        free = [p for p in field.deployment.get(enemy, ()) if state.frame_at(p) is None]
+        free = deployment_tiles(state, enemy)
         if not free:
             continue
         for token_id in objective.token_ids:
@@ -273,18 +270,30 @@ def _opening_hand(deck_name: str) -> list[str]:
     return cardlib.read_deck_keys(path)
 
 
+def _seat_frame_ids(
+    seat: Team, specs: Sequence[Any]
+) -> list[str]:
+    """Ids for one seat's frames: model name, numbered only where it repeats."""
+    total: dict[str, int] = {}
+    for spec in specs:
+        total[spec.name] = total.get(spec.name, 0) + 1
+    seen: dict[str, int] = {}
+    out: list[str] = []
+    for spec in specs:
+        seen[spec.name] = seen.get(spec.name, 0) + 1
+        ordinal = seen[spec.name] if total[spec.name] > 1 else None
+        out.append(frame_id_for(seat, spec.name, ordinal))
+    return out
+
+
 def _build_frame(
     state: GameState,
     seat: Team,
-    index: int,
+    frame_id: str,
+    spec: Any,
     deck_name: str,
     catalogue: Mapping[str, Card],
-    frames: Mapping[str, Any],
 ) -> FrameState:
-    spec = cardlib.frame_for_deck(deck_name, frames)
-    if spec is None:
-        raise ValueError(f"cannot tell which frame {deck_name!r} belongs to")
-    frame_id = f"{'ab'[seat % 2]}{index}"
     frame = FrameState(id=frame_id, seat=seat, spec=spec)
     frame.shields = spec.shield
 
@@ -329,14 +338,74 @@ def new_game(config: GameConfig) -> GameState:
     )
     state.kills = {seat: 0 for seat in state.seats}
     for seat, decks in ((0, config.player_decks), (1, config.ai_decks)):
-        for index, deck_name in enumerate(decks[: config.frames_per_side]):
-            frame = _build_frame(state, seat, index, deck_name, catalogue, frame_specs)
+        chosen = list(decks[: config.frames_per_side])
+        specs = []
+        for deck_name in chosen:
+            spec = cardlib.frame_for_deck(deck_name, frame_specs)
+            if spec is None:
+                raise ValueError(f"cannot tell which frame {deck_name!r} belongs to")
+            specs.append(spec)
+        for frame_id, spec, deck_name in zip(
+            _seat_frame_ids(seat, specs), specs, chosen
+        ):
+            frame = _build_frame(
+                state, seat, frame_id, spec, deck_name, catalogue
+            )
             state.frames[frame.id] = frame
     _build_battlefield(state, config)
-    state.note(f"game {state.game_id} begins (seed {seed})")
-    if state.phase == "setup" and state.pending is None:
-        _begin_planning(state)
+    state.seed = seed
+    state.note(f"game {state.game_id} begins")
+    # The seed stays out of the public log: with the shipped deck CSVs it
+    # would let either player replay the rng and read the other's deck order
+    # and future draws.
+    state.note_private(f"game {state.game_id} seed {seed}")
+    state.phase = "setup"
     return state
+
+
+# --------------------------------------------------------------------------
+# Setup: deployment
+# --------------------------------------------------------------------------
+
+
+def _undeployed(state: GameState, seat: Team) -> list[FrameState]:
+    return [f for f in state.frames_of(seat, alive_only=False) if f.pos is None]
+
+
+def _deploy_decision(state: GameState) -> bool:
+    """Ask the next seat in the deployment order to place one frame.
+
+    "Each player takes it in turns to put one of their frames on nearest edge
+    of their terrain cards" (rules.tex Setup) -- so the seat chooses both
+    *which* frame and *where*, and the options enumerate the legal pairs.
+    """
+    while state.queue:
+        seat = state.queue[0]
+        frames = _undeployed(state, seat)
+        tiles = deployment_tiles(state, seat)
+        if not frames or not tiles:
+            state.queue.pop(0)
+            continue
+        options = [
+            {"frame": frame.id, "name": frame.spec.name, "x": pos.x, "y": pos.y}
+            for frame in frames
+            for pos in tiles
+        ]
+        state.pending = PendingDecision(
+            kind="deploy",
+            seat=seat,
+            prompt=f"Deploy a frame on your edge ({len(frames)} left)",
+            options=options,
+        )
+        return True
+    return False
+
+
+def _finish_setup(state: GameState) -> None:
+    _place_fugitive(state)
+    state.queue = []
+    state.note("deployment complete")
+    _begin_planning(state)
 
 
 # --------------------------------------------------------------------------
@@ -354,7 +423,7 @@ def _begin_planning(state: GameState) -> None:
         if not frame.alive:
             continue
         drawn = draw(state, frame, frame.draw_count)
-        state.note(f"{frame.spec.name} draws {len(drawn)}")
+        state.note(f"{frame.id} draws {len(drawn)}")
     state.queue = [f.id for f in state.frames.values() if f.alive]
     state.note(f"--- turn {state.turn}: planning ---")
 
@@ -377,17 +446,19 @@ def _planning_decision(state: GameState) -> bool:
             state.pending = PendingDecision(
                 kind="effect_choice",
                 seat=frame.seat,
-                prompt=f"{frame.spec.name}: discard your hand and draw a new one?",
+                prompt=f"{frame.id}: discard your hand and draw a new one?",
                 options=[{"mulligan": True}, {"mulligan": False}],
                 frame_id=frame.id,
             )
             return True
+        allowed = effects.actions_to_commit(state, frame)
         state.pending = PendingDecision(
             kind="commit_actions",
             seat=frame.seat,
-            prompt=f"Commit {ACTIONS_PER_TURN} actions for {frame.spec.name}",
+            prompt=f"Commit {allowed} actions for {frame.id}",
             options=[
-                {"uid": uid, "key": state.cards[uid].key} for uid in frame.hand
+                {"uid": uid, "key": state.cards[uid].key}
+                for uid in effects.commit_pool(state, frame)
             ],
             frame_id=frame.id,
         )
@@ -417,7 +488,7 @@ def _echo_decision(state: GameState) -> bool:
             state.pending = PendingDecision(
                 kind="echo_card",
                 seat=seat,
-                prompt=f"Echo of {dead.spec.name}: set its top card beside an ally?",
+                prompt=f"Echo of {dead.id}: set its top card beside an ally?",
                 options=options,
                 frame_id=dead.id,
             )
@@ -507,15 +578,15 @@ def _begin_resolution(state: GameState, frame: FrameState, uid: str) -> None:
     if kw.movement_budget(state, frame, card) > 0:
         steps.append("movement")
     if not spent_reloading:
-        if effects.has_effect_step(card):
+        if effects.has_effect_step(card, state, frame):
             steps.append("effect")
-        if card.is_attack:
+        if card.is_attack and not effects.delegates_attack(card):
             steps.append("attack")
     state.resolution = Resolution(
         frame_id=frame.id, uid=uid, steps=steps, spent_reloading=spent_reloading
     )
     state.note(
-        f"{frame.spec.name} resolves {card.key} "
+        f"{frame.id} resolves {card.key} "
         f"(initiative {kw.effective_initiative(state, frame, card, inst.init_index)})"
     )
     if len(steps) > 1:
@@ -551,6 +622,7 @@ def _finish_card(state: GameState) -> None:
         # A card spent as the reload dud triggers no abilities, its own
         # Reload included -- it must not re-arm the weapon it just cleared.
         kw.start_reload(state, frame, res.uid)
+    effects.after_card_resolved(state, frame, res.uid)
 
 
 # --------------------------------------------------------------------------
@@ -610,12 +682,13 @@ def _movement_decision(state: GameState, frame: FrameState, card: Card) -> bool:
         {"x": pos.x, "y": pos.y, "cost": cost}
         for pos, cost in sorted(reach.items(), key=lambda kv: (kv[0].y, kv[0].x))
     ]
+    options = effects.adjust_move_options(state, frame, budget, options)
     if not options:
         return False
     state.pending = PendingDecision(
         kind="move",
         seat=frame.seat,
-        prompt=f"Move {frame.spec.name} (up to {budget})",
+        prompt=f"Move {frame.id} (up to {budget})",
         options=options,
         frame_id=frame.id,
     )
@@ -665,9 +738,9 @@ def _block_loop(state: GameState) -> bool:
             defender = state.frames[target.id]
             state.pending = PendingDecision(
                 kind="choose_block",
-                seat=defender.seat,
+                seat=effects.block_chooser(state, defender, attack),
                 prompt=(
-                    f"{defender.spec.name} must block "
+                    f"{defender.id} must block "
                     f"{'/'.join(zones)} (blocking is compulsory)"
                 ),
                 options=[
@@ -736,7 +809,7 @@ def cleanup_phase(state: GameState) -> None:
     for frame in state.frames.values():
         if frame.alive and frame.deathstrike_until is not None:
             if state.turn >= frame.deathstrike_until:
-                state.note(f"{frame.spec.name}'s Deathstrike runs out")
+                state.note(f"{frame.id}'s Deathstrike runs out")
                 frame.deathstrike_until = None
                 destroy_frame(state, frame)
     objectivelib.end_of_turn(state)
@@ -767,13 +840,18 @@ def advance(state: GameState) -> GameState:
         guard += 1
         if guard > 20000:                     # pragma: no cover - safety net
             raise RuntimeError("engine failed to make progress")
+        # Ephemeral Images: the fakes follow the frame wherever it was moved
+        # from, and the trick ends when there is nothing left to hide behind.
+        effects.sync_images(state)
         if _team_wiped(state):
             state.phase = "finished"
             state.note("one side has no frames left")
             objectivelib.latch_objectives(state)
             break
         if state.phase == "setup":
-            _begin_planning(state)
+            if _deploy_decision(state):
+                break
+            _finish_setup(state)
         elif state.phase == "planning":
             if _planning_decision(state):
                 break
@@ -783,6 +861,8 @@ def advance(state: GameState) -> GameState:
                 if _run_steps(state):
                     break
                 continue
+            if effects.followup_decision(state):
+                break
             actor = next_actor(state)
             if actor is None:
                 _cleanup(state)
@@ -812,11 +892,28 @@ def legal_commands(state: GameState, seat: Team) -> list[Command]:
         return []
     if pending.kind == "commit_actions":
         uids = [str(o["uid"]) for o in pending.options]
+        frame = state.frames.get(str(pending.frame_id)) if pending.frame_id else None
+        low, high = _commit_range(state, frame, len(uids))
         return [
             Command("commit_actions", seat, {"uids": list(pair)})
-            for pair in itertools.combinations(uids, min(ACTIONS_PER_TURN, len(uids)))
+            for size in range(low, high + 1)
+            for pair in itertools.combinations(uids, size)
         ]
     return [Command(pending.kind, seat, dict(option)) for option in pending.options]
+
+
+def _commit_range(
+    state: GameState, frame: Optional[FrameState], available: int
+) -> tuple[int, int]:
+    """How many actions a frame may commit: `(minimum, maximum)`.
+
+    Normally exactly `ACTIONS_PER_TURN`. Hyper ("next turn: play 1 extra
+    action") raises the maximum only -- taking the extra action is the point of
+    the card, but committing the usual two is never made illegal by it.
+    """
+    low = min(ACTIONS_PER_TURN, available)
+    high = low if frame is None else min(effects.actions_to_commit(state, frame), available)
+    return low, max(low, high)
 
 
 def _require(condition: bool, message: str) -> None:
@@ -844,9 +941,11 @@ def _handle_commit(state: GameState, pending: PendingDecision, cmd: Command) -> 
     allowed = {str(o["uid"]) for o in pending.options}
     _require(len(set(uids)) == len(uids), "duplicate cards committed")
     _require(all(u in allowed for u in uids), "card is not in that frame's hand")
+    low, high = _commit_range(state, frame, len(allowed))
     _require(
-        len(uids) == min(ACTIONS_PER_TURN, len(allowed)),
-        f"commit exactly {ACTIONS_PER_TURN} actions",
+        low <= len(uids) <= high,
+        f"commit {low} actions" if low == high
+        else f"commit between {low} and {high} actions",
     )
     for uid in uids:
         move_card(state, uid, "committed")
@@ -855,7 +954,7 @@ def _handle_commit(state: GameState, pending: PendingDecision, cmd: Command) -> 
         state.cards[uid].init_index = 0
     for uid in list(frame.hand):
         move_card(state, uid, "discard")
-    state.note(f"{frame.spec.name} commits {len(uids)} actions")
+    state.note(f"{frame.id} commits {len(uids)} actions")
     if state.queue and state.queue[0] == frame.id:
         state.queue.pop(0)
 
@@ -874,11 +973,12 @@ def _handle_effect_choice(
             for uid in list(frame.hand):
                 move_card(state, uid, "discard")
             draw(state, frame, frame.draw_count)
-            state.note(f"{frame.spec.name} mulligans its hand")
+            state.note(f"{frame.id} mulligans its hand")
         return
     res = state.resolution
-    if res is not None:
-        effects.apply_effect_choice(state, frame, res.uid, payload)
+    effects.apply_effect_choice(
+        state, frame, res.uid if res is not None else "", payload
+    )
 
 
 def _offered(pending: PendingDecision, payload: Mapping[str, object]) -> bool:
@@ -909,7 +1009,7 @@ def _handle_echo(state: GameState, pending: PendingDecision, cmd: Command) -> No
     inst.face_down = False
     inst.resolved = False
     host.committed.append(uid)
-    state.note(f"Echo of {dead.spec.name}: {inst.key} joins {host.spec.name}")
+    state.note(f"Echo of {dead.id}: {inst.key} joins {host.id}")
 
 
 def _handle_resolve_order(
@@ -936,8 +1036,9 @@ def _handle_move(state: GameState, pending: PendingDecision, cmd: Command) -> No
     if dest != old:
         frame.pos = dest
         frame.moved_this_turn = True
-        state.note(f"{frame.spec.name} moves to ({dest.x},{dest.y})")
+        state.note(f"{frame.id} moves to ({dest.x},{dest.y})")
     objectivelib.on_move(state, frame, old)
+    effects.after_move(state, frame, old, dest)
     res = state.resolution
     if res is not None and res.steps and res.steps[0] == "movement":
         res.steps.pop(0)
@@ -976,7 +1077,22 @@ def _handle_choose_block(
     effects.on_block(state, defender, block_card, attacker)
 
 
+def _handle_deploy(state: GameState, pending: PendingDecision, cmd: Command) -> None:
+    payload = dict(cmd.payload)
+    _require(_offered(pending, payload), "that deployment was not offered")
+    frame = state.frames[str(payload["frame"])]
+    _require(frame.seat == cmd.seat, "that frame belongs to the other seat")
+    _require(frame.pos is None, "that frame is already deployed")
+    frame.pos = Pos(int(payload["x"]), int(payload["y"]))
+    state.note(
+        f"{frame.id} deploys at ({frame.pos.x},{frame.pos.y})"
+    )
+    if state.queue and state.queue[0] == cmd.seat:
+        state.queue.pop(0)
+
+
 _HANDLERS: Mapping[str, Callable[[GameState, PendingDecision, Command], None]] = {
+    "deploy": _handle_deploy,
     "commit_actions": _handle_commit,
     "effect_choice": _handle_effect_choice,
     "echo_card": _handle_echo,

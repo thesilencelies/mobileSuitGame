@@ -240,9 +240,9 @@ def _diagnose(state, label_of: Mapping[int, str], agents: Mapping[int, Any]) -> 
     on peeking at hidden state -- it is only the harness reporting on a
     finished game anyway.
     """
-    name_seat: dict[str, set[int]] = {}
-    for frame in state.frames.values():
-        name_seat.setdefault(frame.spec.name, set()).add(frame.seat)
+    # The engine names frames by id, and an id carries its team, so reading a
+    # side off a log line is exact -- no name is ever shared between seats.
+    seat_of_frame = {frame.id: frame.seat for frame in state.frames.values()}
 
     out = {
         label: {
@@ -256,11 +256,9 @@ def _diagnose(state, label_of: Mapping[int, str], agents: Mapping[int, Any]) -> 
         for label in label_of.values()
     }
 
-    def label_for(name: str) -> Optional[str]:
-        seats = name_seat.get(name)
-        if not seats or len(seats) != 1:
-            return None
-        return label_of[next(iter(seats))]
+    def label_for(frame_id: str) -> Optional[str]:
+        seat = seat_of_frame.get(frame_id)
+        return None if seat is None else label_of[seat]
 
     # "<card> has no legal target" does not name the frame, so it is charged to
     # whoever resolved the card immediately before it -- the log is strictly

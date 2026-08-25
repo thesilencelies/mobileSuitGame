@@ -401,18 +401,22 @@ def test_flying_target_is_passed_to_line_of_sight_when_the_board_takes_it():
 # --------------------------------------------------------------------------
 
 
-def test_only_pilot_and_drone_text_is_deferred():
-    """v1 scope: weapons, basics, boosters and frame cards are fully handled;
-    pilot and drone card *text* is registered as deferred, not silently
-    ignored."""
+def test_no_weapon_basic_or_booster_text_is_ever_deferred():
+    """The durable invariant: the engine never silently drops card text.
+
+    Weapon, basic, booster and frame card text must always be either
+    implemented or handled elsewhere in the pipeline. Only pilot and drone
+    text may be deferred, and that set shrinks as those effects land -- so
+    this asserts the bound, not a count.
+    """
     from playtest.engine import effects
 
     deferred = effects.deferred_effects(CATALOGUE)
     types = {CATALOGUE[key].card_type for key in deferred}
-    assert types == {"pilot", "drone"}
-    assert len(deferred) == 26
-    marker = deferred["Bruiser_Intimidate"]
-    assert "not implemented" in marker.reason
+    assert types <= {"pilot", "drone"}, f"deferred outside pilot/drone: {types}"
+    for key, marker in deferred.items():
+        assert "not implemented" in marker.reason
+        assert marker.text, f"{key} deferred with no text to show"
 
 
 def test_keyword_only_text_does_not_produce_an_effect_step():

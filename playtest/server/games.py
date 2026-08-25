@@ -320,7 +320,8 @@ def advance_ai(session: Session) -> None:
         steps += 1
         if steps > MAX_AI_STEPS:               # pragma: no cover - safety net
             raise RuntimeError("AI failed to make progress")
-        session.state = apply_command(state, _ai_command(session))
+        ai_cmd = _ai_command(session)
+        session.state = apply_command(state, ai_cmd)
         if len(session.state.log) != logged:
             logged = len(session.state.log)
             session.replay.append(session.snapshot())

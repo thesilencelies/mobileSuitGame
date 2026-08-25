@@ -45,8 +45,11 @@ class CardInfo:
     keywords: frozenset[str]
     knockback: int
     persistence: Optional[int]
-    #: True when the engine does not implement this card's text (v1 defers all
-    #: pilot and drone text). The scorer treats such text as worth nothing.
+    #: True when the engine does not implement this card's text. The scorer
+    #: models printed stats and never card text, so this does not change how a
+    #: card is valued -- it marks text that is inert *in the engine*, which is
+    #: what lets `scoring.carries_live_text` stop pruning a card the moment its
+    #: effect actually starts working.
     not_implemented: bool = False
 
     @property
@@ -213,6 +216,9 @@ class FrameView:
     deck_count: int
     discard_count: int
     hand: list[tuple[str, str]] = field(default_factory=list)
+    #: Hiding behind Ephemeral Images. Its `pos` is then a guess (the centre of
+    #: its images), never a fact -- see `Snapshot._guess_cloaked_positions`.
+    cloaked: bool = False
 
     def remaining(self, zone: str) -> int:
         """Hits this zone can still take before the frame dies."""
@@ -298,6 +304,10 @@ class TokenView:
     max_hp: int
     alive: bool
     carrier: Optional[str]
+    #: The frame an image or a drone belongs to, when the view says.
+    frame: Optional[str] = None
+    #: Set only on our own images: the one the frame is actually standing on.
+    real: bool = False
 
 
 class Snapshot:
@@ -340,6 +350,8 @@ class Snapshot:
                 max_hp=int(t.get("maxHp", 0)),
                 alive=bool(t.get("alive", True)),
                 carrier=(str(t["carrier"]) if t.get("carrier") else None),
+                frame=(str(t["frame"]) if t.get("frame") else None),
+                real=bool(t.get("real")),
             )
             for t in (view.get("tokens") or ())
         ]
@@ -374,7 +386,33 @@ class Snapshot:
                     for h in (f.get("hand") or ())
                 ],
             )
+            frame.cloaked = bool(f.get("cloaked"))
             self.frames[frame.id] = frame
+        self._guess_cloaked_positions()
+
+    def _guess_cloaked_positions(self) -> None:
+        """Stand a hidden frame in the middle of its own images.
+
+        A frame behind Ephemeral Images arrives with no position at all, which
+        would drop it out of every distance calculation the scorer makes -- it
+        would stop being a threat and stop being worth approaching. The images
+        are what can actually be seen, so their centre is the honest guess, and
+        it keeps the rest of the AI working unchanged. Nothing is decided from
+        it: the legal target list still only ever offers the images.
+        """
+        for frame in self.frames.values():
+            if frame.pos is not None or not frame.alive or not frame.cloaked:
+                continue
+            spots = [
+                t.pos for t in self.tokens
+                if t.alive and t.pos is not None and t.frame == frame.id
+            ]
+            if not spots:
+                continue
+            frame.pos = Pos(
+                round(sum(p.x for p in spots) / len(spots)),
+                round(sum(p.y for p in spots) / len(spots)),
+            )
 
     # -- convenience --------------------------------------------------------
 

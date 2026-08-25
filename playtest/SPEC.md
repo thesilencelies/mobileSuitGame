@@ -203,7 +203,7 @@ removed (opponent hands, face-down commitments, deck order):
                     "tiles":[[3,4]],"status":"unscored"}]
   },
   "frames": [{
-    "id":"a0","seat":0,"name":"Percival MkIV","faction":"Aegis",
+    "id":"Blue Percival MkIV","seat":0,"name":"Percival MkIV","faction":"Aegis",
     "pos":{"x":4,"y":15},"elev":0,"alive":true,
     "armour":{"High":4,"Mid":4,"Low":4}, "damage":{"High":1,"Mid":0,"Low":0},
     "movement":4,"shields":0,
@@ -213,8 +213,9 @@ removed (opponent hands, face-down commitments, deck order):
     "deckCount":18,"discardCount":3
   }],
   "tokens":[{"id":"t0","kind":"reactor","pos":{"x":7,"y":9},"hp":2,"maxHp":2}],
+  // an image or a drone also carries "frame"; only its owner's view marks "real"
   "pending": {"seat":0,"kind":"choose_block","prompt":"…","options":[…]},
-  "log": [{"turn":2,"text":"Percival attacks Kuwagata High for 2 — blocked by Basic_Block"}],
+  "log": [{"turn":2,"text":"Blue Percival MkIV hits Red Kuwagata 1 with Spear_Thrust for 2"}],
   "vp": {"0":1,"1":0}
 }
 ```

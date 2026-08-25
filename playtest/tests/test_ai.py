@@ -53,6 +53,21 @@ def catalogue():
     return catalogue_json(load_cards())
 
 
+def deployed(state, seed: int = 0):
+    """Advance past the setup phase so every frame has a position.
+
+    The engine now opens with `deploy` decisions, so a view taken straight
+    after `new_game` has no frame positions at all.
+    """
+    agents = {s: RandomAgent(seat=s, seed=seed + s) for s in (0, 1)}
+    guard = 0
+    while state.pending is not None and state.pending.kind == "deploy" and guard < 50:
+        seat = int(state.pending.seat)
+        state = apply_command(state, agents[seat].act(view_for(state, seat)))
+        guard += 1
+    return state
+
+
 def make_game(seed: int = 11, frames: int = 2):
     return new_game(
         GameConfig(
@@ -895,6 +910,136 @@ def test_duplicate_frame_names_do_not_produce_a_wrong_answer(catalogue):
     )
 
 
+def test_team_plan_is_formed_and_shared_across_frames(catalogue):
+    """All three frames plan against the same enemy within one turn."""
+    state = deployed(make_game(seed=44, frames=3))
+    agent = Agent(seat=0, catalogue=catalogue, seed=1)
+    seen: list = []
+    steps = 0
+    while not is_over(state) and state.pending is not None and steps < 400:
+        seat = int(state.pending.seat)
+        view = json.loads(json.dumps(view_for(state, seat)))
+        if seat == 0 and state.pending.kind == "commit_actions":
+            snap = Snapshot(view)
+            agent._observe(snap)
+            plan = agent.team_plan(snap)
+            seen.append((snap.turn, plan.target_id, plan.zone))
+        command = (agent if seat == 0 else RandomAgent(seat=1, seed=2)).act(view)
+        state = apply_command(state, command)
+        steps += 1
+        if len(seen) >= 3:
+            break
+    assert len(seen) >= 3, "expected three frames to commit in turn 1"
+    turns = {t for t, _, _ in seen}
+    targets = {tgt for _, tgt, _ in seen}
+    assert turns == {1}, "all three commits should be the same turn"
+    assert len(targets) == 1, f"frames planned against different targets: {targets}"
+    assert next(iter(targets)) is not None
+    # And it names a zone to concentrate on.
+    assert all(z in ZONES for _, _, z in seen)
+
+
+def test_team_plan_is_reused_within_a_turn_and_replaced_between_turns(catalogue):
+    """Formed once per turn, not re-derived per decision."""
+    state = deployed(make_game(seed=52, frames=2))
+    agent = Agent(seat=0, catalogue=catalogue, seed=3)
+    snap = Snapshot(json.loads(json.dumps(view_for(state, 0))))
+    agent._observe(snap)
+    first = agent.team_plan(snap)
+    again = agent.team_plan(snap)
+    assert first is again, "the plan must be cached, not rebuilt every call"
+    assert agent.stats.get("focus_formed") == 1
+
+    # A later turn gets its own plan.
+    later = Snapshot(json.loads(json.dumps(view_for(state, 0))))
+    later.turn = first.turn + 1
+    fresh = agent.team_plan(later)
+    assert fresh is not first
+    assert fresh.turn == first.turn + 1
+
+
+def test_team_plan_is_abandoned_when_the_target_dies(catalogue):
+    """Piling onto a corpse is worse than not focusing at all."""
+    state = deployed(make_game(seed=61, frames=3))
+    agent = Agent(seat=0, catalogue=catalogue, seed=5)
+    view = json.loads(json.dumps(view_for(state, 0)))
+    snap = Snapshot(view)
+    agent._observe(snap)
+    plan = agent.team_plan(snap)
+    assert plan.target_id is not None
+
+    # Kill the chosen target and re-ask within the same turn.
+    dead = json.loads(json.dumps(view))
+    for frame in dead["frames"]:
+        if frame["id"] == plan.target_id:
+            frame["alive"] = False
+            frame["pos"] = None
+    after = Snapshot(dead)
+    replanned = agent.team_plan(after)
+    assert replanned is not plan
+    assert replanned.target_id != plan.target_id
+    assert agent.stats.get("focus_abandoned") == 1
+    # Whatever it switched to must be alive.
+    if replanned.target_id is not None:
+        assert after.frames[replanned.target_id].alive
+
+
+def test_focus_prefers_a_target_the_squad_can_actually_reach(catalogue):
+    """A focus target nobody can threaten is worthless, however soft it is."""
+    agent = Agent(seat=0, catalogue=catalogue, seed=7)
+    view = _flat_view(catalogue, next(iter(agent.catalogue.cards)))
+    key = next(k for k, c in agent.catalogue.cards.items()
+               if c.is_attack and not c.is_ranged)
+    view["frames"][0]["hand"] = [{"uid": "h1", "key": key}]
+    view["frames"][0]["movement"] = 1          # so 5 tiles really is out of reach
+    # b0 is adjacent (reachable). Add a badly wounded but far-away enemy.
+    far = json.loads(json.dumps(view["frames"][1]))
+    far.update(id="b1", pos={"x": 9, "y": 9},
+               damage={"High": 3, "Mid": 3, "Low": 3})
+    view["frames"].append(far)
+    snap = Snapshot(json.loads(json.dumps(view)))
+    plan = agent._choose_focus(snap)
+    assert plan.target_id == "b0", (
+        "picked the unreachable wounded frame over the one it can hit"
+    )
+
+
+def test_focus_is_a_preference_not_a_rule(catalogue):
+    """Setting focus_fire to 0 removes the bias entirely."""
+    agent = Agent(seat=0, catalogue=catalogue, params={"focus_fire": 0.0}, seed=9)
+    state = deployed(make_game(seed=70, frames=2))
+    snap = Snapshot(json.loads(json.dumps(view_for(state, 0))))
+    agent._observe(snap)
+    target, weight = agent._focus_weight(agent.team_plan(snap), 1.0)
+    assert (target, weight) == (None, 0.0)
+
+
+def test_live_card_text_is_never_pruned_as_dominated(cat):
+    """Reads the catalogue flag, so it corrects itself as effects land."""
+    from playtest.ai.view import CardInfo
+
+    def make(key, attacks, blocks, text="", deferred=False):
+        return CardInfo(
+            key=key, name=key, group="G", faction="", card_type="pilot",
+            initiative=(5,), movement=0,
+            attacks={z: attacks.get(z, 0) for z in ZONES},
+            ranges={z: 0 for z in ZONES}, dtypes={z: None for z in ZONES},
+            blocks={z: blocks.get(z, 0) for z in ZONES},
+            text=text, keywords=frozenset(), knockback=0, persistence=0,
+            not_implemented=deferred,
+        )
+
+    spear = make("ZZ_spear", {"High": 2}, {"High": 1})
+    inert = make("ZZ_pilot_inert", {}, {"High": 1}, text="Do a thing", deferred=True)
+    live = make("ZZ_pilot_live", {}, {"High": 1}, text="Do a thing", deferred=False)
+    # While the text is inert the card is comparable on printed stats.
+    assert S.dominates(spear, inert)
+    # The day the engine implements it, it stops being dead weight.
+    assert not S.dominates(spear, live)
+    assert not S.carries_live_text(inert)
+    assert S.carries_live_text(live)
+
+
 def test_block_probability_is_not_linear_in_hidden_cards(cat, catalogue):
     """Two cards at a 0.4 block rate cover 64%, not 80%."""
     view = _flat_view(catalogue, next(iter(cat.cards)))
@@ -938,16 +1083,20 @@ def test_shiny_thing_is_valued_even_though_it_has_no_tiles(cat, catalogue):
     assert on_token > beside > far
 
 
-def test_unimplemented_card_text_is_flagged_and_not_valued(cat):
-    """v1 defers all pilot and drone text; the scorer must not price it in."""
+def test_every_card_text_is_implemented(cat):
+    """Nothing is deferred any more -- and the flag must stay honest if it is.
+
+    A card whose text the engine ignores has to say so, because the scorer
+    prices a card off its printed numbers and would otherwise happily pay for
+    text that never fires.
+    """
     deferred = [c for c in cat.cards.values() if c.not_implemented]
-    assert deferred, "expected the catalogue to flag deferred effects"
-    assert all(c.card_type in ("pilot", "drone") for c in deferred), (
-        "something other than pilot/drone text is unimplemented: "
-        + ", ".join(sorted({c.key for c in deferred if c.card_type not in ("pilot", "drone")}))
+    assert not deferred, (
+        "cards flagged as unimplemented: "
+        + ", ".join(sorted(c.key for c in deferred))
     )
-    # A pilot card's value comes only from its printed block, never its text.
-    pilot = next(c for c in deferred if c.card_type == "pilot")
+    # And a card whose value is all text still prices sanely off its block.
+    pilot = next(c for c in cat.cards.values() if c.card_type == "pilot")
     prof = S.profile(list(cat.cards.values())[:60])
     params = AIParams()
     health = {z: 4 for z in ZONES}

@@ -489,3 +489,94 @@ def test_tokens_are_attackable_and_never_block():
     assert next_block_decision(state, attack) is None, "tokens never block"
     combat.finish_target(state, attack)
     assert not state.tokens["t0"].alive
+
+
+# --------------------------------------------------------------------------
+# Shields absorb the attack, not the zone
+# --------------------------------------------------------------------------
+
+
+def test_one_shield_counter_absorbs_a_whole_guard_break_attack():
+    """"A shield takes the full brunt of damage across all zones even with
+    guard break" -- the unit a counter cancels is the attack, not the zone."""
+    state, atk, dfn = _duel(defender_frame="Hannael", a=Pos(1, 1), b=Pos(6, 1))
+    dfn.shields = 1
+    uid = give(state, atk, "Cannon_Airburst")            # High 2, Mid 2, Low 1
+    run_attack(state, atk, uid, dfn)
+    assert dfn.damage == {"High": 0, "Mid": 0, "Low": 0}
+    assert dfn.shields == 0, "exactly one counter, not one per zone"
+
+
+def test_a_second_shield_counter_survives_a_three_zone_attack():
+    state, atk, dfn = _duel(defender_frame="Elemiah", a=Pos(1, 1), b=Pos(6, 1))
+    assert dfn.shields == 2                              # Elemiah has Shield 2
+    run_attack(state, atk, give(state, atk, "Cannon_Airburst"), dfn)
+    assert dfn.shields == 1, "the three-zone attack cost one counter"
+    assert dfn.damage == {"High": 0, "Mid": 0, "Low": 0}
+
+    run_attack(state, atk, give(state, atk, "Cannon_Airburst"), dfn)
+    assert dfn.shields == 0
+    assert dfn.damage == {"High": 0, "Mid": 0, "Low": 0}
+
+    run_attack(state, atk, give(state, atk, "Cannon_Airburst"), dfn)
+    assert dfn.damage == {"High": 2, "Mid": 2, "Low": 1}, "no counters left"
+
+
+def test_an_ordinary_multi_zone_attack_also_costs_only_one_counter():
+    """Not just Guard Break -- any attack landing in several zones."""
+    state, atk, dfn = _duel(defender_frame="Hannael")
+    plain = CATALOGUE["Greatsword_Cleave"]               # High 2, Mid 2
+    assert "guardbreak" not in plain.keywords
+    dfn.shields = 1
+    run_attack(state, atk, give(state, atk, "Greatsword_Cleave"), dfn)
+    assert dfn.damage == {"High": 0, "Mid": 0, "Low": 0}
+    assert dfn.shields == 0
+
+
+def test_a_shield_gained_mid_turn_absorbs_the_next_attack():
+    from playtest.engine.state import add_shield
+
+    state, atk, dfn = _duel(defender_frame="Hannael")
+    dfn.shields = 0
+    run_attack(state, atk, give(state, atk, "Greatsword_Cleave"), dfn)
+    assert dfn.damage["High"] == 2, "no shield, so it lands"
+
+    add_shield(state, dfn, 1)
+    run_attack(state, atk, give(state, atk, "Greatsword_Cleave"), dfn)
+    assert dfn.damage["High"] == 2, "the new counter absorbs the next attack"
+    assert dfn.shields == 0
+
+
+def test_a_shielded_attack_does_not_destroy_or_trigger_deathstrike():
+    state, atk, dfn = _duel(defender_frame="Flamekin")   # armour 2/2/2
+    dfn.shields = 1
+    dfn.damage["Mid"] = 1
+    run_attack(state, atk, give(state, atk, "Chainsaw_Disembowel"), dfn)  # Mid 4
+    assert dfn.damage["Mid"] == 1, "absorbed"
+    assert dfn.alive and dfn.deathstrike_until is None
+
+
+def test_a_shielded_attack_does_not_drop_the_shiny_thing():
+    """No damage was taken, so there is nothing to drop it for."""
+    from playtest.engine import objectives as O
+
+    state, atk, dfn = _duel(defender_frame="Hannael")
+    obj = O.create_objective(state, "Shiny Thing", 0, defend=1, attack=2,
+                             spawns=[dfn.pos])
+    token = O.tokens_of(state, obj)[0]
+    O.on_move(state, dfn, dfn.pos)
+    assert token.carrier == dfn.id
+    dfn.shields = 1
+    run_attack(state, atk, give(state, atk, "Greatsword_Cleave"), dfn)
+    assert token.carrier == dfn.id, "the shield took the brunt, so no drop"
+
+
+def test_a_single_zone_counter_attack_still_costs_a_counter():
+    """`On Block:` damage is its own attack, so it spends its own counter."""
+    from playtest.engine.state import deal_damage
+
+    state, atk, dfn = _duel(defender_frame="Hannael")
+    dfn.shields = 1
+    assert deal_damage(state, dfn, "Mid", 1) == 0
+    assert dfn.shields == 0
+    assert deal_damage(state, dfn, "Mid", 1) == 1

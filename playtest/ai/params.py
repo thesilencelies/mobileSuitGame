@@ -133,7 +133,7 @@ PARAM_SCHEMA: list[dict[str, Any]] = [
         "max": 3.0,
         "step": 0.05,
         "default": AIParams.focus_fire,
-        "help": "Preference for finishing an already-damaged enemy over spreading damage.",
+        "help": "How hard the whole squad converges on one enemy each turn to strip its blocks and kill it.",
     },
     {
         "name": "objective_weight",

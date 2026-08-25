@@ -17,7 +17,7 @@ from playtest.engine import cards as cardlib
 from playtest.engine import combat
 from playtest.engine.resolve import FlatBoard
 from playtest.engine.state import CardInstance, FrameState, GameState
-from playtest.engine.types import Pos, Tile
+from playtest.engine.types import Pos, Tile, frame_id_for
 
 CATALOGUE = cardlib.load_cards()
 FRAMES = cardlib.load_frames()
@@ -66,8 +66,13 @@ def add_frame(
 ) -> FrameState:
     spec = FRAMES[frame_name]
     if frame_id is None:
-        count = sum(1 for f in state.frames.values() if f.seat == seat)
-        frame_id = f"{'ab'[seat % 2]}{count}"
+        # Same shape as the engine's ids (`engine.types.frame_id_for`): the
+        # team, the model, and an ordinal only where the model repeats.
+        same = sum(
+            1 for f in state.frames.values()
+            if f.seat == seat and f.spec.name == spec.name
+        )
+        frame_id = frame_id_for(seat, spec.name, same + 1 if same else None)
     frame = FrameState(id=frame_id, seat=seat, spec=spec, pos=pos)
     frame.shields = spec.shield
     state.frames[frame_id] = frame
@@ -104,16 +109,18 @@ def run_attack(
     state: GameState,
     attacker: FrameState,
     uid: str,
-    target: FrameState,
+    target,
     chooser: Optional[Callable[[Sequence[str], Sequence[str]], str]] = None,
+    target_kind: str = "frame",
 ):
     """Drive one full attack, answering every compulsory block decision.
 
     `chooser(zones, candidates) -> uid`; the default takes the first candidate.
+    `target` is a frame, or a token when `target_kind="token"`.
     Returns the finished `AttackInProgress`.
     """
     attack = combat.declare_attack(
-        state, attacker, uid, target_kind="frame", target_id=target.id
+        state, attacker, uid, target_kind=target_kind, target_id=target.id
     )
     guard = 0
     while attack.current is not None:
@@ -144,5 +151,24 @@ def play_out(state: GameState, seed: int = 0, limit: int = 5000):
         assert pending is not None, f"no decision in phase {state.phase}"
         options = legal_commands(state, pending.seat)
         assert options, f"no legal commands for {pending}"
+        state = apply_command(state, rng.choice(options))
+    return state
+
+
+def deploy_all(state, seed: int = 0):
+    """Play through the setup phase, placing every frame on a legal tile.
+
+    Deployment is a real decision now, so a test that wants a game already in
+    progress has to get past it first.
+    """
+    from playtest.engine import apply_command, legal_commands
+
+    rng = random.Random(seed)
+    guard = 0
+    while state.phase == "setup" and state.pending is not None:
+        guard += 1
+        assert guard < 200, "deployment did not finish"
+        options = legal_commands(state, state.pending.seat)
+        assert options, "a deployment decision with no legal option"
         state = apply_command(state, rng.choice(options))
     return state

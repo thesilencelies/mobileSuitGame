@@ -214,7 +214,7 @@ def apply_knockback(
             break  # cannot be knocked up an elevation
         pos = nxt
     if pos != target.pos:
-        state.note(f"{target.spec.name} is knocked back to ({pos.x},{pos.y})")
+        state.note(f"{target.id} is knocked back to ({pos.x},{pos.y})")
         target.pos = pos
 
 
@@ -228,7 +228,7 @@ def start_reload(state: GameState, frame: FrameState, uid: str) -> None:
     card = state.card(uid)
     frame.reloading[card.group] = uid
     state.cards[uid].persist_left = None
-    state.note(f"{frame.spec.name}'s {card.group} must reload")
+    state.note(f"{frame.id}'s {card.group} must reload")
 
 
 def is_reloading_attack(state: GameState, frame: FrameState, card: Card) -> bool:
@@ -256,7 +256,7 @@ def consume_reload(state: GameState, frame: FrameState, card: Card) -> bool:
         state.cards[marker].reload_for = ""
         discard_card(state, marker)
     state.note(
-        f"{frame.spec.name}'s {card.group} is spent reloading: "
+        f"{frame.id}'s {card.group} is spent reloading: "
         f"{card.key} has no effect or attack"
     )
     return True

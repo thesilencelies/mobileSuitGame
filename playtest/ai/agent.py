@@ -25,11 +25,11 @@ from __future__ import annotations
 import random
 import re
 import time
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from itertools import combinations
 from typing import Any, Mapping, Optional, Sequence
 
-from ..engine.types import Command, Pos, ZONES
+from ..engine.types import ACTIONS_PER_TURN, Command, Pos, ZONES
 from .params import AIParams, params_from_dict
 from . import scoring as S
 from .view import Catalogue, CardInfo, FrameView, Snapshot, build_board
@@ -43,6 +43,23 @@ _BLOCKS_RE = re.compile(r"^(?P<who>.+?) blocks with (?P<key>.+?) \((?:kept|disca
 #: zone from turn one.
 PRIOR_PEAK_QUANTILE = 0.9
 
+#: Weights inside the focus-target score. All are multiplied by `focus_fire`
+#: at the point of use, so a single parameter still controls the whole tactic.
+FOCUS_CONVERGENCE = 1.6      # per extra frame that can threaten the target
+FOCUS_CLOSING = 1.2          # per frame, scaled by how near it is to threatening
+FOCUS_LETHAL = 5.0           # the squad can plausibly finish it this turn
+FOCUS_LAST_HIT = 2.0         # a zone already one hit from destroying it
+FOCUS_EXHAUSTION = 1.1       # per blocking card it has already spent
+FOCUS_SEQUENCING = 1.4       # we hold both a fast stripper and a slow hammer
+
+#: How strongly the shared target biases the three decisions that use it.
+#: Deliberately a preference, not a rule -- a frame with a clearly better local
+#: option (a free kill elsewhere, an objective) can still defect.
+FOCUS_MOVE_WEIGHT = 0.9      # scale on the target's value when choosing a tile
+FOCUS_TARGET_WEIGHT = 0.7    # scale when choosing what to attack
+FOCUS_COMMIT_BONUS = 1.3     # board value for a card that can reach the target
+FOCUS_ZONE_BONUS = 0.7       # extra for a card hitting the target's soft zone
+
 #: How much cheaper each *extra* zone a card covers makes it when answering a
 #: Guard Break. Every zone the chosen blocker covers is a zone the defender
 #: does not have to spend a second card on, so this is worth roughly a card.
@@ -52,6 +69,29 @@ GUARD_BREAK_WIDTH = 1.2
 #: Below this the AI stops being an AI, so the time ceiling never goes here --
 #: it degrades to this floor and no further.
 MIN_CANDIDATES = 6
+
+
+@dataclass
+class TeamPlan:
+    """Who the squad is trying to kill this turn, and where it is soft.
+
+    Formed once, on the seat's first `commit_actions` of a turn, and then read
+    by every frame's card scoring, movement and target selection for the rest
+    of that turn. That shared reference is the whole point: a defender holds
+    two committed cards, blocking is compulsory and spends the blocker, so
+    several attacks arriving on *one* frame in a turn are not merely additive
+    -- the early ones are eaten by blocks and the later ones land unopposed.
+    Spread across three enemies the same damage cripples all of them and kills
+    none.
+    """
+
+    turn: int
+    target_id: Optional[str]
+    #: The target's softest zone -- where to concentrate once its guard is gone.
+    zone: Optional[str] = None
+    score: float = 0.0
+    #: How many of our frames could bring something to bear on it.
+    converging: int = 0
 
 
 class Agent:
@@ -100,6 +140,8 @@ class Agent:
         self._log_index = 0
         self._los: dict = {}
         self._deadline = float("inf")
+        #: The squad's shared target for the current turn.
+        self._plan: Optional[TeamPlan] = None
         #: Decision counters, for the arena's diagnostics.
         self.stats: dict[str, int] = {}
 
@@ -157,6 +199,7 @@ class Agent:
             return self._random_choice(kind, options)
 
         handler = {
+            "deploy": self._deploy,
             "commit_actions": self._commit_actions,
             "resolve_order": self._resolve_order,
             "move": self._move,
@@ -269,6 +312,149 @@ class Agent:
                     best = max(best, 0.5 + 0.5 * prof.ranged_share)
         return best
 
+    # ------------------------------------------------------------------
+    # The squad's shared target for the turn
+    # ------------------------------------------------------------------
+
+    def team_plan(self, snap: Snapshot) -> Optional[TeamPlan]:
+        """The focus target for this turn, forming it on first use.
+
+        Cached per turn so all three frames plan against the same enemy.
+        Abandoned and re-formed when the target dies or leaves the board --
+        piling onto a corpse is worse than not focusing at all.
+        """
+        plan = self._plan
+        if plan is not None and plan.turn == snap.turn:
+            target = snap.frame(plan.target_id)
+            if target is not None and target.alive and target.pos is not None:
+                return plan
+            self.stats["focus_abandoned"] = self.stats.get("focus_abandoned", 0) + 1
+            plan = None
+        plan = self._choose_focus(snap)
+        # A target-less plan is not cached. During the setup phase no frame has
+        # a position yet, and caching the empty result would leave the whole of
+        # turn 1 believing there was nobody to converge on.
+        self._plan = plan if plan.target_id is not None else None
+        return plan
+
+    def _squad_cards(self, frame: FrameView) -> list[CardInfo]:
+        """What this frame could bring to bear: its hand, or what it committed.
+
+        During planning we can see every one of our own frames' hands, which is
+        what makes a squad-wide plan possible at all. Once a frame has
+        committed, its hand is gone and the committed pair is the answer.
+        """
+        keys = [key for _uid, key in frame.hand]
+        if not keys:
+            keys = [ref.key for ref in frame.committed if ref.key]
+        return [c for c in (self.card(k) for k in keys) if c is not None]
+
+    def _can_threaten(
+        self, snap: Snapshot, mine: FrameView, card: CardInfo, enemy: FrameView
+    ) -> bool:
+        """Could `mine` bring `card` to bear on `enemy` this turn?
+
+        Straight-line reckoning rather than a reachability search: this runs
+        over every frame/enemy/card triple and only needs to be roughly right.
+        """
+        if mine.pos is None or enemy.pos is None or not card.is_attack:
+            return False
+        if not S.can_use(mine, card):
+            return False
+        gap = S.reach_gap(snap, mine, card, mine.pos, enemy.pos)
+        if gap > S.movement_budget(mine, card):
+            return False
+        if card.is_ranged and gap == 0:
+            # Already at range: it only counts if it can actually see them.
+            return S.has_los(snap, mine.pos, enemy, mine, self._los)
+        return True
+
+    def _choose_focus(self, snap: Snapshot) -> Optional[TeamPlan]:
+        """Score every living enemy as a convergence target and take the best."""
+        mine = [f for f in snap.mine() if f.pos is not None]
+        enemies = [e for e in snap.enemies() if e.pos is not None]
+        if not mine or not enemies:
+            return TeamPlan(turn=snap.turn, target_id=None)
+
+        best: Optional[TeamPlan] = None
+        for enemy in enemies:
+            converging = 0
+            inits: list[int] = []
+            damage = 0.0
+            closing = 0.0
+            for frame in mine:
+                cards = [
+                    c for c in self._squad_cards(frame)
+                    if c.is_attack and S.can_use(frame, c)
+                ]
+                usable = [c for c in cards if self._can_threaten(snap, frame, c, enemy)]
+                if usable:
+                    converging += 1
+                    damage += max(sum(c.attacks.values()) for c in usable)
+                    inits.extend(S.effective_init(frame, c) for c in usable)
+                if cards and enemy.pos is not None and frame.pos is not None:
+                    # How near this frame is to being able to threaten it at
+                    # all. On turn 1 the squads are the length of the board
+                    # apart and nothing reaches anything, but that is exactly
+                    # when agreeing where to go matters most -- so a target is
+                    # still chosen, on how close the squad collectively is.
+                    shortfall = min(
+                        max(0, S.reach_gap(snap, frame, c, frame.pos, enemy.pos)
+                            - S.movement_budget(frame, c))
+                        for c in cards
+                    )
+                    closing += 1.0 / (1.0 + shortfall)
+            score_closing = FOCUS_CLOSING * closing
+
+            # How soft a target is only counts to the extent we can act on it.
+            # A frame one hit from death on the far side of the board is not a
+            # focus target, it is a wish -- so everything below is scaled by
+            # whether the squad can actually touch it this turn.
+            reach = 1.0 if converging else 0.3 * (closing / max(1, len(mine)))
+
+            # Lethality: can we plausibly finish it, and is a zone already at
+            # its last hit? Armour is per zone, so the softest zone is the one
+            # the kill actually comes through.
+            soft = min(ZONES, key=lambda z: enemy.remaining(z))
+            weakest = enemy.remaining(soft)
+            score = FOCUS_CONVERGENCE * max(0, converging - 1) + score_closing
+            softness = 0.0
+            if weakest > 0 and damage >= weakest:
+                softness += FOCUS_LETHAL
+            if enemy.last_hit.get(soft) or weakest <= 1:
+                softness += FOCUS_LAST_HIT
+
+            # Card exhaustion: a frame that has already spent its cards
+            # blocking is close to defenceless, which is exactly when to pile on.
+            spent = max(0, ACTIONS_PER_TURN - len(enemy.committed + enemy.on_field))
+            softness += FOCUS_EXHAUSTION * spent
+
+            # Initiative sequencing: a cheap fast attack strips the guard so the
+            # slow heavy one lands. Only worth anything if we hold both.
+            if len(inits) >= 2 and max(inits) - min(inits) >= 3:
+                softness += FOCUS_SEQUENCING
+
+            # A target already hurt is worth more than raw damage suggests.
+            softness += 2.0 * (
+                1.0 - enemy.total_remaining / max(1, sum(enemy.armour.values()))
+            )
+            score += reach * softness
+            if best is None or score > best.score:
+                best = TeamPlan(
+                    turn=snap.turn, target_id=enemy.id, zone=soft,
+                    score=score, converging=converging,
+                )
+        if best is None:
+            return TeamPlan(turn=snap.turn, target_id=None)
+        self.stats["focus_formed"] = self.stats.get("focus_formed", 0) + 1
+        return best
+
+    def _focus_weight(self, plan: Optional[TeamPlan], scale: float) -> tuple[Optional[str], float]:
+        """`(target id, weight)` for a decision, or `(None, 0)` when not focusing."""
+        if plan is None or plan.target_id is None or self.params.focus_fire <= 0:
+            return None, 0.0
+        return plan.target_id, self.params.focus_fire * scale
+
     def _reloading(self, frame: FrameView) -> set[str]:
         """Weapon groups whose reload marker is still set aside."""
         groups = set()
@@ -281,6 +467,47 @@ class Agent:
     # ------------------------------------------------------------------
     # commit_actions
     # ------------------------------------------------------------------
+
+    def _deploy(
+        self,
+        snap: Snapshot,
+        pending: Mapping[str, Any],
+        options: Sequence[Mapping[str, Any]],
+    ) -> Command:
+        """Setup: place one frame on its own edge.
+
+        The row is fixed, so this is a choice of column, and it sets up the
+        whole game: which objectives the frame can contest, what ground it
+        starts on, and whether the squad arrives together or piecemeal. Scored
+        with the same objective and terrain terms the movement evaluator uses,
+        plus a spacing term -- frames deployed on top of each other funnel into
+        the same approach lane and get blocked by their own squadmates, while
+        frames scattered to opposite corners never converge on anything.
+        """
+        params = self.params
+        frame = snap.frame(str(options[0].get("frame")))
+        placed = [
+            f.pos for f in snap.mine()
+            if f.pos is not None and (frame is None or f.id != frame.id)
+        ]
+        values: list[float] = []
+        tiles = [Pos(int(o["x"]), int(o["y"])) for o in options]
+        for tile in tiles:
+            value = S.terrain_value(snap, tile, params)
+            if frame is not None:
+                value += S.objective_value(snap, frame, tile, params)
+            if placed:
+                gap = min(snap.distance(tile, p) for p in placed)
+                # Two or three tiles apart: close enough to support, far enough
+                # not to queue up behind each other.
+                value -= 0.6 * abs(gap - 3)
+            values.append(value)
+        index = S.softmax_pick(values, params.temperature * 0.3, self.rng)
+        chosen = options[index]
+        return Command("deploy", self.seat, {
+            "frame": str(chosen["frame"]),
+            "x": int(chosen["x"]), "y": int(chosen["y"]),
+        })
 
     def _commit_actions(
         self,
@@ -398,6 +625,26 @@ class Agent:
         board_value = {
             i: params.positioning * 0.5 * positional_gain(budgets[i]) for i in live
         }
+
+        # -- converge on the squad's shared target -------------------------
+        # A preference, not a rule: a card that cannot reach the focus target
+        # simply misses this bonus rather than being ruled out, so a frame with
+        # a clearly better local option still takes it.
+        plan = self.team_plan(snap)
+        if plan is not None and plan.target_id and params.focus_fire > 0:
+            target = snap.frame(plan.target_id)
+            if target is not None and target.alive:
+                for i in live:
+                    card = cards[i]
+                    if card is None or not card.is_attack:
+                        continue
+                    if not self._can_threaten(snap, frame, card, target):
+                        continue
+                    board_value[i] += params.focus_fire * FOCUS_COMMIT_BONUS
+                    if plan.zone and card.attacks.get(plan.zone, 0) > 0:
+                        # Armour is per zone, so the kill comes through the
+                        # soft one: concentrate there once the guard is gone.
+                        board_value[i] += params.focus_fire * FOCUS_ZONE_BONUS
 
         # -- trim to the pool, then score every pair -----------------------
         singles = {
@@ -607,12 +854,16 @@ class Agent:
         if len(tiles) > self.move_candidates:
             tiles = self._prerank(snap, frame, tiles, primary, others, params)
 
+        focus_id, focus_weight = self._focus_weight(
+            self.team_plan(snap), FOCUS_MOVE_WEIGHT
+        )
         values: list[float] = []
         for tile in tiles:
             values.append(
                 S.position_value(
                     snap, frame, tile, prof, params,
                     cards=others, primary=primary, los_cache=self._los,
+                    focus_id=focus_id, focus_weight=focus_weight,
                 )
             )
             if len(values) >= MIN_CANDIDATES and self._out_of_time():
@@ -672,6 +923,9 @@ class Agent:
         prof = self.opponent_profile(snap)
         if frame is None or card is None:
             return self._random_choice("attack_target", options)
+        focus_id, focus_weight = self._focus_weight(
+            self.team_plan(snap), FOCUS_TARGET_WEIGHT
+        )
         values = []
         for option in options:
             zones = {str(z): int(d) for z, d in (option.get("zones") or {}).items()}
@@ -680,9 +934,10 @@ class Agent:
                 if target is None:
                     values.append(0.0)
                     continue
-                values.append(
-                    S.zone_attack_value(card, zones, target, prof, self.params)
-                )
+                value = S.zone_attack_value(card, zones, target, prof, self.params)
+                if target.id == focus_id:
+                    value *= 1.0 + focus_weight
+                values.append(value)
             else:
                 token = next(
                     (t for t in snap.tokens if t.id == str(option.get("id"))), None
@@ -690,9 +945,16 @@ class Agent:
                 if token is None or frame.pos is None:
                     values.append(0.0)
                     continue
-                values.append(
-                    S.token_value(snap, frame, card, frame.pos, token, self.params)
-                )
+                if token.kind == "image":
+                    values.append(
+                        S.image_value(snap, frame, card, token, prof, self.params)
+                    )
+                else:
+                    values.append(
+                        S.token_value(
+                            snap, frame, card, frame.pos, token, self.params
+                        )
+                    )
         index = S.softmax_pick(values, self.params.temperature * 0.3, self.rng)
         chosen = options[index]
         return Command(
@@ -844,7 +1106,73 @@ class Agent:
             return Command(
                 "effect_choice", self.seat, dict(self._shove(snap, options))
             )
+        # A bare list of tiles: a drone's move, Ace Reflexes, a Teleport. All
+        # of them want the same thing -- somewhere useful to stand.
+        if options and all(
+            "x" in o and "y" in o and "frame" not in o for o in options
+        ):
+            return Command(
+                "effect_choice", self.seat, dict(self._pick_tile(snap, options))
+            )
+        # A list of things to shoot at: the drone's target, which may be an
+        # enemy frame or one of its Ephemeral Images.
+        if options and all(("frame" in o) or ("token" in o) for o in options):
+            return Command(
+                "effect_choice", self.seat, dict(self._pick_victim(snap, options))
+            )
         return Command("effect_choice", self.seat, dict(options[0]))
+
+    def _pick_tile(
+        self, snap: Snapshot, options: Sequence[Mapping[str, Any]]
+    ) -> Mapping[str, Any]:
+        """Close on the nearest enemy without walking into its face.
+
+        Deliberately crude -- this answers a drone's move, a reflex step and a
+        Teleport with one rule, and none of them is worth a search. Distance 1
+        is best (a melee drone wants to be adjacent), then as close as it can
+        get; ties break toward the frame we are already focusing on.
+        """
+        focus_id, _ = self._focus_weight(self.team_plan(snap), 0.0)
+        marks = [
+            f for f in snap.enemies() if f.pos is not None
+        ]
+        if not marks:
+            return options[0]
+        best, best_score = options[0], -1e9
+        for option in options:
+            pos = Pos(int(option["x"]), int(option["y"]))
+            score = 0.0
+            gaps = [(snap.distance(pos, f.pos), f) for f in marks]
+            gap, nearest = min(gaps, key=lambda pair: pair[0])
+            score -= float(gap)
+            if gap == 1:
+                score += 2.0
+            if nearest.id == focus_id:
+                score += 0.5
+            if score > best_score:
+                best, best_score = option, score
+        return best
+
+    def _pick_victim(
+        self, snap: Snapshot, options: Sequence[Mapping[str, Any]]
+    ) -> Mapping[str, Any]:
+        """Whom a drone shoots: the focus target, else whoever is closest to dead."""
+        focus_id, _ = self._focus_weight(self.team_plan(snap), 0.0)
+        best, best_score = options[0], -1e9
+        for option in options:
+            if option.get("token"):
+                # An image: worth a third of a real hit, and worth stripping.
+                score = 0.5
+            else:
+                target = snap.frame(str(option.get("frame")))
+                if target is None:
+                    continue
+                score = 3.0 - 0.4 * target.total_remaining
+                if target.id == focus_id:
+                    score += 1.5
+            if score > best_score:
+                best, best_score = option, score
+        return best
 
     def _mulligan(self, snap: Snapshot, pending: Mapping[str, Any]) -> bool:
         """True to keep the hand. Kuwagata's once-per-game redraw."""

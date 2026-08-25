@@ -252,6 +252,9 @@ class AttackInProgress:
     index: int = 0
     guard_break: bool = False
     feint: bool = False
+    #: What the log should call the thing swinging, when it is not the frame
+    #: itself -- a drone attacks with its summoner's card but is not it.
+    via: str = ""
 
     @property
     def current(self) -> Optional[AttackTarget]:
@@ -302,10 +305,21 @@ class GameState:
     #: Frames destroyed, per seat that did the destroying.
     kills: dict[Team, int] = field(default_factory=dict)
     log: list[dict] = field(default_factory=list)
+    #: Operator-only log. Never reaches `view_for`; safe for seeds and other
+    #: things a player must not see.
+    private_log: list[dict] = field(default_factory=list)
     #: Setup/planning bookkeeping the state machine walks through.
     queue: list[Any] = field(default_factory=list)
     #: Initiative-tie bookkeeping: the value being contested and the index into
     #: `seat_cycle()` of the seat that resolves next at that value.
+    #: The seed this game was built from, kept for server-side reproducibility
+    #: and replay. **Never serialise it.** The deck CSVs ship with the app, so
+    #: seed + deck lists lets an observer replay `rng` and reconstruct every
+    #: shuffle -- the opponent's deck order and future draws. `view_for`
+    #: whitelists the keys it emits, so this is private by construction; the
+    #: log is the one wholesale channel, hence `note_private`.
+    seed: Optional[int] = None
+
     #: Per-game secret used to derive the opaque ids `view_for` ships in place
     #: of the uid of a card whose identity is redacted. Deliberately *not*
     #: drawn from `rng`: uids are allocated in deck-file order, so if this were
@@ -314,6 +328,11 @@ class GameState:
     view_salt: str = field(default_factory=lambda: secrets.token_hex(16))
     tie_value: Optional[int] = None
     tie_index: int = 0
+    #: Scratch space for card effects (`engine.effects_state.bag`). One
+    #: namespaced dict rather than a field per effect, so pilot/drone text can
+    #: keep its bookkeeping without spreading through this module. Plain data
+    #: only, so `clone()` stays a clean deep copy.
+    fx: dict[str, Any] = field(default_factory=dict)
     _uid_counter: int = 0
 
     # -- purity ----------------------------------------------------------
@@ -364,9 +383,15 @@ class GameState:
             f.pos for f in self.frames.values()
             if f.alive and f.pos is not None and f.id != exclude
         }
+        # An Ephemeral Image counts as occupied too. Two of the three are only
+        # illusions, but this set is what movement *and* line of sight are
+        # reckoned against -- so if they did not, an enemy could find the frame
+        # by noticing which of the three tiles it could not walk into, or which
+        # one broke a line of sight. It costs the images a real screening
+        # effect, which is the price of the concealment being airtight.
         out |= {
             t.pos for t in self.tokens.values()
-            if t.alive and t.pos is not None and t.kind == "barricade"
+            if t.alive and t.pos is not None and t.kind in ("barricade", "image")
         }
         return frozenset(p for p in out if p is not None)
 
@@ -381,7 +406,17 @@ class GameState:
     # -- logging ---------------------------------------------------------
 
     def note(self, text: str) -> None:
+        """Append to the **public** log.
+
+        `view_for` ships this wholesale to both seats, so anything written
+        here is public by construction. Never name a face-down card, a deck's
+        contents or the seed. Use `note_private` for those.
+        """
         self.log.append({"turn": self.turn, "text": text})
+
+    def note_private(self, text: str) -> None:
+        """Append to the operator-only log, which `view_for` never includes."""
+        self.private_log.append({"turn": self.turn, "text": text})
 
     # -- seat order ------------------------------------------------------
 
@@ -415,7 +450,7 @@ def reshuffle(state: GameState, frame: FrameState) -> None:
     frame.discard = []
     for uid in frame.deck:
         state.cards[uid].location = "deck"
-    state.note(f"{frame.spec.name} reshuffles its discard pile")
+    state.note(f"{frame.id} reshuffles its discard pile")
 
 
 def draw(state: GameState, frame: FrameState, count: int) -> list[str]:
@@ -494,7 +529,7 @@ def apply_status(
             count -= cancelled
     if count:
         frame.statuses[kind] = frame.statuses.get(kind, 0) + count
-    state.note(f"{frame.spec.name} gets {kind}")
+    state.note(f"{frame.id} gets {kind}")
 
 
 def tick_statuses(frame: FrameState) -> None:
@@ -516,26 +551,64 @@ def deal_damage(
     amount: int,
     *,
     source: Optional[FrameState] = None,
+    absorb: bool = True,
 ) -> int:
     """Apply damage to one zone. Returns the damage actually taken.
 
     A shield counter absorbs the whole instance regardless of size
     (rules.tex `Shield (X)`), so it returns 0 in that case.
+
+    `absorb=False` skips the shield check, for callers that have already
+    resolved the shield once for a whole multi-zone attack. Use
+    `deal_attack_damage` rather than passing this by hand.
     """
     if amount <= 0 or not frame.alive:
         return 0
-    if frame.shields > 0:
+    if absorb and frame.shields > 0:
         frame.shields -= 1
-        state.note(f"{frame.spec.name} loses a shield counter instead of damage")
+        state.note(f"{frame.id} loses a shield counter instead of damage")
         return 0
     frame.damage[zone] = frame.damage.get(zone, 0) + amount
-    state.note(f"{frame.spec.name} takes {amount} {zone} damage")
+    state.note(f"{frame.id} takes {amount} {zone} damage")
     # "Frames [...] drop it on damage" -- any damage, from any source.
     from . import objectives as _objectives
 
     _objectives.on_damage(state, frame, source)
     check_destruction(state, frame, killer=source)
     return amount
+
+
+def deal_attack_damage(
+    state: GameState,
+    frame: FrameState,
+    zones: Mapping[str, int],
+    *,
+    source: Optional[FrameState] = None,
+) -> int:
+    """Apply one attack's damage across every zone it landed in.
+
+    A shield counter cancels the **attack**, not the zone: one counter takes
+    the full brunt however many zones landed. That matters most under Guard
+    Break, where a single attack lands in up to three zones at once -- it
+    still costs the defender exactly one counter, not one per zone.
+    """
+    total = sum(amount for amount in zones.values() if amount > 0)
+    if total <= 0 or not frame.alive:
+        return 0
+    if frame.shields > 0:
+        frame.shields -= 1
+        state.note(
+            f"{frame.id} loses a shield counter instead of the whole attack"
+        )
+        return 0
+    dealt = 0
+    for zone in ZONES:
+        amount = zones.get(zone, 0)
+        if amount > 0:
+            dealt += deal_damage(
+                state, frame, zone, amount, source=source, absorb=False
+            )
+    return dealt
 
 
 def damage_token(
@@ -567,10 +640,10 @@ def repair(state: GameState, frame: FrameState, amount: int) -> None:
         frame.damage[worst] -= 1
         left -= 1
     if amount != left:
-        state.note(f"{frame.spec.name} repairs {amount - left}")
+        state.note(f"{frame.id} repairs {amount - left}")
     if frame.deathstrike_until is not None and not frame.is_destroyed:
         frame.deathstrike_until = None
-        state.note(f"{frame.spec.name} is repaired back out of Deathstrike")
+        state.note(f"{frame.id} is repaired back out of Deathstrike")
 
 
 def check_destruction(
@@ -582,7 +655,7 @@ def check_destruction(
     if "deathstrike" in frame.spec.keywords and frame.deathstrike_until is None:
         # Fights on until the end of the *next* turn (rules.tex Frame Keywords).
         frame.deathstrike_until = state.turn + 1
-        state.note(f"{frame.spec.name} would be destroyed -- Deathstrike holds it")
+        state.note(f"{frame.id} would be destroyed -- Deathstrike holds it")
         return False
     if frame.deathstrike_until is not None:
         return False
@@ -609,7 +682,7 @@ def destroy_frame(
                 break
     if scorer is not None and scorer != frame.seat:
         state.kills[scorer] = state.kills.get(scorer, 0) + 1
-    state.note(f"{frame.spec.name} is destroyed")
+    state.note(f"{frame.id} is destroyed")
 
 
 # --------------------------------------------------------------------------

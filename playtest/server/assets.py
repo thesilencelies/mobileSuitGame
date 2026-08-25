@@ -16,11 +16,16 @@ Card art has `images.py`. This module is everything else the board draws:
   `PowerPlant1`), so the board can show an objective's damage state by picking
   the file rather than by drawing a number on a disc.
 
-Both are downscaled into `static/` and **committed**: the phone clones the repo
-and has neither ImageMagick nor the originals, so art that ships must be
+* **Frames** -- the standees. `Frames.csv` points each frame at its artwork in
+  `pictures/foreground/`; `-trim` cuts the mech out of its transparent canvas
+  so the board can stand it on the bottom edge of its tile instead of drawing
+  a counter with three letters on it.
+
+All three are downscaled into `static/` and **committed**: the phone clones the
+repo and has neither ImageMagick nor the originals, so art that ships must be
 tracked (see `.gitignore`).
 
-    python -m playtest.server.assets            # build both
+    python -m playtest.server.assets            # build all three
     python -m playtest.server.assets --force
 """
 
@@ -30,7 +35,7 @@ import re
 import subprocess
 import sys
 from pathlib import Path
-from typing import Iterable, Optional
+from typing import Iterable, Mapping, Optional
 
 from .images import REPO_ROOT, _files, _imagemagick
 
@@ -44,6 +49,14 @@ TERRAIN_DIR = STATIC_DIR / "terrain"
 TOKEN_SOURCE = REPO_ROOT / "tts_assets"
 TOKEN_DIR = STATIC_DIR / "tokens"
 
+#: The frame artwork `Frames.csv` points at (`CardImg`, e.g.
+#: `foreground/ouwa_kuwagata.png`), relative to `pictures/`. These are the
+#: standees: the board draws the mech itself standing on its tile rather than
+#: an abstract counter, which is the difference between "a blue box is at
+#: (7,12)" and "Kuwagata is at (7,12)".
+FRAME_SOURCE = REPO_ROOT / "pictures"
+FRAME_DIR = STATIC_DIR / "frames"
+
 #: Terrain is drawn at most one card per 3 x 4 tiles. A tile is ~52 CSS px at
 #: the client's tactical zoom, so 3 tiles is ~156 px; 240 keeps it sharp at 1.5x
 #: without the bundle getting silly.
@@ -53,6 +66,11 @@ TERRAIN_QUALITY = 78
 #: A token is drawn inside one tile.
 TOKEN_WIDTH = 96
 
+#: A standee is drawn about one and a sixth tiles tall, anchored to the bottom
+#: of its tile. A tile is ~52 CSS px at the tactical zoom, so ~60 px tall; 128
+#: keeps it sharp at 1.5x on a 3x phone and the whole set is under 60 kB.
+FRAME_WIDTH = 128
+
 #: The token art the board uses, by file stem. The numbered ones are hit-point
 #: states, so `Tower4` is an undamaged Tower and `Tower1` is one hit from gone.
 TOKEN_FILES: tuple[str, ...] = (
@@ -61,6 +79,14 @@ TOKEN_FILES: tuple[str, ...] = (
     "Shiny", "Fugitive", "Barricade", "GravityWell",
     "Portal", "Illusion", "Real", "Image",
 )
+
+#: Tokens whose art is not a Tabletop Simulator piece. A summoned drone is a
+#: game piece on this board but has never needed one for TTS, so it borrows the
+#: card's own artwork -- trimmed out of its transparent canvas the same way a
+#: standee is, so it stands on its tile rather than filling it edge to edge.
+TOKEN_EXTRA_SOURCES: Mapping[str, tuple[str, ...]] = {
+    "Swarm": ("pictures/Swarm.png",),
+}
 
 # --------------------------------------------------------------------------
 # Terrain geometry (mirrors terrain_cards.py:create_terrain_card)
@@ -153,6 +179,23 @@ def refresh() -> None:
 
 def token_files() -> list[str]:
     return sorted(p.stem for p in _files(TOKEN_DIR))
+
+
+def frame_files() -> dict[str, Path]:
+    """`{frame name: bundled standee}` for every frame art exists for.
+
+    Keyed by the frame's *name* rather than its art filename, because that is
+    what the client has: a frame in the view carries `name`, and the board
+    turns that straight into `/static/frames/<slug>.png`.
+    """
+    from ..engine.cards import load_frames
+
+    out: dict[str, Path] = {}
+    for name in load_frames():
+        target = FRAME_DIR / f"{slug(name)}.png"
+        if target.is_file():
+            out[name] = target
+    return out
 
 
 # --------------------------------------------------------------------------
@@ -274,8 +317,18 @@ def build_tokens(
     written = skipped = 0
     failed: list[str] = []
     wanted: set[str] = set()
-    for stem in TOKEN_FILES:
-        art = source / f"{stem}.png"
+    jobs: list[tuple[str, Path, bool]] = [
+        (stem, source / f"{stem}.png", False) for stem in TOKEN_FILES
+    ]
+    for stem, candidates in TOKEN_EXTRA_SOURCES.items():
+        for relative in candidates:
+            art = REPO_ROOT / relative
+            if art.is_file():
+                jobs.append((stem, art, True))
+                break
+        else:
+            failed.append(stem)
+    for stem, art, trim in jobs:
         if not art.is_file():
             failed.append(stem)
             continue
@@ -287,8 +340,11 @@ def build_tokens(
             continue
         # PNG8 with a 128-colour palette: these are flat illustrations, and the
         # alpha channel has to survive so the tile shows through behind them.
-        argv = _convert_argv(tool) + [
-            str(art), "-resize", f"{width}x{width}>", "-strip",
+        argv = _convert_argv(tool) + [str(art)]
+        if trim:
+            argv += ["-trim", "+repage"]
+        argv += [
+            "-resize", f"{width}x{width}>", "-strip",
             "-colors", "128", "-define", "png:compression-level=9",
             f"PNG8:{target}",
         ]
@@ -302,6 +358,66 @@ def build_tokens(
             path.unlink()
             removed += 1
     summary = _summary("tokens", out_dir, written, skipped, removed, failed)
+    if not quiet:
+        _report(summary)
+    return summary
+
+
+def build_frames(
+    source: Optional[Path] = None,
+    out_dir: Optional[Path] = None,
+    *,
+    width: int = FRAME_WIDTH,
+    force: bool = False,
+    quiet: bool = False,
+) -> dict[str, object]:
+    """Cut each frame's artwork out of its background and shrink it to a standee.
+
+    `-trim` is what makes this a standee rather than a picture: the source art
+    is a mech on a large transparent canvas, and the board needs the mech's own
+    bounding box so it can stand it on the bottom edge of its tile. The alpha
+    channel has to survive, so this is PNG8 with a palette, like the tokens.
+    """
+    from ..engine.cards import load_frames
+
+    source = Path(source) if source else FRAME_SOURCE
+    out_dir = Path(out_dir) if out_dir else FRAME_DIR
+    tool = _imagemagick()
+    if tool is None:
+        raise RuntimeError("ImageMagick is needed to build the frame standees.")
+    out_dir.mkdir(parents=True, exist_ok=True)
+    written = skipped = 0
+    missing: list[str] = []
+    failed: list[str] = []
+    wanted: set[str] = set()
+    for name, spec in sorted(load_frames().items()):
+        art = source / spec.image if spec.image else None
+        if art is None or not art.is_file():
+            missing.append(name)
+            continue
+        target = out_dir / f"{slug(name)}.png"
+        wanted.add(target.name)
+        if target.is_file() and not force \
+                and target.stat().st_mtime_ns >= art.stat().st_mtime_ns:
+            skipped += 1
+            continue
+        argv = _convert_argv(tool) + [
+            str(art), "-trim", "+repage",
+            "-resize", f"{width}x{width}>", "-strip",
+            "-colors", "96", "-define", "png:compression-level=9",
+            f"PNG8:{target}",
+        ]
+        if _run(argv) and target.is_file():
+            written += 1
+        else:
+            failed.append(name)
+    removed = 0
+    for path in _files(out_dir):
+        if path.name not in wanted:
+            path.unlink()
+            removed += 1
+    summary = _summary("frames", out_dir, written, skipped, removed, failed)
+    summary["missingArt"] = missing
     if not quiet:
         _report(summary)
     return summary
@@ -342,18 +458,22 @@ def main(argv: Optional[list[str]] = None) -> int:   # pragma: no cover - CLI
 
     parser = argparse.ArgumentParser(
         prog="python -m playtest.server.assets",
-        description="Build the bundled terrain and token art for the board.",
+        description="Build the bundled terrain, token and frame art for the board.",
     )
-    parser.add_argument("--what", choices=("all", "terrain", "tokens"), default="all")
+    parser.add_argument(
+        "--what", choices=("all", "terrain", "tokens", "frames"), default="all")
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--terrain-width", type=int, default=TERRAIN_WIDTH)
     parser.add_argument("--token-width", type=int, default=TOKEN_WIDTH)
+    parser.add_argument("--frame-width", type=int, default=FRAME_WIDTH)
     args = parser.parse_args(argv)
     try:
         if args.what in ("all", "terrain"):
             build_terrain(width=args.terrain_width, force=args.force)
         if args.what in ("all", "tokens"):
             build_tokens(width=args.token_width, force=args.force)
+        if args.what in ("all", "frames"):
+            build_frames(width=args.frame_width, force=args.force)
     except (RuntimeError, FileNotFoundError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1

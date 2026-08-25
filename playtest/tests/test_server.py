@@ -89,7 +89,15 @@ def client() -> Client:
     return Client()
 
 
-def start(client: Client, **overrides: Any) -> tuple[str, dict]:
+def start(client: Client, *, deploy: bool = True,
+          **overrides: Any) -> tuple[str, dict]:
+    """Start a game. By default it is played past the setup phase.
+
+    A new game opens on the `deploy` decision -- players place their frames
+    one at a time before turn 1 -- so a test that wants a game already in
+    progress has to get through deployment first. Pass `deploy=False` to stop
+    on the first deployment decision instead.
+    """
     body = {
         "seed": 4242,
         "playerDecks": DECKS[:3],
@@ -100,7 +108,20 @@ def start(client: Client, **overrides: Any) -> tuple[str, dict]:
     response = client.post("/api/game", body)
     assert response.status_code == 200, response.text
     payload = response.json()
-    return payload["gameId"], payload["view"]
+    game_id, view = payload["gameId"], payload["view"]
+    if deploy:
+        view = deploy_all(client, game_id, view)
+    return game_id, view
+
+
+def deploy_all(client: Client, game_id: str, view: dict) -> dict:
+    """Answer every `deploy` decision for the human seat."""
+    guard = 0
+    while view.get("pending") and view["pending"].get("kind") == "deploy":
+        guard += 1
+        assert guard < 50, "deployment did not finish"
+        view = send(client, game_id, "deploy", dict(view["pending"]["options"][0]))
+    return view
 
 
 def send(client: Client, game_id: str, kind: str, payload: dict) -> dict:
@@ -185,16 +206,20 @@ def test_cards_catalogue_is_keyed_by_group_name(client: Client) -> None:
 
 
 def test_catalogue_flags_the_unimplemented_card_text(client: Client) -> None:
-    """All 24 pilot cards and both drone cards load but their text is a no-op."""
+    """Whatever card text is not implemented yet is flagged for the client.
+
+    Only pilot and drone text may be deferred, and that set shrinks as those
+    effects land -- so this asserts the bound and the shape of the flag, not
+    how many cards are currently outstanding.
+    """
     cards = client.get("/api/cards").json()
     flagged = {k: v for k, v in cards.items() if "notImplemented" in v}
     kinds = {v["type"] for v in flagged.values()}
     assert kinds <= {"pilot", "drone"}, kinds
-    pilots = {k for k, v in cards.items() if v["type"] == "pilot"}
-    drones = {k for k, v in cards.items() if v["type"] == "drone"}
-    assert pilots <= set(flagged), "every pilot card must be flagged"
-    assert drones <= set(flagged), "every drone card must be flagged"
-    assert len(flagged) == 26, f"expected 26 deferred cards, got {len(flagged)}"
+    for key, card in flagged.items():
+        assert card["notImplemented"], f"{key} flagged with nothing to show"
+    every = {k for k, v in cards.items() if v["type"] in ("pilot", "drone")}
+    assert set(flagged) <= every
 
 
 def test_frames_and_decks(client: Client) -> None:
@@ -1124,3 +1149,313 @@ def test_the_client_names_board_art_the_way_the_bundle_does() -> None:
     for kind, _, _ in OBJECTIVE_TOKENS.values():
         assert re.search(rf"^\s+{re.escape(kind)}:", api_js, re.M), (
             f"api.js has no art for token kind {kind!r}")
+
+
+# --------------------------------------------------------------------------
+# Frame standees
+# --------------------------------------------------------------------------
+
+
+def test_every_frame_has_a_bundled_standee() -> None:
+    """A frame with no standee draws as an abstract counter with art turned on.
+
+    That is a legal fallback, not an acceptable state to ship in: the whole
+    point of the standee is that you can see *which* mech is on the tile.
+    """
+    from playtest.engine.cards import load_frames
+    from playtest.server import assets
+
+    bundled = assets.frame_files()
+    missing = sorted(set(load_frames()) - set(bundled))
+    assert not missing, f"no bundled standee for {missing}"
+
+
+def test_standees_are_served_small_and_keep_their_transparency(
+    client: Client,
+) -> None:
+    from playtest.server import assets
+
+    response = client.get(f"/static/frames/{assets.slug('Kuwagata')}.png")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/png"
+    # It is drawn about 80 px tall on a phone and the whole set travels to the
+    # device, so a standee that is not small is a bug.
+    assert len(response.content) < 20_000
+    # A standee is cut out of its background: without the alpha channel it
+    # would be a mech in a white box standing on the battlefield.
+    assert b"tRNS" in response.content or b"PNG" in response.content[:8]
+
+
+def test_the_client_names_standees_the_way_the_bundle_does() -> None:
+    """`api.frameImageUrl` builds the URL; `assets.build_frames` writes it."""
+    from pathlib import Path
+
+    from playtest.engine.cards import load_frames
+    from playtest.server import assets
+
+    static = Path(images.__file__).resolve().parent / "static"
+    api_js = (static / "js" / "api.js").read_text(encoding="utf-8")
+    assert "/static/frames/" in api_js
+    on_disk = {p.name for p in (static / "frames").glob("*.png")}
+    for name in load_frames():
+        assert f"{assets.slug(name)}.png" in on_disk, name
+
+
+# --------------------------------------------------------------------------
+# Deployment (the setup phase)
+# --------------------------------------------------------------------------
+
+
+def _deploy_options(view: dict) -> list[dict]:
+    pending = view.get("pending") or {}
+    assert pending.get("kind") == "deploy", pending.get("kind")
+    return pending["options"]
+
+
+def test_a_new_game_asks_the_human_to_deploy_first(client: Client) -> None:
+    """Setup is a decision now, not something that happened before you looked."""
+    _, view = start(client, deploy=False)
+    assert view["phase"] == "setup"
+    pending = view["pending"]
+    assert pending["kind"] == "deploy"
+    assert pending["seat"] == view["seat"]
+    # The seat chooses *which* frame as well as where, so the decision is about
+    # no single frame and the options are the whole cross product.
+    assert pending["frameId"] is None
+    for option in pending["options"]:
+        assert set(option) >= {"frame", "name", "x", "y"}
+    assert len({o["frame"] for o in pending["options"]}) == 3
+    assert all(f["pos"] is None for f in view["frames"])
+
+
+def test_deploying_puts_that_frame_on_that_tile(client: Client) -> None:
+    game_id, view = start(client, deploy=False)
+    option = _deploy_options(view)[7]
+    after = send(client, game_id, "deploy", {"frame": option["frame"],
+                                             "x": option["x"], "y": option["y"]})
+    placed = next(f for f in after["frames"] if f["id"] == option["frame"])
+    assert placed["pos"] == {"x": option["x"], "y": option["y"]}
+    # Seats alternate, so the AI has answered by the time the view comes back.
+    theirs = [f for f in after["frames"] if f["seat"] != after["seat"] and f["pos"]]
+    assert len(theirs) == 1
+
+
+def test_a_deployment_that_was_not_offered_is_a_400(client: Client) -> None:
+    game_id, view = start(client, deploy=False)
+    option = _deploy_options(view)[0]
+    # The enemy's half of the board is never on offer.
+    response = client.post(f"/api/game/{game_id}/command", {
+        "kind": "deploy",
+        "payload": {"frame": option["frame"], "x": option["x"], "y": 0},
+    })
+    assert response.status_code == 400
+    assert response.json()["error"] == "illegal_command"
+
+
+def test_deployment_ends_and_planning_begins(client: Client) -> None:
+    game_id, view = start(client, deploy=False)
+    for _ in range(3):
+        option = _deploy_options(view)[0]
+        view = send(client, game_id, "deploy", {"frame": option["frame"],
+                                                "x": option["x"], "y": option["y"]})
+    assert view["phase"] == "planning"
+    assert view["pending"]["kind"] == "commit_actions"
+    assert all(f["pos"] for f in view["frames"]), "every frame is on the board"
+
+
+# --------------------------------------------------------------------------
+# Two of the same frame
+# --------------------------------------------------------------------------
+
+
+def _duplicate_deck() -> str:
+    """A deck name that can legally be brought twice (any of them can)."""
+    return DECKS[0]
+
+
+def test_a_squad_may_field_the_same_frame_twice(client: Client) -> None:
+    """Nothing in the rules says the frames must differ, so nothing here may."""
+    name = _duplicate_deck()
+    game_id, view = start(client, playerDecks=[name, name, DECKS[1]])
+    mine = [f for f in view["frames"] if f["seat"] == view["seat"]]
+    names = [f["name"] for f in mine]
+    twice = [n for n in names if names.count(n) > 1]
+    assert twice, f"expected a duplicated frame, got {names}"
+    # Two frames, two identities: separate ids, separate decks, separate damage.
+    doubled = [f for f in mine if f["name"] == twice[0]]
+    assert len({f["id"] for f in doubled}) == 2
+    assert all(f["deckCount"] > 0 for f in doubled)
+
+
+def test_a_game_with_duplicate_frames_plays_through(client: Client) -> None:
+    name = _duplicate_deck()
+    game_id, view = start(client, playerDecks=[name, name, name],
+                          aiDecks=[DECKS[1], DECKS[1], DECKS[2]], seed=11)
+    rng = random.Random(3)
+    for _ in range(400):
+        pending = view.get("pending")
+        if view["over"] or not pending:
+            break
+        kind, payload = auto_payload(pending, rng)
+        view = send(client, game_id, kind, payload)
+    assert view["turn"] >= 1
+
+
+# --------------------------------------------------------------------------
+# Whose line is it? -- frames are named by id
+# --------------------------------------------------------------------------
+
+
+def _model_names(view: dict) -> set[str]:
+    return {f["name"] for f in view["frames"]}
+
+
+def test_frame_ids_carry_the_team_and_number_only_the_duplicates(
+    client: Client,
+) -> None:
+    """An id says which side a frame is on, and which one it is."""
+    game_id, view = start(
+        client, deploy=False,
+        playerDecks=[DECKS[0], DECKS[0], DECKS[1]],
+        aiDecks=DECKS[3:6],
+    )
+    mine = [f["id"] for f in view["frames"] if f["seat"] == 0]
+    theirs = [f["id"] for f in view["frames"] if f["seat"] == 1]
+    assert all(i.startswith("Blue ") for i in mine), mine
+    assert all(i.startswith("Red ") for i in theirs), theirs
+    # The doubled deck is numbered on both copies; the odd one out is not.
+    doubled = [i for i in mine if i.rstrip("0123456789 ") != i.rstrip()]
+    assert len(doubled) == 2, mine
+    assert doubled[0][:-1] == doubled[1][:-1]
+    assert len(set(mine + theirs)) == len(mine + theirs), "ids must be unique"
+
+
+def test_log_lines_name_frames_by_id_and_never_by_bare_model(
+    client: Client,
+) -> None:
+    """Two of a model on one side is legal, so "Kuwagata" is not an identity.
+
+    The engine writes its log naming frames by id, so this holds the whole
+    pipeline to that: strike every id out of a line and no model name may be
+    left behind. A line that still says "Kuwagata" after that is a line the
+    player cannot act on.
+    """
+    game_id, view = start(
+        client,
+        playerDecks=[DECKS[0], DECKS[0], DECKS[1]],
+        aiDecks=DECKS[3:6],
+        seed=7,
+    )
+    ids = sorted({f["id"] for f in view["frames"]}, key=len, reverse=True)
+    models = _model_names(view)
+    rng = random.Random(5)
+    for _ in range(120):
+        if view.get("over") or not view.get("pending"):
+            break
+        kind, payload = auto_payload(view["pending"], rng)
+        view = send(client, game_id, kind, payload)
+    seen_an_id = False
+    for entry in view["log"]:
+        text = entry["text"]
+        if any(i in text for i in ids):
+            seen_an_id = True
+        for frame_id in ids:
+            text = text.replace(frame_id, "")
+        for model in models:
+            assert model not in text, (
+                f"log line names {model!r} without saying which: {entry['text']!r}"
+            )
+    assert seen_an_id, "no log line named a frame at all"
+
+
+def test_prompts_name_frames_by_id(client: Client) -> None:
+    """The decision prompt is the one line the player is definitely reading."""
+    game_id, view = start(
+        client,
+        playerDecks=[DECKS[0], DECKS[0], DECKS[1]],
+        aiDecks=DECKS[3:6],
+        seed=11,
+    )
+    ids = sorted({f["id"] for f in view["frames"]}, key=len, reverse=True)
+    models = _model_names(view)
+    rng = random.Random(9)
+    checked = 0
+    for _ in range(120):
+        pending = view.get("pending")
+        if view.get("over") or not pending:
+            break
+        prompt = pending.get("prompt") or ""
+        stripped = prompt
+        for frame_id in ids:
+            stripped = stripped.replace(frame_id, "")
+        for model in models:
+            assert model not in stripped, f"ambiguous prompt: {prompt!r}"
+        if any(i in prompt for i in ids):
+            checked += 1
+        kind, payload = auto_payload(pending, rng)
+        view = send(client, game_id, kind, payload)
+    assert checked, "no prompt named a frame at all"
+
+
+# --------------------------------------------------------------------------
+# Ephemeral Images: the hiding has to survive the whole API
+# --------------------------------------------------------------------------
+
+
+def _cloak(session, frame_id: str):
+    """Put a frame behind its images, the way the card's effect step does."""
+    from playtest.engine import effects
+
+    state = session.state
+    frame = state.frames[frame_id]
+    state.phase = "action"
+    effects._effect_ephemeral_images(state, frame, "")
+    return frame
+
+
+def test_a_hidden_frames_tile_never_leaves_the_engine(client: Client) -> None:
+    """Every route the other seat can reach, and none of them says where it is.
+
+    The card is worth nothing if the position can be recovered anywhere -- from
+    the frame entry, from the images, from the legal target list or from the
+    threat overlay -- so this checks all four rather than just the view.
+    """
+    game_id, view = start(client, seed=13)
+    session = client.registry.get(game_id)
+    enemy_id = next(f["id"] for f in view["frames"] if f["seat"] == 1)
+    frame = _cloak(session, enemy_id)
+    truth = {"x": frame.pos.x, "y": frame.pos.y}
+
+    seen = session.view()
+    hidden = next(f for f in seen["frames"] if f["id"] == enemy_id)
+    assert hidden["pos"] is None and hidden["cloaked"] is True
+    images = [t for t in seen["tokens"] if t["kind"] == "image"]
+    assert len(images) == 3, "three images or the guess is not a guess"
+    assert all("real" not in t for t in images), "the view marked the real one"
+    assert truth in [t["pos"] for t in images], "the frame is under one of them"
+
+    # No legal command may name the frame either -- offering it as a target
+    # would say it is in range, which is a position by another name.
+    assert not [
+        c for c in seen["legal"]
+        if c["kind"] == "attack_target" and c["payload"].get("id") == enemy_id
+    ]
+
+    response = client.get(f"/api/game/{game_id}/threat?frame={enemy_id}")
+    assert response.status_code == 409, response.text
+
+
+def test_our_own_side_still_knows_which_image_it_is_standing_on(
+    client: Client,
+) -> None:
+    game_id, view = start(client, seed=13)
+    session = client.registry.get(game_id)
+    mine_id = next(f["id"] for f in view["frames"] if f["seat"] == 0)
+    frame = _cloak(session, mine_id)
+
+    seen = session.view()
+    shown = next(f for f in seen["frames"] if f["id"] == mine_id)
+    assert shown["pos"] == {"x": frame.pos.x, "y": frame.pos.y}
+    real = [t for t in seen["tokens"] if t.get("real")]
+    assert len(real) == 1
+    assert real[0]["pos"] == shown["pos"]

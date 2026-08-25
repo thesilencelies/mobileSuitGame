@@ -23,7 +23,7 @@ from .state import (
     ObjectiveState,
     TokenState,
 )
-from .types import Pos, Team
+from .types import Pos, Team, team_name
 
 #: Objective -> (token kind, token count, hp each). Objectives with no token
 #: are absent. Used by `create_objective` so setup does not have to know.
@@ -214,7 +214,7 @@ def latch_objectives(state: GameState) -> None:
         seat = scorer(state, objective)
         if seat is not None:
             objective.latched = seat
-            state.note(f"{objective.name} is scored by seat {seat}")
+            state.note(f"{objective.name} is scored by {team_name(seat)}")
 
 
 # --------------------------------------------------------------------------
@@ -241,7 +241,7 @@ def on_move(state: GameState, frame: FrameState, old_pos: Optional[Pos]) -> None
             continue
         if token.kind == "shiny" and token.pos == frame.pos:
             token.carrier = frame.id
-            state.note(f"{frame.spec.name} picks up the Shiny Thing")
+            state.note(f"{frame.id} picks up the Shiny Thing")
         elif (
             token.kind == "fugitive"
             and token.owner == frame.seat
@@ -249,7 +249,7 @@ def on_move(state: GameState, frame: FrameState, old_pos: Optional[Pos]) -> None
             and state.board.distance(token.pos, frame.pos) <= 1
         ):
             token.carrier = frame.id
-            state.note(f"{frame.spec.name} takes the fugitive in tow")
+            state.note(f"{frame.id} takes the fugitive in tow")
     for token in _carried_tokens(state, frame.id):
         token.pos = frame.pos
     latch_objectives(state)
@@ -264,7 +264,7 @@ def on_damage(
             continue
         token.carrier = None
         token.pos = _drop_tile(state, defender, attacker)
-        state.note(f"{defender.spec.name} drops the Shiny Thing")
+        state.note(f"{defender.id} drops the Shiny Thing")
 
 
 def _drop_tile(

@@ -492,6 +492,7 @@ class HeuristicAgent(Agent):
             "attack_target": self._score_attack,
             "choose_block": self._score_block,
             "echo_card": self._score_echo,
+            "deploy": self._score_deploy,
         }.get(str(kind))
         if scorer is None:
             return options[0]
@@ -593,3 +594,31 @@ class HeuristicAgent(Agent):
 
     def _score_echo(self, cmd, view, pending) -> float:
         return -1.0 if cmd.payload.get("decline") else 1.0
+
+    def _score_deploy(self, cmd, view, pending) -> float:
+        """Spread the squad along its edge and lean towards the objectives.
+
+        Without this the fallback takes `options[0]` and files the whole squad
+        into one corner, which is not a game. It is deliberately shallow -- the
+        real AI does this properly; this is only what stands in when the AI
+        package is missing.
+        """
+        try:
+            x = int(cmd.payload["x"])
+            y = int(cmd.payload["y"])
+        except (KeyError, TypeError, ValueError):
+            return 0.0
+        score = 0.0
+        placed = [f["pos"] for f in view["frames"]
+                  if f["seat"] == view["seat"] and f.get("pos")]
+        if placed:
+            # Elbow room: two frames on adjacent tiles share every threat.
+            score += min(self._distance({"x": x, "y": y}, p) for p in placed) * 0.6
+        weight = float(self.params.get("objective_weight", 1.0) or 1.0)
+        for obj in view["board"].get("objectives", []):
+            tiles = obj.get("tiles") or []
+            if not tiles:
+                continue
+            near = min(max(abs(tx - x), abs(ty - y)) for tx, ty in tiles)
+            score += weight * 3.0 / (1 + near)
+        return score

@@ -6,7 +6,7 @@ import { api } from './api.js';
 import * as C from './cards.js';
 import { BoardView, abbrev } from './board.js';
 import { ParamForm } from './params.js';
-import { renderDecision } from './decisions.js';
+import { prettyKind, renderDecision } from './decisions.js';
 
 const $ = (id) => document.getElementById(id);
 const STORE_KEY = 'netframe.gameId';
@@ -50,6 +50,13 @@ const app = {
   speed: 'steady',
   autoFollow: true,
   replay: { queue: [], timer: null, base: null },
+  // A tap on the board proposes; a second tap on the same thing commits. See
+  // `proposeTap` -- movement cannot be taken back and a phone makes a misfire
+  // far too easy.
+  confirm: null,
+  // Which frame the player is deploying next. The engine offers every legal
+  // (frame, tile) pair at once, so the client has to hold the frame half.
+  deployFrame: null,
 };
 
 function loadPrefs() {
@@ -192,6 +199,11 @@ function buildSpeedRow() {
 
 // ---------------------------------------------------------------- setup
 
+// Fielding two of the same frame is legal -- one deck per frame, one faction
+// per squad, and nothing anywhere says the frames must differ -- but the
+// picker used to be a toggle, so tapping Kuwagata twice *removed* it. Now a
+// tap adds a copy and the squad row below holds the slots, each removable, so
+// two Kuwagatas is three taps and looks like what it is.
 function buildSetupScreen() {
   const legal = app.decks;
   const pick = (host, side) => {
@@ -201,18 +213,20 @@ function buildSetupScreen() {
       chip.type = 'button';
       chip.className = 'deck-chip';
       chip.innerHTML = `<b>${C.escapeHtml(deck.frame || deck.label)}</b>
-        <small>${C.escapeHtml(deck.faction || '')} · ${deck.size} cards</small>`;
+        <small>${C.escapeHtml(deck.faction || '')} · ${deck.size} cards</small>
+        <span class="chip-count"></span>`;
       if (!deck.legal) {
         chip.dataset.illegal = '1';
         chip.title = deck.errors.join('\n');
       }
       chip.addEventListener('click', () => {
         const chosen = app.selection[side];
-        const at = chosen.indexOf(deck.name);
-        if (at >= 0) chosen.splice(at, 1);
-        else chosen.push(deck.name);
         const limit = Number($('frames-per-side').value) || 3;
-        while (chosen.length > limit) chosen.shift();
+        if (chosen.length >= limit) {
+          toast(`That is ${limit} frames already — remove one first`);
+          return;
+        }
+        chosen.push(deck.name);
         syncDeckChips();
       });
       host.appendChild(chip);
@@ -245,16 +259,76 @@ function buildSetupScreen() {
 
 function syncDeckChips() {
   const limit = Number($('frames-per-side').value) || 3;
-  for (const [side, host] of [['player', $('player-decks')], ['ai', $('ai-decks')]]) {
+  for (const [side, host, slots] of [
+    ['player', $('player-decks'), $('player-squad')],
+    ['ai', $('ai-decks'), $('ai-squad')]]) {
     const chosen = app.selection[side];
+    while (chosen.length > limit) chosen.pop();
+    const counts = new Map();
+    for (const name of chosen) counts.set(name, (counts.get(name) || 0) + 1);
     [...host.children].forEach((chip, i) => {
       const deck = app.decks[i];
-      if (chosen.includes(deck.name)) chip.dataset.on = '1';
+      const count = counts.get(deck.name) || 0;
+      if (count) chip.dataset.on = '1';
       else delete chip.dataset.on;
+      if (chosen.length >= limit && !count) chip.dataset.full = '1';
+      else delete chip.dataset.full;
+      const badge = chip.querySelector('.chip-count');
+      if (badge) badge.textContent = count > 1 ? `×${count}` : '';
     });
+    renderSquadSlots(slots, side, limit);
   }
   $('setup-squad-hint').textContent =
-    `Pick ${limit}. Chosen ${app.selection.player.length}/${limit}.`;
+    `Pick ${limit} — the same frame more than once is allowed. `
+    + `Chosen ${app.selection.player.length}/${limit}.`;
+}
+
+/** The chosen squad, one removable slot per frame, in build order. */
+function renderSquadSlots(host, side, limit) {
+  if (!host) return;
+  host.innerHTML = '';
+  const chosen = app.selection[side];
+  const seen = new Map();
+  for (let i = 0; i < limit; i++) {
+    const name = chosen[i];
+    const slot = document.createElement('button');
+    slot.type = 'button';
+    slot.className = 'squad-slot';
+    if (!name) {
+      slot.dataset.empty = '1';
+      slot.innerHTML = `<span class="ss-name">empty</span>`;
+      host.appendChild(slot);
+      continue;
+    }
+    const deck = app.decks.find((d) => d.name === name);
+    const frameName = (deck && deck.frame) || name;
+    const copies = chosen.filter((n) => n === name).length;
+    const index = (seen.get(name) || 0) + 1;
+    seen.set(name, index);
+    const img = document.createElement('img');
+    img.src = api.frameImageUrl(frameName);
+    img.alt = '';
+    img.addEventListener('error', () => img.remove(), { once: true });
+    slot.appendChild(img);
+    const label = document.createElement('span');
+    label.className = 'ss-name';
+    // Say which copy this is here too, so the squad you built reads the same
+    // way the battle will.
+    label.textContent = copies > 1
+      ? `${frameName} ${['I', 'II', 'III', 'IV', 'V'][index - 1] || index}`
+      : frameName;
+    slot.appendChild(label);
+    const drop = document.createElement('span');
+    drop.className = 'ss-drop';
+    drop.textContent = '×';
+    slot.appendChild(drop);
+    slot.title = 'Remove from the squad';
+    slot.addEventListener('click', () => {
+      chosen.splice(i, 1);
+      syncDeckChips();
+    });
+    host.appendChild(slot);
+  }
 }
 
 async function startGame() {
@@ -424,6 +498,10 @@ function finishReplay() {
 
 function setView(view, opts = {}) {
   app.view = view;
+  // Rebuilt from every view. The engine already names each frame uniquely --
+  // "Blue Kuwagata 2" -- so this only indexes those names, for abbreviating
+  // them on a board marker and for picking them out of a log line.
+  C.setRoster(view.frames || []);
   const replaying = !!opts.replaying;
   const pending = view.pending;
   const sig = pending
@@ -433,11 +511,16 @@ function setView(view, opts = {}) {
     app.lastPendingSig = sig;
     app.commitSelection = [];
     app.orderPick = [];
+    // A proposed-but-unconfirmed tap belongs to the decision it was made
+    // against. The decision has moved on, so the proposal is void.
+    app.confirm = null;
     if (pending && !pending.waiting && pending.seat === view.seat) {
       if (pending.kind === 'commit_actions') showView('plan');
-      else if (['move', 'attack_target', 'choose_block'].includes(pending.kind)) showView('board');
+      else if (['move', 'attack_target', 'choose_block', 'deploy']
+        .includes(pending.kind)) showView('board');
       $('sheet').dataset.open = '1';
     }
+    if (pending && pending.kind === 'deploy') syncDeployChoice(pending);
     // Select the frame the decision is about so the board picks it out, but
     // do *not* open the readout panel: it would then be open almost always,
     // and the point of moving it off the board was to keep the board visible.
@@ -549,8 +632,23 @@ function renderHud() {
   const pending = view.pending;
   $('hud-prompt').textContent = view.over ? 'Game over'
     : (pending && !pending.waiting && pending.seat === view.seat
-      ? pending.prompt
+      ? headlinePrompt(pending)
       : (pending ? 'The AI is deciding…' : 'Resolving…'));
+}
+
+/** The one-line "what now?" in the header, built from structure.
+ *
+ *  The engine's `prompt` is prose and names frames by model, which stops being
+ *  an identity the moment two of them are on the table. So the headline is
+ *  composed from the decision's own fields -- which frame, which kind -- and
+ *  the engine's sentence is left to the sheet, where it reads as the
+ *  explanation it is rather than as the label.
+ */
+function headlinePrompt(pending) {
+  const id = pending.kind === 'deploy' ? app.deployFrame : pending.frameId;
+  const frame = (app.view.frames || []).find((f) => f.id === id);
+  if (!frame) return pending.prompt;
+  return `${C.frameLabel(frame.id, frame.name)} · ${prettyKind(pending.kind)}`;
 }
 
 function renderFrameStrip() {
@@ -573,7 +671,7 @@ function renderFrameStrip() {
     }).join('');
     const statuses = Object.entries(f.statuses || {})
       .filter(([, n]) => n > 0).map(([k, n]) => `${k.slice(0, 4)}${n}`);
-    chip.innerHTML = `<div class="fname">${C.escapeHtml(f.name)}</div>
+    chip.innerHTML = `<div class="fname">${C.escapeHtml(C.frameLabel(f.id, f.name))}</div>
       <div class="fbars">${bars}</div>
       <div class="fmeta"><span>mv ${f.movement}</span>
         <span>${(f.committed || []).length}c</span>
@@ -642,12 +740,18 @@ function renderFramePanel() {
   const statuses = Object.entries(frame.statuses || {}).filter(([, n]) => n > 0)
     .map(([k, n]) => `${k} ${n}`).join(', ');
   main.innerHTML = `
-    <div class="fp-name">${C.escapeHtml(frame.name)}
+    <div class="fp-name">${C.escapeHtml(C.frameLabel(frame.id, frame.name))}
       <small>${C.escapeHtml(frame.faction || '')} ·
         ${frame.seat === app.view.seat ? 'yours' : 'enemy'}${frame.alive ? '' : ' · destroyed'}</small>
     </div>
     ${spec && spec.ability
       ? `<div class="fp-ability">${C.escapeHtml(C.cleanText(spec.ability))}</div>` : ''}
+    ${frame.cloaked ? `<div class="fp-ability">${C.escapeHtml(
+      frame.seat === app.view.seat
+        ? 'Hiding among its images. The enemy is shown three of them and is '
+          + 'not told which one you are standing on.'
+        : 'Hiding among its images. Its tile is not known — attack one of the '
+          + 'images instead. Two of the three are decoys.')}</div>` : ''}
     <div class="zonebar">${ZONES.map((z) => {
       const armour = frame.armour[z] || 0;
       const dmg = frame.damage[z] || 0;
@@ -679,12 +783,22 @@ function renderFramePanel() {
   host.appendChild(close);
 }
 
-/** The cards standing in front of a frame, as a scrolling strip of art. */
+/** The cards standing in front of a frame, as a scrolling strip of art.
+ *
+ *  `aside` is the *persistence* pile -- a card that stays in play for its
+ *  duration and neither resolves again nor blocks. An echo is something else
+ *  entirely: a flag on a committed card, lent by a dead ally, which can only
+ *  block. Tag them apart.
+ */
 function cardRow(frame, { showAside = true } = {}) {
   const rows = [];
-  for (const card of frame.committed || []) rows.push([card, 'face down']);
-  for (const card of frame.onField || []) rows.push([card, 'on field']);
-  if (showAside) for (const card of frame.aside || []) rows.push([card, 'echo']);
+  for (const card of frame.committed || []) {
+    rows.push([card, card.echo ? 'echo — blocks only' : 'face down']);
+  }
+  for (const card of frame.onField || []) {
+    rows.push([card, card.echo ? 'echo — blocks only' : 'on field']);
+  }
+  if (showAside) for (const card of frame.aside || []) rows.push([card, 'persisting']);
   if (!rows.length) return null;
   const strip = document.createElement('div');
   strip.className = 'cardrow';
@@ -739,7 +853,7 @@ function renderActingCard() {
   const text = document.createElement('div');
   text.className = 'ac-text';
   text.innerHTML = `<div class="ac-who">${res.mine ? 'your' : 'enemy'} frame acting</div>
-    <b>${C.escapeHtml(res.frameName)}</b>
+    <b>${C.escapeHtml(C.frameLabel(res.frameId, res.frameName))}</b>
     <small>${C.escapeHtml(res.key ? C.displayName(res.key) : 'face down')}${
       bits.length ? ` · ${C.escapeHtml(bits.join(' · '))}` : ''}</small>`;
   host.appendChild(text);
@@ -782,7 +896,7 @@ function renderTableau() {
 
     const head = document.createElement('div');
     head.className = 'tab-head';
-    head.innerHTML = `<b>${C.escapeHtml(frame.name)}</b>
+    head.innerHTML = `<b>${C.escapeHtml(C.frameLabel(frame.id, frame.name))}</b>
       <small>${ZONES.map((z) => `${z[0]} ${frame.damage[z]}/${frame.armour[z]}`).join(' · ')}</small>
       <span class="tab-counts">${(frame.committed || []).length} face down ·
         ${(frame.onField || []).length} on field<br>deck ${frame.deckCount} ·
@@ -792,20 +906,37 @@ function renderTableau() {
 
     if (defence) box.appendChild(blockSummary(defence, frame));
 
+    // Four different things can be lying in front of a frame and only two of
+    // them can block. The engine keeps them apart -- `aside` is persistence,
+    // an echo is a flag on a committed card -- so this does too, because the
+    // client used to call the persistence pile "Echoes of the fallen", which
+    // is a different rule that does the opposite thing.
+    const isEcho = (c) => !!c.echo;
     const groups = [
-      ['Face down', frame.committed || []],
-      ['On the field — resolved, can still block', frame.onField || []],
-      ['Echoes of the fallen', frame.aside || []],
+      ['Face down', (frame.committed || []).filter((c) => !isEcho(c)), ''],
+      ['On the field — resolved, can still block',
+        (frame.onField || []).filter((c) => !isEcho(c)), ''],
+      ['Echoes of the fallen — can only block',
+        [...(frame.committed || []), ...(frame.onField || [])].filter(isEcho),
+        C.ECHO_HELP],
+      ['Set aside — persisting', frame.aside || [], C.PERSISTENCE_HELP],
     ];
     let any = false;
-    for (const [label, cards] of groups) {
+    for (const [label, cards, help] of groups) {
       if (!cards.length) continue;
       any = true;
       const group = document.createElement('div');
       group.className = 'tab-group';
       const h = document.createElement('h4');
       h.textContent = `${label} (${cards.length})`;
+      if (help) h.title = help;
       group.appendChild(h);
+      if (help) {
+        const explain = document.createElement('p');
+        explain.className = 'tab-help';
+        explain.textContent = help;
+        group.appendChild(explain);
+      }
       const strip = document.createElement('div');
       strip.className = 'cardrow';
       for (const card of cards) {
@@ -858,8 +989,136 @@ function blockSummary(defence, frame) {
     cell.title = 'Any of these might block any zone';
     bar.appendChild(cell);
   }
-  if (defence.keepsNextBlock) bar.title = `${frame.name} keeps its next block`;
+  if (defence.keepsNextBlock) {
+    bar.title = `${C.frameLabel(frame.id, frame.name)} keeps its next block`;
+  }
   return bar;
+}
+
+// ---------------------------------------------------------------- confirm a tap
+//
+// The author's note, after playing on a real phone: "movement needs
+// confirmation -- misclicks are too easy". They are, and a move cannot be
+// taken back: the frame is somewhere else now and the card that carried it has
+// resolved. So every board tap that spends something irreversible is two taps
+// -- the first proposes a destination, target or deployment and shows it, the
+// second, on the same thing, commits it.
+//
+// Taps that only *look* at something (selecting a frame, reading a tile) are
+// still one tap: making those cost two would be the same disease.
+
+function proposalKey(kind, payload) {
+  if (kind === 'move') return `move:${payload.x},${payload.y}`;
+  if (kind === 'deploy') return `deploy:${payload.frame}:${payload.x},${payload.y}`;
+  if (kind === 'attack_target') return `attack:${payload.kind}:${payload.id}`;
+  return `${kind}:${JSON.stringify(payload)}`;
+}
+
+// ------------------------------------------------------ effect_choice shapes
+//
+// One decision kind carries four different questions. Which one it is can be
+// read straight off the options, and the board only wants two of them: a list
+// of tiles to stand on, and a list of things to shoot at.
+
+function effectTileOptions(pending) {
+  if (!pending || pending.kind !== 'effect_choice') return [];
+  const options = pending.options || [];
+  const tiles = options.every((o) => 'x' in o && 'y' in o && !('frame' in o));
+  return options.length && tiles ? options : [];
+}
+
+function effectTargetOptions(pending) {
+  if (!pending || pending.kind !== 'effect_choice') return [];
+  const options = pending.options || [];
+  const targets = options.every(
+    (o) => ('frame' in o && !('x' in o)) || 'token' in o);
+  return options.length && targets ? options : [];
+}
+
+/** Propose it, or -- if this exact thing is already proposed -- do it. */
+function tapToConfirm(kind, payload, { label, detail }) {
+  const key = proposalKey(kind, payload);
+  if (app.confirm && app.confirm.key === key) {
+    const proposal = app.confirm;
+    app.confirm = null;
+    send(proposal.kind, proposal.payload);
+    return;
+  }
+  app.confirm = { kind, key, payload, label, detail };
+  app.board.setOverlays({ ...app.board.overlays, confirm: confirmTile() });
+  renderSheet();
+  refreshOverlays();
+  toast(`${label} — tap again to confirm`);
+}
+
+/** Where on the board the pending proposal is, for the board's own marker. */
+function confirmTile() {
+  const proposal = app.confirm;
+  if (!proposal) return null;
+  if (typeof proposal.payload.x === 'number') {
+    return { x: proposal.payload.x, y: proposal.payload.y };
+  }
+  const id = proposal.payload.id || proposal.payload.frame || proposal.payload.token;
+  const frame = (app.view.frames || []).find((f) => f.id === id);
+  if (frame && frame.pos) return { x: frame.pos.x, y: frame.pos.y };
+  const token = (app.view.tokens || []).find((t) => t.id === id);
+  if (token && token.pos) return { x: token.pos.x, y: token.pos.y };
+  return null;
+}
+
+function commitProposal() {
+  const proposal = app.confirm;
+  if (!proposal) return;
+  app.confirm = null;
+  send(proposal.kind, proposal.payload);
+}
+
+function cancelProposal() {
+  app.confirm = null;
+  renderSheet();
+  refreshOverlays();
+}
+
+// ---------------------------------------------------------------- deployment
+//
+// The engine offers every legal (frame, tile) pair in one decision, so the
+// player is choosing two things at once: which frame to put down and where.
+// The sheet holds the first choice and the board the second.
+
+/** The frames still waiting to be deployed, in the engine's own option list. */
+function deployableFrames(pending) {
+  const seen = [];
+  for (const option of pending.options || []) {
+    if (option.frame && !seen.some((f) => f.id === option.frame)) {
+      seen.push({ id: option.frame, name: option.name || option.frame });
+    }
+  }
+  return seen;
+}
+
+/** Keep the chosen frame on a frame the engine will still accept. */
+function syncDeployChoice(pending) {
+  const frames = deployableFrames(pending);
+  if (!frames.length) { app.deployFrame = null; return; }
+  if (!frames.some((f) => f.id === app.deployFrame)) {
+    app.deployFrame = frames[0].id;
+  }
+  app.selectedFrame = app.deployFrame;
+}
+
+function setDeployFrame(frameId) {
+  app.deployFrame = frameId;
+  app.selectedFrame = frameId;
+  app.confirm = null;
+  app.board.setSelected(frameId);
+  renderFrameStrip();
+  renderSheet();
+  refreshOverlays();
+}
+
+/** The deploy options for the frame currently chosen. */
+function deployOptions(pending) {
+  return (pending.options || []).filter((o) => o.frame === app.deployFrame);
 }
 
 // ---------------------------------------------------------------- board glue
@@ -869,13 +1128,50 @@ function onTapFrame(frame) {
   if (pending && !pending.waiting && pending.seat === app.view.seat) {
     if (pending.kind === 'attack_target') {
       const option = (pending.options || []).find((o) => o.id === frame.id);
-      if (option) { send('attack_target', { kind: option.kind, id: option.id }); return; }
+      if (option) {
+        tapToConfirm('attack_target', { kind: option.kind, id: option.id }, {
+          label: `Attack ${C.frameLabel(frame.id, frame.name)}`,
+          detail: attackDetail(option),
+        });
+        return;
+      }
     }
     if (pending.kind === 'move') {
       // Tapping an occupied tile during a move is a selection, not a move.
     }
+    const option = effectTargetOptions(pending).find((o) => o.frame === frame.id);
+    if (option) {
+      tapToConfirm('effect_choice', { frame: option.frame }, {
+        label: `Target ${C.frameLabel(frame.id, frame.name)}`,
+        detail: pending.prompt || 'card effect',
+      });
+      return;
+    }
   }
   selectFrame(frame.id);
+}
+
+/** What a token is called on screen. Images and drones belong to a frame. */
+function tokenLabel(token) {
+  if (!token) return 'it';
+  if (token.kind === 'image') {
+    return token.frame
+      ? `one of ${C.frameLabel(token.frame)}'s images` : 'an image';
+  }
+  if (token.kind === 'drone') {
+    return token.frame ? `${C.frameLabel(token.frame)}'s drone` : 'the drone';
+  }
+  return `the ${token.kind}`;
+}
+
+function attackDetail(option) {
+  const zones = Object.entries(option.zones || {}).map(([z, n]) => `${z} ${n}`);
+  const defence = (app.view.defence || {})[option.id];
+  const bits = [zones.join(' · ') || 'no marks'];
+  if (defence) {
+    bits.push(`${defence.remaining} card${defence.remaining === 1 ? '' : 's'} left`);
+  }
+  return bits.join(' · ');
 }
 
 function onTapTile(x, y) {
@@ -883,8 +1179,30 @@ function onTapTile(x, y) {
   if (pending && !pending.waiting && pending.seat === app.view.seat) {
     if (pending.kind === 'move') {
       const option = (pending.options || []).find((o) => o.x === x && o.y === y);
-      if (option) { send('move', { x, y, cost: option.cost }); return; }
+      if (option) {
+        tapToConfirm('move', { x, y, cost: option.cost }, {
+          label: option.cost === 0 ? 'Stay put' : `Move to (${x}, ${y})`,
+          detail: option.cost === 0
+            ? 'Spend no movement'
+            : `${option.cost} movement · elevation ${
+              (app.board.tiles.get(`${x},${y}`) || {}).elev || 0}`,
+        });
+        return;
+      }
       toast('That tile is out of range');
+      return;
+    }
+    if (pending.kind === 'deploy') {
+      const option = deployOptions(pending).find((o) => o.x === x && o.y === y);
+      if (option) {
+        const name = C.frameLabel(option.frame, option.name || option.frame);
+        tapToConfirm('deploy', { ...option }, {
+          label: `Deploy ${name} at (${x}, ${y})`,
+          detail: 'Where it starts the battle',
+        });
+        return;
+      }
+      toast('Not a deployment tile for this frame');
       return;
     }
     if (pending.kind === 'attack_target') {
@@ -892,7 +1210,39 @@ function onTapTile(x, y) {
         (t) => t.pos && t.pos.x === x && t.pos.y === y && t.alive !== false);
       if (token) {
         const option = (pending.options || []).find((o) => o.id === token.id);
-        if (option) { send('attack_target', { kind: option.kind, id: option.id }); return; }
+        if (option) {
+          tapToConfirm('attack_target', { kind: option.kind, id: option.id }, {
+            label: `Attack ${tokenLabel(token)}`,
+            detail: attackDetail(option),
+          });
+          return;
+        }
+      }
+    }
+    const tiles = effectTileOptions(pending);
+    if (tiles.length) {
+      const option = tiles.find((o) => o.x === x && o.y === y);
+      if (option) {
+        tapToConfirm('effect_choice', { ...option }, {
+          label: `Move to (${x}, ${y})`,
+          detail: pending.prompt || 'card effect',
+        });
+        return;
+      }
+      toast('That tile is not one of the options');
+      return;
+    }
+    const targets = effectTargetOptions(pending);
+    if (targets.length) {
+      const token = (app.view.tokens || []).find(
+        (t) => t.pos && t.pos.x === x && t.pos.y === y && t.alive !== false);
+      const option = token && targets.find((o) => o.token === token.id);
+      if (option) {
+        tapToConfirm('effect_choice', { token: option.token }, {
+          label: `Attack ${tokenLabel(token)}`,
+          detail: pending.prompt || 'card effect',
+        });
+        return;
       }
     }
   }
@@ -906,7 +1256,23 @@ function onTapTile(x, y) {
     ${tile.impassable ? ' · impassable' : ''}${tile.obstacle ? ' · obstacle' : ''}
     <br>${C.escapeHtml(tile.card || 'open ground')}
     ${obj ? `<br>objective: <b>${C.escapeHtml(obj.name)}</b> — ${C.escapeHtml(obj.status)}` : ''}
-    ${token ? `<br>token: ${C.escapeHtml(token.kind)} ${token.hp}/${token.maxHp}` : ''}`;
+    ${token ? `<br>${C.escapeHtml(tokenReadout(token))}` : ''}`;
+}
+
+/** One line about a token under the finger. */
+function tokenReadout(token) {
+  if (token.kind === 'image') {
+    const owner = token.frame ? C.frameLabel(token.frame) : 'a frame';
+    return token.real
+      ? `${owner} is really standing here — the other images are decoys`
+      : `an image of ${owner}. One of the three is the frame; the fakes `
+        + 'vanish when struck';
+  }
+  if (token.kind === 'drone') {
+    const owner = token.frame ? C.frameLabel(token.frame) : 'a frame';
+    return `${owner}'s drone · ${token.hp}/${token.maxHp}`;
+  }
+  return `token: ${token.kind} ${token.hp}/${token.maxHp}`;
 }
 
 function focusActive() {
@@ -923,11 +1289,16 @@ function focusActive() {
 async function refreshOverlays() {
   const view = app.view;
   const pending = view.pending;
-  const overlays = { reach: new Map(), los: new Set(), targets: new Set() };
+  const overlays = {
+    reach: new Map(), los: new Set(), targets: new Set(),
+    deploy: new Set(), confirm: confirmTile(),
+  };
   const mine = pending && !pending.waiting && pending.seat === view.seat;
 
   if (mine && pending.kind === 'move') {
     for (const o of pending.options) overlays.reach.set(`${o.x},${o.y}`, o.cost);
+  } else if (mine && pending.kind === 'deploy') {
+    for (const o of deployOptions(pending)) overlays.deploy.add(`${o.x},${o.y}`);
   } else if (mine && pending.kind === 'attack_target') {
     for (const o of pending.options) {
       const frame = (view.frames || []).find((f) => f.id === o.id);
@@ -935,11 +1306,26 @@ async function refreshOverlays() {
       const pos = (frame && frame.pos) || (token && token.pos);
       if (pos) overlays.targets.add(`${pos.x},${pos.y}`);
     }
+  } else if (mine && pending.kind === 'effect_choice') {
+    // A drone's move, a reflex step, a Teleport -- and a drone's target,
+    // which may be a frame or one of its images.
+    for (const o of effectTileOptions(pending)) {
+      overlays.reach.set(`${o.x},${o.y}`, 0);
+    }
+    for (const o of effectTargetOptions(pending)) {
+      const frame = (view.frames || []).find((f) => f.id === o.frame);
+      const token = (view.tokens || []).find((t) => t.id === o.token);
+      const pos = (frame && frame.pos) || (token && token.pos);
+      if (pos) overlays.targets.add(`${pos.x},${pos.y}`);
+    }
   }
 
   const selected = (view.frames || []).find((f) => f.id === app.selectedFrame);
-  const wantThreat = selected && selected.alive && selected.seat !== view.seat && app.options.threat;
-  if ((app.options.los || wantThreat) && selected && selected.alive) {
+  // A frame hiding behind its images has no position to draw an overlay from,
+  // and the server refuses to invent one -- so do not ask.
+  const readable = selected && selected.alive && selected.pos && !selected.cloaked;
+  const wantThreat = readable && selected.seat !== view.seat && app.options.threat;
+  if ((app.options.los || wantThreat) && readable) {
     const key = `${view.gameId}:${selected.id}:${view.log.length}`;
     let data = app.threatCache.get(key);
     if (!data) {
@@ -965,12 +1351,18 @@ async function refreshOverlays() {
 function renderLegend(overlays, pending) {
   const host = $('board-legend');
   const bits = [];
+  if (app.confirm) bits.push('gold ring = tap again to confirm');
+  if (overlays.deploy && overlays.deploy.size) {
+    bits.push('blue = where this frame may deploy');
+  }
   if (overlays.reach.size) {
-    bits.push(pending && pending.kind === 'move'
-      ? 'green = legal destination'
+    const choosing = pending
+      && (pending.kind === 'move' || pending.kind === 'effect_choice');
+    bits.push(choosing
+      ? 'green = legal destination · tap twice'
       : 'green = selected frame\'s reach (base movement)');
   }
-  if (overlays.targets.size) bits.push('red pulse = legal target');
+  if (overlays.targets.size) bits.push('red pulse = legal target · tap twice');
   if (overlays.los.size) bits.push('red wash = line of sight');
   if (!bits.length) bits.push('pinch to zoom · double tap = fit');
   host.innerHTML = bits.map((b) => `<span>${C.escapeHtml(b)}</span>`).join('');
@@ -987,7 +1379,7 @@ function renderPlan() {
     (f) => f.id === (committing ? pending.frameId : app.selectedFrame))
     || (view.frames || []).find((f) => f.seat === view.seat && f.alive);
 
-  $('plan-frame').textContent = frame ? frame.name : '';
+  $('plan-frame').textContent = frame ? C.frameLabel(frame.id, frame.name) : '';
   const slots = document.querySelectorAll('.plan-slots .slot');
   slots.forEach((slot, i) => {
     slot.innerHTML = '<span class="slot-label">Action ' + (i + 1) + '</span>';
@@ -1028,9 +1420,15 @@ function renderPlan() {
   // Not planning: show what is on the field for the chosen frame.
   const rows = [];
   if (frame) {
-    for (const card of frame.committed || []) rows.push([card, 'committed']);
-    for (const card of frame.onField || []) rows.push([card, 'resolved']);
-    for (const card of frame.aside || []) rows.push([card, 'set aside']);
+    for (const card of frame.committed || []) {
+      rows.push([card, card.echo ? 'echo — blocks only' : 'committed']);
+    }
+    for (const card of frame.onField || []) {
+      rows.push([card, card.echo ? 'echo — blocks only' : 'resolved']);
+    }
+    // Persisting, not echoing: set aside for its duration, and while it is
+    // there it neither resolves again nor blocks.
+    for (const card of frame.aside || []) rows.push([card, 'persisting']);
   }
   $('plan-count').textContent = rows.length
     ? `${rows.length} card(s) in play`
@@ -1041,7 +1439,7 @@ function renderPlan() {
       hand.appendChild(back);
       continue;
     }
-    const el = C.thumb(card.key, { width: 240, tag, dim: tag === 'set aside' });
+    const el = C.thumb(card.key, { width: 240, tag, dim: tag === 'persisting' });
     attachLongPress(el, card.key);
     el.addEventListener('click', () => C.showCard(card.key));
     hand.appendChild(el);
@@ -1165,7 +1563,7 @@ function renderLadder() {
     name.textContent = entry.card.key ? C.displayName(entry.card.key) : 'face down';
     mid.appendChild(name);
     const sub = document.createElement('small');
-    const tags = [entry.frame.name];
+    const tags = [C.frameLabel(entry.frame.id, entry.frame.name)];
     if (entry.card.echo) tags.push('echo — can only block');
     if (entry.state === 'resolved') tags.push('resolved · can still block');
     if (entry.state === 'hidden') {
@@ -1199,7 +1597,7 @@ function renderLog() {
   const byTurn = new Map();
   for (const entry of app.view.log || []) {
     if (!byTurn.has(entry.turn)) byTurn.set(entry.turn, []);
-    byTurn.get(entry.turn).push(entry.text);
+    byTurn.get(entry.turn).push(entry);
   }
   const turns = [...byTurn.keys()].sort((a, b) => b - a);
   for (const turn of turns) {
@@ -1207,15 +1605,38 @@ function renderLog() {
     head.className = 'turnhead';
     head.textContent = `Turn ${turn}`;
     host.appendChild(head);
-    for (const text of byTurn.get(turn).slice().reverse()) {
+    for (const entry of byTurn.get(turn).slice().reverse()) {
+      const text = entry.text || '';
       const p = document.createElement('p');
-      p.textContent = text;
+      p.innerHTML = logLineHtml(entry);
       if (/hits|destroyed|damage/i.test(text)) p.className = 'hit';
       else if (/block/i.test(text)) p.className = 'block';
       else if (/^---|game over|scored/i.test(text)) p.className = 'big';
       host.appendChild(p);
     }
   }
+}
+
+/** A log line with every frame it names picked out and tinted by team.
+ *
+ *  The engine writes its log naming frames by their id, and an id is already
+ *  a full identity -- team, model and, where a team fields two of a model, an
+ *  ordinal. So there is nothing here to infer: the ids in the game are known,
+ *  and matching the longest first means "Blue Kuwagata 2" is never mistaken
+ *  for a "Blue Kuwagata" followed by a stray 2.
+ */
+function logLineHtml(entry) {
+  const text = entry.text || '';
+  const ids = C.frameIds();
+  if (!ids.length) return C.escapeHtml(text);
+  const pattern = ids.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+  const parts = text.split(new RegExp(`(${pattern})`, 'g'));
+  return parts.map((part, i) => {
+    if (i % 2 === 0) return C.escapeHtml(part);
+    const seat = C.frameSeat(part);
+    return `<b class="logframe" data-mine="${
+      seat === app.view.seat ? '1' : '0'}">${C.escapeHtml(part)}</b>`;
+  }).join('');
 }
 
 // ---------------------------------------------------------------- sheet
@@ -1226,6 +1647,12 @@ function renderSheet() {
     commitSelection: app.commitSelection,
     orderPick: app.orderPick,
     rememberedOrder: rememberedOrder(),
+    confirm: app.confirm,
+    commitProposal,
+    cancelProposal,
+    deployFrame: app.deployFrame,
+    deployableFrames,
+    setDeployFrame,
     uidKey,
     toggleCommit,
     toggleOrder,

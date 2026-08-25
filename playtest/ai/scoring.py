@@ -28,7 +28,7 @@ from bisect import bisect_left, bisect_right
 from dataclasses import dataclass, field
 from typing import Iterable, Mapping, Optional, Sequence
 
-from ..engine.types import Pos, ZONES
+from ..engine.types import Pos, TURNS_PER_GAME, ZONES
 from .params import AIParams
 from .view import (
     NO_RANGED_FRAMES,
@@ -190,13 +190,34 @@ def rel_init(card: CardInfo, prof: Profile) -> float:
     return (lo + hi) / (2 * n)
 
 
+def carries_live_text(card: CardInfo) -> bool:
+    """True when this card's worth is its text, and the engine runs that text.
+
+    The scorer models printed stats, not card text. For an attacker the text is
+    a rider on damage the scorer can already see, so comparing on stats is
+    fair. For a card with no attack of its own the text *is* the card, and
+    claiming another card "is never worse" than it is a claim about effects the
+    scorer cannot see.
+
+    Read straight off the catalogue's `notImplemented` flag, so it corrects
+    itself as deferred effects land: the 24 pilot and 2 drone cards are
+    currently inert and freely comparable, and the day their text is
+    implemented they stop being pruned without anything here changing.
+    """
+    return bool(card.text.strip()) and not card.not_implemented and not card.is_attack
+
+
 def dominates(a: CardInfo, b: CardInfo) -> bool:
     """True when playing `a` is never worse than `b`, and better somewhere.
 
     Feints are incomparable in both directions: a feint deals no damage but
-    forces a block, which neither an attacker nor a blocker replicates.
+    forces a block, which neither an attacker nor a blocker replicates. So is
+    anything whose value lives in text the scorer does not model -- see
+    `carries_live_text`.
     """
     if a.feint or b.feint:
+        return False
+    if carries_live_text(b):
         return False
     if a.key == b.key:
         return False
@@ -520,6 +541,51 @@ def zone_attack_value(
     return value
 
 
+#: Killing a drone is worth roughly this much per turn it would otherwise get
+#: to attack for. It is not an objective, so nothing else prices it at all.
+DRONE_KILL_VALUE = 1.1
+
+#: Stripping one of a frame's Ephemeral Images. Worth more when it is the last
+#: fake, because that leaves the frame standing in the open.
+IMAGE_STRIP_VALUE = 0.8
+
+
+def image_value(
+    snap: Snapshot,
+    attacker: FrameView,
+    card: CardInfo,
+    token,
+    prof: Profile,
+    params: AIParams,
+) -> float:
+    """Worth of shooting one of a frame's Ephemeral Images.
+
+    Deliberately simple: one image in however many is the real frame, so the
+    attack is worth that fraction of hitting it, plus what narrowing the guess
+    is worth on its own. There is no attempt to track which image moved how --
+    that is a memory the card is designed to defeat.
+    """
+    if token.pos is None or not token.alive or attacker.pos is None:
+        return 0.0
+    target = snap.frames.get(str(token.frame)) if token.frame else None
+    if target is None:
+        return 0.0
+    live = [
+        t for t in snap.tokens
+        if t.alive and t.kind == "image" and t.frame == token.frame
+    ]
+    count = max(1, len(live))
+    zones = zones_in_range(
+        card, snap.distance(attacker.pos, token.pos), range_bonus(attacker, card)
+    )
+    if not zones:
+        return 0.0
+    hit = zone_attack_value(card, zones, target, prof, params)
+    # Removing the second-to-last fake is what actually finds the frame.
+    strip = IMAGE_STRIP_VALUE * (2.0 if count <= 2 else 1.0) * params.aggression
+    return hit / count + strip * (count - 1) / count
+
+
 def token_value(
     snap: Snapshot,
     attacker: FrameView,
@@ -536,6 +602,12 @@ def token_value(
     damage = sum(zones.values())
     if damage <= 0:
         return 0.0
+    if token.kind == "drone":
+        # A drone attacks again every turn it survives, and nothing else in
+        # this function would price it -- it belongs to no objective.
+        turns_left = max(1, TURNS_PER_GAME - snap.turn + 1)
+        progress = min(1.0, damage / max(1, token.hp))
+        return params.aggression * DRONE_KILL_VALUE * progress * turns_left * 0.5
     obj = snap.objective_for_token(token)
     if obj is None or obj.settled:
         return 0.0
@@ -943,22 +1015,29 @@ def position_value(
     cards: Sequence[CardInfo] = (),
     primary: Optional[CardInfo] = None,
     los_cache: Optional[dict] = None,
+    focus_id: Optional[str] = None,
+    focus_weight: float = 0.0,
 ) -> float:
     """What it is worth for `frame` to be standing on `pos`.
 
     `primary` is the card resolving right now (its attack counts at full
     weight); `cards` are the frame's other committed actions, whose attacks
-    count at a discount because they have not happened yet.
+    count at a discount because they have not happened yet. `focus_id` is the
+    squad's agreed target for the turn, scaled up by `focus_weight` -- the
+    author's point that committing to one target is what makes movement
+    planning tractable, because every frame then knows where it is heading.
     """
     value = 0.0
     if primary is not None and primary.is_attack:
         value += params.positioning * _best_attack_from(
-            snap, frame, primary, pos, prof, params, los_cache
+            snap, frame, primary, pos, prof, params, los_cache,
+            focus_id=focus_id, focus_weight=focus_weight,
         )
     for card in cards:
         if card.is_attack and card is not primary:
             value += 0.7 * params.positioning * _best_attack_from(
-                snap, frame, card, pos, prof, params, los_cache
+                snap, frame, card, pos, prof, params, los_cache,
+                focus_id=focus_id, focus_weight=focus_weight,
             )
     value += objective_value(snap, frame, pos, params)
     value += terrain_value(snap, pos, params)
@@ -1040,8 +1119,15 @@ def _best_attack_from(
     los_cache: Optional[dict] = None,
     *,
     include_approach: bool = True,
+    focus_id: Optional[str] = None,
+    focus_weight: float = 0.0,
 ) -> float:
     """Best value this card gets from `pos`, now or after closing the gap.
+
+    `focus_id` is the enemy the squad has agreed to converge on this turn; its
+    value is scaled up by `focus_weight`, which is what makes three frames pick
+    positions that all bear on the same target instead of each wandering off
+    after its own nearest enemy.
 
     Without the approach term this returns 0 for every tile a melee weapon
     cannot already strike from, which is a flat landscape with no gradient --
@@ -1062,8 +1148,12 @@ def _best_attack_from(
     for enemy in snap.enemies():
         if enemy.pos is None:
             continue
+        weight = 1.0 + (focus_weight if enemy.id == focus_id else 0.0)
         if can_reach_target(snap, frame, card, pos, enemy, los_cache):
-            best = max(best, attack_value(snap, frame, card, pos, enemy, prof, params))
+            best = max(
+                best,
+                weight * attack_value(snap, frame, card, pos, enemy, prof, params),
+            )
         elif approach > 0:
             gap = reach_gap(snap, frame, card, pos, enemy.pos)
             if gap <= 0:
@@ -1071,7 +1161,7 @@ def _best_attack_from(
             potential = zone_attack_value(
                 card, _reference_zones(frame, card), enemy, prof, params
             )
-            best = max(best, approach * potential * APPROACH_DISCOUNT ** gap)
+            best = max(best, weight * approach * potential * APPROACH_DISCOUNT ** gap)
     for token in snap.tokens:
         if not token.alive or token.max_hp <= 0 or token.pos is None:
             continue

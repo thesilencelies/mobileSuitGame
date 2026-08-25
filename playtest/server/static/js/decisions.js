@@ -7,12 +7,15 @@
 //     printed initiative.
 
 import * as C from './cards.js';
+import { frameImageUrl } from './api.js';
 
 const STEP_HELP = {
   movement: 'Move up to your movement allowance. Movement cannot be split.',
   effect: 'Resolve the card text.',
   attack: 'Declare a target and resolve the attack.',
 };
+
+export { prettyKind };
 
 export function renderDecision(host, ctx) {
   host.innerHTML = '';
@@ -22,7 +25,8 @@ export function renderDecision(host, ctx) {
   if (view.over) return gameOver(host, ctx);
   if (!pending) return waiting(host, 'The engine is resolving...');
   if (pending.waiting || pending.seat !== view.seat) {
-    return waiting(host, `Seat ${pending.seat} is deciding (${pending.kind.replace(/_/g, ' ')})`);
+    return waiting(host,
+      `Seat ${pending.seat} is deciding (${pending.kind.replace(/_/g, ' ')})`);
   }
 
   const renderer = {
@@ -33,25 +37,92 @@ export function renderDecision(host, ctx) {
     choose_block: chooseBlock,
     effect_choice: effectChoice,
     echo_card: echoCard,
+    deploy: deploy,
   }[pending.kind] || genericDecision;
 
-  title(host, prettyKind(pending.kind), pending.prompt);
+  // Who this decision is about comes from `pending.frameId` (or, for a deploy,
+  // from the frame the player picked), never from the prompt: the prompt is
+  // prose written by the engine and "Kuwagata must block Low" is not an
+  // instruction when you are fielding two Kuwagatas. The prose is still shown
+  // -- it is the engine's own explanation -- but nothing is *identified* by it.
+  title(host, prettyKind(pending.kind), pending.prompt, subjectOf(ctx, pending));
+  // A tap has proposed something irreversible and is waiting to be meant. It
+  // goes above the decision itself, because until it is answered it *is* the
+  // decision -- and it is answerable here as well as on the board, for anyone
+  // who would rather press a button than tap a tile twice.
+  if (ctx.confirm) confirmBanner(host, ctx);
   renderer(host, ctx, pending);
+}
+
+/** "You tapped X. Do it, or don't." */
+function confirmBanner(host, ctx) {
+  const box = document.createElement('div');
+  box.className = 'confirm-box';
+  const head = document.createElement('div');
+  head.className = 'confirm-head';
+  head.innerHTML = `<b>${C.escapeHtml(ctx.confirm.label)}</b>`
+    + (ctx.confirm.detail ? `<small>${C.escapeHtml(ctx.confirm.detail)}</small>` : '');
+  box.appendChild(head);
+  const row = document.createElement('div');
+  row.className = 'sheet-actions';
+  const cancel = document.createElement('button');
+  cancel.className = 'btn ghost';
+  cancel.textContent = 'Cancel';
+  cancel.addEventListener('click', () => ctx.cancelProposal());
+  const go = document.createElement('button');
+  go.className = 'btn primary';
+  go.textContent = 'Confirm';
+  go.addEventListener('click', () => ctx.commitProposal());
+  row.append(cancel, go);
+  box.appendChild(row);
+  const hint = document.createElement('p');
+  hint.className = 'sheet-sub';
+  hint.textContent = 'Or tap the same tile on the board again.';
+  box.appendChild(hint);
+  host.appendChild(box);
 }
 
 // ---------------------------------------------------------------- helpers
 
-function title(host, text, sub) {
+function title(host, text, sub, subject) {
   const h = document.createElement('p');
   h.className = 'sheet-title';
   h.textContent = text;
   host.appendChild(h);
+  if (subject) {
+    const who = document.createElement('p');
+    who.className = 'sheet-subject';
+    who.dataset.seat = subject.mine ? 'mine' : 'theirs';
+    who.textContent = subject.label;
+    host.appendChild(who);
+  }
   if (sub) {
     const s = document.createElement('p');
     s.className = 'sheet-sub';
     s.textContent = sub;
     host.appendChild(s);
   }
+}
+
+/** The frame a decision is about, from structured fields only.
+ *
+ *  `pending.frameId` names it for every kind that has one. A `deploy` is the
+ *  exception: it offers the whole frame x tile cross product and its
+ *  `frameId` is null, so the subject is whichever frame the player has picked
+ *  in the sheet -- which is also structure, not prose.
+ */
+export function subjectOf(ctx, pending) {
+  const id = pending.kind === 'deploy'
+    ? ctx.deployFrame
+    : pending.frameId;
+  if (!id) return null;
+  const frame = (ctx.view.frames || []).find((f) => f.id === id);
+  if (!frame) return null;
+  return {
+    id,
+    label: C.frameLabel(id, frame.name),
+    mine: frame.seat === ctx.view.seat,
+  };
 }
 
 function banner(host, text, kind = '') {
@@ -118,6 +189,7 @@ function prettyKind(kind) {
     choose_block: 'Block',
     effect_choice: 'Card effect',
     echo_card: 'Echoes of the fallen',
+    deploy: 'Deploy your squad',
   }[kind] || kind.replace(/_/g, ' ');
 }
 
@@ -242,6 +314,68 @@ function orderWords(order) {
   return (order || []).map((s) => s.charAt(0).toUpperCase() + s.slice(1)).join(' → ');
 }
 
+// Setup, before turn 1: each player puts their frames on the near edge of
+// their own terrain, one at a time, alternating (rules.tex:337).
+//
+// The engine offers the whole (frame x free tile) cross product in one
+// decision -- 36 options at the start of a 3v3 -- because the seat is choosing
+// which frame to place as well as where. Thirty-six undifferentiated rows is
+// not a decision anyone can read, so the sheet holds the *frame* half (a chip
+// each, with its art) and the board holds the *tile* half (the blue tiles are
+// the engine's own options for the chosen frame). Placing is irreversible for
+// the rest of the battle, so it is a tap to propose and a tap to confirm, like
+// movement.
+function deploy(host, ctx, pending) {
+  const frames = ctx.deployableFrames(pending);
+  banner(host, frames.length === 1
+    ? 'One frame left to place'
+    : `Choose a frame, then tap a blue tile — ${frames.length} still to place`,
+  'info');
+
+  const row = document.createElement('div');
+  row.className = 'deploy-row';
+  for (const entry of frames) {
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'deploy-chip';
+    if (entry.id === ctx.deployFrame) chip.dataset.on = '1';
+    const img = document.createElement('img');
+    img.src = frameImageUrl(entry.name);
+    img.alt = '';
+    img.addEventListener('error', () => img.remove(), { once: true });
+    chip.appendChild(img);
+    const label = document.createElement('span');
+    label.textContent = C.frameLabel(entry.id, entry.name);
+    chip.appendChild(label);
+    const spec = C.frame(entry.name);
+    if (spec) {
+      const sub = document.createElement('small');
+      sub.textContent = `move ${spec.movement}`;
+      chip.appendChild(sub);
+    }
+    chip.addEventListener('click', () => ctx.setDeployFrame(entry.id));
+    row.appendChild(chip);
+  }
+  host.appendChild(row);
+
+  const tiles = (pending.options || []).filter((o) => o.frame === ctx.deployFrame);
+  const note = document.createElement('p');
+  note.className = 'sheet-sub';
+  note.textContent = `${tiles.length} legal tile${tiles.length === 1 ? '' : 's'} `
+    + 'on your own edge, shown in blue. You and the AI place one frame each in '
+    + 'turn, and whoever placed first takes priority.';
+  host.appendChild(note);
+
+  const actions = document.createElement('div');
+  actions.className = 'sheet-actions';
+  const show = document.createElement('button');
+  show.className = 'btn primary';
+  show.textContent = 'Show me on the board';
+  show.addEventListener('click', () => { ctx.showView('board'); });
+  actions.appendChild(show);
+  host.appendChild(actions);
+}
+
 function movement(host, ctx, pending) {
   const stay = pending.options.find((o) => o.cost === 0);
   const max = pending.options.reduce((m, o) => Math.max(m, o.cost || 0), 0);
@@ -296,13 +430,32 @@ function attackTarget(host, ctx, pending) {
 
     const head = document.createElement('div');
     head.className = 'target-head';
-    head.innerHTML = `<b>${C.escapeHtml(option.name || option.id)}</b>
+    // Two frames of the same model are two different targets with two
+    // different damage tracks; the list has to say which one this is.
+    const token = option.kind === 'token'
+      ? (ctx.view.tokens || []).find((t) => t.id === option.id) : null;
+    const targetName = option.kind === 'frame'
+      ? C.frameLabel(option.id, option.name || option.id)
+      : tokenName(ctx, token, option);
+    head.innerHTML = `<b>${C.escapeHtml(targetName)}</b>
       ${option.kind === 'token' ? '<small>token</small>' : ''}
       <span class="t-cards">${defence
         ? `${defence.remaining} card${defence.remaining === 1 ? '' : 's'} left`
           + (defence.faceDown ? ` · <em>${defence.faceDown} face down</em>` : '')
         : ''}</span>`;
     box.appendChild(head);
+
+    // Three images of the same frame are three identical options -- which is
+    // the card working. The one thing that does tell them apart is where they
+    // are standing, and that is not a secret, so the list says it.
+    if (token && token.kind === 'image') {
+      const note = document.createElement('p');
+      note.className = 'target-note';
+      note.textContent = `at (${token.pos.x}, ${token.pos.y}). `
+        + 'One of the three is the frame itself and will block; the other two '
+        + 'vanish when struck and cost you the action.';
+      box.appendChild(note);
+    }
 
     let openZones = 0;
     if (target && defence) {
@@ -338,6 +491,14 @@ function attackTarget(host, ctx, pending) {
       note.className = 'target-note';
       const armour = C.ZONES.map((z) => `${z[0]} ${target.damage[z]}/${target.armour[z]}`);
       const bits = [`damage ${armour.join(' ')}`];
+      // A shield counter absorbs a whole attack, every zone of it, for one
+      // counter -- so "3 zones uncovered" against a shielded frame is not
+      // three hits. The count is the engine's; the rule is stated, not
+      // recomputed.
+      if (target.shields) {
+        bits.push(`${target.shields} shield counter${target.shields === 1 ? '' : 's'}`
+          + ' — one absorbs this whole attack, every zone of it');
+      }
       if (defence.keepsNextBlock) bits.push('keeps its next block (frame ability)');
       if (defence.faceDown) {
         bits.push(`${defence.faceDown} face-down card${defence.faceDown === 1 ? '' : 's'}`
@@ -350,7 +511,8 @@ function attackTarget(host, ctx, pending) {
     const go = document.createElement('button');
     go.className = 'btn primary';
     go.textContent = `Attack — ${total} mark${total === 1 ? '' : 's'}`
-      + (openZones ? ` · ${openZones} zone${openZones === 1 ? '' : 's'} uncovered` : '');
+      + (target && target.shields ? ' · shielded'
+        : (openZones ? ` · ${openZones} zone${openZones === 1 ? '' : 's'} uncovered` : ''));
     go.addEventListener('click',
       () => ctx.send('attack_target', { kind: option.kind, id: option.id }));
     box.appendChild(go);
@@ -372,6 +534,18 @@ function attackTarget(host, ctx, pending) {
 }
 
 /** Whether the card that is attacking has Guard Break, from the resolving card. */
+/** A token's name in the target list -- images and drones belong to a frame. */
+function tokenName(ctx, token, option) {
+  if (token && token.kind === 'image') {
+    return token.frame
+      ? `An image of ${C.frameLabel(token.frame)}` : 'An image';
+  }
+  if (token && token.kind === 'drone') {
+    return token.frame ? `${C.frameLabel(token.frame)}'s drone` : 'A drone';
+  }
+  return option.name || option.id;
+}
+
 function isGuardBreak(ctx) {
   const res = ctx.view.resolving;
   if (!res || !res.key) return false;
@@ -380,6 +554,13 @@ function isGuardBreak(ctx) {
 }
 
 function chooseBlock(host, ctx, pending) {
+  return blockChoices(host, ctx, pending, 'choose_block');
+}
+
+/** The compulsory-block sheet. A drone's attack raises the same decision
+ *  through `effect_choice`, and it deserves the same read-out: which zones,
+ *  what the card costs you, and whether it survives. */
+function blockChoices(host, ctx, pending, kind) {
   const zones = [...new Set(pending.options.flatMap((o) => o.zones || []))];
   const attack = (ctx.view.resolving || {}).attack || null;
   const guardBreak = !!(attack && attack.guardBreak);
@@ -437,14 +618,29 @@ function chooseBlock(host, ctx, pending) {
       main: C.displayName(option.key),
       sub: bits.join(' · '),
       go: mine.join('/') || (option.zones || []).join('/'),
-      onTap: () => ctx.send('choose_block', { uid: option.uid }),
+      onTap: () => ctx.send(kind, { uid: option.uid }),
     });
   }
 }
 
+// Card text asks four different shapes of question through one decision kind.
+// Rendering them all as a list of raw payloads is what made a drone's turn feel
+// like filling in a form: thirty rows reading "x 7, y 5" for what is obviously
+// a tap on the board. So the option shape picks the renderer.
 function effectChoice(host, ctx, pending) {
+  const options = pending.options || [];
+  const every = (fn) => options.length > 0 && options.every(fn);
+  if (every((o) => 'x' in o && 'y' in o && !('frame' in o))) {
+    return effectTiles(host, ctx, pending);
+  }
+  if (every((o) => 'uid' in o && 'key' in o)) {
+    return blockChoices(host, ctx, pending, 'effect_choice');
+  }
+  if (every((o) => ('frame' in o && !('x' in o)) || 'token' in o)) {
+    return effectTargets(host, ctx, pending);
+  }
   const el = list(host);
-  for (const option of pending.options) {
+  for (const option of options) {
     optionRow(el, {
       main: describePayload(option),
       sub: '',
@@ -454,16 +650,75 @@ function effectChoice(host, ctx, pending) {
   }
 }
 
+/** "Somewhere on the board" -- a drone's move, a reflex step, a Teleport. */
+function effectTiles(host, ctx, pending) {
+  banner(host, 'Tap a green tile on the board', 'info');
+  const p = document.createElement('p');
+  p.className = 'sheet-sub';
+  p.textContent = `${pending.options.length} places to choose from. `
+    + 'Tap once to propose it, again to commit.';
+  host.appendChild(p);
+  const actions = document.createElement('div');
+  actions.className = 'sheet-actions';
+  const show = document.createElement('button');
+  show.className = 'btn primary';
+  show.textContent = 'Show me on the board';
+  show.addEventListener('click', () => { ctx.showView('board'); ctx.focusActive(); });
+  actions.appendChild(show);
+  host.appendChild(actions);
+}
+
+/** "Which of them" -- a drone's target, including an enemy's images. */
+function effectTargets(host, ctx, pending) {
+  banner(host, 'Choose a target — on the board or from the list', 'info');
+  const el = list(host);
+  for (const option of pending.options) {
+    if (option.token) {
+      const owner = imageOwner(ctx, option.token);
+      optionRow(el, {
+        main: owner ? `One of ${C.frameLabel(owner)}'s images` : 'An image',
+        sub: 'Only one of them is the frame; the rest vanish when struck',
+        go: 'guess',
+        onTap: () => ctx.send('effect_choice', { token: option.token }),
+      });
+      continue;
+    }
+    const target = (ctx.view.frames || []).find((f) => f.id === option.frame);
+    const defence = (ctx.view.defence || {})[option.frame];
+    optionRow(el, {
+      main: C.frameLabel(option.frame, option.name || option.frame),
+      sub: target
+        ? `${target.name}${defence ? ` · ${defence.remaining} card${
+          defence.remaining === 1 ? '' : 's'} left` : ''}`
+        : '',
+      go: 'target',
+      onTap: () => ctx.send('effect_choice', { frame: option.frame }),
+    });
+  }
+}
+
+function imageOwner(ctx, tokenId) {
+  const token = (ctx.view.tokens || []).find((t) => t.id === tokenId);
+  return token ? token.frame : null;
+}
+
 function echoCard(host, ctx, pending) {
-  banner(host, 'A defeated frame can lend its next card to an ally as a block', 'info');
+  banner(host, 'A destroyed frame grants a surviving ally one bonus block', 'info');
+  const note = document.createElement('p');
+  note.className = 'sheet-sub';
+  note.textContent = C.ECHO_HELP;
+  host.appendChild(note);
   const el = list(host);
   for (const option of pending.options) {
     if (option.decline) {
       optionRow(el, { main: 'Decline', sub: 'Keep the card in the dead frame\'s deck', go: '', onTap: () => ctx.send('echo_card', option) });
     } else {
+      const hostName = C.frameLabel(option.host, option.hostName || option.host);
+      const deadName = C.frameLabel(option.dead, option.deadName || option.dead);
       optionRow(el, {
-        main: `Set it beside ${option.hostName || option.host}`,
-        sub: 'It can block for that frame; the rest of its text is ignored',
+        main: `Set it sideways with ${hostName}'s actions`,
+        sub: `Revealed from ${deadName}'s deck. It can block for that frame; `
+          + 'it never resolves and the rest of its text is ignored.',
         go: 'echo',
         onTap: () => ctx.send('echo_card', { dead: option.dead, host: option.host }),
       });

@@ -12,6 +12,7 @@ from __future__ import annotations
 import hashlib
 from typing import Any, Mapping, Optional
 
+from . import effects_state as fx
 from . import objectives as objectivelib
 from .state import CardInstance, FrameState, GameState, victory_points
 from .types import Card, PendingDecision, Team, ZONES
@@ -56,7 +57,14 @@ def _card_json(
 
 
 def _frame_json(state: GameState, frame: FrameState, seat: Team) -> dict[str, Any]:
+    from . import effects
+
     own = frame.seat == seat
+    # Ephemeral Images: another seat gets no tile for this frame at all. The
+    # three images stand in for it, and which of them it is standing on is the
+    # whole card -- so the redaction has to be here, not in the client.
+    cloaked = effects.is_cloaked(state, frame)
+    show_pos = frame.pos if (own or not cloaked) else None
     committed = [
         _card_json(state, uid, seat, reveal=own)
         for uid in frame.committed
@@ -67,8 +75,8 @@ def _frame_json(state: GameState, frame: FrameState, seat: Team) -> dict[str, An
         "seat": frame.seat,
         "name": frame.spec.name,
         "faction": frame.spec.faction,
-        "pos": ({"x": frame.pos.x, "y": frame.pos.y} if frame.pos else None),
-        "elev": state.elevation(frame.pos),
+        "pos": ({"x": show_pos.x, "y": show_pos.y} if show_pos else None),
+        "elev": state.elevation(show_pos),
         "alive": frame.alive,
         "armour": {z: frame.spec.armour[z] for z in ZONES},
         "damage": {z: frame.damage[z] for z in ZONES},
@@ -86,6 +94,8 @@ def _frame_json(state: GameState, frame: FrameState, seat: Team) -> dict[str, An
         "discardCount": len(frame.discard),
         "deathstrike": frame.deathstrike_until is not None,
     }
+    if cloaked:
+        view["cloaked"] = True
     if own:
         view["hand"] = [
             {"uid": uid, "key": state.cards[uid].key} for uid in frame.hand
@@ -158,6 +168,36 @@ def _board_json(state: GameState) -> dict[str, Any]:
     }
 
 
+def _token_json(state: GameState, token, seat: Team) -> dict[str, Any]:
+    out: dict[str, Any] = {
+        "id": token.id,
+        "kind": token.kind,
+        "pos": ({"x": token.pos.x, "y": token.pos.y} if token.pos else None),
+        "hp": token.hp,
+        "maxHp": token.max_hp,
+        "alive": token.alive,
+        "carrier": token.carrier,
+    }
+    if token.owner is not None:
+        out["owner"] = token.owner
+    from . import effects
+
+    if token.kind == effects.IMAGE:
+        found = effects.image_owner(state, token)
+        if found is not None:
+            frame, real = found
+            out["frame"] = frame.id
+            # Only the side projecting them knows which one it is standing on.
+            if real and frame.seat == seat:
+                out["real"] = True
+    elif token.kind == fx.DRONE:
+        record = fx.slot(state, "drones").get(token.id)
+        if record is not None:
+            out["frame"] = str(record.get("frame", ""))
+            out["card"] = str(record.get("key", ""))
+    return out
+
+
 def view_for(state: GameState, seat: Team) -> dict[str, Any]:
     """The redacted client view for one seat."""
     points = victory_points(state)
@@ -172,16 +212,7 @@ def view_for(state: GameState, seat: Team) -> dict[str, Any]:
             _frame_json(state, frame, seat) for frame in state.frames.values()
         ],
         "tokens": [
-            {
-                "id": token.id,
-                "kind": token.kind,
-                "pos": ({"x": token.pos.x, "y": token.pos.y} if token.pos else None),
-                "hp": token.hp,
-                "maxHp": token.max_hp,
-                "alive": token.alive,
-                "carrier": token.carrier,
-            }
-            for token in state.tokens.values()
+            _token_json(state, token, seat) for token in state.tokens.values()
         ],
         "pending": _pending_json(state.pending, seat),
         "log": list(state.log),

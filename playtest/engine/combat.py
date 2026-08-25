@@ -24,7 +24,7 @@ from .state import (
     GameState,
     TokenState,
     damage_token,
-    deal_damage,
+    deal_attack_damage,
     discard_card,
 )
 from .types import Card, Pos, ZONES, Zone
@@ -155,12 +155,17 @@ def _line_of_sight(
     occupied = state.occupied(exclude=attacker.id)
     if defender is not None and defender.pos is not None:
         occupied = occupied - {defender.pos}
+    from . import effects
+
+    # "Ignore obstacles" (Snipers aim) is exactly what `flying_attacker` means
+    # to the board: obstacles stop blocking sight, nothing else changes.
+    unobstructed = kw.is_flying(attacker) or effects.ignores_obstacles(state, attacker)
     try:
         return state.board.has_line_of_sight(
             attacker.pos,
             target_pos,
             occupied=occupied,
-            flying_attacker=kw.is_flying(attacker),
+            flying_attacker=unobstructed,
             flying_target=bool(defender is not None and kw.is_flying(defender)),
         )
     except TypeError:
@@ -168,7 +173,7 @@ def _line_of_sight(
             attacker.pos,
             target_pos,
             occupied=occupied,
-            flying_attacker=kw.is_flying(attacker),
+            flying_attacker=unobstructed,
         )
 
 
@@ -196,13 +201,15 @@ def legal_targets(
     state: GameState, attacker: FrameState, card: Card
 ) -> list[dict[str, object]]:
     """Every frame/token this card could attack right now, with its zones."""
+    from . import effects
+
     options: list[dict[str, object]] = []
     if not card.is_attack or attacker.pos is None:
         return options
     for other in state.frames.values():
         if not other.alive or other.seat == attacker.seat or other.pos is None:
             continue
-        if other.turn_flags.get("untargetable_ranged") and card.is_ranged:
+        if effects.is_untargetable(state, attacker, card, other):
             continue
         if not can_target(state, attacker, card, other.pos, other):
             continue
@@ -243,6 +250,8 @@ def _splash_targets(
         return []
     if origin is None:
         return []
+    from . import effects
+
     caught: list[FrameState] = []
     for other in state.frames.values():
         if (
@@ -251,6 +260,7 @@ def _splash_targets(
             and other.id != primary.id
             and other.pos is not None
             and state.board.distance(origin, other.pos) == 1
+            and not effects.is_untargetable(state, attacker, card, other)
         ):
             caught.append(other)
     return caught
@@ -302,13 +312,25 @@ def declare_attack(
                 attack.targets.append(AttackTarget("frame", other.id, splash_zones))
     else:
         token = state.tokens[target_id]
-        zones = zones_in_range(state, attacker, card, token.pos)
-        attack.targets.append(AttackTarget("token", target_id, zones))
+        image = effects.image_owner(state, token)
+        if image is not None and image[1]:
+            # The real one. This was always an attack on the frame -- and
+            # hitting it is exactly how the trick gets found out.
+            defender = image[0]
+            effects.reveal_images(state, defender, why=f"{attacker.id} found it")
+            zones = attack_zones_against(
+                state, attacker, card, defender.pos, defender, extra=extra
+            )
+            attack.targets.append(AttackTarget("frame", defender.id, zones))
+        else:
+            zones = zones_in_range(state, attacker, card, token.pos)
+            attack.targets.append(AttackTarget("token", target_id, zones))
 
     for target in attack.targets:
         # Zones still open to a block. A normal block clears the lot in one
         # go; Guard Break makes the defender find a block for each zone.
         target.pending_zones = [z for z in ZONES if z in target.zones]
+    effects.on_attack_declared(state, attacker, card, attack)
     return attack
 
 
@@ -399,7 +421,7 @@ def apply_block(
     state.cards[uid].face_down = False
     kept = kw.block_is_kept(state, defender, card, matched)
     state.note(
-        f"{defender.spec.name} blocks with {card.key}"
+        f"{defender.id} blocks with {card.key}"
         + (" (kept)" if kept else " (discarded)")
     )
     if not kept:
@@ -433,35 +455,45 @@ def finish_target(state: GameState, attack: AttackInProgress) -> None:
     if attack.feint:
         landed = {}
 
+    from . import effects as _effects
+
     if target.kind == "token":
         token = state.tokens.get(target.id)
         total = sum(landed.values())
+        # A fake image is "removed if attacked" -- not damaged, and not saved
+        # by a Feint that landed nothing.
+        if token is not None and _effects.strike_image(state, token):
+            return
         if token is not None and total:
             damage_token(state, token, total)
-            state.note(f"{attacker.spec.name} hits the {token.kind} for {total}")
+            what = (
+                _effects.drone_name(state, token.id)
+                if token.kind == "drone" else f"the {token.kind}"
+            )
+            state.note(f"{attack.via or attacker.id} hits {what} for {total}")
         return
 
     defender = state.frames.get(target.id)
     if defender is None:
         return
-    for zone in ZONES:
-        if zone in landed:
-            deal_damage(state, defender, zone, landed[zone], source=attacker)
+    # One shield counter absorbs the whole attack, every zone of it.
+    deal_attack_damage(state, defender, landed, source=attacker)
     if landed:
         state.note(
-            f"{attacker.spec.name} hits {defender.spec.name} with {card.key} "
+            f"{attack.via or attacker.id} hits {defender.id} with {card.key} "
             f"for {sum(landed.values())}"
         )
     elif target.blocked:
-        state.note(f"{card.key} is blocked by {defender.spec.name}")
+        state.note(f"{card.key} is blocked by {defender.id}")
+
+    from . import effects
 
     if landed:
-        from . import effects
-
         effects.on_hit(state, attacker, card, defender)
         steps = kw.knockback_amount(state, attacker, card)
         if steps:
             kw.apply_knockback(state, attacker, defender, steps)
+    effects.after_attacked(state, defender, attacker)
 
 
 def advance_attack(state: GameState, attack: AttackInProgress) -> bool:

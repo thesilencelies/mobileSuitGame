@@ -60,11 +60,11 @@ alone is not enough. Copy:
 
 | Path | Why | Size |
 |---|---|---|
-| `playtest/` | the app, including its bundled art | ~4.0 MB |
+| `playtest/` | the app, including its bundled art | ~4.1 MB |
 | `*.csv` at the repo root | card, frame and terrain data the engine parses | ~48 KB |
 | `decks/` | deck lists, terrain decks, objective decks | ~140 KB |
 
-**About 4.2 MB in total.** You do **not** need `AllCardImages/` (24 MB of
+**About 4.3 MB in total.** You do **not** need `AllCardImages/` (24 MB of
 print-density PNGs) — `playtest/server/static/cards/` already holds every card
 at phone size. Nor `build/`, `pictures/`, `rules/` or `simulation/`.
 
@@ -79,7 +79,8 @@ or, over USB / a cable / a share, copy the folder and delete `AllCardImages/`
 on the phone. Termux can read your Downloads folder after
 `termux-setup-storage` (`~/storage/downloads`).
 
-> `playtest/server/static/cards/`, `.../terrain/` and `.../tokens/` are
+> `playtest/server/static/cards/`, `.../terrain/`, `.../tokens/` and
+> `.../frames/` are
 > **generated** but must travel with the app — do not add them to
 > `.gitignore`, or a `git clone` on the phone will arrive with no art.
 
@@ -197,9 +198,37 @@ with its own camera rather than a table the browser scrolls:
 Tapping:
 
 * a **frame** selects it, with damage, statuses and cards in the readout;
-* a **green tile** during a `move` decision moves there — green tiles are the
-  engine's own `pending.options`, never a client guess about reachability;
-* a **red pulsing frame** during an `attack_target` decision attacks it.
+* a **green tile** during a `move` decision proposes moving there — green tiles
+  are the engine's own `pending.options`, never a client guess about
+  reachability;
+* a **red pulsing frame** during an `attack_target` decision proposes attacking
+  it;
+* a **blue tile** during setup proposes deploying the chosen frame there.
+
+### Tap twice to mean it
+
+A move cannot be taken back, and a thumb on a phone is a much easier thing to
+misfire than a mouse. So every board tap that spends something irreversible —
+a move, an attack, a deployment — is **two taps**: the first proposes it and
+shows you exactly what it would do (a gold ring on the tile, a panel in the
+sheet saying "Move to (7, 12) · 3 movement"), the second, on the same thing,
+commits it. **Cancel** and **Confirm** buttons in the sheet do the same job for
+anyone who would rather press a button, and any other tap — selecting a frame,
+reading a tile, changing the decision — throws the proposal away.
+
+Taps that only *look* at something are still one tap. Making those cost two
+would be the same disease.
+
+### Setup: putting your squad on the board
+
+Before turn 1 each player places their frames one at a time, alternating, on
+the near edge of their own terrain. The engine offers the whole
+frame × tile cross product in a single `deploy` decision, so the screen splits
+it: the **sheet** picks the frame (a chip each, with its standee and its
+movement) and the **board** picks the tile (blue = the engine's own options for
+whichever frame is chosen). Placement is a two-tap confirm like everything else
+irreversible. The AI answers between your placements, so you watch its squad
+appear opposite yours as you build your own line.
 
 Drawer toggles: terrain and piece art, line-of-sight shading for the selected
 frame, enemy reach shading, terrain-card outlines, tile coordinates.
@@ -260,6 +289,68 @@ step by step*.
   the card.
 * Your own face-down cards read *"face down — the AI cannot see it"*; the AI's
   are blank card backs, because the server never sends their identity.
+* **Persistence and Echoes of the fallen are different rules** and the tableau
+  keeps them apart, because they look alike on the table and the client used to
+  describe one as the other. A card with a **persistence** marker stays in play
+  for its duration, is *set aside*, and neither resolves again nor blocks — the
+  engine's `aside` pile. An **echo** is the opposite: when a frame is
+  destroyed, its controller may reveal the top card of that dead frame's deck
+  and set it sideways with a surviving frame's actions, where it can **block**
+  for that frame — a flag on a committed card, not the aside pile.
+
+### Two of the same frame
+
+Bringing two Kuwagatas is legal — one deck per frame, one faction per squad,
+and nothing says the frames must differ — so the squad picker lets you: tapping
+a deck **adds a copy**, the squad row above shows the slots it fills, and each
+slot has an × to drop it.
+
+Two frames of the same model then have to be told apart everywhere, and the
+engine does that rather than the client: **a frame's id is its name**. It is
+`"<Team> <Model>"` — `Blue Kuwagata`, `Red Hector MkI` — with an ordinal added
+only where a team fields more than one of the model: `Blue Kuwagata 1`,
+`Blue Kuwagata 2`. See `engine.types.frame_id_for`.
+
+That one decision settles what used to be several problems:
+
+* the **log** names frames by id, so "Blue Kuwagata 2 takes 2 Mid damage" is
+  unambiguous even though it names the *defender* while the *attacker* is the
+  one resolving. The client picks the known ids out of each line and tints them
+  by team; it infers nothing.
+* the same is true of every `prompt` the engine writes.
+* the client's label for a frame *is* its id, so the ribbon, the tableau, the
+  target list, the initiative ladder and the frame card cannot disagree. The
+  board marker still shows just the ordinal, as a badge, because a tile is
+  small.
+
+Nothing in the client identifies a frame from prompt text. The engine's
+`prompt` is shown as its own explanation, but *who* a decision is about is read
+from `pending.frameId` (or, for a deploy, from the frame you picked).
+
+### Ephemeral Images
+
+`Mystic_Ephemeral Images` replaces a frame with three tokens, one of which is
+secretly the frame. The frame does not leave the board — it stands on one of
+the three tiles — but while the images are up:
+
+* `view_for` sends another seat **no position at all** for that frame
+  (`"pos": null`, `"cloaked": true`), and no way to tell one image from
+  another. Only the owning seat's view marks the real one.
+* the frame is in no target list, no enemy card's option list and no threat
+  overlay (`GET /api/game/{id}/threat` answers **409** for it). The images are
+  what may be attacked.
+* attacking the real image is an ordinary attack on the frame, blocks and all,
+  and finding it ends the trick. Attacking a fake removes it.
+* the images move with the frame wherever it is moved from — movement,
+  knockback, Teleport, Ace Reflexes, a portal — because `engine.effects
+  .sync_images` runs from the engine's advance loop rather than from each of
+  those places.
+* an image blocks movement like the frame under it would, so an enemy cannot
+  find the frame by noticing which of the three tiles it may not walk into.
+
+The AI stands a hidden frame in the middle of its own images so it keeps
+weighing it as a threat, and prices an attack on an image at its share of a
+real hit plus what narrowing the guess is worth.
 
 ## AI settings
 
@@ -272,7 +363,7 @@ pressing **Apply to this game** retunes the running AI immediately.
 ## HTTP API
 
 ```
-GET    /api/health                 counts of cards, frames, decks, images
+GET    /api/health                 counts of cards, frames, decks, images, art
 GET    /api/cards                  catalogue keyed by "{Group}_{Name}"
 GET    /api/frames                 frame stats from Frames.csv
 GET    /api/decks                  decks in decks/, with legality
@@ -288,7 +379,7 @@ POST   /api/game/{id}/command      {kind, payload{}} -> new view
 POST   /api/game/{id}/undo         step back one human decision
 POST   /api/game/{id}/ai-params    {aiParams{}} retune the AI mid-game
 GET    /api/game/{id}/log          full event log
-GET    /api/game/{id}/threat?frame=a0   reach + line of sight, public info only
+GET    /api/game/{id}/threat?frame=…   reach + line of sight, public info only
 ```
 
 `/?game=<id>` deep-links straight into a running game;
@@ -322,7 +413,8 @@ a handle on a card that is in the AI's hand now.
 | `attack_target` | `{"kind": "frame", "id": "b1"}` |
 | `choose_block` | `{"uid": "c04"}` |
 | `effect_choice` | the option the engine offered, e.g. `{"mulligan": true}` |
-| `echo_card` | `{"dead": "a2", "host": "a0"}` or `{"decline": true}` |
+| `echo_card` | `{"dead": "Blue Adam", "host": "Blue Kuwagata 1"}` or `{"decline": true}` |
+| `deploy` | `{"frame": "Blue Kuwagata 1", "x": 7, "y": 15}` (setup, before turn 1) |
 
 The flat form `{"kind": "move", "x": 7, "y": 12}` also works **except for
 `attack_target`**, whose own payload has a `kind` field that collides with the
@@ -378,13 +470,14 @@ temp dir so nothing generated lands in the repo).
 
 ## Board art
 
-The board needs two more sets, built by `playtest/server/assets.py` and served
+The board needs three more sets, built by `playtest/server/assets.py` and served
 as plain static files (the board asks for twenty terrain cards at once; they
 belong in the browser cache, not behind an API route):
 
 ```bash
-python -m playtest.server.assets            # both
+python -m playtest.server.assets            # terrain, tokens and standees
 python -m playtest.server.assets --what terrain --force
+python -m playtest.server.assets --what frames
 ```
 
 * **`static/terrain/`** — 31 cards, 0.57 MB. The printed terrain art in
@@ -395,11 +488,18 @@ python -m playtest.server.assets --what terrain --force
   check that the geometry is right — `test_terrain_crop_is_the_playable_grid`.
 * **`static/tokens/`** — 14 pieces from `tts_assets/`, 0.03 MB, 96 px PNG8 with
   their transparency intact.
+* **`static/frames/`** — the **standees**: 12 frames, 0.05 MB. `Frames.csv`
+  points each frame at its artwork in `pictures/foreground/`; the builder
+  `-trim`s the mech out of its transparent canvas and scales it to 128 px, so
+  the board can stand the actual machine on its tile instead of a coloured box
+  with three letters on it. Turning **ART** off still gives you the abstract
+  counter, which is the faster read at FIT.
 
 **All of this is committed**, like the card bundle and for the same reason: the
 phone clones the repo and can neither regenerate it nor install ImageMagick.
-`.gitignore` has the negations. Total art carried to the phone: **3.09 MB**
-(2.46 cards + 0.57 terrain + 0.03 tokens + icons).
+`.gitignore` has the negations (`!playtest/server/static/**/*.png` already
+covers the standees). Total art carried to the phone: **3.14 MB**
+(2.46 cards + 0.57 terrain + 0.05 frames + 0.03 tokens + icons).
 
 ## Tests
 

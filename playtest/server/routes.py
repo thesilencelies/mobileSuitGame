@@ -26,6 +26,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Mapping, Optional, Pattern
 
+from ..engine import effects_state as fx
 from ..engine import (
     IllegalCommand,
     Pos,
@@ -263,6 +264,7 @@ class Router:
             "images": len(images.available()),
             "terrainArt": len(assets.terrain_files()),
             "tokenArt": len(assets.token_files()),
+            "frameArt": len(assets.frame_files()),
             "ai": ai_bridge.param_schema()["source"],
             "server": "stdlib",
         }
@@ -415,6 +417,12 @@ def _threat_overlay(session: Session, frame_id: str) -> dict[str, Any]:
     frame = state.frames.get(frame_id)
     if frame is None or frame.pos is None or state.board is None:
         raise HttpError(404, f"no such frame {frame_id!r}", "no_such_frame")
+    # An overlay is drawn *from* the frame's tile, so one for a frame hiding
+    # behind Ephemeral Images would hand over the very thing the card hides.
+    if frame.seat != session.human_seat and fx.is_cloaked(state, frame):
+        raise HttpError(
+            409, "that frame's position is hidden", "frame_hidden"
+        )
     board = state.board
     flying = "flying" in frame.spec.keywords
     occupied = state.occupied(exclude=frame.id)

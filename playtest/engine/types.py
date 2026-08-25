@@ -274,6 +274,30 @@ class FrameSpec:
 Team = int          # seat index; 0 is the human by convention
 Phase = Literal["setup", "planning", "action", "cleanup", "finished"]
 
+#: One word per seat. A frame's id is built from it, so the team a frame is on
+#: is legible in every mention of it -- and the two words are the two colours
+#: the client already paints the seats in.
+TEAM_NAMES: tuple[str, ...] = ("Blue", "Red")
+
+
+def team_name(seat: Team) -> str:
+    return TEAM_NAMES[seat % len(TEAM_NAMES)]
+
+
+def frame_id_for(seat: Team, model: str, ordinal: Optional[int] = None) -> str:
+    """A frame's id, which is also the only name anything ever calls it.
+
+    `"Blue Kuwagata"`, or `"Blue Kuwagata 2"` when that seat fields more than
+    one of the model. Two of a model is legal -- the rules ask for one deck per
+    frame and a shared faction, and say nothing about variety -- so the model
+    name alone is not an identity, and a log line naming one is ambiguous
+    exactly when it matters most. Building the team and the ordinal into the id
+    means every layer (log, prompt, client, AI) inherits an unambiguous name
+    without any of them having to compute one.
+    """
+    base = f"{team_name(seat)} {model}"
+    return base if ordinal is None else f"{base} {ordinal}"
+
 DecisionKind = Literal[
     "commit_actions",   # choose ACTIONS_PER_TURN cards from the drawn hand
     "resolve_order",    # order of movement / effect / attack

@@ -22,6 +22,54 @@ export function catalogue() { return CATALOGUE; }
 export function setFrames(frames) { FRAMES = frames || {}; }
 export function frame(name) { return FRAMES[name] || null; }
 
+// ------------------------------------------------------- the roster
+//
+// Fielding two of the same frame is legal -- the rules ask for one deck per
+// frame and a shared faction, and say nothing about variety -- so "Kuwagata"
+// is not a name, it is a *model*. The engine therefore names frames itself:
+// a frame id is "<Team> <Model>", plus an ordinal where a team fields more
+// than one of the model ("Blue Kuwagata 1", "Blue Kuwagata 2"). That id is
+// what the engine writes in its own log lines and prompts, so the client has
+// nothing to invent -- it only has to know which ids exist, so it can pick
+// them out of a log line and abbreviate them for a board marker.
+
+let ROSTER = new Map();          // frame id -> {id, name, seat, mark}
+
+export function setRoster(frames) {
+  ROSTER = new Map();
+  for (const f of frames || []) {
+    const mark = (/\s(\d+)$/.exec(String(f.id)) || [])[1] || '';
+    ROSTER.set(f.id, { id: f.id, name: f.name, seat: f.seat, mark });
+  }
+}
+
+/** What to print for a frame. The id already *is* its full name. */
+export function frameLabel(frameId, fallback = '') {
+  return ROSTER.has(frameId) ? ROSTER.get(frameId).id : (frameId || fallback);
+}
+
+/** Just the ordinal, for a badge on a board marker. '' when it has none. */
+export function frameMark(frameId) {
+  const entry = ROSTER.get(frameId);
+  return entry ? entry.mark : '';
+}
+
+/** The model name, without team or ordinal: "Kuwagata" for both Kuwagatas. */
+export function frameModel(frameId) {
+  const entry = ROSTER.get(frameId);
+  return entry ? entry.name : '';
+}
+
+/** Every frame id in the game, longest first -- for scanning log prose. */
+export function frameIds() {
+  return [...ROSTER.keys()].sort((a, b) => b.length - a.length);
+}
+
+export function frameSeat(frameId) {
+  const entry = ROSTER.get(frameId);
+  return entry ? entry.seat : null;
+}
+
 export function displayName(key) {
   const info = card(key);
   if (info) return info.name;
@@ -160,6 +208,22 @@ export function summaryLine(key) {
   return bits.join(' · ') || info.type;
 }
 
+// ---------------------------------------------------------------- wording
+//
+// Persistence and Echoes of the fallen are different rules that look alike on
+// the table -- both are a card lying beside a frame that is not in its hand --
+// and the client used to describe one as the other. Kept here so every place
+// that mentions either says the same thing.
+
+export const PERSISTENCE_HELP =
+  'A card with a persistence marker stays in play for its duration. It is set '
+  + 'aside and, while it is set aside, it neither resolves again nor blocks.';
+
+export const ECHO_HELP =
+  'Echoes of the fallen: when a frame is destroyed, its controller may reveal '
+  + 'the top card of that dead frame\'s deck and set it sideways with a '
+  + 'surviving frame\'s actions, where it can block for that frame.';
+
 // ---------------------------------------------------------------- modal
 
 let modalEl = null;
@@ -222,19 +286,32 @@ export function showCard(key) {
     const dl = document.createElement('dl');
     dl.className = 'statgrid';
     const rows = [
-      ['Initiative', (info.initiative || []).join(' then ') || '–'],
-      ['Movement', info.movement ? `${info.movement > 0 ? '+' : ''}${info.movement}` : '0'],
+      ['Initiative', (info.initiative || []).join(' then ') || '–', ''],
+      ['Movement', info.movement ? `${info.movement > 0 ? '+' : ''}${info.movement}` : '0', ''],
       ['Persistence', info.persistence === null ? 'permanent'
-        : (info.persistence ? `${info.persistence} turn(s)` : 'none')],
-      ['Keywords', (info.keywords || []).join(', ') || '–'],
+        : (info.persistence ? `${info.persistence} turn(s)` : 'none'),
+        PERSISTENCE_HELP],
+      ['Keywords', (info.keywords || []).join(', ') || '–', ''],
     ];
-    if (info.knockback) rows.push(['Knockback', String(info.knockback)]);
-    for (const [k, v] of rows) {
+    if (info.knockback) rows.push(['Knockback', String(info.knockback), '']);
+    for (const [k, v, help] of rows) {
       const dt = document.createElement('dt'); dt.textContent = k;
       const dd = document.createElement('dd'); dd.textContent = v;
+      if (help) { dt.title = help; dd.title = help; }
       dl.append(dt, dd);
     }
     body.appendChild(dl);
+
+    // What persistence *is*, on the card that has it. It is easy to confuse
+    // with Echoes of the fallen -- both leave a card lying beside a frame --
+    // and the two are opposites: an echo is there to block, a persisting card
+    // cannot.
+    if (info.persistence !== 0) {
+      const note = document.createElement('div');
+      note.className = 'warnbox soft';
+      note.innerHTML = `<b>Persists</b>${escapeHtml(PERSISTENCE_HELP)}`;
+      body.appendChild(note);
+    }
 
     if (info.text) {
       const text = document.createElement('div');
@@ -268,8 +345,17 @@ export function showFrame(name, live = null) {
   body.appendChild(art);
 
   const h = document.createElement('h2');
-  h.textContent = name;
+  h.textContent = live ? frameLabel(live.id, name) : name;
   body.appendChild(h);
+
+  if (live && frameMark(live.id)) {
+    const dup = document.createElement('div');
+    dup.className = 'sub dupnote';
+    dup.textContent = `This side is fielding more than one ${name}. `
+      + `Everything -- the log, the prompts, the board badge -- calls this one `
+      + `${frameLabel(live.id, name)}.`;
+    body.appendChild(dup);
+  }
 
   const sub = document.createElement('div');
   sub.className = 'sub';
