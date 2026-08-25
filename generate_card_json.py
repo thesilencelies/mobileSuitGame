@@ -202,13 +202,11 @@ GLOSSARY: dict[str, tuple[tuple[str, ...], str]] = {
                  "Revealed: while revealed a frame's chosen actions are turned face up"),
 }
 
-#: not printed as words, so they are detected from the stats instead
+#: not printed as a word, so it is detected from the stats instead. The
+#: persistence mark is deliberately *not* described here -- it is a stat, and
+#: gm_notes already carries it as a "persist:" line.
 SUPER_BLOCK_NOTE = ("Super block: a block value above 1; a zone blocked by a super block is not "
                     "discarded, the card stays on the field revealed")
-PERSISTENCE_NOTE = ("Persistence mark: this card stays on the field after resolving until its "
-                    "effect finishes; the number is how many turns that is")
-PERSISTENCE_NOTE_PERMANENT = ("Persistence mark: this card stays on the field after resolving "
-                              "for the rest of the game")
 
 
 def _check_card_type_tags() -> None:
@@ -381,7 +379,7 @@ def frame_gm_notes(row: dict) -> str:
 
 def description_for(text: str, row: dict, is_pilot: bool) -> str:
     """One clarifying line per keyword the card prints, in the order they appear
-    on it, followed by the markers that are drawn rather than written."""
+    on it, followed by the super block, which is drawn rather than written."""
     lowered = text.lower()
     found = []
     for _keyword, (markers, sentence) in GLOSSARY.items():
@@ -397,10 +395,6 @@ def description_for(text: str, row: dict, is_pilot: bool) -> str:
     )
     if has_super_block:
         notes.append(SUPER_BLOCK_NOTE)
-
-    raw_persistence = _cell(row, "Persistence")
-    if raw_persistence and raw_persistence != "0":
-        notes.append(PERSISTENCE_NOTE_PERMANENT if "infty" in raw_persistence else PERSISTENCE_NOTE)
 
     return "\n".join(notes)
 

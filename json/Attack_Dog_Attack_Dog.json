@@ -2,7 +2,7 @@
   "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Attack%20Dog_Attack%20Dog.png":
   {
     "name": "Attack Dog",
-    "description": "Drone: a token that takes this card's action every turn, using the movement and health printed beside it, until it is destroyed\nPersistence mark: this card stays on the field after resolving for the rest of the game",
+    "description": "Drone: a token that takes this card's action every turn, using the movement and health printed beside it, until it is destroyed",
     "gm_notes": "5init\n-3mv\natk:1L energy\nBlk:1L\ndrone:1hp 4mv\nfaction:Aegis\npersist:permanent\nSummon two attack dogs (A unit that attacks once each turn with this card, with its own movement and health.)",
     "tags":
     {

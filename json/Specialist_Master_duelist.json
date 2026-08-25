@@ -2,7 +2,7 @@
   "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Specialist_Master%20duelist.png":
   {
     "name": "Specialist Master duelist",
-    "description": "Revealed: while revealed a frame's chosen actions are turned face up\nPersistence mark: this card stays on the field after resolving until its effect finishes; the number is how many turns that is",
+    "description": "Revealed: while revealed a frame's chosen actions are turned face up",
     "gm_notes": "3init\n-2mv\nBlk:1H\npersist:3 turns\nFor the next 3 turns: Enemies targeted by melee attacks get Revealed and you choose which card blocks",
     "tags":
     {

@@ -2,7 +2,7 @@
   "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Wunderkid_Hyper.png":
   {
     "name": "Wunderkid Hyper",
-    "description": "Persistence mark: this card stays on the field after resolving until its effect finishes; the number is how many turns that is",
+    "description": "",
     "gm_notes": "2init\n-4mv\nBlk:1H\npersist:1 turn\nNext turn: play 1 extra action",
     "tags":
     {

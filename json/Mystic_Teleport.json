@@ -2,7 +2,7 @@
   "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Mystic_Teleport.png":
   {
     "name": "Mystic Teleport",
-    "description": "Persistence mark: this card stays on the field after resolving until its effect finishes; the number is how many turns that is",
+    "description": "",
     "gm_notes": "1init\n-4mv\nBlk:1H\npersist:1 turn\nNext turn: Reposition this frame anywhere on the map at initiative 4",
     "tags":
     {

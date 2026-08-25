@@ -2,7 +2,7 @@
   "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Mystic_Encode%20the%20future.png":
   {
     "name": "Mystic Encode the future",
-    "description": "Persistence mark: this card stays on the field after resolving until its effect finishes; the number is how many turns that is",
+    "description": "",
     "gm_notes": "1init\n-3mv\nBlk:1H\npersist:1 turn\nNext turn: one allied frame (includes this) chooses cards from their deck",
     "tags":
     {
