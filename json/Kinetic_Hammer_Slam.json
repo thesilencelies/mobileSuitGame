@@ -1,0 +1,15 @@
+{
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Kinetic%20Hammer_Slam.png":
+  {
+    "name": "Kinetic Hammer Slam",
+    "description": "",
+    "gm_notes": "4init\n-3mv\natk:2L impact\nBlk:1L\nAlso hits any enemies adjacent to the target",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Booster_Full%20speed%20ahead.png":
+  {
+    "name": "Booster Full speed ahead",
+    "description": "",
+    "gm_notes": "9init\n+5mv",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Booster",
+      "4": "Factionless"
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Engineer_Precision%20Tuning.png":
+  {
+    "name": "Engineer Precision Tuning",
+    "description": "Boosted: while boosted a frame gets +2 mv",
+    "gm_notes": "4init\n-3mv\nBlk:1H\nThis frame gets 4 Boosted (+2 mv)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Pilot",
+      "4": "Factionless"
+    }
+  }
+}

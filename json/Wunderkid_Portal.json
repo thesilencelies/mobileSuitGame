@@ -1,0 +1,15 @@
+{
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Wunderkid_Portal.png":
+  {
+    "name": "Wunderkid Portal",
+    "description": "",
+    "gm_notes": "3init\n-1mv\nBlk:1H\nCreate two portals within 7. Those tiles are connected.",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Pilot",
+      "4": "Factionless"
+    }
+  }
+}

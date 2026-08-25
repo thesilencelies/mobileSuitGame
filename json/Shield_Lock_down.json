@@ -1,0 +1,15 @@
+{
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Shield_Lock%20down.png":
+  {
+    "name": "Shield Lock down",
+    "description": "Feint: if this attack is not blocked it deals no damage (blocks are compulsory)\nSuper block: a block value above 1; a zone blocked by a super block is not discarded, the card stays on the field revealed",
+    "gm_notes": "6init\n-1mv\natk:1H,1M impact\nBlk:2H,1M\nFeint (This attack deals no damage)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  }
+}

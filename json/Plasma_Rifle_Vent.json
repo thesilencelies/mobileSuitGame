@@ -1,0 +1,15 @@
+{
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Plasma%20Rifle_Vent.png":
+  {
+    "name": "Plasma Rifle Vent",
+    "description": "Feint: if this attack is not blocked it deals no damage (blocks are compulsory)",
+    "gm_notes": "6init\n1mv\natk:1H,1M energy\nBlk:1M\nFeint (This attack deals no damage)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  }
+}

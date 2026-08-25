@@ -1,0 +1,15 @@
+{
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Bruiser_Relentless%20Assault.png":
+  {
+    "name": "Bruiser Relentless Assault",
+    "description": "Committed: this attack is discarded after it resolves",
+    "gm_notes": "7init\n-2mv\nBlk:1H\nAll other actions this frame takes this turn resolve twice at -2mv\nCommitted (this attack is discarded after resolving)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Pilot",
+      "4": "Factionless"
+    }
+  }
+}

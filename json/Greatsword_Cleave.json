@@ -1,0 +1,15 @@
+{
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Greatsword_Cleave.png":
+  {
+    "name": "Greatsword Cleave",
+    "description": "",
+    "gm_notes": "4init\n-2mv\natk:2H,2M cut\nBlk:1H",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  }
+}

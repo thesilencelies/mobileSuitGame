@@ -1,0 +1,15 @@
+{
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Basic_Punch.png":
+  {
+    "name": "Basic Punch",
+    "description": "",
+    "gm_notes": "6init\n0mv\natk:1M impact\nBlk:1M",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Basic",
+      "4": "Factionless"
+    }
+  }
+}

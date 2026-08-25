@@ -1,0 +1,15 @@
+{
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Engineer_Gravity%20Well.png":
+  {
+    "name": "Engineer Gravity Well",
+    "description": "",
+    "gm_notes": "3init\n-2mv\nBlk:1H\nCreate a gravity well within 5. Its an obstacle that adds an extra 1 movement penalty to any step away from it within 5",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Pilot",
+      "4": "Factionless"
+    }
+  }
+}

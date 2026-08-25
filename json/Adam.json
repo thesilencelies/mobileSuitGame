@@ -1,0 +1,14 @@
+{
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Adam.png":
+  {
+    "name": "Adam",
+    "description": "",
+    "gm_notes": "5mv\narmour:4H/3M/3L\nweapons:2\nboosters:0\ndeck:14\nfaction:Collective\npierce Attacks get +2 initiative",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Frame",
+      "3": "Collective"
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Assault%20Rifle_Burst%20Fire.png":
+  {
+    "name": "Assault Rifle Burst Fire",
+    "description": "",
+    "gm_notes": "4init\n-2mv\natk:1M@9,1L@9 projectile\nBlk:1M",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Percival_MkIV.png":
+  {
+    "name": "Percival MkIV",
+    "description": "",
+    "gm_notes": "4mv\narmour:4H/4M/4L\nweapons:3\nboosters:2\ndeck:21\nfaction:Aegis\nAttacks with multiple blocks reduce movement by 2 less",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Frame",
+      "3": "Aegis"
+    }
+  }
+}

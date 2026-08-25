@@ -1,0 +1,15 @@
+{
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Mystic_Utter%20darkness.png":
+  {
+    "name": "Mystic Utter darkness",
+    "description": "Persistence mark: this card stays on the field after resolving until its effect finishes; the number is how many turns that is",
+    "gm_notes": "1init\n-4mv\nBlk:1H\npersist:1 turn\nNext turn: While any frame is within 5 of this frame it cannot be attacked",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Pilot",
+      "4": "Factionless"
+    }
+  }
+}

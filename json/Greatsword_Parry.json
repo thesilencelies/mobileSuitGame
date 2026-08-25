@@ -1,0 +1,15 @@
+{
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Greatsword_Parry.png":
+  {
+    "name": "Greatsword Parry",
+    "description": "On Block: the text after the colon only applies if this card blocks an attack\nSuper block: a block value above 1; a zone blocked by a super block is not discarded, the card stays on the field revealed",
+    "gm_notes": "3init\n-1mv\nBlk:1M,2L\nOn Block: deals mid cut",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  }
+}

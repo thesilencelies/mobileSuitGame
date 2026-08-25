@@ -1,0 +1,15 @@
+{
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Gun%20Tower_Gun%20Tower.png":
+  {
+    "name": "Gun Tower",
+    "description": "Drone: a token that takes this card's action every turn, using the movement and health printed beside it, until it is destroyed\nPersistence mark: this card stays on the field after resolving for the rest of the game",
+    "gm_notes": "2init\n-2mv\natk:1H@8 projectile\nBlk:1L\ndrone:2hp 0mv\nfaction:Guild\npersist:permanent\nSummon one Gun Tower within 3 (A unit that attacks once each turn with this card, with its own movement and health.)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Drone",
+      "4": "Guild"
+    }
+  }
+}

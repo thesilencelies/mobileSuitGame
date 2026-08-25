@@ -1,0 +1,15 @@
+{
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Tactician_Tactical%20broadcast.png":
+  {
+    "name": "Tactician Tactical broadcast",
+    "description": "Lucid: while lucid a frame gets +2 cards",
+    "gm_notes": "4init\n-1mv\nBlk:1H\nAllied frames within 8 get 2 Lucid (+2 cards)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Pilot",
+      "4": "Factionless"
+    }
+  }
+}

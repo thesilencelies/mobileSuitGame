@@ -1,0 +1,15 @@
+{
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Spear_Sweep.png":
+  {
+    "name": "Spear Sweep",
+    "description": "On Hit: the text after the colon only applies if the attack hits (that is, is not blocked)\nSlowed: while slowed a frame gets -2 mv",
+    "gm_notes": "7init\n0mv\natk:1L impact\nBlk:1L\nOn Hit: target gets 2 Slowed (-2 mv)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Stun%20Bow_Rapid%20fire.png":
+  {
+    "name": "Stun Bow Rapid fire",
+    "description": "On Hit: the text after the colon only applies if the attack hits (that is, is not blocked)\nStunned: while stunned a frame gets -2 init\nGuard Break: this attack consumes one block per zone; zones that are not blocked still deal damage",
+    "gm_notes": "3init\n-3mv\natk:1H@6,1M@10 pierce\nBlk:1M\nOn Hit: target gets 2 Stunned (-2 init)\nGuard Break",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  }
+}

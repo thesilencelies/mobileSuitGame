@@ -1,0 +1,15 @@
+{
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Axe_Throw.png":
+  {
+    "name": "Axe Throw",
+    "description": "Committed: this attack is discarded after it resolves",
+    "gm_notes": "5init\n0mv\natk:2M@8 cut\nBlk:1M\nCommitted (this attack is discarded after resolving)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  }
+}

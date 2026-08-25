@@ -1,0 +1,14 @@
+{
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Fenrir.png":
+  {
+    "name": "Fenrir",
+    "description": "",
+    "gm_notes": "6mv\narmour:3H/4M/3L\nweapons:2\nboosters:0\ndeck:14\nfaction:Collective\nCan't use ranged weapons",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Frame",
+      "3": "Collective"
+    }
+  }
+}

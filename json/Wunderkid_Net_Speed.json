@@ -1,0 +1,15 @@
+{
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Wunderkid_Net%20Speed.png":
+  {
+    "name": "Wunderkid Net Speed",
+    "description": "Stimmed: while stimmed a frame gets +2 init\nBoosted: while boosted a frame gets +2 mv\nCommitted: this attack is discarded after it resolves",
+    "gm_notes": "7init\n0mv\nBlk:1H\nThis frame gets 3 Stimmed (+2 init) and 3 Boosted (+2 mv)\nCommitted (this attack is discarded after resolving)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Pilot",
+      "4": "Factionless"
+    }
+  }
+}

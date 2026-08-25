@@ -1,9 +1,9 @@
 {
-  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Axe_Hook.png":
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Chain_Throttle.png":
   {
-    "name": "Axe Hook",
+    "name": "Chain Throttle",
     "description": "On Hit: the text after the colon only applies if the attack hits (that is, is not blocked)\nDazed: while dazed a frame gets -2 cards",
-    "gm_notes": "4init\n0mv\natk:1M cut\nBlk:1H\nOn Hit: target gets 2 Dazed (-2 card)",
+    "gm_notes": "4init\n-1mv\natk:2H impact\nBlk:1H\nOn Hit: target gets 2 Dazed (-2 card)",
     "tags":
     {
       "1": "Card",

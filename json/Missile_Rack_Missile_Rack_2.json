@@ -1,0 +1,15 @@
+{
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Missile%20Rack_Missile%20Rack%202.png":
+  {
+    "name": "Missile Rack 2",
+    "description": "Guard Break: this attack consumes one block per zone; zones that are not blocked still deal damage",
+    "gm_notes": "2init\n-3mv\natk:2M@8,2L@8 projectile\nBlk:1M\nfaction:Guild\nGuard Break (This attack consumes one block per zone)\nCan only be used by J7R-Salryman",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Guild"
+    }
+  }
+}

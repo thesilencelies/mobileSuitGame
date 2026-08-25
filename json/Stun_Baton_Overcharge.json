@@ -1,0 +1,15 @@
+{
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Stun%20Baton_Overcharge.png":
+  {
+    "name": "Stun Baton Overcharge",
+    "description": "Guard Break: this attack consumes one block per zone; zones that are not blocked still deal damage\nOn Hit: the text after the colon only applies if the attack hits (that is, is not blocked)\nStunned: while stunned a frame gets -2 init\nReload: this card persists until this frame next resolves an attack from this weapon; that card deals no damage and triggers no abilities, then both are discarded\nPersistence mark: this card stays on the field after resolving for the rest of the game",
+    "gm_notes": "3init\n-2mv\natk:1H,1M,1L energy\nBlk:1H\npersist:permanent\nGuard Break\nOn Hit: target gets 2 Stunned (-2 init)\nReload (This frames next action from this weapon has no effect or attack.)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  }
+}

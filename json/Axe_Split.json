@@ -1,0 +1,15 @@
+{
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Axe_Split.png":
+  {
+    "name": "Axe Split",
+    "description": "",
+    "gm_notes": "3init\n-1mv\natk:2H,2M cut\nBlk:1M",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  }
+}

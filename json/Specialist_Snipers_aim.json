@@ -1,0 +1,15 @@
+{
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Specialist_Snipers%20aim.png":
+  {
+    "name": "Specialist Snipers aim",
+    "description": "Committed: this attack is discarded after it resolves",
+    "gm_notes": "7init\n-3mv\nBlk:1H\nRanged attacks this turn can ignore obstacles, get + 4 range and deal 1 extra damage\nCommitted (this attack is discarded after resolving)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Pilot",
+      "4": "Factionless"
+    }
+  }
+}

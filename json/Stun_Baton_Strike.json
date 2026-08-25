@@ -1,0 +1,15 @@
+{
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Stun%20Baton_Strike.png":
+  {
+    "name": "Stun Baton Strike",
+    "description": "On Hit: the text after the colon only applies if the attack hits (that is, is not blocked)\nStunned: while stunned a frame gets -2 init",
+    "gm_notes": "5init\n-1mv\natk:1L energy\nBlk:1H\nOn Hit: target gets 2 Stunned (-2 init)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  }
+}

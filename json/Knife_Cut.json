@@ -1,0 +1,15 @@
+{
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Knife_Cut.png":
+  {
+    "name": "Knife Cut",
+    "description": "Close Quarters: this attack cannot be blocked by attacks that have already resolved",
+    "gm_notes": "5init\n0mv\natk:1M cut\nBlk:1M\nClose Quarters (Cannot be blocked by higher initiative attacks)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  }
+}

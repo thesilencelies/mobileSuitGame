@@ -1,0 +1,15 @@
+{
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Tactician_Fog%20of%20war.png":
+  {
+    "name": "Tactician Fog of war",
+    "description": "Persistence mark: this card stays on the field after resolving until its effect finishes; the number is how many turns that is",
+    "gm_notes": "3init\n0mv\nBlk:1H\npersist:1 turn\nNext turn: Allied frames within 7 of this frame cannot be targeted by ranged attacks",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Pilot",
+      "4": "Factionless"
+    }
+  }
+}

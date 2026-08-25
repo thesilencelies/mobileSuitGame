@@ -1,0 +1,15 @@
+{
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Great%20Axe_Cleave.png":
+  {
+    "name": "Great Axe Cleave",
+    "description": "",
+    "gm_notes": "3init\n-2mv\natk:3M,2L cut\nBlk:1L",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  }
+}

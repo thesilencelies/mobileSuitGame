@@ -1,0 +1,15 @@
+{
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Halberd_Eviscerate.png":
+  {
+    "name": "Halberd Eviscerate",
+    "description": "",
+    "gm_notes": "4init\n-2mv\natk:3M cut\nBlk:1H",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  }
+}

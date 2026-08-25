@@ -1,0 +1,15 @@
+{
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Plasma%20Rifle_Charged%20Shot.png":
+  {
+    "name": "Plasma Rifle Charged Shot",
+    "description": "Guard Break: this attack consumes one block per zone; zones that are not blocked still deal damage\nReload: this card persists until this frame next resolves an attack from this weapon; that card deals no damage and triggers no abilities, then both are discarded\nPersistence mark: this card stays on the field after resolving for the rest of the game",
+    "gm_notes": "3init\n-3mv\natk:2H@9,1M@9 energy\nBlk:1M\npersist:permanent\nGuard Break (This attack consumes one block per zone)\nReload (This frames next action from this weapon has no effect or attack.)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  }
+}

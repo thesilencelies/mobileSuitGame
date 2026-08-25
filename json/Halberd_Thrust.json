@@ -1,0 +1,15 @@
+{
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Halberd_Thrust.png":
+  {
+    "name": "Halberd Thrust",
+    "description": "Committed: this attack is discarded after it resolves",
+    "gm_notes": "7init\n1mv\natk:1H pierce\nBlk:1M\nCommitted (this attack is discarded after resolving)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  }
+}

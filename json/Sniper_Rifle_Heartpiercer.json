@@ -1,0 +1,15 @@
+{
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Sniper%20Rifle_Heartpiercer.png":
+  {
+    "name": "Sniper Rifle Heartpiercer",
+    "description": "",
+    "gm_notes": "3init\n-3mv\natk:2M@16 projectile\nBlk:1M\nDeals + 2 projectile if the target didnt move",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  }
+}

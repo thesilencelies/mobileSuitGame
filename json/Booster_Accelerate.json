@@ -1,0 +1,15 @@
+{
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Booster_Accelerate.png":
+  {
+    "name": "Booster Accelerate",
+    "description": "",
+    "gm_notes": "9init\n+1mv\nOther actions this turn get +3 mv",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Booster",
+      "4": "Factionless"
+    }
+  }
+}

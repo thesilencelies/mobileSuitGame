@@ -1,0 +1,14 @@
+{
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/VX4-Nautilus.png":
+  {
+    "name": "VX4-Nautilus",
+    "description": "",
+    "gm_notes": "3mv\narmour:3H/4M/4L\nweapons:4\nboosters:2\ndeck:21\nfaction:Guild\nRanged attacks reduce movement by 2 less",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Frame",
+      "3": "Guild"
+    }
+  }
+}

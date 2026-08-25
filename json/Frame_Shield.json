@@ -1,0 +1,15 @@
+{
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Frame_Shield.png":
+  {
+    "name": "Frame Shield",
+    "description": "Shield X: put X shield counters on the frame; a counter is removed instead of taking any damage, and one counter stops a whole attack however many zones it landed in",
+    "gm_notes": "1init\n-2mv\nBlk:1M\nfaction:Church of the Net\nAdd a shield",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Basic",
+      "4": "Church of the Net"
+    }
+  }
+}

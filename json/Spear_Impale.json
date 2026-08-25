@@ -1,0 +1,15 @@
+{
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Spear_Impale.png":
+  {
+    "name": "Spear Impale",
+    "description": "",
+    "gm_notes": "5init\n-2mv\natk:1H,2L pierce\nBlk:1H",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  }
+}

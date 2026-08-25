@@ -1,0 +1,15 @@
+{
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Great%20Axe_Whirl.png":
+  {
+    "name": "Great Axe Whirl",
+    "description": "",
+    "gm_notes": "4init\n-2mv\natk:2M,1L cut\nBlk:1M\nHits all adjacent enemies",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  }
+}

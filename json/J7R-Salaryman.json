@@ -1,0 +1,14 @@
+{
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/J7R-Salaryman.png":
+  {
+    "name": "J7R-Salaryman",
+    "description": "",
+    "gm_notes": "4mv\narmour:3H/3M/4L\nweapons:5\nboosters:1\ndeck:25\nfaction:Guild\nRanged attacks get +4 range",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Frame",
+      "3": "Guild"
+    }
+  }
+}
