@@ -231,6 +231,7 @@ TSWLatexianTemp*
 # individual card renders from generate_card_images.py are checked in
 !CardImages/*.png
 !RulesImages/*.png
+!pictures/*.png
 
 # the playtest app's downscaled art ships WITH the app -- a phone clones the repo
 # and has no way to regenerate these, so everything under static/ must be tracked
