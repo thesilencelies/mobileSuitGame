@@ -1,5 +1,5 @@
 Name,Faction,Movement,Weapon Slots,Boosters,Deck size,Abilities,Top armour,Side armour,Low armour,CardImg,BackgroundLayer,ForegroundImg,Flavor,PrintID,Artist
-Percival MkIV,Aegis,4,3,2,21,Attacks with multiple blocks reduce movement by 2 less,4,4,4,foreground/aegis_percival.png,proxy_background.png,,"Where it stands, peace stands",1,GoodBoy
+Percival MkIV,Aegis,4,4,2,21,Attacks with multiple blocks reduce movement by 2 less,4,4,4,foreground/aegis_percival.png,proxy_background.png,,"Where it stands, peace stands",1,GoodBoy
 Kuwagata,Ouwa,4,4,3,21,"once, during planning; discard your hand and draw a new one",4,4,4,foreground/ouwa_kuwagata.png,proxy_background.png,,"Menacing in it's effciency, it stands tall on generations of craftmanship",1,GoodBoy
 VX4-Nautilus,Guild,3,4,2,21,Ranged attacks reduce movement by 2 less,3,4,4,foreground/guild_nautilus.png,proxy_background.png,,"Built for combat in the bay area, it's a relentless force of firepower",1,GoodBoy
 Adam,Collective,5,2,0,14,\smallpierce Attacks get +2 initiative,4,3,3,foreground/collective_adam.png,proxy_background.png,,"Named after the first man, he's the last thing many will ever see",1,GoodBoy
