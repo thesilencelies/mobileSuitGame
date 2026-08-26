@@ -264,23 +264,61 @@ def deployment_tiles(state: GameState, seat: Team) -> list[Pos]:
     ]
 
 
-def _place_fugitive(state: GameState) -> None:
-    """"Put a fugitive token anywhere in the enemy back row after deployment."
+def _fugitive_placements(state: GameState) -> list[tuple[str, Team, list[Pos]]]:
+    """`(token id, who places it, where it may go)` for every unplaced fugitive.
 
-    The Fugitive card carries no `tkn` cell, so the token does not start on the
-    card: it starts in the *attacker's* back row and the defender must escort
-    it to the objective tile. Runs once deployment is finished, so it can avoid
-    the tiles frames actually took.
+    "Put a fugitive token anywhere in the enemy back row after deployment."
+    The card carries no `tkn` cell, so the token does not start on the card: it
+    starts in the *attacker's* back row and the defender must escort it out.
+    "Anywhere" is the choice of whoever brought the card -- the objective's
+    owner -- so this offers the row rather than picking the middle of it.
     """
+    out: list[tuple[str, Team, list[Pos]]] = []
     for objective in state.objectives:
         if objective.name != "Fugitive":
             continue
         enemy = objectivelib.other_seat(state, objective.owner)
-        free = deployment_tiles(state, enemy)
+        free = [
+            pos for pos in deployment_tiles(state, enemy)
+            if not any(t.alive and t.pos == pos for t in state.tokens.values())
+        ]
         if not free:
             continue
+        placed = objective.memo.setdefault("placed", [])
         for token_id in objective.token_ids:
-            state.tokens[token_id].pos = free[len(free) // 2]
+            token = state.tokens.get(token_id)
+            # The token already has a position -- the objective's own tile --
+            # so "unplaced" means "not yet moved to the back row", not
+            # "nowhere". Tracked on the objective so answering the decision
+            # does not leave it asking forever.
+            if token is None or token_id in placed:
+                continue
+            out.append((token_id, objective.owner, free))
+    return out
+
+
+def _mark_fugitive_placed(state: GameState, token_id: str) -> None:
+    for objective in state.objectives:
+        if token_id in objective.token_ids:
+            objective.memo.setdefault("placed", []).append(token_id)
+
+
+def _fugitive_decision(state: GameState) -> bool:
+    """Ask where a fugitive goes. True if one was asked for."""
+    for token_id, seat, free in _fugitive_placements(state):
+        if len(free) == 1:
+            state.tokens[token_id].pos = free[0]
+            _mark_fugitive_placed(state, token_id)
+            continue
+        state.pending = PendingDecision(
+            kind="place_objective",
+            seat=seat,
+            prompt="Fugitive: hide it anywhere in the enemy back row",
+            options=[{"token": token_id, "x": p.x, "y": p.y} for p in free],
+            pick_kind="place",
+        )
+        return True
+    return False
 
 
 def _build_battlefield(state: GameState, config: GameConfig) -> None:
@@ -447,7 +485,6 @@ def _deploy_decision(state: GameState) -> bool:
 
 
 def _finish_setup(state: GameState) -> None:
-    _place_fugitive(state)
     state.queue = []
     state.note("deployment complete")
     _begin_planning(state)
@@ -582,16 +619,20 @@ def _actors(state: GameState) -> list[tuple[int, FrameState, str]]:
     return out
 
 
-def next_actor(state: GameState) -> Optional[tuple[FrameState, str]]:
-    """Highest initiative first; ties alternate clockwise from the priority marker.
+def next_actors(state: GameState) -> list[tuple[FrameState, str]]:
+    """Every card that could resolve next, all from one seat.
 
-    The alternation is sticky across resolutions at the same initiative value,
-    so two cards from the same seat at the same value do not resolve back to
-    back while the opponent still has one waiting.
+    "In the event of a tie the cards are resolved alternately, moving clockwise
+    from the player with the priority marker" (rules.tex:442) settles *whose*
+    turn it is, and the alternation is sticky across resolutions at the same
+    value so two cards from one seat do not go back to back while the opponent
+    still has one waiting. It says nothing about which of that seat's own tied
+    cards goes first, because that is the player's call -- so when more than
+    one comes back here, the engine asks.
     """
     actors = _actors(state)
     if not actors:
-        return None
+        return []
     best = max(value for value, _, _ in actors)
     tied = [(f, uid) for value, f, uid in actors if value == best]
     cycle = state.seat_cycle()
@@ -600,11 +641,48 @@ def next_actor(state: GameState) -> Optional[tuple[FrameState, str]]:
         state.tie_index = 0
     for offset in range(len(cycle)):
         seat = cycle[(state.tie_index + offset) % len(cycle)]
-        for frame, uid in tied:
-            if frame.seat == seat:
-                state.tie_index = (state.tie_index + offset + 1) % len(cycle)
-                return frame, uid
-    return tied[0]
+        mine = [(f, uid) for f, uid in tied if f.seat == seat]
+        if mine:
+            state.tie_index = (state.tie_index + offset + 1) % len(cycle)
+            return mine
+    return tied[:1]
+
+
+def next_actor(state: GameState) -> Optional[tuple[FrameState, str]]:
+    """The single card that resolves next, ignoring the owner's preference."""
+    candidates = next_actors(state)
+    return candidates[0] if candidates else None
+
+
+def _actor_decision(
+    state: GameState, actors: Sequence[tuple[FrameState, str]]
+) -> PendingDecision:
+    """Which of one seat's tied cards resolves next."""
+    seat = actors[0][0].seat
+    value = kw.effective_initiative(
+        state, actors[0][0],
+        state.catalogue[state.cards[actors[0][1]].key],
+        state.cards[actors[0][1]].init_index,
+    )
+    return PendingDecision(
+        kind="choose_actor",
+        seat=seat,
+        prompt=f"{len(actors)} of your actions are tied at initiative {value}",
+        options=[
+            {"uid": uid, "key": state.cards[uid].key, "frame": frame.id}
+            for frame, uid in actors
+        ],
+    )
+
+
+def _handle_choose_actor(
+    state: GameState, pending: PendingDecision, cmd: Command
+) -> None:
+    uid = str(cmd.payload.get("uid"))
+    option = next((o for o in pending.options if o["uid"] == uid), None)
+    _require(option is not None, "that action is not one of the tied ones")
+    assert option is not None
+    _begin_resolution(state, state.frames[str(option["frame"])], uid)
 
 
 def _begin_resolution(state: GameState, frame: FrameState, uid: str) -> None:
@@ -698,6 +776,7 @@ def _run_steps(state: GameState) -> bool:
         if not res.steps:
             break
         step = res.steps[0]
+        res.step = step
         if step == "movement":
             if _movement_decision(state, frame, card):
                 return True
@@ -714,6 +793,7 @@ def _run_steps(state: GameState) -> bool:
             res.steps.pop(0)
             if _attack_step(state, frame, res.uid):
                 return True
+    res.step = ""
     _finish_card(state)
     return False
 
@@ -738,7 +818,11 @@ def _movement_decision(state: GameState, frame: FrameState, card: Card) -> bool:
     state.pending = PendingDecision(
         kind="move",
         seat=frame.seat,
-        prompt=f"Move {frame.id} (up to {budget})",
+        # Named after the card, because a card with several steps asks several
+        # questions and the corner panel says "Gravity Well" throughout all of
+        # them. Without the name here, the movement step of a card that also
+        # places something reads as part of the placing.
+        prompt=f"{card.name}: move {frame.id} (up to {budget})",
         options=options,
         frame_id=frame.id,
     )
@@ -902,6 +986,10 @@ def advance(state: GameState) -> GameState:
         if state.phase == "setup":
             if _deploy_decision(state):
                 break
+            # Fugitives go down once every frame is placed, so their owner can
+            # see the board they are hiding one on.
+            if _fugitive_decision(state):
+                break
             _finish_setup(state)
         elif state.phase == "planning":
             if _planning_decision(state):
@@ -914,11 +1002,16 @@ def advance(state: GameState) -> GameState:
                 continue
             if effects.followup_decision(state):
                 break
-            actor = next_actor(state)
-            if actor is None:
+            actors = next_actors(state)
+            if not actors:
                 _cleanup(state)
                 continue
-            _begin_resolution(state, *actor)
+            # Several of this seat's cards are tied. Which of its own goes
+            # first is the player's call, not the engine's tie-break.
+            if len(actors) > 1:
+                state.pending = _actor_decision(state, actors)
+                break
+            _begin_resolution(state, *actors[0])
             if state.pending is not None:
                 break
             if _run_steps(state):
@@ -1040,6 +1133,19 @@ def _offered(pending: PendingDecision, payload: Mapping[str, object]) -> bool:
     )
 
 
+def _handle_place_objective(
+    state: GameState, pending: PendingDecision, cmd: Command
+) -> None:
+    payload = dict(cmd.payload)
+    _require(_offered(pending, payload), "that tile was not offered")
+    token = state.tokens.get(str(payload.get("token")))
+    _require(token is not None, "no such token")
+    assert token is not None
+    token.pos = Pos(int(payload["x"]), int(payload["y"]))
+    _mark_fugitive_placed(state, token.id)
+    state.note(f"the fugitive is hiding at ({token.pos.x},{token.pos.y})")
+
+
 def _handle_echo(state: GameState, pending: PendingDecision, cmd: Command) -> None:
     payload = dict(cmd.payload)
     _require(_offered(pending, payload), "that option was not offered")
@@ -1147,7 +1253,9 @@ def _handle_deploy(state: GameState, pending: PendingDecision, cmd: Command) -> 
 _HANDLERS: Mapping[str, Callable[[GameState, PendingDecision, Command], None]] = {
     "deploy": _handle_deploy,
     "commit_actions": _handle_commit,
+    "choose_actor": _handle_choose_actor,
     "effect_choice": _handle_effect_choice,
+    "place_objective": _handle_place_objective,
     "echo_card": _handle_echo,
     "resolve_order": _handle_resolve_order,
     "move": _handle_move,

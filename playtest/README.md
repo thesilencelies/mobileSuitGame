@@ -237,9 +237,15 @@ Tapping:
 ### Putting things on the board
 
 Barricade places up to three tokens, Portal two ends, an Attack Dog card two
-dogs, a Gun Tower one within 3. All of them are answered on the board, in
+dogs, a Gun Tower one within 3, and the Fugitive objective hides its token
+anywhere in the enemy back row. All of them are answered on the board, in
 **orange** rather than movement's green: the question is not "where do I go"
 but "where does this go", and confusing the two costs an action.
+
+Which colour a tile decision gets is the engine's answer, not a guess from the
+option shape: `pickKind` on the decision is `"place"` (orange) or `"move"`
+(green). A shove, a drone's move, a reflex step and a Teleport all send
+something that is already on the board somewhere, so they are green.
 
 The engine asks for one tile at a time, which would make Barricade three
 separate confirmations. So each decision carries `pickMin`/`pickMax` — how many
@@ -256,6 +262,35 @@ Barricade's "up to 3" also ships a `{done: true}` option alongside its tiles, so
 the client must treat *some* options as tiles rather than requiring them all to
 be — getting that wrong is what once turned the whole decision into an
 unreadable list of raw grid coordinates.
+
+### Who first, then where
+
+"Move a frame within 5 up to 2" (Set the trap, Call of Nature) used to be one
+list of every (frame, destination) pair — dozens of rows of raw coordinates on
+a 15x16 board, and nothing the map could show. It is two questions now: which
+frame, then that frame's own reachable tiles in movement green. With only one
+frame in range it skips straight to "where".
+
+### Which of your own actions goes first
+
+"In the event of a tie the cards are resolved alternately, moving clockwise
+from the player with the priority marker" (rules.tex:442) settles *whose* turn
+it is and stops there. Which of one seat's own tied cards resolves first is the
+player's call — and it matters, since closing the distance with one card can
+put a target in reach of the other. So when the alternation lands on a seat
+holding more than one tied card, the engine raises a `choose_actor` decision
+instead of picking. `next_actors()` returns the whole tied set for that seat;
+`next_actor()` is still there and returns the first of them.
+
+### What is running on a frame
+
+Statuses and persistent cards get pips along the top edge of a frame's tile.
+Every status is ±2 to one stat, so the letter names the **stat** and the colour
+says which way — `I` initiative, `C` cards drawn, `M` movement, green for the
+buff of a pair and red for the debuff, so there is one thing to learn rather
+than seven. `R` in gold is Revealed, which has no opposite. A violet `P` means
+a card is still in play in front of that frame (Utter darkness, Fog of war);
+the Plan tab names them.
 
 ### Tap twice to mean it
 
@@ -343,8 +378,27 @@ marks that landed; and the block shield itself — the same shape
 `card_macros.tex` prints on the cards — on each zone that was stopped.
 
 A corner card on the board says which frame is acting, with which card, at what
-initiative, and how far through its steps it is — during your turn and during
-the playback alike.
+initiative, and which step of it is running — during your turn and during the
+playback alike. It floats over the bottom-left of the board, which is sometimes
+exactly the tile you want, so **tapping it folds it down to a stub** and
+tapping the stub brings it back.
+
+That "which step" is `Resolution.step`, and it is deliberately not the head of
+`Resolution.steps`. An effect takes itself off the remaining list *before* it
+runs, so a card resolved effect-first read `["movement"]` while it was asking
+where to put a gravity well and `["movement"]` again for the move that
+followed: two completely different questions with identical readouts, which
+made the green movement tiles look like part of the orange placement. For the
+same reason a `move` prompt names the card ("Gravity Well: move Blue Hector
+MkI"), since the corner panel says "Gravity Well" throughout.
+
+**Play back my own actions too** (off by default) records the player's frames
+as well as the AI's. Normally there is no point: your cards resolve under your
+own hand and a delay between a tap and its result is worse than no animation.
+But an action with no choices left in it — one legal target, one legal tile —
+resolves inside the same call with nothing asked, so you see the aftermath and
+never the act. The client sends `replayMine` on the command; the server passes
+it to `Session.watcher(mine=True)`.
 
 ### Ordering the steps
 
@@ -528,6 +582,7 @@ a handle on a card that is in the AI's hand now.
 | kind | payload |
 |---|---|
 | `commit_actions` | `{"uids": ["c17", "c22"]}` |
+| `choose_actor` | `{"uid": "c17"}` — which of your tied cards resolves next |
 | `resolve_order` | `{"order": ["movement", "attack"]}` |
 | `move` | `{"x": 7, "y": 12}` |
 | `attack_target` | `{"kind": "frame", "id": "b1"}` |
@@ -535,6 +590,11 @@ a handle on a card that is in the AI's hand now.
 | `effect_choice` | the option the engine offered, e.g. `{"mulligan": true}` |
 | `echo_card` | `{"dead": "Blue Adam", "host": "Blue Kuwagata 1"}` or `{"decline": true}` |
 | `deploy` | `{"frame": "Blue Kuwagata 1", "x": 7, "y": 15}` (setup, before turn 1) |
+| `place_objective` | `{"token": "t12", "x": 6, "y": 0}` — where the Fugitive hides (setup) |
+
+`POST /command` also accepts `replayMine: true` alongside the command, which
+records the player's own frames in the response's `replay` — see
+[Watching the AI move](#watching-the-ai-move).
 
 The flat form `{"kind": "move", "x": 7, "y": 12}` also works **except for
 `attack_target`**, whose own payload has a `kind` field that collides with the

@@ -300,6 +300,7 @@ def frame_id_for(seat: Team, model: str, ordinal: Optional[int] = None) -> str:
 
 DecisionKind = Literal[
     "commit_actions",   # choose ACTIONS_PER_TURN cards from the drawn hand
+    "choose_actor",     # which of this seat's tied cards resolves next
     "resolve_order",    # order of movement / effect / attack
     "move",             # choose a destination
     "attack_target",    # choose target frame or token
@@ -341,6 +342,13 @@ class PendingDecision:
     #: states the range rather than leaving it to be inferred.
     pick_min: int = 1
     pick_max: int = 1
+    #: What a tile decision is asking for, when it is asking for tiles.
+    #: `"move"` sends something already on the board to that tile; `"place"`
+    #: puts something new on it. They read completely differently to a player
+    #: -- "where do I go" against "where does this go" -- and the client
+    #: colours them apart, so the engine says which rather than leaving it to
+    #: be guessed from the option shape.
+    pick_kind: str = ""
 
 
 @dataclass(frozen=True)

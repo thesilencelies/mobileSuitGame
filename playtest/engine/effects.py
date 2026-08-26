@@ -282,6 +282,7 @@ def _ask(
     ctx: Optional[Mapping[str, Any]] = None,
     pick_min: int = 1,
     pick_max: int = 1,
+    pick_kind: str = "",
 ) -> PendingDecision:
     """Build an `effect_choice` and record which handler answers it.
 
@@ -300,6 +301,7 @@ def _ask(
         frame_id=frame_id,
         pick_min=pick_min,
         pick_max=pick_max,
+        pick_kind=pick_kind,
     )
 
 
@@ -391,43 +393,135 @@ def _effect_call_of_nature(state: GameState, frame: FrameState, uid: str):
     match = _SELECT_MOVE_RE.search(card.text)
     reach = int(match.group(1)) if match else 6
     steps = int(match.group(2)) if match else 2
-    options = _shove_options(state, frame, reach, steps, side="enemy")
-    if not options:
-        return None
-    return PendingDecision(
-        kind="effect_choice",
-        seat=frame.seat,
-        prompt=f"{card.name}: move an opposing frame within {reach} up to {steps}",
-        options=options,
-        frame_id=frame.id,
+    return _shove_step(
+        state, frame, label=card.name, reach=reach, steps=steps,
+        side="enemy", after="",
     )
 
 
-def _shove_options(
+def _shove_victims(
     state: GameState, frame: FrameState, reach: int, steps: int, *, side: str
-) -> list[dict[str, Any]]:
-    """(frame, destination) pairs for "move a frame within N up to M"."""
+) -> list[FrameState]:
+    """Frames "move a frame within N up to M" could actually move."""
     if state.board is None or frame.pos is None:
         return []
-    options: list[dict[str, Any]] = []
-    for other in fx.frames_within(state, frame, reach, side=side):
-        if other.pos is None:
-            continue
-        reachable = state.board.reachable(
-            other.pos,
-            steps,
-            occupied=state.occupied(exclude=other.id),
-            flying="flying" in other.spec.keywords,
-        )
-        for pos in sorted(reachable, key=lambda p: (p.y, p.x)):
-            options.append(
-                {"frame": other.id, "name": other.spec.name, "x": pos.x, "y": pos.y}
-            )
-    return options
+    return [
+        other for other in fx.frames_within(state, frame, reach, side=side)
+        if other.pos is not None and _shove_tiles(state, other, steps)
+    ]
+
+
+def _shove_tiles(
+    state: GameState, target: FrameState, steps: int
+) -> list[dict[str, Any]]:
+    """Where a shoved frame can end up, with the steps it costs to get there."""
+    if state.board is None or target.pos is None:
+        return []
+    reachable = state.board.reachable(
+        target.pos,
+        steps,
+        occupied=state.occupied(exclude=target.id),
+        flying="flying" in target.spec.keywords,
+    )
+    return [
+        {"x": pos.x, "y": pos.y, "cost": reachable[pos]}
+        for pos in sorted(reachable, key=lambda p: (p.y, p.x))
+        if pos != target.pos
+    ]
+
+
+def _shove_step(
+    state: GameState,
+    frame: FrameState,
+    *,
+    label: str,
+    reach: int,
+    steps: int,
+    side: str,
+    after: str,
+) -> Optional[PendingDecision]:
+    """"Move a frame within N up to M", asked as two plain questions.
+
+    Who, then where. It used to be one list of every (frame, destination) pair,
+    which on a 15x16 board is dozens of rows of raw coordinates and no way to
+    see any of it on the map. Split, each half is something the board can show:
+    the frames you may shove, then that frame's own reachable tiles in the same
+    green a move uses.
+    """
+    victims = _shove_victims(state, frame, reach, steps, side=side)
+    if not victims:
+        return None
+    if len(victims) == 1:
+        return _shove_destination(state, frame, victims[0],
+                                  label=label, steps=steps, after=after)
+    return _ask(
+        state,
+        "shove_frame",
+        seat=frame.seat,
+        frame_id=frame.id,
+        prompt=f"{label}: which frame within {reach}?",
+        options=_frame_options(victims),
+        ctx={"steps": steps, "label": label, "after": after},
+        pick_kind="frame",
+    )
+
+
+def _shove_destination(
+    state: GameState, frame: FrameState, target: FrameState, *,
+    label: str, steps: int, after: str,
+) -> Optional[PendingDecision]:
+    tiles = _shove_tiles(state, target, steps)
+    if not tiles:
+        return None
+    return _ask(
+        state,
+        "shove_to",
+        seat=frame.seat,
+        frame_id=frame.id,
+        prompt=f"{label}: move {target.id} up to {steps}",
+        options=tiles,
+        ctx={"target": target.id, "after": after},
+        pick_kind="move",
+    )
+
+
+def _choice_shove_frame(
+    state: GameState, frame: FrameState, choice: Mapping, ctx: Mapping
+) -> None:
+    target = state.frames.get(str(choice.get("frame")))
+    if target is None:
+        return
+    nxt = _shove_destination(
+        state, frame, target,
+        label=str(ctx.get("label", "Move")),
+        steps=int(ctx.get("steps", 2)),
+        after=str(ctx.get("after", "")),
+    )
+    if nxt is not None:
+        state.pending = nxt
+
+
+def _choice_shove_to(
+    state: GameState, frame: FrameState, choice: Mapping, ctx: Mapping
+) -> None:
+    target = state.frames.get(str(ctx.get("target")))
+    if target is None:
+        return
+    _move_frame(state, target, Pos(int(choice["x"]), int(choice["y"])))
+    if ctx.get("after") == "reveal_nearby":
+        for enemy in fx.frames_within(state, target, 3, side="enemy"):
+            _apply_statuses(state, enemy, [("revealed", 1)])
 
 
 def _move_frame(state: GameState, target: FrameState, pos: Pos) -> None:
+    """A frame put somewhere by a card rather than by its own move step.
+
+    A shove, a reflex step, a Teleport. It is still a frame moving on the
+    board, so it raises the same beat a move decision does -- otherwise the
+    replay would attribute the change to whatever happened next.
+    """
     from . import objectives as objectivelib
+    from . import resolve as _resolve
 
     old = target.pos
     if pos == old:
@@ -436,13 +530,7 @@ def _move_frame(state: GameState, target: FrameState, pos: Pos) -> None:
     target.moved_this_turn = True
     objectivelib.on_move(state, target, old)
     state.note(f"{target.id} is moved to ({pos.x},{pos.y})")
-
-
-def _apply_call_of_nature(state: GameState, frame: FrameState, choice: Mapping) -> None:
-    target = state.frames.get(str(choice.get("frame")))
-    if target is None:
-        return
-    _move_frame(state, target, Pos(int(choice["x"]), int(choice["y"])))
+    _resolve._beat(state, "move")
 
 
 # --------------------------------------------------------------------------
@@ -652,28 +740,10 @@ def _effect_fog_of_war(state: GameState, frame: FrameState, uid: str):
 def _effect_set_the_trap(state: GameState, frame: FrameState, uid: str):
     """"Move an allied frame within 5 2 space. All enemies within 3 of them
     get revealed"."""
-    options = _shove_options(state, frame, 5, 2, side="ally")
-    if not options:
-        return None
-    return _ask(
-        state,
-        "set_the_trap",
-        seat=frame.seat,
-        frame_id=frame.id,
-        prompt="Set the trap: move an allied frame within 5 up to 2",
-        options=options,
+    return _shove_step(
+        state, frame, label="Set the trap", reach=5, steps=2,
+        side="ally", after="reveal_nearby",
     )
-
-
-def _choice_set_the_trap(
-    state: GameState, frame: FrameState, choice: Mapping, ctx: Mapping
-) -> None:
-    target = state.frames.get(str(choice.get("frame")))
-    if target is None:
-        return
-    _move_frame(state, target, Pos(int(choice["x"]), int(choice["y"])))
-    for enemy in fx.frames_within(state, target, 3, side="enemy"):
-        _apply_statuses(state, enemy, [("revealed", 1)])
 
 
 # --------------------------------------------------------------------------
@@ -730,6 +800,7 @@ def _portal_step(
         ctx={"reach": reach, "first": ([first.x, first.y] if first else None)},
         pick_min=wanted,
         pick_max=wanted,
+        pick_kind="place",
     )
 
 
@@ -821,6 +892,7 @@ def _barricade_step(
         ctx={"reach": reach, "left": left},
         pick_min=0,                     # "up to 3" -- and `done` stops early
         pick_max=min(left, len(tiles)),
+        pick_kind="place",
     )
 
 
@@ -870,6 +942,7 @@ def _effect_gravity_well(state: GameState, frame: FrameState, uid: str):
         frame_id=frame.id,
         prompt=f"Gravity Well: choose a tile within {reach}",
         options=[{"x": p.x, "y": p.y} for p in tiles],
+        pick_kind="place",
     )
 
 
@@ -1067,6 +1140,7 @@ def _summon_step(
         ctx={"reach": reach, "left": left, "uid": uid},
         pick_min=wanted,
         pick_max=wanted,
+        pick_kind="place",
     )
 
 
@@ -1376,16 +1450,15 @@ def _effect_handler(card: Card) -> Optional[EffectFn]:
 
 #: Effect-choice handlers keyed by card, for effects whose decision is raised
 #: straight out of the effect step and answered with no extra context.
-EFFECT_CHOICES: Mapping[str, Callable[[GameState, FrameState, Mapping], None]] = {
-    "Frame_Call of Nature": _apply_call_of_nature,
-}
+EFFECT_CHOICES: Mapping[str, Callable[[GameState, FrameState, Mapping], None]] = {}
 
 #: Handlers for the decisions `_ask` raises, keyed by the name given there.
 CHOICE_HANDLERS: Mapping[str, ChoiceFn] = {
     "intimidate": _choice_intimidate,
     "target_status": _choice_target_status,
     "encode": _choice_encode,
-    "set_the_trap": _choice_set_the_trap,
+    "shove_frame": _choice_shove_frame,
+    "shove_to": _choice_shove_to,
     "repairs": _choice_repairs,
     "barricade": _choice_barricade,
     "gravity_well": _choice_gravity_well,
@@ -1720,7 +1793,7 @@ def _reflex_step(state: GameState) -> bool:
             flying=kw.is_flying(frame),
         )
         options = [
-            {"x": p.x, "y": p.y}
+            {"x": p.x, "y": p.y, "cost": reach[p]}
             for p in sorted(reach, key=lambda p: (p.y, p.x))
         ]
         if len(options) <= 1:
@@ -1732,6 +1805,7 @@ def _reflex_step(state: GameState) -> bool:
             frame_id=frame.id,
             prompt=f"Ace Reflexes: move {frame.id} up to 2",
             options=options,
+            pick_kind="move",
         )
         return True
     return False
@@ -1766,6 +1840,7 @@ def _teleport_step(state: GameState, top: Optional[int]) -> bool:
             frame_id=frame.id,
             prompt=f"Teleport: reposition {frame.id} anywhere on the map",
             options=options,
+            pick_kind="move",
         )
         return True
     return False
@@ -1853,6 +1928,7 @@ def _drone_move(state: GameState, token_id: str, record: Mapping) -> bool:
         prompt=f"Move {drone_name(state, token_id)} (up to {budget})",
         options=options,
         ctx={"token": token_id},
+        pick_kind="move",
     )
     return True
 

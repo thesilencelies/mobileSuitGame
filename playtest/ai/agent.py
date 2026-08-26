@@ -200,6 +200,8 @@ class Agent:
 
         handler = {
             "deploy": self._deploy,
+            "place_objective": self._place_objective,
+            "choose_actor": self._choose_actor,
             "commit_actions": self._commit_actions,
             "resolve_order": self._resolve_order,
             "move": self._move,
@@ -508,6 +510,46 @@ class Agent:
             "frame": str(chosen["frame"]),
             "x": int(chosen["x"]), "y": int(chosen["y"]),
         })
+
+    def _place_objective(
+        self,
+        snap: Snapshot,
+        pending: Mapping[str, Any],
+        options: Sequence[Mapping[str, Any]],
+    ) -> Command:
+        """Where to hide the fugitive: as far from the enemy as the row allows.
+
+        It has to be walked to its objective tile by the side that brought it,
+        and every step of that walk is a step under fire, so the only thing
+        worth optimising is the head start.
+        """
+        marks = [f.pos for f in snap.enemies() if f.pos is not None]
+        if not marks:
+            return Command("place_objective", self.seat, dict(options[0]))
+        best = max(options, key=lambda o: min(
+            snap.distance(Pos(int(o["x"]), int(o["y"])), p) for p in marks))
+        return Command("place_objective", self.seat, dict(best))
+
+    def _choose_actor(
+        self,
+        snap: Snapshot,
+        pending: Mapping[str, Any],
+        options: Sequence[Mapping[str, Any]],
+    ) -> Command:
+        """Which of its own tied cards to resolve first.
+
+        Move before swing: closing the distance can only make an attack better,
+        and a card that repositions first may find a target the other one could
+        not reach. Ties inside that break on the higher-rated card.
+        """
+        def rank(option: Mapping[str, Any]) -> tuple[float, float]:
+            card = self.card(str(option.get("key")))
+            if card is None:
+                return (0.0, 0.0)
+            return (1.0 if not card.is_attack else 0.0, float(card.movement))
+
+        return Command("choose_actor", self.seat,
+                       dict(max(options, key=rank)))
 
     def _commit_actions(
         self,

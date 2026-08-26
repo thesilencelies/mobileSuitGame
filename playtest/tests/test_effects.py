@@ -474,6 +474,7 @@ def test_fog_of_war_blocks_ranged_attacks_on_nearby_allies_next_turn():
 
 
 def test_set_the_trap_moves_an_ally_and_reveals_enemies_around_it():
+    """One ally to shove, so it goes straight to "where"."""
     state = make_state()
     tac = add_frame(state, 0, "Hector MkI", Pos(2, 2))
     ally = add_frame(state, 0, "Percival MkIV", Pos(4, 4))
@@ -481,11 +482,41 @@ def test_set_the_trap_moves_an_ally_and_reveals_enemies_around_it():
     hidden = give(state, enemy, "Spear_Thrust")
 
     _uid, decision = play(state, tac, effects.SET_THE_TRAP)
-    assert {o["frame"] for o in decision.options} == {ally.id}, "allies only"
-    assert answer(state, decision, {"frame": ally.id, "x": 5, "y": 5}) is None
+    assert decision.pick_kind == "move", "the board draws it as movement"
+    assert all("x" in o and "cost" in o for o in decision.options)
+    assert answer(state, decision, {"x": 5, "y": 5}) is None
     assert ally.pos == Pos(5, 5)
     assert enemy.statuses["revealed"] > 0
     assert state.cards[hidden].face_down is False, "revealed turns actions face up"
+
+
+def test_a_shove_asks_who_before_it_asks_where():
+    """"Move a frame within N up to M" is two questions, not one long list.
+
+    It used to be a single list of every (frame, destination) pair, which on
+    this board is dozens of rows of raw coordinates and nothing the map can
+    show. Who first -- a list of frames -- then that frame's own reachable
+    tiles, which the board draws in the same green as a move.
+    """
+    state = make_state()
+    tac = add_frame(state, 0, "Hector MkI", Pos(2, 2))
+    near = add_frame(state, 0, "Percival MkIV", Pos(4, 4))
+    far = add_frame(state, 0, "Kuwagata", Pos(3, 5))
+    add_frame(state, 1, "Fenrir", Pos(9, 9))
+
+    _uid, who = play(state, tac, effects.SET_THE_TRAP)
+    assert {o["frame"] for o in who.options} == {near.id, far.id}
+    assert not any("x" in o for o in who.options), "the tiles come after"
+
+    where = answer(state, who, {"frame": far.id, "name": far.spec.name})
+    assert where is not None and where.pick_kind == "move"
+    assert all("x" in o and "y" in o and "cost" in o for o in where.options)
+    assert far.pos not in [Pos(o["x"], o["y"]) for o in where.options], (
+        "staying put is not a shove"
+    )
+    assert answer(state, where, {"x": 3, "y": 4}) is None
+    assert far.pos == Pos(3, 4)
+    assert near.pos == Pos(4, 4), "the frame that was not chosen did not move"
 
 
 def test_outfox_reveals_and_dazes_a_frame_within_seven():

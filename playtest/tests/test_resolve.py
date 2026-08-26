@@ -781,6 +781,135 @@ def test_the_fugitive_is_placed_after_deployment_on_a_free_tile():
     pytest.skip("no Fugitive objective came up in the sampled seeds")
 
 
+def test_a_card_says_which_of_its_steps_is_running():
+    """"Effect then movement" made the movement look like more of the effect.
+
+    An effect takes itself off the remaining-steps list *before* it runs, so
+    "what is left" said `["movement"]` while the card was asking where to put
+    a gravity well -- and then said `["movement"]` again for the move that
+    followed. Every readout on screen was therefore identical for two
+    completely different questions, and the green movement tiles read as part
+    of the orange placement. `Resolution.step` is what is running.
+    """
+    from playtest.engine import effects
+    from playtest.server import readouts
+
+    for order in (["effect", "movement"], ["movement", "effect"]):
+        state = make_state(width=14, height=14)
+        state.phase = "action"
+        actor = add_frame(state, 0, "Hector MkI", Pos(6, 6))
+        add_frame(state, 1, "Adam", Pos(12, 12))
+        give(state, actor, effects.GRAVITY_WELL)
+        state = R.advance(state)
+        assert state.pending.kind == "resolve_order"
+        state = apply_command(
+            state, Command("resolve_order", 0, {"order": list(order)}))
+
+        seen = []
+        for _ in range(2):
+            pending = state.pending
+            seen.append((pending.kind, readouts.resolving(state, 0)["step"],
+                         pending.prompt))
+            state = apply_command(
+                state, Command(pending.kind, pending.seat, dict(pending.options[0])))
+
+        kinds = {kind: (step, prompt) for kind, step, prompt in seen}
+        assert kinds["effect_choice"][0] == "effect"
+        assert kinds["move"][0] == "movement"
+        # And the move names the card, because the corner panel says "Gravity
+        # Well" through both questions.
+        assert kinds["move"][1].startswith("Gravity Well:")
+
+
+def test_the_owner_chooses_where_the_fugitive_hides():
+    """"Put a fugitive token anywhere in the enemy back row after deployment".
+
+    "Anywhere" is a choice, and it belongs to whoever brought the card. It used
+    to land on the middle tile of the row every time.
+    """
+    import random
+
+    from playtest.engine import legal_commands
+
+    for seed in range(12):
+        # Walk deployment by hand, so the fugitive decision is left standing.
+        state = start(seed=seed, deploy=False)
+        rng = random.Random(seed)
+        guard = 0
+        while (state.pending is not None and state.pending.kind == "deploy"
+               and guard < 200):
+            guard += 1
+            state = apply_command(state, rng.choice(
+                legal_commands(state, state.pending.seat)))
+        pending = state.pending
+        if pending is None or pending.kind != "place_objective":
+            continue
+        objective = next(o for o in state.objectives if o.name == "Fugitive")
+        assert pending.seat == objective.owner, "the card's owner places it"
+        assert pending.pick_kind == "place"
+        rows = {o["y"] for o in pending.options}
+        assert len(rows) == 1, "the enemy back row and nothing else"
+        assert len(pending.options) > 1, "otherwise there was nothing to choose"
+        assert state.frame_at(Pos(pending.options[0]["x"],
+                                  pending.options[0]["y"])) is None
+
+        spot = pending.options[-1]
+        state = apply_command(state, Command("place_objective", pending.seat,
+                                             dict(spot)))
+        token = state.tokens[str(spot["token"])]
+        assert token.pos == Pos(spot["x"], spot["y"])
+        assert state.phase == "planning", "and setup moves on"
+        return
+    pytest.skip("no Fugitive objective came up in the sampled seeds")
+
+
+def test_a_seat_chooses_the_order_of_its_own_tied_actions():
+    """The rules alternate seats on a tie and stop there.
+
+    "In the event of a tie the cards are resolved alternately, moving clockwise
+    from the player with the priority marker" settles whose turn it is. Which
+    of that seat's own tied cards goes first is the player's call, so the
+    engine asks instead of picking.
+    """
+    state, a, _b = _action_state()
+    first = give(state, a, "Spear_Thrust")
+    second = give(state, a, "Spear_Thrust")           # same card, same value
+
+    tied = R.next_actors(state)
+    assert {uid for _f, uid in tied} == {first, second}
+    assert all(f.id == a.id for f, _uid in tied)
+
+    # `advance` parks on the choice rather than picking one itself.
+    state.tie_value = None
+    state = R.advance(state)
+    assert state.pending is not None and state.pending.kind == "choose_actor"
+    assert state.pending.seat == a.seat
+    assert {o["uid"] for o in state.pending.options} == {first, second}
+    assert all(o["frame"] == a.id for o in state.pending.options)
+
+    parked = apply_command(state, Command("choose_actor", a.seat, {"uid": second}))
+    assert parked.resolution is not None
+    assert parked.resolution.uid == second, "the one the player asked for"
+
+    # And the other one is still waiting, unresolved.
+    assert parked.cards[first].location == "committed"
+    assert not parked.cards[first].resolved
+
+
+def test_the_tie_choice_only_ever_offers_one_seats_cards():
+    """The alternation between seats is still the rules'; only the order
+    within a seat is the player's."""
+    state, a, b = _action_state()
+    mine = [give(state, a, "Spear_Thrust"), give(state, a, "Spear_Thrust")]
+    theirs = give(state, b, "Spear_Thrust")
+
+    tied = R.next_actors(state)
+    seats = {f.seat for f, _uid in tied}
+    assert len(seats) == 1, "one seat at a time, whatever the tie"
+    assert theirs not in {uid for _f, uid in tied} or set(mine).isdisjoint(
+        {uid for _f, uid in tied})
+
+
 def test_deployment_is_deterministic_for_a_seed():
     a = start(seed=21)
     b = start(seed=21)

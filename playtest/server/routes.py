@@ -355,11 +355,17 @@ class Router:
         # the command kind. `targetKind` is accepted as a flat alias.
         command_payload = dict(payload.get("payload") or {})
         for key, value in payload.items():
-            if key not in ("kind", "seat", "payload", "targetKind"):
+            if key not in ("kind", "seat", "payload", "targetKind", "replayMine"):
                 command_payload[key] = value
         if "targetKind" in payload:
             command_payload["kind"] = payload["targetKind"]
-        return self.registry.command(game_id, str(kind), command_payload).view()
+        # The client asks for its own frames to be recorded too when the
+        # player has turned that on: an action with no choices left in it
+        # resolves inside this call and is otherwise never seen happening.
+        return self.registry.command(
+            game_id, str(kind), command_payload,
+            replay_mine=bool(payload.get("replayMine")),
+        ).view()
 
     def _undo(self, game_id: str, **_: Any) -> dict[str, Any]:
         return self.registry.undo(game_id).view()

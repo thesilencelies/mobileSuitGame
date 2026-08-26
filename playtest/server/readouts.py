@@ -60,6 +60,10 @@ def resolving(state: GameState, seat: int) -> Optional[dict[str, Any]]:
         "seat": frame.seat,
         "mine": frame.seat == seat,
         "steps": list(res.steps),
+        # What is happening now, as against what is still to come. The two
+        # differ: an effect takes itself off `steps` before it runs, so the
+        # remaining list says "movement" while the card is mid-effect.
+        "step": res.step,
         "reloading": bool(res.spent_reloading),
     }
     if visible:

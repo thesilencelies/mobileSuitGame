@@ -31,11 +31,13 @@ export function renderDecision(host, ctx) {
 
   const renderer = {
     commit_actions: commitActions,
+    choose_actor: chooseActor,
     resolve_order: resolveOrder,
     move: movement,
     attack_target: attackTarget,
     choose_block: chooseBlock,
     effect_choice: effectChoice,
+    place_objective: effectTiles,
     echo_card: echoCard,
     deploy: deploy,
   }[pending.kind] || genericDecision;
@@ -183,6 +185,8 @@ function list(host) {
 function prettyKind(kind) {
   return {
     commit_actions: 'Commit your actions',
+    choose_actor: 'Which acts first',
+    place_objective: 'Hide the fugitive',
     resolve_order: 'Order of resolution',
     move: 'Move',
     attack_target: 'Choose a target',
@@ -236,6 +240,30 @@ function commitActions(host, ctx, pending) {
   open.addEventListener('click', () => ctx.showView('plan'));
   actions.append(open, go);
   host.appendChild(actions);
+}
+
+/** Which of your own tied actions goes first.
+ *
+ *  The rules alternate *seats* on a tie and stop there: which of one seat's
+ *  own cards resolves first is the player's call, and it matters -- closing
+ *  the distance first can put a target in reach that the other card could not
+ *  have hit.
+ */
+function chooseActor(host, ctx, pending) {
+  banner(host, 'These are tied — pick the one to resolve now', 'info');
+  const el = list(host);
+  for (const option of pending.options) {
+    const frame = (ctx.view.frames || []).find((f) => f.id === option.frame);
+    const init = (ctx.view.initiative || {})[option.uid];
+    optionRow(el, {
+      thumbKey: option.key,
+      main: C.displayName(option.key),
+      sub: `${C.frameLabel(option.frame, frame ? frame.name : option.frame)}`
+        + ` · ${C.summaryLine(option.key)}`,
+      go: typeof init === 'number' ? `i${init}` : 'first',
+      onTap: () => ctx.send('choose_actor', { uid: option.uid }),
+    });
+  }
 }
 
 // Ordering the steps was three taps for what is usually the same answer every
@@ -638,6 +666,9 @@ function blockChoices(host, ctx, pending, kind) {
 function effectChoice(host, ctx, pending) {
   const options = pending.options || [];
   const every = (fn) => options.length > 0 && options.every(fn);
+  if (every((o) => 'frame' in o && !('x' in o) && !('token' in o))) {
+    return effectFrames(host, ctx, pending);
+  }
   // Tiles first, and *some* rather than every: Barricade offers `{done: true}`
   // beside its tiles to stop early, and demanding every option be a tile sent
   // the whole decision to the generic branch below -- a list of raw grid
@@ -671,11 +702,36 @@ function effectChoice(host, ctx, pending) {
  *  commit the set with one button -- the engine still takes them one at a
  *  time, which `commitPlacements` walks through.
  */
+/** "Which frame" -- the first half of a shove, and Encode's ally. */
+function effectFrames(host, ctx, pending) {
+  banner(host, 'Choose a frame — on the board or from the list', 'info');
+  const el = list(host);
+  for (const option of pending.options) {
+    const target = (ctx.view.frames || []).find((f) => f.id === option.frame);
+    optionRow(el, {
+      main: C.frameLabel(option.frame, option.name || option.frame),
+      sub: target && target.pos
+        ? `at (${target.pos.x}, ${target.pos.y})` : (option.name || ''),
+      go: 'choose',
+      onTap: () => ctx.send(pending.kind, { ...option }),
+    });
+  }
+}
+
 function effectTiles(host, ctx, pending) {
   const tiles = ctx.effectTileOptions(pending);
   const done = ctx.effectDoneOption(pending);
   const { min, max } = ctx.placeLimits(pending);
   const chosen = ctx.placeSelection;
+  const placing = ctx.isPlacement(pending);
+
+  if (!placing) {
+    banner(host, 'Tap a green tile on the board', 'info');
+    hint(host, `${tiles.length} place${tiles.length === 1 ? '' : 's'} to move `
+      + 'to. Tap once to propose it, again to commit.');
+    boardButton(host, ctx);
+    return;
+  }
 
   if (max <= 1) {
     banner(host, 'Tap an orange tile on the board', 'info');

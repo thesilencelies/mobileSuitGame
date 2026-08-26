@@ -244,8 +244,15 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width:
   position: absolute; left: 8px; bottom: 8px;
   display: flex; gap: 8px; align-items: center;
   background: rgba(14,18,25,0.94); border: 1px solid var(--gold); border-radius: 10px;
-  padding: 6px; max-width: min(78%, 320px); pointer-events: none;
+  padding: 6px; max-width: min(78%, 320px); cursor: pointer;
   box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+}
+/* Folded down: a stub the size of a tile, so the board underneath is tappable
+   again without losing the way back to the card. */
+.acting-card[data-collapsed="1"] { max-width: none; padding: 0; }
+.acting-card .ac-stub {
+  min-width: 34px; height: 34px; display: grid; place-items: center;
+  color: var(--gold); font-weight: 800; font-size: 14px;
 }
 #view-board[data-replay="1"] .acting-card { bottom: 52px; }
 #view-board[data-replay="1"] .tile-readout { display: none; }

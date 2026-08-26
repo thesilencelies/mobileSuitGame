@@ -128,6 +128,8 @@ def _pending_json(
     if pending.pick_min != 1 or pending.pick_max != 1:
         out["pickMin"] = pending.pick_min
         out["pickMax"] = pending.pick_max
+    if pending.pick_kind:
+        out["pickKind"] = pending.pick_kind
     return out
 
 

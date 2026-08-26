@@ -242,18 +242,26 @@ class Session:
             )
         }
 
-    def watcher(self):
-        """The callback for `engine.watching`, scoped to the AI's own frames.
+    def watcher(self, *, mine: bool = False):
+        """The callback for `engine.watching`.
 
-        The human's cards resolve under their own hand and are already on
-        screen as they happen; replaying those would only put a delay between
-        a tap and its result. What needs showing is the half of the turn that
-        happens inside someone else's decision.
+        By default only the AI's frames are recorded: the player's cards
+        resolve under their own hand and are already on screen as they happen,
+        so replaying those would put a delay between a tap and its result.
+
+        But "under their own hand" is not always true. A card with one legal
+        target, an effect with no choices, a move with nowhere else to go --
+        those resolve inside the same call with nothing asked, and the player
+        sees the aftermath and not the act. `mine=True` records those as well,
+        which is what the client's "replay my own actions too" setting asks
+        for.
         """
         def observe(state: GameState, event: str) -> None:
             res = getattr(state, "resolution", None)
             frame = state.frames.get(res.frame_id) if res is not None else None
-            if frame is not None and frame.seat == self.ai_seat:
+            watched = frame is not None and (
+                frame.seat == self.ai_seat or mine)
+            if watched:
                 self.record(state, event)
             else:
                 self.rebase(state)
@@ -369,7 +377,14 @@ class Registry:
 
     # -- play ------------------------------------------------------------
 
-    def command(self, game_id: str, kind: str, payload: Mapping[str, Any]) -> Session:
+    def command(
+        self,
+        game_id: str,
+        kind: str,
+        payload: Mapping[str, Any],
+        *,
+        replay_mine: bool = False,
+    ) -> Session:
         session = self.get(game_id)
         with session.lock:
             pending = session.state.pending
@@ -386,7 +401,7 @@ class Registry:
             # The watch covers the human's own command as well as the AI loop:
             # answering a block declares the damage, and the AI's next few
             # cards can resolve, all inside this one `apply_command`.
-            with watching(session.watcher()):
+            with watching(session.watcher(mine=replay_mine)):
                 try:
                     session.state = apply_command(session.state, cmd)
                 except IllegalCommand:

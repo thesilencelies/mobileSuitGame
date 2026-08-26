@@ -69,8 +69,11 @@ export const api = {
 
   // `attack_target`'s own payload has a `kind` key, which would collide with
   // the command kind, so every command goes in the nested form.
-  sendCommand: (gameId, kind, payload) =>
-    post(`/api/game/${gameId}/command`, { kind, payload }),
+  // `replayMine` asks the server to record the player's own frames in the
+  // replay as well as the AI's -- see "Watching the AI move" in the README.
+  sendCommand: (gameId, kind, payload, opts = {}) =>
+    post(`/api/game/${gameId}/command`,
+      { kind, payload, ...(opts.replayMine ? { replayMine: true } : {}) }),
 
   undo: (gameId) => post(`/api/game/${gameId}/undo`),
   getLog: (gameId) => request(`/api/game/${gameId}/log`),

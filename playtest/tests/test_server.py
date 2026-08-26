@@ -114,13 +114,20 @@ def start(client: Client, *, deploy: bool = True,
     return game_id, view
 
 
+#: The decisions the setup phase can raise: placing frames, then hiding the
+#: fugitive its owner brought.
+SETUP_KINDS = ("deploy", "place_objective")
+
+
 def deploy_all(client: Client, game_id: str, view: dict) -> dict:
-    """Answer every `deploy` decision for the human seat."""
+    """Answer every setup decision for the human seat."""
     guard = 0
-    while view.get("pending") and view["pending"].get("kind") == "deploy":
+    while view.get("pending") and view["pending"].get("kind") in SETUP_KINDS:
         guard += 1
         assert guard < 50, "deployment did not finish"
-        view = send(client, game_id, "deploy", dict(view["pending"]["options"][0]))
+        pending = view["pending"]
+        view = send(client, game_id, pending["kind"],
+                    dict(pending["options"][0]))
     return view
 
 
@@ -1151,6 +1158,35 @@ def test_a_beat_reports_only_what_that_beat_did(client: Client) -> None:
     assert reveals, "no card was ever revealed on its own beat"
 
 
+def test_replay_mine_records_the_players_own_frames_too(client: Client) -> None:
+    """"Suppose my action is forced due to no choice" -- then it happens off
+    screen, because nothing was asked and the player only sees the aftermath.
+
+    Off by default (a delay between a tap and its result is worse than no
+    animation); on, the same beats are recorded for the player's frames as for
+    the AI's.
+    """
+    game_id, view = start(client, seed=7)
+    rng = random.Random(3)
+    mine = 0
+    for _ in range(120):
+        pending = view.get("pending")
+        if view["over"] or not pending:
+            break
+        kind, payload = auto_payload(pending, rng)
+        response = client.post(f"/api/game/{game_id}/command",
+                               {"kind": kind, "payload": payload,
+                                "replayMine": True})
+        assert response.status_code == 200, response.text
+        view = response.json()
+        for snap in view.get("replay") or []:
+            if (snap.get("beat") or {}).get("event") == "decision":
+                continue
+            if (snap.get("resolving") or {}).get("mine"):
+                mine += 1
+    assert mine, "the player's own frames were never recorded"
+
+
 def test_the_human_s_own_cards_do_not_become_a_replay(client: Client) -> None:
     """Replaying your own tap would only put a delay between it and its result.
 
@@ -1498,14 +1534,16 @@ def test_a_deployment_that_was_not_offered_is_a_400(client: Client) -> None:
 
 
 def test_deployment_ends_and_planning_begins(client: Client) -> None:
+    """Setup is deploys and then, if the deal brought one, the fugitive."""
     game_id, view = start(client, deploy=False)
     for _ in range(3):
         option = _deploy_options(view)[0]
         view = send(client, game_id, "deploy", {"frame": option["frame"],
                                                 "x": option["x"], "y": option["y"]})
+    assert all(f["pos"] for f in view["frames"]), "every frame is on the board"
+    view = deploy_all(client, game_id, view)
     assert view["phase"] == "planning"
     assert view["pending"]["kind"] == "commit_actions"
-    assert all(f["pos"] for f in view["frames"]), "every frame is on the board"
 
 
 # --------------------------------------------------------------------------

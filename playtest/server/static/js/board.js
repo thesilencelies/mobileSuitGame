@@ -123,6 +123,28 @@ const ELEV_FLAT = ['#19212c', '#384266', '#3c4e7a', '#415e96'];
 //: on the board stack the same way.
 const ZONE_ORDER = ['High', 'Mid', 'Low'];
 
+//: Status pips under a frame. Every status is +/-2 to one stat, so the letter
+//: names the *stat* and the colour says which way: initiative, cards drawn,
+//: movement. Green is the buff of a pair, red the debuff -- so "M" in red is
+//: Slowed and "M" in green is Boosted, and there is one thing to learn rather
+//: than seven. Revealed has no opposite and gets the board's own gold.
+const STATUS_PIPS = {
+  stunned: { mark: 'I', css: '#ff5d5d' },
+  stimmed: { mark: 'I', css: '#4ec98a' },
+  dazed: { mark: 'C', css: '#ff5d5d' },
+  lucid: { mark: 'C', css: '#4ec98a' },
+  slowed: { mark: 'M', css: '#ff5d5d' },
+  boosted: { mark: 'M', css: '#4ec98a' },
+  revealed: { mark: 'R', css: '#f2c14e' },
+};
+
+//: A card still running in front of the frame -- Utter darkness, Fog of war,
+//: Master duelist. Their names are in the frame's panel; on the board they
+//: only have to say "something is up with this one".
+const PERSIST_PIP = { mark: 'P', css: '#b98cff' };
+
+const PIP_W = 0.19;
+
 const CARD_COLS = 3;
 const CARD_ROWS = 4;
 
@@ -947,6 +969,7 @@ export class BoardView {
       // ordinal off the frame's id is not decoration -- it is the only thing
       // telling them apart.
       this._drawFrameMark(ctx, f, s);
+      if (alive) this._drawStatusPips(ctx, f, s);
       if (!alive) {
         ctx.strokeStyle = '#ff8f8f';
         ctx.lineWidth = 2.5 / s;
@@ -1190,6 +1213,55 @@ export class BoardView {
     ctx.shadowBlur = 6;
     ctx.shadowOffsetY = 1;
     ctx.drawImage(art, x + 0.5 - w / 2, y + 0.86 - h, w, h);
+    ctx.restore();
+  }
+
+  /** What is running on this frame, as pips along the top edge of its tile.
+   *
+   *  Statuses and the cards still in play in front of it. A status is a
+   *  number the player has to hold in their head otherwise, and a persistent
+   *  card -- Utter darkness, Fog of war -- changes what can be done to the
+   *  frame with nothing on the board to say so.
+   */
+  _drawStatusPips(ctx, f, s) {
+    if (s < 20) return;
+    const pips = [];
+    for (const [name, turns] of Object.entries(f.statuses || {})) {
+      const pip = STATUS_PIPS[name];
+      if (pip && turns > 0) pips.push({ ...pip, n: turns });
+    }
+    const aside = (f.aside || []).length;
+    if (aside) pips.push({ ...PERSIST_PIP, n: aside });
+    if (!pips.length) return;
+
+    const { x, y } = f.pos;
+    // Along the top edge, right to left, clear of the ordinal badge top-left.
+    let cx = x + 1 - PIP_W / 2 - 0.03;
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (const pip of pips.slice(0, 4)) {
+      const cy = y + 0.03 + PIP_W / 2;
+      ctx.beginPath();
+      ctx.arc(cx, cy, PIP_W / 2, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(9,13,19,0.9)';
+      ctx.fill();
+      ctx.strokeStyle = pip.css;
+      ctx.lineWidth = 1.6 / s;
+      ctx.stroke();
+      if (s > 30) {
+        ctx.fillStyle = pip.css;
+        ctx.font = `800 ${0.13}px system-ui, sans-serif`;
+        ctx.fillText(pip.mark, cx, cy + 0.005);
+      } else {
+        ctx.beginPath();
+        ctx.arc(cx, cy, PIP_W / 4, 0, Math.PI * 2);
+        ctx.fillStyle = pip.css;
+        ctx.fill();
+      }
+      cx -= PIP_W + 0.02;
+      if (cx < x + 0.34) break;         // the ordinal badge lives here
+    }
     ctx.restore();
   }
 

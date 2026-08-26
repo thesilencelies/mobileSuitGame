@@ -43,6 +43,10 @@ const app = {
   // The frame read-out opens only when you ask for it: a decision selects a
   // frame on the board without covering the board with its panel.
   panelOpen: false,
+  // The floating "what is resolving" card, folded down out of the way. It
+  // sits over the bottom-left of the board and that is sometimes the tile you
+  // want; tapping it toggles this.
+  actingHidden: false,
   commitSelection: [],
   // Tiles marked for an effect that places things -- barricades, portal ends,
   // drones. Held here until the player commits them, so a three-barricade card
@@ -59,6 +63,11 @@ const app = {
   lastOrder: { any: null, byFrame: {} },
   speed: 'steady',
   autoFollow: true,
+  // Replay your own frames too. Off by default: your cards resolve under your
+  // own hand, and a delay between a tap and its result is worse than no
+  // animation. On, it covers the actions that had no choices left in them --
+  // one legal target, one legal tile -- which otherwise happen off screen.
+  replayMine: false,
   replay: { queue: [], timer: null, base: null },
   // A tap on the board proposes; a second tap on the same thing commits. See
   // `proposeTap` -- movement cannot be taken back and a phone makes a misfire
@@ -75,6 +84,7 @@ function loadPrefs() {
   if (saved.options) Object.assign(app.options, saved.options);
   if (saved.speed && SPEEDS.some((s) => s.id === saved.speed)) app.speed = saved.speed;
   if (typeof saved.autoFollow === 'boolean') app.autoFollow = saved.autoFollow;
+  if (typeof saved.replayMine === 'boolean') app.replayMine = saved.replayMine;
   if (saved.lastOrder && typeof saved.lastOrder === 'object') {
     app.lastOrder = {
       any: saved.lastOrder.any || null,
@@ -89,6 +99,7 @@ function savePrefs() {
       options: app.options,
       speed: app.speed,
       autoFollow: app.autoFollow,
+      replayMine: app.replayMine,
       lastOrder: app.lastOrder,
     }));
   } catch { /* private browsing, or a full quota: preferences are not vital */ }
@@ -176,6 +187,12 @@ function bindChrome() {
   follow.checked = app.autoFollow;
   follow.addEventListener('change', () => {
     app.autoFollow = follow.checked;
+    savePrefs();
+  });
+  const mine = $('opt-replay-mine');
+  mine.checked = app.replayMine;
+  mine.addEventListener('change', () => {
+    app.replayMine = mine.checked;
     savePrefs();
   });
   buildSpeedRow();
@@ -559,8 +576,10 @@ function setView(view, opts = {}) {
     app.confirm = null;
     if (pending && !pending.waiting && pending.seat === view.seat) {
       if (pending.kind === 'commit_actions') showView('plan');
-      else if (['move', 'attack_target', 'choose_block', 'deploy']
-        .includes(pending.kind)) showView('board');
+      else if (['move', 'attack_target', 'choose_block', 'deploy',
+        'effect_choice', 'place_objective'].includes(pending.kind)) {
+        showView('board');
+      }
       $('sheet').dataset.open = '1';
     }
     if (pending && pending.kind === 'deploy') syncDeployChoice(pending);
@@ -609,7 +628,8 @@ function actingFrameId() {
 
 async function send(kind, payload) {
   await guard(async () => {
-    playReplay(await api.sendCommand(app.gameId, kind, payload));
+    playReplay(await api.sendCommand(app.gameId, kind, payload,
+      { replayMine: app.replayMine }));
   });
 }
 
@@ -864,7 +884,13 @@ function cardRow(frame, { showAside = true } = {}) {
   return strip;
 }
 
-/** The corner card: which frame is acting, with what, at what initiative. */
+/** The corner card: which frame is acting, with what, at what initiative.
+ *
+ *  It floats over the bottom-left of the board, which is sometimes exactly
+ *  where the tile you want to tap is. Tapping it folds it down to a stub, and
+ *  tapping the stub brings it back -- the information stays reachable rather
+ *  than being traded away for the tile underneath it.
+ */
 function renderActingCard() {
   const host = $('acting-card');
   const res = app.view.resolving;
@@ -875,7 +901,23 @@ function renderActingCard() {
   if (!res || room < 170) { host.hidden = true; host.innerHTML = ''; return; }
   host.hidden = false;
   host.dataset.mine = res.mine ? '1' : '0';
-  const step = (res.steps || [])[0];
+  host.dataset.collapsed = app.actingHidden ? '1' : '0';
+  host.onclick = () => { app.actingHidden = !app.actingHidden; renderActingCard(); };
+  if (app.actingHidden) {
+    host.innerHTML = '';
+    const stub = document.createElement('div');
+    stub.className = 'ac-stub';
+    stub.textContent = typeof res.initiative === 'number'
+      ? String(res.initiative) : '\u25b8';
+    stub.title = 'Show what is resolving';
+    host.appendChild(stub);
+    return;
+  }
+  // `step` is what is running; `steps` is what is still to come. Showing the
+  // latter said "movement" while the card was asking where to put a gravity
+  // well, which made the movement step that followed look like more of the
+  // same question.
+  const step = res.step || (res.steps || [])[0];
   const attack = res.attack;
   const bits = [];
   if (attack) {
@@ -887,6 +929,8 @@ function renderActingCard() {
   } else if (step) {
     bits.push(step);
   }
+  const toCome = (res.steps || []).filter((s) => s !== step);
+  if (toCome.length) bits.push(`then ${toCome.join(', ')}`);
   if (res.reloading) bits.push('reloading — no effect or attack');
   host.innerHTML = '';
   if (res.key) {
@@ -1074,11 +1118,24 @@ function proposalKey(kind, payload) {
  *  overlay and no way to tap it out. Non-tile options are simply not tiles.
  */
 function effectTileOptions(pending) {
-  if (!pending || pending.kind !== 'effect_choice') return [];
+  if (!pending || !['effect_choice', 'place_objective'].includes(pending.kind)) {
+    return [];
+  }
   const tiles = (pending.options || []).filter(
-    (o) => 'x' in o && 'y' in o && !('frame' in o) && !('token' in o));
-  // A frame-and-tile option is a shove (Set the trap), answered elsewhere.
+    (o) => 'x' in o && 'y' in o && !('frame' in o));
+  // A frame-and-tile option would be ambiguous -- is it a frame or a tile? --
+  // so those are answered as a list. Nothing emits them any more.
   return (pending.options || []).some((o) => 'frame' in o && 'x' in o) ? [] : tiles;
+}
+
+/** Is this tile decision "where do I go" or "where does this go"?
+ *
+ *  The engine says (`pickKind`), because the two read completely differently
+ *  and are coloured apart: movement green for sending something already on
+ *  the board somewhere, placement orange for putting something new down.
+ */
+function isPlacement(pending) {
+  return String((pending && pending.pickKind) || 'place') === 'place';
 }
 
 /** The "stop here" option, for effects that place *up to* so many. */
@@ -1125,7 +1182,13 @@ function togglePlace(x, y) {
 /** What to call putting something on a tile, from the decision's own prompt. */
 function placeLabel(pending, x, y) {
   const prompt = String((pending && pending.prompt) || '');
-  const what = prompt.split(':')[0].trim();
+  // The bit before the colon is the card's own name for what it is doing.
+  // Without one, do not paste a whole sentence in front of a coordinate.
+  const head = prompt.includes(':') ? prompt.split(':')[0].trim() : '';
+  const what = head.length <= 22 ? head : '';
+  // A move says where, and the sheet's own title and prompt already say who
+  // and why -- "Set the trap to (13, 11)" reads like nonsense.
+  if (!isPlacement(pending)) return `Move to (${x}, ${y})`;
   return `${what || 'Place'} at (${x}, ${y})`;
 }
 
@@ -1145,13 +1208,15 @@ async function commitPlacements() {
       const option = effectTileOptions(view.pending)
         .find((o) => o.x === spot.x && o.y === spot.y);
       if (!option) break;
-      view = await api.sendCommand(app.gameId, 'effect_choice', { ...option });
+      view = await api.sendCommand(app.gameId, view.pending.kind, { ...option },
+        { replayMine: app.replayMine });
     }
     // "Up to three" and the player laid out two: say so rather than leaving
     // them staring at a decision they have already answered.
     const done = effectDoneOption(view.pending);
     if (done && view.pending.frameId === (app.view.pending || {}).frameId) {
-      view = await api.sendCommand(app.gameId, 'effect_choice', { ...done });
+      view = await api.sendCommand(app.gameId, 'effect_choice', { ...done },
+        { replayMine: app.replayMine });
     }
     app.placeSelection = [];
     playReplay(view);
@@ -1272,8 +1337,12 @@ function onTapFrame(frame) {
     }
     const option = effectTargetOptions(pending).find((o) => o.frame === frame.id);
     if (option) {
-      tapToConfirm('effect_choice', { frame: option.frame }, {
-        label: `Target ${C.frameLabel(frame.id, frame.name)}`,
+      // "Target" is wrong for a shove, where the frame being picked is
+      // usually an ally you are about to reposition. The engine says which
+      // kind of question it is asking.
+      const verb = pending.pickKind === 'frame' ? 'Choose' : 'Target';
+      tapToConfirm(pending.kind, { ...option }, {
+        label: `${verb} ${C.frameLabel(frame.id, frame.name)}`,
         detail: pending.prompt || 'card effect',
       });
       return;
@@ -1353,18 +1422,19 @@ function onTapTile(x, y) {
     const tiles = effectTileOptions(pending);
     if (tiles.length) {
       const { max } = placeLimits(pending);
+      const placing = isPlacement(pending);
       const option = tiles.find((o) => o.x === x && o.y === y);
       if (!option) {
         // Tapping a marked tile again takes it back off the list.
-        if (togglePlace(x, y)) return;
+        if (placing && togglePlace(x, y)) return;
         toast('That tile is not one of the options');
         return;
       }
-      // One tile means one answer, so it keeps the tap-twice confirm that
-      // movement uses. Several means the player is laying out a set: mark them
-      // all on the board first, and commit the lot with one button.
-      if (max > 1) { togglePlace(x, y); return; }
-      tapToConfirm('effect_choice', { ...option }, {
+      // One answer keeps the tap-twice confirm that movement uses. Several
+      // means the player is laying out a set: mark them all on the board
+      // first, and commit the lot with one button.
+      if (placing && max > 1) { togglePlace(x, y); return; }
+      tapToConfirm(pending.kind, { ...option }, {
         label: placeLabel(pending, x, y),
         detail: pending.prompt || 'card effect',
       });
@@ -1444,15 +1514,19 @@ async function refreshOverlays() {
       const pos = (frame && frame.pos) || (token && token.pos);
       if (pos) overlays.targets.add(`${pos.x},${pos.y}`);
     }
-  } else if (mine && pending.kind === 'effect_choice') {
-    // A drone's move, a reflex step, a Teleport -- and a drone's target,
-    // which may be a frame or one of its images.
+  } else if (mine && ['effect_choice', 'place_objective'].includes(pending.kind)) {
+    // Two kinds of tile question, coloured apart. Green for sending something
+    // that is already on the board somewhere -- a drone's move, a reflex step,
+    // a Teleport, a shove. Orange for putting something new down.
+    const placing = isPlacement(pending);
+    if (!placing) app.placeSelection = [];
     const picked = new Set(app.placeSelection.map((p) => `${p.x},${p.y}`));
     for (const o of effectTileOptions(pending)) {
       const key = `${o.x},${o.y}`;
-      if (!picked.has(key)) overlays.place.add(key);
+      if (!placing) overlays.reach.set(key, Number(o.cost) || 0);
+      else if (!picked.has(key)) overlays.place.add(key);
     }
-    overlays.picked = app.placeSelection.slice();
+    overlays.picked = placing ? app.placeSelection.slice() : [];
     for (const o of effectTargetOptions(pending)) {
       const frame = (view.frames || []).find((f) => f.id === o.frame);
       const token = (view.tokens || []).find((t) => t.id === o.token);
@@ -1498,10 +1572,16 @@ function renderLegend(overlays, pending) {
   }
   if (overlays.reach.size) {
     const choosing = pending
-      && (pending.kind === 'move' || pending.kind === 'effect_choice');
+      && ['move', 'effect_choice'].includes(pending.kind);
     bits.push(choosing
       ? 'green = legal destination · tap twice'
       : 'green = selected frame\'s reach (base movement)');
+  }
+  if (overlays.place && overlays.place.size) {
+    const many = pending && Number(pending.pickMax) > 1;
+    bits.push(many
+      ? 'orange = where it can go · tap to mark, then commit'
+      : 'orange = where it can go · tap twice');
   }
   if (overlays.targets.size) bits.push('red pulse = legal target · tap twice');
   if (overlays.los.size) bits.push('red wash = line of sight');
@@ -1841,6 +1921,7 @@ function renderSheet() {
     placeLimits,
     effectTileOptions,
     effectDoneOption,
+    isPlacement,
     togglePlace,
     commitPlacements,
     toggleOrder,

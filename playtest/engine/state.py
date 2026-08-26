@@ -271,6 +271,13 @@ class Resolution:
     uid: str
     #: Remaining steps, in the controller's chosen order.
     steps: list[str] = field(default_factory=list)
+    #: The step actually running right now. Not the head of `steps`: an
+    #: effect pops itself off the list *before* it runs, so while a card is
+    #: asking where to put a gravity well the remaining list already reads
+    #: `["movement"]`. Anything telling the player what is happening has to
+    #: read this instead, or it says "movement" while the question on screen
+    #: is about something else entirely.
+    step: str = ""
     attack: Optional[AttackInProgress] = None
     #: Scratch for multi-part effects (`effect_choice` round trips).
     effect_state: dict[str, Any] = field(default_factory=dict)
