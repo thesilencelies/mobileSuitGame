@@ -1481,9 +1481,9 @@
       "4": "Ouwa"
     }
   },
-  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Gun%20Tower_Gun%20Tower.png":
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Gun%20Tower_Gun%20Tower%201.png":
   {
-    "name": "Gun Tower",
+    "name": "Gun Tower 1",
     "description": "Drone: a token that takes this card's action every turn, using the movement and health printed beside it, until it is destroyed",
     "gm_notes": "2init\n-2mv\natk:1H@8 projectile\nBlk:1L\ndrone:2hp 0mv\nfaction:Guild\npersist:permanent\nSummon one Gun Tower within 3 (A unit that attacks once each turn with this card, with its own movement and health.)",
     "tags":
@@ -1494,11 +1494,37 @@
       "4": "Guild"
     }
   },
-  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Attack%20Dog_Attack%20Dog.png":
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Gun%20Tower_Gun%20Tower%202.png":
   {
-    "name": "Attack Dog",
+    "name": "Gun Tower 2",
+    "description": "Drone: a token that takes this card's action every turn, using the movement and health printed beside it, until it is destroyed",
+    "gm_notes": "2init\n-2mv\natk:1M@8 projectile\nBlk:1L\ndrone:2hp 0mv\nfaction:Guild\npersist:permanent\nSummon one Gun Tower within 3 (A unit that attacks once each turn with this card, with its own movement and health.)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Drone",
+      "4": "Guild"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Attack%20Dog_Rex%20and%20Rover.png":
+  {
+    "name": "Attack Dog Rex and Rover",
     "description": "Drone: a token that takes this card's action every turn, using the movement and health printed beside it, until it is destroyed",
     "gm_notes": "5init\n-3mv\natk:1L energy\nBlk:1L\ndrone:1hp 4mv\nfaction:Aegis\npersist:permanent\nSummon two attack dogs (A unit that attacks once each turn with this card, with its own movement and health.)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Drone",
+      "4": "Aegis"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Attack%20Dog_Max%20and%20Ceaser.png":
+  {
+    "name": "Attack Dog Max and Ceaser",
+    "description": "Drone: a token that takes this card's action every turn, using the movement and health printed beside it, until it is destroyed",
+    "gm_notes": "5init\n-3mv\natk:1M energy\nBlk:1L\ndrone:1hp 4mv\nfaction:Aegis\npersist:permanent\nSummon two attack dogs (A unit that attacks once each turn with this card, with its own movement and health.)",
     "tags":
     {
       "1": "Card",
@@ -1511,7 +1537,7 @@
   {
     "name": "Percival MkIV",
     "description": "",
-    "gm_notes": "4mv\narmour:4H/4M/4L\nweapons:3\nboosters:2\ndeck:21\nfaction:Aegis\nAttacks with multiple blocks reduce movement by 2 less",
+    "gm_notes": "4mv\narmour:4H/4M/4L\nweapons:4\nboosters:2\ndeck:21\nfaction:Aegis\nAttacks with multiple blocks reduce movement by 2 less",
     "tags":
     {
       "1": "Card",

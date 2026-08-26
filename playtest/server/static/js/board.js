@@ -138,7 +138,7 @@ export class BoardView {
     this.fitScale = 24;
     this.overlays = {
       reach: new Map(), los: new Set(), targets: new Set(), blocked: new Set(),
-      deploy: new Set(), confirm: null,
+      deploy: new Set(), place: new Set(), picked: [], confirm: null,
     };
     this.selected = null;            // frame id
     this.acting = null;              // frame id currently resolving
@@ -234,7 +234,7 @@ export class BoardView {
   setOverlays(overlays) {
     this.overlays = {
       reach: new Map(), los: new Set(), targets: new Set(), blocked: new Set(),
-      deploy: new Set(), confirm: null, ...overlays,
+      deploy: new Set(), place: new Set(), picked: [], confirm: null, ...overlays,
     };
     this._dirty = true;
   }
@@ -696,7 +696,7 @@ export class BoardView {
   }
 
   _drawOverlays(ctx, x0, y0, x1, y1, s) {
-    const { reach, los, targets, deploy, confirm } = this.overlays;
+    const { reach, los, targets, deploy, place, picked, confirm } = this.overlays;
     if (deploy && deploy.size) {
       const pulse = 0.5 + 0.5 * Math.sin((performance.now() - this._t0) / 420);
       for (const key of deploy) {
@@ -733,6 +733,40 @@ export class BoardView {
           ctx.fillText(cost === 0 ? 'stay' : String(cost), x + 0.5, y + 0.72);
         }
       }
+    }
+    // Somewhere to *put* something -- a barricade, a portal end, a drone.
+    // Orange rather than movement's green: the question is not "where do I go"
+    // but "where does this go", and confusing the two costs an action.
+    if (place && place.size) {
+      for (const key of place) {
+        const [x, y] = key.split(',').map(Number);
+        if (x < x0 || x > x1 || y < y0 || y > y1) continue;
+        ctx.fillStyle = 'rgba(232,163,61,0.22)';
+        ctx.fillRect(x, y, 1, 1);
+        ctx.strokeStyle = 'rgba(255,183,77,0.8)';
+        ctx.lineWidth = 1.4 / s;
+        ctx.strokeRect(x + 1 / s, y + 1 / s, 1 - 2 / s, 1 - 2 / s);
+      }
+    }
+    // The ones already marked, numbered in the order they were tapped. They
+    // are not placed yet -- nothing is sent until the player commits.
+    if (picked && picked.length) {
+      const pulse = 0.5 + 0.5 * Math.sin((performance.now() - this._t0) / 320);
+      picked.forEach((spot, i) => {
+        const { x, y } = spot;
+        if (x < x0 || x > x1 || y < y0 || y > y1) return;
+        ctx.fillStyle = `rgba(232,163,61,${0.42 + 0.14 * pulse})`;
+        ctx.fillRect(x, y, 1, 1);
+        ctx.strokeStyle = '#ffb74d';
+        ctx.lineWidth = 3 / s;
+        ctx.strokeRect(x + 2 / s, y + 2 / s, 1 - 4 / s, 1 - 4 / s);
+        if (s > 24 && picked.length > 1) {
+          ctx.fillStyle = '#231303';
+          ctx.font = `800 ${0.34}px system-ui, sans-serif`;
+          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillText(String(i + 1), x + 0.5, y + 0.5);
+        }
+      });
     }
     if (targets && targets.size) {
       const pulse = 0.5 + 0.5 * Math.sin((performance.now() - this._t0) / 260);

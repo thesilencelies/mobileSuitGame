@@ -230,7 +230,32 @@ Tapping:
   reachability;
 * a **red pulsing frame** during an `attack_target` decision proposes attacking
   it;
-* a **blue tile** during setup proposes deploying the chosen frame there.
+* a **blue tile** during setup proposes deploying the chosen frame there;
+* an **orange tile** during a card effect marks somewhere to *put* something —
+  see below.
+
+### Putting things on the board
+
+Barricade places up to three tokens, Portal two ends, an Attack Dog card two
+dogs, a Gun Tower one within 3. All of them are answered on the board, in
+**orange** rather than movement's green: the question is not "where do I go"
+but "where does this go", and confusing the two costs an action.
+
+The engine asks for one tile at a time, which would make Barricade three
+separate confirmations. So each decision carries `pickMin`/`pickMax` — how many
+tiles the effect still wants in total — and the client uses that to let you
+mark them all first: each tap adds a numbered orange square, tapping a marked
+one takes it back, and **Place 3** commits the set. `commitPlacements` then
+walks the exchange, sending a tile and reading the decision that comes back. A
+tile the engine stops offering ends the run rather than being forced through:
+the engine's answer is the authority on what is legal, never the client's list.
+Cards that place exactly one thing (a Teleport, a gravity well) keep the
+ordinary tap-to-propose, tap-to-commit instead.
+
+Barricade's "up to 3" also ships a `{done: true}` option alongside its tiles, so
+the client must treat *some* options as tiles rather than requiring them all to
+be — getting that wrong is what once turned the whole decision into an
+unreadable list of raw grid coordinates.
 
 ### Tap twice to mean it
 

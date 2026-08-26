@@ -638,7 +638,11 @@ function blockChoices(host, ctx, pending, kind) {
 function effectChoice(host, ctx, pending) {
   const options = pending.options || [];
   const every = (fn) => options.length > 0 && options.every(fn);
-  if (every((o) => 'x' in o && 'y' in o && !('frame' in o))) {
+  // Tiles first, and *some* rather than every: Barricade offers `{done: true}`
+  // beside its tiles to stop early, and demanding every option be a tile sent
+  // the whole decision to the generic branch below -- a list of raw grid
+  // coordinates, which is unreadable and cannot be tapped out on the board.
+  if (ctx.effectTileOptions(pending).length) {
     return effectTiles(host, ctx, pending);
   }
   if (every((o) => 'uid' in o && 'key' in o)) {
@@ -659,13 +663,78 @@ function effectChoice(host, ctx, pending) {
 }
 
 /** "Somewhere on the board" -- a drone's move, a reflex step, a Teleport. */
+/** "Where does it go" -- answered on the board, never as a list of coordinates.
+ *
+ *  Two shapes. One tile (a Teleport, a gravity well) keeps movement's
+ *  tap-to-propose, tap-to-commit. Several (three barricades, both ends of a
+ *  portal, a pair of attack dogs) let the player mark them all first and
+ *  commit the set with one button -- the engine still takes them one at a
+ *  time, which `commitPlacements` walks through.
+ */
 function effectTiles(host, ctx, pending) {
-  banner(host, 'Tap a green tile on the board', 'info');
+  const tiles = ctx.effectTileOptions(pending);
+  const done = ctx.effectDoneOption(pending);
+  const { min, max } = ctx.placeLimits(pending);
+  const chosen = ctx.placeSelection;
+
+  if (max <= 1) {
+    banner(host, 'Tap an orange tile on the board', 'info');
+    hint(host, `${tiles.length} place${tiles.length === 1 ? '' : 's'} to choose `
+      + 'from. Tap once to propose it, again to commit.');
+    boardButton(host, ctx);
+    return;
+  }
+
+  const short = min - chosen.length;
+  banner(host,
+    chosen.length === 0 ? `Tap up to ${max} orange tiles on the board`
+      : (short > 0 ? `${short} more to mark` : `${chosen.length} marked — ready`),
+    'info');
+  hint(host, `${tiles.length} places to choose from. Nothing is placed until `
+    + 'you commit, and tapping a marked tile takes it back.');
+
+  if (chosen.length) {
+    const el = list(host);
+    chosen.forEach((spot, i) => {
+      optionRow(el, {
+        main: `${i + 1}. (${spot.x}, ${spot.y})`,
+        sub: 'marked on the board',
+        go: 'remove',
+        onTap: () => ctx.togglePlace(spot.x, spot.y),
+      });
+    });
+  }
+
+  const actions = document.createElement('div');
+  actions.className = 'sheet-actions';
+  const go = document.createElement('button');
+  go.className = 'btn primary';
+  // Below the minimum the button names what the card *needs*, not what is
+  // marked so far -- "Place 1" greyed out reads like the button is broken.
+  go.textContent = chosen.length < min ? `Place ${min}`
+    : (chosen.length ? `Place ${chosen.length}` : 'Place none');
+  go.disabled = chosen.length < min;
+  go.addEventListener('click', () => {
+    if (chosen.length) ctx.commitPlacements();
+    else if (done) ctx.send('effect_choice', { ...done });
+  });
+  const show = document.createElement('button');
+  show.className = 'btn ghost';
+  show.textContent = 'Show the board';
+  show.addEventListener('click', () => { ctx.showView('board'); ctx.focusActive(); });
+  actions.append(show, go);
+  host.appendChild(actions);
+}
+
+function hint(host, text) {
   const p = document.createElement('p');
   p.className = 'sheet-sub';
-  p.textContent = `${pending.options.length} places to choose from. `
-    + 'Tap once to propose it, again to commit.';
+  p.textContent = text;
   host.appendChild(p);
+  return p;
+}
+
+function boardButton(host, ctx) {
   const actions = document.createElement('div');
   actions.className = 'sheet-actions';
   const show = document.createElement('button');

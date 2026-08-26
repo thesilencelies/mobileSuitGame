@@ -44,6 +44,10 @@ const app = {
   // frame on the board without covering the board with its panel.
   panelOpen: false,
   commitSelection: [],
+  // Tiles marked for an effect that places things -- barricades, portal ends,
+  // drones. Held here until the player commits them, so a three-barricade card
+  // is one decision on the board rather than three confirmations.
+  placeSelection: [],
   orderPick: [],
   lastPendingSig: null,
   threatCache: new Map(),
@@ -548,6 +552,7 @@ function setView(view, opts = {}) {
   if (!replaying && sig !== app.lastPendingSig) {
     app.lastPendingSig = sig;
     app.commitSelection = [];
+    app.placeSelection = [];
     app.orderPick = [];
     // A proposed-but-unconfirmed tap belongs to the decision it was made
     // against. The decision has moved on, so the proposal is void.
@@ -1061,11 +1066,96 @@ function proposalKey(kind, payload) {
 // read straight off the options, and the board only wants two of them: a list
 // of tiles to stand on, and a list of things to shoot at.
 
+/** The tiles an `effect_choice` is offering, ignoring anything that is not one.
+ *
+ *  Barricade offers `{done: true}` alongside its tiles to stop early, and this
+ *  used to demand that *every* option be a tile -- so one extra option turned
+ *  the whole decision into a list of raw grid coordinates with no board
+ *  overlay and no way to tap it out. Non-tile options are simply not tiles.
+ */
 function effectTileOptions(pending) {
   if (!pending || pending.kind !== 'effect_choice') return [];
-  const options = pending.options || [];
-  const tiles = options.every((o) => 'x' in o && 'y' in o && !('frame' in o));
-  return options.length && tiles ? options : [];
+  const tiles = (pending.options || []).filter(
+    (o) => 'x' in o && 'y' in o && !('frame' in o) && !('token' in o));
+  // A frame-and-tile option is a shove (Set the trap), answered elsewhere.
+  return (pending.options || []).some((o) => 'frame' in o && 'x' in o) ? [] : tiles;
+}
+
+/** The "stop here" option, for effects that place *up to* so many. */
+function effectDoneOption(pending) {
+  if (!pending || pending.kind !== 'effect_choice') return null;
+  return (pending.options || []).find((o) => o.done) || null;
+}
+
+/** How many tiles this effect still wants, as `{min, max}`.
+ *
+ *  The engine says so on the decision because it asks for one at a time: an
+ *  effect that places three barricades would otherwise be three separate
+ *  confirmations. With the range known, the player marks all three and
+ *  commits once.
+ */
+function placeLimits(pending) {
+  const offered = effectTileOptions(pending).length;
+  const asked = Number(pending && pending.pickMax);
+  const max = Math.max(1, Math.min(
+    Number.isFinite(asked) && asked > 0 ? asked : 1, offered || 1));
+  const floor = Number(pending && pending.pickMin);
+  const min = Math.max(0, Math.min(Number.isFinite(floor) ? floor : max, max));
+  return { min, max };
+}
+
+/** Mark or unmark a tile for a multi-placement effect. True if it changed. */
+function togglePlace(x, y) {
+  const pending = app.view.pending;
+  const at = app.placeSelection.findIndex((p) => p.x === x && p.y === y);
+  if (at >= 0) {
+    app.placeSelection.splice(at, 1);
+  } else {
+    if (!effectTileOptions(pending).some((o) => o.x === x && o.y === y)) return false;
+    const { max } = placeLimits(pending);
+    // Full: the oldest mark makes way, so a tap always does something.
+    while (app.placeSelection.length >= max) app.placeSelection.shift();
+    app.placeSelection.push({ x, y });
+  }
+  refreshOverlays();
+  renderSheet();
+  return true;
+}
+
+/** What to call putting something on a tile, from the decision's own prompt. */
+function placeLabel(pending, x, y) {
+  const prompt = String((pending && pending.prompt) || '');
+  const what = prompt.split(':')[0].trim();
+  return `${what || 'Place'} at (${x}, ${y})`;
+}
+
+/** Send every marked tile, then close the effect out if it will let us.
+ *
+ *  The engine asks for one tile at a time, so this walks the exchange: send a
+ *  tile, read the decision that comes back, send the next. A tile it stops
+ *  offering ends the run rather than being forced through -- the engine's
+ *  answer is the authority on what is legal, never this list.
+ */
+async function commitPlacements() {
+  const queue = app.placeSelection.slice();
+  if (!queue.length) return;
+  await guard(async () => {
+    let view = app.view;
+    for (const spot of queue) {
+      const option = effectTileOptions(view.pending)
+        .find((o) => o.x === spot.x && o.y === spot.y);
+      if (!option) break;
+      view = await api.sendCommand(app.gameId, 'effect_choice', { ...option });
+    }
+    // "Up to three" and the player laid out two: say so rather than leaving
+    // them staring at a decision they have already answered.
+    const done = effectDoneOption(view.pending);
+    if (done && view.pending.frameId === (app.view.pending || {}).frameId) {
+      view = await api.sendCommand(app.gameId, 'effect_choice', { ...done });
+    }
+    app.placeSelection = [];
+    playReplay(view);
+  });
 }
 
 function effectTargetOptions(pending) {
@@ -1262,15 +1352,22 @@ function onTapTile(x, y) {
     }
     const tiles = effectTileOptions(pending);
     if (tiles.length) {
+      const { max } = placeLimits(pending);
       const option = tiles.find((o) => o.x === x && o.y === y);
-      if (option) {
-        tapToConfirm('effect_choice', { ...option }, {
-          label: `Move to (${x}, ${y})`,
-          detail: pending.prompt || 'card effect',
-        });
+      if (!option) {
+        // Tapping a marked tile again takes it back off the list.
+        if (togglePlace(x, y)) return;
+        toast('That tile is not one of the options');
         return;
       }
-      toast('That tile is not one of the options');
+      // One tile means one answer, so it keeps the tap-twice confirm that
+      // movement uses. Several means the player is laying out a set: mark them
+      // all on the board first, and commit the lot with one button.
+      if (max > 1) { togglePlace(x, y); return; }
+      tapToConfirm('effect_choice', { ...option }, {
+        label: placeLabel(pending, x, y),
+        detail: pending.prompt || 'card effect',
+      });
       return;
     }
     const targets = effectTargetOptions(pending);
@@ -1332,7 +1429,7 @@ async function refreshOverlays() {
   const pending = view.pending;
   const overlays = {
     reach: new Map(), los: new Set(), targets: new Set(),
-    deploy: new Set(), confirm: confirmTile(),
+    deploy: new Set(), place: new Set(), picked: [], confirm: confirmTile(),
   };
   const mine = pending && !pending.waiting && pending.seat === view.seat;
 
@@ -1350,9 +1447,12 @@ async function refreshOverlays() {
   } else if (mine && pending.kind === 'effect_choice') {
     // A drone's move, a reflex step, a Teleport -- and a drone's target,
     // which may be a frame or one of its images.
+    const picked = new Set(app.placeSelection.map((p) => `${p.x},${p.y}`));
     for (const o of effectTileOptions(pending)) {
-      overlays.reach.set(`${o.x},${o.y}`, 0);
+      const key = `${o.x},${o.y}`;
+      if (!picked.has(key)) overlays.place.add(key);
     }
+    overlays.picked = app.placeSelection.slice();
     for (const o of effectTargetOptions(pending)) {
       const frame = (view.frames || []).find((f) => f.id === o.frame);
       const token = (view.tokens || []).find((t) => t.id === o.token);
@@ -1737,6 +1837,12 @@ function renderSheet() {
     uidKey,
     toggleCommit,
     commitLimits,
+    placeSelection: app.placeSelection,
+    placeLimits,
+    effectTileOptions,
+    effectDoneOption,
+    togglePlace,
+    commitPlacements,
     toggleOrder,
     setOrder: (order) => { app.orderPick = order; renderSheet(); },
     sendOrder,

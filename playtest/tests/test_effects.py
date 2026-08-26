@@ -17,6 +17,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+import pytest
+
 from playtest.engine import combat, effects
 from playtest.engine import effects_state as fx
 from playtest.engine import keywords as kw
@@ -932,10 +934,10 @@ def test_a_gun_tower_is_placed_at_range_and_shoots_without_moving():
     drone card at all.
     """
     state, frame, enemy = duel(gap=6)
-    card = CATALOGUE["Gun Tower_Gun Tower"]
+    card = CATALOGUE["Gun Tower_Gun Tower 1"]
     assert card.drone_movement == 0, "it does not move"
 
-    uid, decision = play(state, frame, "Gun Tower_Gun Tower")
+    uid, decision = play(state, frame, "Gun Tower_Gun Tower 1")
     assert decision is not None
     gaps = {state.board.distance(frame.pos, Pos(o["x"], o["y"]))
             for o in decision.options}
@@ -960,7 +962,7 @@ def test_a_gun_tower_is_placed_at_range_and_shoots_without_moving():
 def test_attack_dogs_come_out_two_at_a_time():
     """"Summon two attack dogs" -- one decision each, two tokens."""
     state, frame, _ = duel(gap=4)
-    first = play(state, frame, "Attack Dog_Attack Dog")[1]
+    first = play(state, frame, "Attack Dog_Rex and Rover")[1]
     assert first is not None and "2 left" in first.prompt
     second = answer(state, first, {"x": 2, "y": 1})
     assert second is not None, "the second dog is a decision of its own"
@@ -984,11 +986,139 @@ def test_a_drone_card_needs_no_entry_in_the_effect_table():
     """
     source = Path(effects.__file__).read_text()
     drones = [c for c in CATALOGUE.values() if c.card_type == "drone"]
-    assert len(drones) >= 4, "the catalogue has grown -- keep this honest"
+    assert len(drones) >= 6, "the catalogue has grown -- keep this honest"
     for card in drones:
         assert card.key not in effects.EFFECT_STEPS
         assert f'"{card.key}"' not in source, f"{card.key} is special-cased"
         assert effects._effect_handler(card) is effects._effect_summon_drone
+
+
+#: Every drone card in the catalogue. Listed so a rename or a new one shows up
+#: here as a failing lookup rather than as silently untested behaviour -- and
+#: because the coverage guard at the bottom of this file wants every drone key
+#: to appear in it by name.
+DRONE_KEYS = (
+    "Swarm_Swarm",
+    "Swarm_Crawl",
+    "Gun Tower_Gun Tower 1",
+    "Gun Tower_Gun Tower 2",
+    "Attack Dog_Rex and Rover",
+    "Attack Dog_Max and Ceaser",
+)
+
+
+@pytest.mark.parametrize("key", DRONE_KEYS)
+def test_every_drone_card_summons_what_its_printed_text_says(key):
+    """The whole contract for a drone card, over every one of them.
+
+    Nothing about these is written in Python: the handler is chosen by card
+    *type* and both numbers come off the text, so this is the test that says
+    the reading is right for each card actually in the catalogue. A variant
+    added by copying a row -- two Gun Towers with different attack zones, two
+    pairs of dogs -- is covered the moment its key goes in `DRONE_KEYS`.
+    """
+    assert key in CATALOGUE, f"{key} is not a card -- renamed in the CSV?"
+    card = CATALOGUE[key]
+    assert card.card_type == "drone"
+    wanted = effects._count_from_text(card.text, 1)
+    reach = effects._reach_from_text(card.text, 1)
+
+    state, frame, _ = duel(gap=6)
+    uid, decision = play(state, frame, key)
+    seen = 0
+    while decision is not None:
+        gaps = {state.board.distance(frame.pos, Pos(o["x"], o["y"]))
+                for o in decision.options}
+        assert max(gaps) == reach, f"{key} places within {reach}"
+        assert all(o["reach"] == max(
+            (card.ranges[z] for z in ("High", "Mid", "Low") if card.attacks[z] > 0),
+            default=0) for o in decision.options), (
+            "each option carries the drone's own reach, for the AI to stand off by"
+        )
+        decision = answer(state, decision)
+        seen += 1
+
+    tokens = [t for t in state.tokens.values() if t.kind == fx.DRONE]
+    assert len(tokens) == wanted, f"{card.text!r} should summon {wanted}"
+    assert seen in (0, wanted), "one placement decision per token"
+    for token in tokens:
+        assert token.hp == token.max_hp == max(1, card.drone_health)
+        assert token.owner == frame.seat
+        assert state.board.distance(frame.pos, token.pos) <= reach
+    records = fx.slot(state, "drones")
+    assert len(records) == wanted
+    assert all(r["key"] == key for r in records.values()), (
+        "each token repeats the card that made it, not its group-mate"
+    )
+
+
+# --------------------------------------------------------------------------
+# "Where does it go": the contract the board UI is drawn from
+# --------------------------------------------------------------------------
+
+
+def _tiles(decision):
+    return [o for o in decision.options if "x" in o and "y" in o]
+
+
+def test_a_placement_decision_says_how_many_tiles_it_still_wants():
+    """The client marks tiles on the board and commits the set in one go.
+
+    It can only do that if it knows how many the effect is going to ask for --
+    the engine hands them over one at a time, so without a range every card
+    that places more than one thing would be that many separate confirmations.
+    """
+    state, frame, _ = duel(gap=6)
+
+    # Barricade: "up to 3", so nothing is compulsory and `done` stops early.
+    barricade = play(state, frame, effects.BARRICADE)[1]
+    assert barricade is not None
+    assert (barricade.pick_min, barricade.pick_max) == (0, 3)
+    assert any(o.get("done") for o in barricade.options), "a way to stop early"
+    assert _tiles(barricade), "and tiles to choose from, in the same list"
+
+    # Two attack dogs: both have to go somewhere.
+    state, frame, _ = duel(gap=6)
+    dogs = play(state, frame, "Attack Dog_Max and Ceaser")[1]
+    assert (dogs.pick_min, dogs.pick_max) == (2, 2)
+    assert not any(o.get("done") for o in dogs.options)
+
+    # A portal is a pair -- one end on its own connects nothing.
+    state, frame, _ = duel(gap=6)
+    portal = play(state, frame, effects.PORTAL)[1]
+    assert (portal.pick_min, portal.pick_max) == (2, 2)
+    second = answer(state, portal, {"x": portal.options[0]["x"],
+                                    "y": portal.options[0]["y"]})
+    assert (second.pick_min, second.pick_max) == (1, 1), "one end left to place"
+
+
+def test_a_single_tile_decision_stays_a_single_tile_decision():
+    """One tile keeps movement's tap-to-propose, tap-to-commit.
+
+    The batching UI is for cards that lay out a *set*; a Teleport or a gravity
+    well is one answer and should not grow a commit button. `pick_min` and
+    `pick_max` of 1 are the default, and the view omits them entirely.
+    """
+    from playtest.engine.serialize import _pending_json
+
+    state, frame, _ = duel(gap=6)
+    well = play(state, frame, effects.GRAVITY_WELL)[1]
+    assert well is not None and _tiles(well)
+    assert (well.pick_min, well.pick_max) == (1, 1)
+    assert "pickMin" not in _pending_json(well, frame.seat)
+
+
+def test_the_placement_range_reaches_the_client_view():
+    from playtest.engine.serialize import _pending_json
+
+    state, frame, _ = duel(gap=6)
+    state.pending = play(state, frame, effects.BARRICADE)[1]
+    blob = _pending_json(state.pending, frame.seat)
+    assert blob["pickMin"] == 0 and blob["pickMax"] == 3
+    # The tiles and the "stop" option travel together; a client that demanded
+    # every option be a tile fell back to a list of raw grid coordinates.
+    assert any("x" in o for o in blob["options"])
+    assert any(o.get("done") for o in blob["options"])
 
 
 # --------------------------------------------------------------------------

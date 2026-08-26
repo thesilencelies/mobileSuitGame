@@ -280,8 +280,17 @@ def _ask(
     options: Sequence[Mapping[str, Any]],
     frame_id: str,
     ctx: Optional[Mapping[str, Any]] = None,
+    pick_min: int = 1,
+    pick_max: int = 1,
 ) -> PendingDecision:
-    """Build an `effect_choice` and record which handler answers it."""
+    """Build an `effect_choice` and record which handler answers it.
+
+    `pick_min`/`pick_max` are how many answers this effect still wants in
+    total, not how many this one decision takes -- the engine always asks for
+    one at a time. An effect that places three barricades says three here, and
+    the client uses it to let the player mark all three on the board before
+    committing any of them, instead of stopping to confirm after each.
+    """
     fx.bag(state)["await"] = {"handler": handler, "ctx": dict(ctx or {})}
     return PendingDecision(
         kind="effect_choice",
@@ -289,6 +298,8 @@ def _ask(
         prompt=prompt,
         options=[dict(option) for option in options],
         frame_id=frame_id,
+        pick_min=pick_min,
+        pick_max=pick_max,
     )
 
 
@@ -705,17 +716,20 @@ def _portal_step(
         if first is not None:
             state.note(f"{frame.id} finds nowhere to anchor the far end")
         return None
+    wanted = 1 if first is not None else min(2, len(tiles))
     return _ask(
         state,
         "portal",
         seat=frame.seat,
         frame_id=frame.id,
         prompt=(
-            f"Portal: choose the first tile (within {reach})" if first is None
+            f"Portal: choose both ends (within {reach})" if first is None
             else f"Portal: choose the tile to link ({first.x},{first.y}) to"
         ),
         options=[{"x": p.x, "y": p.y} for p in tiles],
         ctx={"reach": reach, "first": ([first.x, first.y] if first else None)},
+        pick_min=wanted,
+        pick_max=wanted,
     )
 
 
@@ -802,9 +816,11 @@ def _barricade_step(
         "barricade",
         seat=frame.seat,
         frame_id=frame.id,
-        prompt=f"Barricade: place a token within {reach} ({left} left)",
+        prompt=f"Barricade: place up to {left} more within {reach}",
         options=options,
         ctx={"reach": reach, "left": left},
+        pick_min=0,                     # "up to 3" -- and `done` stops early
+        pick_max=min(left, len(tiles)),
     )
 
 
@@ -1037,6 +1053,7 @@ def _summon_step(
         _deploy_drone(state, frame, uid, Pos(options[0]["x"], options[0]["y"]))
         return _summon_step(state, frame, uid, reach=reach, left=left - 1)
     where = "beside it" if reach <= 1 else f"within {reach}"
+    wanted = min(left, len(options))
     return _ask(
         state,
         "summon_drone",
@@ -1048,6 +1065,8 @@ def _summon_step(
         ),
         options=options,
         ctx={"reach": reach, "left": left, "uid": uid},
+        pick_min=wanted,
+        pick_max=wanted,
     )
 
 

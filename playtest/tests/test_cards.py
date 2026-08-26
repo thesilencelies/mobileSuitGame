@@ -255,12 +255,18 @@ def test_every_shipped_deck_is_legal():
     assert failures == {}
 
 
-def test_percival_fits_its_three_weapon_slots():
+def test_percival_fills_its_weapon_slots():
+    """A drone takes a weapon slot like a weapon does.
+
+    Percival's fourth slot is the Attack Dog pair -- which is why the frame
+    reads 4 rather than 3. The slot count is asserted against the frame rather
+    than a literal so a balance edit to either only has to be made once.
+    """
     deck = cardlib.load_deck("deck_aegis_percival", CATALOGUE)
     spec = FRAMES["Percival MkIV"]
     slots = weapon_slots_used(deck)
-    assert sum(slots.values()) == spec.weapon_slots == 3
-    assert set(slots) == {"Shield", "Greatsword", "Assault Rifle"}
+    assert sum(slots.values()) == spec.weapon_slots
+    assert set(slots) == {"Shield", "Greatsword", "Assault Rifle", "Attack Dog"}
     assert len(deck) == spec.deck_size
 
 
