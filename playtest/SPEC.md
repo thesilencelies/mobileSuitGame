@@ -135,27 +135,66 @@ the other reading — that discrepancy is real and I am raising it with the auth
 
 ## Objectives
 
-Nine objective rows in `Terrain_square.csv` carry non-zero points; `Helpcard` is a legend, not
-a real objective, so **8 are in scope**. The defender is whoever brought the card; green
-(`Defend Points`) is the defender's score, red (`Attack Points`) the attacker's.
+Every row in `Terrain_square.csv` carrying non-zero points is an objective; `Helpcard` is a
+legend, not a real one. **13 are in scope** (`objectives.OBJECTIVE_NAMES`, which a test holds
+against the CSV so a new scoring card cannot be added without a scorer). The defender is
+whoever brought the card; green (`Defend Points`) is the defender's score, red
+(`Attack Points`) the attacker's.
 
 | Objective | Behaviour |
 |---|---|
 | Power Reactors | 4 tokens, 2 HP each. Attacker scores if ≥3 destroyed, else defender |
-| Shiny Thing | 1 token, picked up on contact, dropped on damage to the adjacent tile nearest the damage source. Team holding it at the end scores |
+| Shiny Thing | 1 carried token. Team holding it at the end scores |
 | Triangle | If only one team has a frame on the triangle, that team scores |
-| Fugitive | Token placed anywhere in the enemy back row after deployment; moves with any adjacent ally. Defender scores if it reaches the objective point, else attacker |
+| Fugitive | Carried token, hidden anywhere in the enemy back row after deployment; only the defender's frames may hold it. Defender scores if it reaches the objective point, else attacker |
 | Holo Spires | Attacker scores if any attacking frame is on a spire at the end, else defender |
 | Church | If only one team has a frame within 2 of the church, they score |
-| The Tower | 4 HP token; attacker scores if destroyed, else defender |
+| The Tower | 4 HP token that takes 1 less damage from every zone of every attack; attacker scores if destroyed, else defender |
 | The Egg | First frame to end two consecutive turns standing on the Egg scores it |
+| Riverside | The *attacker* puts down 3 gang tokens (1 HP, 1 MV, initiative 1) anywhere off its own back row of cards, and moves them each turn. Defender scores if all three are killed, else attacker |
+| Solar Farm | 1 charge per frame per turn ending on the farm. Most charge at the end scores; a tie scores for nobody |
+| Lake Crosses | The relic is off the board until one team ends a turn with a frame on *both* platforms, which hands it to one of them. It is then an ordinary carried token; whoever holds it at the end scores |
+| Car Park | The *defender* puts down 3 refugee tokens (1 HP, 1 MV, initiative 1) in the enemy half, and moves them each turn. Attacker scores if all three are killed, else defender |
+| Dome Campus | The attacker names one of its frames the bomb carrier after deployment. If that frame ends a turn on the site the attacker scores, else the defender |
 
 Scoring timing is under-specified in the rulebook. **Assume:** everything is evaluated at the
-end of the game (after turn 5), except The Egg, Power Reactors, The Tower and Fugitive, which
-*latch* the moment their condition is met and stay latched. Flag this assumption.
+end of the game (after turn 5), except the objectives in `objectives.LATCHING` — The Egg,
+Power Reactors, The Tower, Fugitive, Riverside, Car Park and Dome Campus — which *latch* the
+moment their condition is met and stay latched. Every one of those turns on something that
+cannot be undone. Flag this assumption.
 
 Tokens are attackable like frames (`rules/rules.tex:778`): a single health stat, damage from
-any zone counts the same, they never block, and they cannot be repaired.
+any zone counts the same, they never block, and they cannot be repaired. Two further token
+rules are generic rather than per-objective:
+
+* **Carried tokens** (`rules/rules.tex:826`): a frame that *enters the tile* a carriable token
+  is on picks it up and drags it along; a carrier that takes damage drops it on the adjacent
+  tile nearest the damage source. `TokenState.holders` restricts who may pick one up (only the
+  fugitive does).
+* **Tokens that move** (`rules/rules.tex:829`) are moved by the team that created them, once a
+  turn at the token's own initiative — the same gate the drones use.
+
+### Terrain that is not an objective
+
+A terrain card can print a rule without carrying any points, which makes it
+neither plain ground nor an objective. The Railway is the first: "any frame
+that ends a turn on the rails takes energy Low". Those live in
+`engine/hazards.py` as a table over the card's own marked cells (the rails are
+its `tkn` cells, so both dealt copies — including the opponent's rotated one —
+follow the terrain for free). `resolve.cleanup_phase` applies it, before the
+objectives are counted so a frame the rails destroy is not also holding the
+ground it died on. A shield counter absorbs it like any other damage, and a
+frame it kills still counts as defeated for the other side's victory point.
+
+The table is pure data over a `Tile`, which is why the AI is allowed to import
+it: `scoring.terrain_value` prices a hazard tile off the same rule the engine
+applies rather than a second copy of it.
+
+Damage reduction and increases are **per zone**, not off the total
+(`rules/rules.tex` "Damage reduction and increases"): a card that adds "+1 damage" without
+naming a zone adds it to every zone the attack applies to, and the Tower's −1 comes off each
+zone separately. `combat.attack_zones_against` takes those as `spread`, kept apart from the
+`extra` that can open a zone the card does not print (Kamikiri's bonus cut Mid).
 
 ## Engine public API
 

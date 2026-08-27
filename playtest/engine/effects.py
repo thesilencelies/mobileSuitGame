@@ -2202,16 +2202,20 @@ def on_block(
         state.note(f"{block_card.key} strikes back for 1 {zone}")
 
 
-def _first_attacked_zone(card: Card) -> Optional[str]:
-    zones = [z for z in ZONES if card.attacks[z] > 0]
-    return zones[0] if zones else None
-
-
 def attack_damage_bonus(
     state: GameState, attacker: FrameState, card: Card, target_id: str
-) -> dict[str, int]:
-    """Every source of extra attack marks that comes from card text."""
+) -> tuple[dict[str, int], int]:
+    """Extra attack marks from card text: `(per zone, every zone)`.
+
+    Split because the rules treat the two differently. A card that names a
+    zone adds there; a card that just says "+1 damage" adds to *every* zone
+    the attack applies to (rules.tex "Damage reduction and increases"), which
+    is the second half of the pair -- and which the caller applies to the
+    zones that actually land, so a bonus never opens a zone the attack has no
+    reach in.
+    """
     bonus: dict[str, int] = {}
+    spread = 0
 
     def add(zone: Optional[str], amount: int) -> None:
         if zone and amount:
@@ -2221,11 +2225,11 @@ def attack_damage_bonus(
     if match:
         target = state.frames.get(target_id)
         if target is not None and not target.moved_this_turn:
-            add(_first_attacked_zone(card), int(match.group(1)))
+            spread += int(match.group(1))
             state.note(f"{card.key}: target has not moved, +{match.group(1)} damage")
 
     if card.is_ranged and attacker.turn_flags.get("snipers_aim"):
-        add(_first_attacked_zone(card), 1)
+        spread += 1
         state.note("Snipers aim adds 1 damage")
 
     if fx.card_active(state, attacker, PRACTICED, this_turn=False):
@@ -2236,7 +2240,7 @@ def attack_damage_bonus(
             and state.catalogue[state.cards[uid].key].is_attack
         )
         if same > 1:
-            add(_first_attacked_zone(card), same - 1)
+            spread += same - 1
             state.note(f"Practiced Technique adds {same - 1} damage")
 
     combo = fx.slot(state, "combo").get(attacker.id) or {}
@@ -2246,4 +2250,4 @@ def attack_damage_bonus(
             add(zone, int(amount))
         fx.slot(state, "combo")[attacker.id] = {"armed": False}
 
-    return bonus
+    return bonus, spread

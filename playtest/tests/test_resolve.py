@@ -707,7 +707,10 @@ def test_deployment_alternates_between_seats():
     state = start(seed=5, deploy=False)
     seats = []
     while state.phase == "setup":
-        seats.append(state.pending.seat)
+        # Setup is deploys *and* whatever the objectives on the board want
+        # putting down afterwards; only the deploys alternate.
+        if state.pending.kind == "deploy":
+            seats.append(state.pending.seat)
         state = apply_command(state, legal_commands(state, state.pending.seat)[0])
     assert seats == [0, 1, 0, 1, 0, 1]
 
@@ -832,7 +835,7 @@ def test_the_owner_chooses_where_the_fugitive_hides():
     from playtest.engine import legal_commands
 
     for seed in range(12):
-        # Walk deployment by hand, so the fugitive decision is left standing.
+        # Walk deployment by hand, so the placement decisions are left standing.
         state = start(seed=seed, deploy=False)
         rng = random.Random(seed)
         guard = 0
@@ -841,25 +844,30 @@ def test_the_owner_chooses_where_the_fugitive_hides():
             guard += 1
             state = apply_command(state, rng.choice(
                 legal_commands(state, state.pending.seat)))
-        pending = state.pending
-        if pending is None or pending.kind != "place_objective":
-            continue
-        objective = next(o for o in state.objectives if o.name == "Fugitive")
-        assert pending.seat == objective.owner, "the card's owner places it"
-        assert pending.pick_kind == "place"
-        rows = {o["y"] for o in pending.options}
-        assert len(rows) == 1, "the enemy back row and nothing else"
-        assert len(pending.options) > 1, "otherwise there was nothing to choose"
-        assert state.frame_at(Pos(pending.options[0]["x"],
-                                  pending.options[0]["y"])) is None
-
-        spot = pending.options[-1]
-        state = apply_command(state, Command("place_objective", pending.seat,
-                                             dict(spot)))
-        token = state.tokens[str(spot["token"])]
-        assert token.pos == Pos(spot["x"], spot["y"])
-        assert state.phase == "planning", "and setup moves on"
-        return
+        # Several objectives put tokens down after deployment; walk them until
+        # the fugitive's own decision comes round.
+        checked = False
+        while (state.pending is not None
+               and state.pending.kind == "place_objective" and guard < 200):
+            guard += 1
+            pending = state.pending
+            token = state.tokens[str(pending.options[0]["token"])]
+            spot = pending.options[-1]
+            if token.objective == "Fugitive":
+                objective = next(
+                    o for o in state.objectives if o.name == "Fugitive")
+                assert pending.seat == objective.owner, "the card's owner places it"
+                assert pending.pick_kind == "place"
+                rows = {o["y"] for o in pending.options}
+                assert len(rows) == 1, "the enemy back row and nothing else"
+                assert len(pending.options) > 1, "otherwise nothing to choose"
+                assert state.frame_at(Pos(spot["x"], spot["y"])) is None
+                checked = True
+            state = apply_command(state, Command("place_objective", pending.seat,
+                                                 dict(spot)))
+            assert state.tokens[token.id].pos == Pos(spot["x"], spot["y"])
+        if checked:
+            return
     pytest.skip("no Fugitive objective came up in the sampled seeds")
 
 
@@ -1097,3 +1105,95 @@ def test_the_commit_range_reaches_the_client_view():
     view = view_for(state, frame.seat)
     assert view["pending"]["pickMin"] == ACTIONS_PER_TURN
     assert view["pending"]["pickMax"] == ACTIONS_PER_TURN + 1
+
+
+def test_every_objective_plays_through_a_whole_game():
+    """A game with each new objective in it runs to a finish and scores.
+
+    The objectives that put tokens on the board are the ones that can wedge
+    the state machine: a placement nobody is asked for, a gang that wants to
+    move every turn, a relic that never comes on. So this plays real games
+    with the archetypes that carry them, and insists both that every game
+    ends and that all five new objectives were actually exercised.
+    """
+    from playtest.ai import RandomAgent
+
+    wanted = {"Riverside", "Solar Farm", "Lake Crosses", "Car Park", "Dome Campus"}
+    seen: set[str] = set()
+    for seed in range(6):
+        for terrain in ({0: "control", 1: "siege"}, {0: "assault", 1: "strike"}):
+            state = new_game(GameConfig(
+                player_decks=PLAYER_DECKS[:2],
+                ai_decks=AI_DECKS[:2],
+                seed=seed,
+                frames_per_side=2,
+                terrain_decks=terrain,
+            ))
+            seen |= {o.name for o in state.objectives}
+            agents = {s: RandomAgent(seat=s, seed=seed * 13 + s) for s in (0, 1)}
+            steps = 0
+            while not is_over(state) and state.pending is not None and steps < 4000:
+                seat = int(state.pending.seat)
+                state = apply_command(state, agents[seat].act(view_for(state, seat)))
+                steps += 1
+            assert is_over(state), f"seed {seed} {terrain} never finished"
+            points = scores(state)
+            assert set(points) == {0, 1} and all(v >= 0 for v in points.values())
+    assert wanted <= seen, f"never dealt {sorted(wanted - seen)}"
+
+
+# --------------------------------------------------------------------------
+# Terrain that hurts (the Railway)
+# --------------------------------------------------------------------------
+
+
+def _rails(state, *tiles):
+    """Mark tiles as the Railway's rails, the way the dealt board would."""
+    for pos in tiles:
+        state.board.set_tile(pos, terrain_card="Railway", token_spawn=True)
+
+
+def test_the_rails_hurt_whatever_ends_a_turn_on_them():
+    """"Any frame that ends a turn on the rails takes energy low"."""
+    state = make_state()
+    state.phase = "action"
+    _rails(state, Pos(3, 3))
+    on_rails = add_frame(state, 0, "Kuwagata", Pos(3, 3))
+    clear = add_frame(state, 1, "Adam", Pos(8, 8))
+
+    R.cleanup_phase(state)
+    assert on_rails.damage["Low"] == 1
+    assert all(v == 0 for v in clear.damage.values()), "only the marked tile"
+    assert any("rails" in entry["text"] for entry in state.log)
+
+
+def test_only_the_marked_cells_of_the_railway_are_rails():
+    """The card is four rows of tiles; the `tkn` cells are the track."""
+    state = make_state()
+    state.phase = "action"
+    state.board.set_tile(Pos(4, 4), terrain_card="Railway")     # no `tkn`
+    beside = add_frame(state, 0, "Kuwagata", Pos(4, 4))
+    R.cleanup_phase(state)
+    assert beside.damage["Low"] == 0
+
+
+def test_a_shield_counter_absorbs_the_rails():
+    """"Whenever a frame [...] would take any amount of damage" (rules.tex)."""
+    state = make_state()
+    state.phase = "action"
+    _rails(state, Pos(2, 2))
+    frame = add_frame(state, 0, "Hannael", Pos(2, 2))           # Shield (1)
+    assert frame.shields == 1
+    R.cleanup_phase(state)
+    assert frame.damage["Low"] == 0 and frame.shields == 0
+
+
+def test_the_rails_can_finish_a_frame_off():
+    state = make_state()
+    state.phase = "action"
+    _rails(state, Pos(5, 5))
+    frame = add_frame(state, 0, "Kuwagata", Pos(5, 5))
+    frame.damage["Low"] = frame.spec.armour["Low"] - 1          # one hit left
+    R.cleanup_phase(state)
+    assert not frame.alive
+    assert state.kills.get(1) == 1, "the other side still scores the frame"

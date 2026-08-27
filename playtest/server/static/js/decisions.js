@@ -38,6 +38,8 @@ export function renderDecision(host, ctx) {
     choose_block: chooseBlock,
     effect_choice: effectChoice,
     place_objective: effectTiles,
+    move_token: effectTiles,
+    choose_frame: effectFrames,
     echo_card: echoCard,
     deploy: deploy,
   }[pending.kind] || genericDecision;
@@ -186,7 +188,9 @@ function prettyKind(kind) {
   return {
     commit_actions: 'Commit your actions',
     choose_actor: 'Which acts first',
-    place_objective: 'Hide the fugitive',
+    place_objective: 'Put down a token',
+    move_token: 'Move a token',
+    choose_frame: 'Choose a frame',
     resolve_order: 'Order of resolution',
     move: 'Move',
     attack_target: 'Choose a target',

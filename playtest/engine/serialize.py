@@ -13,6 +13,7 @@ import hashlib
 from typing import Any, Mapping, Optional
 
 from . import effects_state as fx
+from . import hazards as hazardlib
 from . import objectives as objectivelib
 from .state import CardInstance, FrameState, GameState, victory_points
 from .types import Card, PendingDecision, Team, ZONES, team_name
@@ -133,6 +134,11 @@ def _pending_json(
     return out
 
 
+def _hazard_text(tile) -> Optional[str]:
+    hazard = hazardlib.hazard_for(tile)
+    return hazardlib.describe(hazard) if hazard is not None else None
+
+
 def _board_json(state: GameState) -> dict[str, Any]:
     board = state.board
     if board is None:
@@ -153,6 +159,10 @@ def _board_json(state: GameState) -> dict[str, Any]:
                 # The `tkn` code. The card marks it as plainly as it marks an
                 # obstacle, so the board needs it to draw the same thing.
                 "tokenSpawn": tile.token_spawn or None,
+                # Terrain that hurts whatever ends a turn on it (the rails).
+                # Prose, because the client's job is to read it out and the
+                # rule itself belongs to the engine.
+                "hazard": _hazard_text(tile),
                 "card": tile.terrain_card,
             })
     objectives = []
@@ -173,7 +183,17 @@ def _board_json(state: GameState) -> dict[str, Any]:
             "defend": obj.defend,
             "attack": obj.attack,
             "tiles": [[p.x, p.y] for p in obj.tiles],
+            # The card's own rules text, still in LaTeX -- the client cleans
+            # it the same way it cleans a card's. Without it the player has an
+            # objective on the board and no way to read what it wants.
+            "text": obj.text,
+            # Every tile of the card, so the client can point at an objective
+            # that scores by *being somewhere* rather than by a marked cell.
+            "cardTiles": [[p.x, p.y] for p in obj.card_tiles],
             "status": status,
+            # The frame an objective has attached itself to, when it has one:
+            # Dome Campus's bomb carrier.
+            "carrier": obj.memo.get("carrier") or None,
             # Who the points go to, as a seat number rather than prose --
             # the final score has to attribute each one to a side, and the AI
             # has to reason about it without parsing English.
@@ -198,6 +218,9 @@ def _token_json(state: GameState, token, seat: Team) -> dict[str, Any]:
         "maxHp": token.max_hp,
         "alive": token.alive,
         "carrier": token.carrier,
+        # Which objective it belongs to, so the client can say "2 of 4
+        # reactors destroyed" beside the card that asked for them.
+        "objective": token.objective or None,
     }
     if token.owner is not None:
         out["owner"] = token.owner

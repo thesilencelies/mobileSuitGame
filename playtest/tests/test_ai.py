@@ -53,6 +53,11 @@ def catalogue():
     return catalogue_json(load_cards())
 
 
+#: Everything the setup phase can ask: frames onto the board, then the tokens
+#: and the bomb carrier the objectives on that board want.
+SETUP_KINDS = ("deploy", "place_objective", "choose_frame")
+
+
 def deployed(state, seed: int = 0):
     """Advance past the setup phase so every frame has a position.
 
@@ -61,7 +66,8 @@ def deployed(state, seed: int = 0):
     """
     agents = {s: RandomAgent(seat=s, seed=seed + s) for s in (0, 1)}
     guard = 0
-    while state.pending is not None and state.pending.kind == "deploy" and guard < 50:
+    while (state.pending is not None
+           and state.pending.kind in SETUP_KINDS and guard < 80):
         seat = int(state.pending.seat)
         state = apply_command(state, agents[seat].act(view_for(state, seat)))
         guard += 1
@@ -289,8 +295,11 @@ def test_ai_module_does_not_import_engine_internals():
     frozen contract, and nothing else in `engine` is importable from here.
     The arena is exempt: it is the harness and legitimately drives games.
     """
-    allowed = {"..engine.board", "..engine.types", ".agent", ".baseline",
-               ".params", ".scoring", ".view", "."}
+    # `hazards` is on the list for the same reason as `board` and `types`:
+    # it is a table of rules with no state in it at all, and the alternative
+    # is the AI keeping a second copy of which ground hurts.
+    allowed = {"..engine.board", "..engine.hazards", "..engine.types",
+               ".agent", ".baseline", ".params", ".scoring", ".view", "."}
     root = pathlib.Path(__file__).resolve().parents[1] / "ai"
     checked = 0
     for path in sorted(root.glob("*.py")):
@@ -713,6 +722,31 @@ def test_ranged_frame_does_not_want_to_stand_next_to_the_enemy(cat, catalogue):
     adjacent = S.position_value(snap, me, Pos(4, 5), prof, params, primary=rifle)
     standoff = S.position_value(snap, me, Pos(1, 5), prof, params, primary=rifle)
     assert standoff > adjacent
+
+
+def test_the_evaluator_will_not_park_a_frame_on_the_rails(cat, catalogue):
+    """Standing on a hazard costs a hit at the end of every turn left.
+
+    The AI reads the rule off `engine.hazards`, the same table the engine
+    applies, so a tile it thinks is safe cannot disagree with the one the
+    cleanup phase hurts.
+    """
+    from playtest.engine.types import Pos
+
+    view = _flat_view(catalogue, next(iter(cat.cards)))
+    for tile in view["board"]["tiles"]:
+        if tile["x"] == 7:
+            tile["card"] = "Railway"
+            tile["tokenSpawn"] = True
+    snap = Snapshot(view)
+    params = AIParams()
+    rails = S.terrain_value(snap, Pos(7, 5), params)
+    ground = S.terrain_value(snap, Pos(8, 5), params)
+    assert rails < ground, "the rails are worse ground than open ground"
+
+    view["turn"] = 5
+    late = S.terrain_value(Snapshot(view), Pos(7, 5), params)
+    assert late > rails, "and less bad with only one turn left to stand there"
 
 
 def test_objectives_pull_the_evaluator(cat, catalogue):

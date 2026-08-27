@@ -114,9 +114,10 @@ def start(client: Client, *, deploy: bool = True,
     return game_id, view
 
 
-#: The decisions the setup phase can raise: placing frames, then hiding the
-#: fugitive its owner brought.
-SETUP_KINDS = ("deploy", "place_objective")
+#: The decisions the setup phase can raise: placing frames, then whatever the
+#: objectives on the board still want -- a fugitive to hide, gangs or refugees
+#: to put down, a frame to hand the bomb to.
+SETUP_KINDS = ("deploy", "place_objective", "choose_frame")
 
 
 def deploy_all(client: Client, game_id: str, view: dict) -> dict:
@@ -1425,11 +1426,17 @@ def test_the_client_names_board_art_the_way_the_bundle_does() -> None:
         assert f"{assets.slug(name)}.jpg" in on_disk, name
     assert "/static/terrain/" in api_js and "/static/tokens/" in api_js
 
-    # Every token kind the engine can spawn needs an entry in the client's art
-    # map, or a Power Reactor draws as nothing at all.
-    for kind, _, _ in OBJECTIVE_TOKENS.values():
-        assert re.search(rf"^\s+{re.escape(kind)}:", api_js, re.M), (
-            f"api.js has no art for token kind {kind!r}")
+    # Every token kind the engine can spawn has to be *drawable*: either piece
+    # art in `api.js`, or a labelled counter in the board's own fallback. A
+    # kind in neither draws as an anonymous blob.
+    board_js = (static / "js" / "board.js").read_text(encoding="utf-8")
+    style = board_js.split("const TOKEN_STYLE = {", 1)[1].split("};", 1)[0]
+    for spec in OBJECTIVE_TOKENS.values():
+        art = re.search(rf"^\s+{re.escape(spec.kind)}:", api_js, re.M)
+        counter = re.search(rf"^\s+{re.escape(spec.kind)}:", style, re.M)
+        assert art or counter, (
+            f"nothing draws token kind {spec.kind!r}: no art in api.js and no "
+            "counter in board.js")
 
 
 # --------------------------------------------------------------------------

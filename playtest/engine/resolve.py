@@ -21,6 +21,7 @@ from typing import Any, Callable, Iterable, Iterator, Mapping, Optional, Sequenc
 from . import cards as cardlib
 from . import combat
 from . import effects
+from . import hazards
 from . import keywords as kw
 from . import objectives as objectivelib
 from .state import (
@@ -29,6 +30,7 @@ from .state import (
     GameState,
     Resolution,
     apply_status,
+    deal_damage,
     discard_card,
     draw,
     destroy_frame,
@@ -245,6 +247,8 @@ def _real_battlefield(state: GameState, config: GameConfig) -> None:
             attack=info.attack_points,
             tiles=info.tiles,
             spawns=info.token_tiles,
+            text=info.rules_text,
+            card_tiles=info.card_tiles,
         )
     # Deployment is a real decision, one frame at a time, alternating seats
     # (rules.tex Setup). `state.queue` holds the seats still to place.
@@ -264,61 +268,19 @@ def deployment_tiles(state: GameState, seat: Team) -> list[Pos]:
     ]
 
 
-def _fugitive_placements(state: GameState) -> list[tuple[str, Team, list[Pos]]]:
-    """`(token id, who places it, where it may go)` for every unplaced fugitive.
+def _objective_setup_decision(state: GameState) -> bool:
+    """Ask anything the objectives still want at setup. True if one was asked.
 
-    "Put a fugitive token anywhere in the enemy back row after deployment."
-    The card carries no `tkn` cell, so the token does not start on the card: it
-    starts in the *attacker's* back row and the defender must escort it out.
-    "Anywhere" is the choice of whoever brought the card -- the objective's
-    owner -- so this offers the row rather than picking the middle of it.
+    Fugitives, gangs and refugees go down -- and the bomb carrier is picked --
+    once every frame is placed, so whoever is deciding can see the board they
+    are deciding against. `objectives.setup_decision` knows which objective
+    wants what; this only parks the answer.
     """
-    out: list[tuple[str, Team, list[Pos]]] = []
-    for objective in state.objectives:
-        if objective.name != "Fugitive":
-            continue
-        enemy = objectivelib.other_seat(state, objective.owner)
-        free = [
-            pos for pos in deployment_tiles(state, enemy)
-            if not any(t.alive and t.pos == pos for t in state.tokens.values())
-        ]
-        if not free:
-            continue
-        placed = objective.memo.setdefault("placed", [])
-        for token_id in objective.token_ids:
-            token = state.tokens.get(token_id)
-            # The token already has a position -- the objective's own tile --
-            # so "unplaced" means "not yet moved to the back row", not
-            # "nowhere". Tracked on the objective so answering the decision
-            # does not leave it asking forever.
-            if token is None or token_id in placed:
-                continue
-            out.append((token_id, objective.owner, free))
-    return out
-
-
-def _mark_fugitive_placed(state: GameState, token_id: str) -> None:
-    for objective in state.objectives:
-        if token_id in objective.token_ids:
-            objective.memo.setdefault("placed", []).append(token_id)
-
-
-def _fugitive_decision(state: GameState) -> bool:
-    """Ask where a fugitive goes. True if one was asked for."""
-    for token_id, seat, free in _fugitive_placements(state):
-        if len(free) == 1:
-            state.tokens[token_id].pos = free[0]
-            _mark_fugitive_placed(state, token_id)
-            continue
-        state.pending = PendingDecision(
-            kind="place_objective",
-            seat=seat,
-            prompt="Fugitive: hide it anywhere in the enemy back row",
-            options=[{"token": token_id, "x": p.x, "y": p.y} for p in free],
-            pick_kind="place",
-        )
-        return True
-    return False
+    decision = objectivelib.setup_decision(state)
+    if decision is None:
+        return False
+    state.pending = decision
+    return True
 
 
 def _build_battlefield(state: GameState, config: GameConfig) -> None:
@@ -947,8 +909,27 @@ def cleanup_phase(state: GameState) -> None:
                 state.note(f"{frame.id}'s Deathstrike runs out")
                 frame.deathstrike_until = None
                 destroy_frame(state, frame)
+    _terrain_hazards(state)
     objectivelib.end_of_turn(state)
     state.rotate_priority()
+
+
+def _terrain_hazards(state: GameState) -> None:
+    """Terrain that hurts whatever ended the turn on it (the Railway's rails).
+
+    Runs before the objectives are counted, so a frame the rails destroy is
+    not also holding the ground it died on.
+    """
+    if state.board is None:
+        return
+    for frame in list(state.frames.values()):
+        if not frame.alive or frame.pos is None:
+            continue
+        hazard = hazards.hazard_for(state.board.tile(frame.pos))
+        if hazard is None:
+            continue
+        state.note(f"{frame.id} ends the turn on {hazard.what}")
+        deal_damage(state, frame, hazard.zone, hazard.amount)
 
 
 def _cleanup(state: GameState) -> None:
@@ -986,9 +967,9 @@ def advance(state: GameState) -> GameState:
         if state.phase == "setup":
             if _deploy_decision(state):
                 break
-            # Fugitives go down once every frame is placed, so their owner can
-            # see the board they are hiding one on.
-            if _fugitive_decision(state):
+            # Fugitives, gangs and refugees go down once every frame is
+            # placed, so their owner can see the board they are hiding one on.
+            if _objective_setup_decision(state):
                 break
             _finish_setup(state)
         elif state.phase == "planning":
@@ -1001,6 +982,16 @@ def advance(state: GameState) -> GameState:
                     break
                 continue
             if effects.followup_decision(state):
+                break
+            # Gangs and refugees move at their own initiative, like a drone --
+            # so they wait for everything that outranks them. Asked *before*
+            # `next_actors`, which advances the tie alternation as a side
+            # effect and must therefore be called once per card resolved.
+            token_move = objectivelib.token_decision(
+                state, max((v for v, _, _ in _actors(state)), default=None)
+            )
+            if token_move is not None:
+                state.pending = token_move
                 break
             actors = next_actors(state)
             if not actors:
@@ -1141,9 +1132,33 @@ def _handle_place_objective(
     token = state.tokens.get(str(payload.get("token")))
     _require(token is not None, "no such token")
     assert token is not None
-    token.pos = Pos(int(payload["x"]), int(payload["y"]))
-    _mark_fugitive_placed(state, token.id)
-    state.note(f"the fugitive is hiding at ({token.pos.x},{token.pos.y})")
+    objectivelib.place_token(state, token, Pos(int(payload["x"]), int(payload["y"])))
+
+
+def _handle_choose_frame(
+    state: GameState, pending: PendingDecision, cmd: Command
+) -> None:
+    """One frame, picked for something an objective needs a frame for."""
+    payload = dict(cmd.payload)
+    _require(_offered(pending, payload), "that frame was not offered")
+    frame = state.frames[str(payload["frame"])]
+    _require(frame.seat == cmd.seat, "that frame belongs to the other seat")
+    objective = objectivelib.objective_named(state, "Dome Campus")
+    _require(objective is not None, "nothing is waiting on a frame")
+    assert objective is not None
+    objectivelib.set_bomb_carrier(state, objective, frame.id)
+
+
+def _handle_move_token(
+    state: GameState, pending: PendingDecision, cmd: Command
+) -> None:
+    payload = dict(cmd.payload)
+    _require(_offered(pending, payload), "that tile was not offered")
+    token = state.tokens.get(str(payload.get("token")))
+    _require(token is not None, "no such token")
+    assert token is not None
+    _require(token.owner == cmd.seat, "that token belongs to the other side")
+    objectivelib.move_token(state, token, Pos(int(payload["x"]), int(payload["y"])))
 
 
 def _handle_echo(state: GameState, pending: PendingDecision, cmd: Command) -> None:
@@ -1256,6 +1271,8 @@ _HANDLERS: Mapping[str, Callable[[GameState, PendingDecision, Command], None]] =
     "choose_actor": _handle_choose_actor,
     "effect_choice": _handle_effect_choice,
     "place_objective": _handle_place_objective,
+    "choose_frame": _handle_choose_frame,
+    "move_token": _handle_move_token,
     "echo_card": _handle_echo,
     "resolve_order": _handle_resolve_order,
     "move": _handle_move,

@@ -283,6 +283,11 @@ class ObjectiveView:
     #: something to parse.
     scorer: Optional[int] = None
     settled: bool = False
+    #: Every tile of the card it was printed on -- several objectives have no
+    #: `obj` cell of their own, so this is the only "where is it".
+    card_tiles: tuple[Pos, ...] = ()
+    #: The frame this objective has attached itself to (the bomb carrier).
+    carrier: Optional[str] = None
 
     def value_for(self, seat: int) -> int:
         return self.defend if seat == self.owner else self.attack
@@ -300,6 +305,9 @@ class TokenView:
     max_hp: int
     alive: bool
     carrier: Optional[str]
+    #: The side that created it -- which is the side that cannot shoot it, and
+    #: the side that moves it if it moves.
+    owner: Optional[int] = None
     #: The frame an image or a drone belongs to, when the view says.
     frame: Optional[str] = None
     #: Set only on our own images: the one the frame is actually standing on.
@@ -336,6 +344,10 @@ class Snapshot:
                 status=str(o.get("status", "")),
                 scorer=(None if o.get("scorer") is None else int(o["scorer"])),
                 settled=bool(o.get("settled")),
+                card_tiles=tuple(
+                    Pos(int(t[0]), int(t[1])) for t in (o.get("cardTiles") or ())
+                ),
+                carrier=(str(o["carrier"]) if o.get("carrier") else None),
             )
             for o in (board_json.get("objectives") or ())
         ]
@@ -348,6 +360,7 @@ class Snapshot:
                 max_hp=int(t.get("maxHp", 0)),
                 alive=bool(t.get("alive", True)),
                 carrier=(str(t["carrier"]) if t.get("carrier") else None),
+                owner=(None if t.get("owner") is None else int(t["owner"])),
                 frame=(str(t["frame"]) if t.get("frame") else None),
                 real=bool(t.get("real")),
             )
@@ -440,6 +453,15 @@ class Snapshot:
         }
         return frozenset(p for p in out if p is not None)
 
+    def tile(self, pos: Optional[Pos]):
+        """The board tile, or `None` off the board / before the board is known."""
+        if pos is None or self.board is None:
+            return None
+        try:
+            return self.board.tile(pos)
+        except IndexError:
+            return None
+
     def elevation(self, pos: Optional[Pos]) -> int:
         if pos is None or self.board is None:
             return 0
@@ -459,6 +481,13 @@ class Snapshot:
                 return token
         return None
 
+    def tokens_for(self, objective: ObjectiveView) -> list[TokenView]:
+        """Every token belonging to `objective`, live or dead."""
+        return [
+            t for t in self.tokens
+            if _TOKEN_OBJECTIVE.get(t.kind) == objective.name
+        ]
+
     def objective_for_token(self, token: TokenView) -> Optional[ObjectiveView]:
         wanted = _TOKEN_OBJECTIVE.get(token.kind)
         if wanted is None:
@@ -475,6 +504,9 @@ _TOKEN_OBJECTIVE: Mapping[str, str] = {
     "shiny": "Shiny Thing",
     "fugitive": "Fugitive",
     "tower": "The Tower",
+    "gang": "Riverside",
+    "refugee": "Car Park",
+    "relic": "Lake Crosses",
 }
 
 
@@ -494,6 +526,10 @@ def build_board(board_json: Mapping[str, Any]) -> Optional[Board]:
             impassable=bool(cell.get("impassable")),
             obstacle=bool(cell.get("obstacle")),
             objective=bool(cell.get("objective")),
+            # Carried through because a marked cell is not only where a token
+            # spawns: on the Railway it is the rails, and standing on those
+            # costs a hit at the end of every turn.
+            token_spawn=bool(cell.get("tokenSpawn")),
             terrain_card=str(cell.get("card") or ""),
         )
     if any(t is None for t in grid):

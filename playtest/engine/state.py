@@ -101,11 +101,28 @@ class TokenState:
     hp: int = 0
     max_hp: int = 0
     alive: bool = True
-    #: Seat that brought the objective this token belongs to, if any.
+    #: Seat that brought the objective this token belongs to, if any. Also the
+    #: side that cannot shoot it, and -- for a token that moves -- the side
+    #: that moves it ("tokens that can move are moved by the team that created
+    #: them", rules.tex:829).
     owner: Optional[Team] = None
     objective: str = ""
-    #: Frame currently carrying it (Shiny Thing).
+    #: Frame currently carrying it (the Shiny Thing, the fugitive, the relic).
     carrier: Optional[str] = None
+    #: Can be picked up by a frame that enters its tile, and dropped when that
+    #: frame is damaged (rules.tex:826).
+    carriable: bool = False
+    #: Seat allowed to pick it up. `None` means either side.
+    holders: Optional[Team] = None
+    #: Subtracted from the damage of every zone of every attack that hits it
+    #: (rules.tex "Damage reduction and increases"). The Tower's -1.
+    damage_reduction: int = 0
+    #: Tiles it may be moved each turn, and the initiative it moves at. 0
+    #: movement means it stays where it is put.
+    movement: int = 0
+    initiative: int = 0
+    #: The turn this token last took its move, so it takes one per turn.
+    moved_turn: int = 0
 
     @property
     def attackable(self) -> bool:
@@ -122,6 +139,13 @@ class ObjectiveState:
     attack: int
     tiles: tuple[Pos, ...] = ()
     token_ids: tuple[str, ...] = ()
+    #: The card's printed rules text, so the client can show the player what
+    #: the objective on their board actually asks of them.
+    text: str = ""
+    #: Every tile of the terrain card it was printed on. Several objectives
+    #: have no `obj` cell at all, and both seats can bring the same card, so
+    #: "where is it on the board" cannot be answered by name or by `tiles`.
+    card_tiles: tuple[Pos, ...] = ()
     #: Seat that has locked in the score, for latching objectives.
     latched: Optional[Team] = None
     #: Per-objective scratch space (the Egg's consecutive-turn counters, ...).

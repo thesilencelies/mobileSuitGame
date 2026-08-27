@@ -1,8 +1,8 @@
-"""The eight scripted objectives, their scoring and their latching rules.
+"""The scripted objectives, their scoring and their latching rules.
 
-Scoring timing is an engine assumption (SPEC.md): Power Reactors, The Tower,
-Fugitive and The Egg *latch* the moment their condition is met; Shiny Thing,
-Triangle, Holo Spires and Church are settled once, after turn 5.
+Scoring timing is an engine assumption (SPEC.md): the objectives in `LATCHING`
+lock in the moment their condition is met; the rest are settled once, after
+turn 5.
 """
 
 from __future__ import annotations
@@ -19,15 +19,17 @@ from playtest.engine.objectives import (
     objective_score,
 )
 from playtest.engine.state import damage_token, deal_damage, victory_points
+from playtest.engine.terrain import load_terrain_cards
 from playtest.engine.types import Pos
 
 from ._helpers import add_frame, give, make_state, run_attack
 
-# Points as printed on the terrain cards (Terrain_square.csv).
+#: Points as printed on the terrain cards, read from `Terrain_square.csv`
+#: itself: a balance edit to a card must not need a second edit here to agree.
 POINTS = {
-    "Power Reactors": (2, 2), "Shiny Thing": (1, 2), "Triangle": (1, 1),
-    "Fugitive": (2, 1), "Holo Spires": (1, 1), "Church": (1, 1),
-    "The Tower": (2, 2), "The Egg": (1, 2),
+    name: (card.defend_points, card.attack_points)
+    for name, card in load_terrain_cards().items()
+    if card.is_objective
 }
 
 
@@ -49,14 +51,23 @@ def finish(state):
 # --------------------------------------------------------------------------
 
 
-def test_all_eight_objectives_have_a_scorer():
-    assert len(OBJECTIVE_NAMES) == 8
+def test_every_scoring_terrain_card_is_an_objective_the_engine_plays():
+    """The CSV is the source of truth: a card with points must be scriptable."""
     assert set(O.SCORERS) == set(OBJECTIVE_NAMES)
+    assert set(OBJECTIVE_NAMES) == set(POINTS), (
+        "every terrain card carrying points needs a scorer, and vice versa"
+    )
     assert "Helpcard" not in OBJECTIVE_NAMES, "the Helpcard is a legend, not real"
 
 
-def test_only_four_objectives_latch():
-    assert LATCHING == {"Power Reactors", "The Tower", "Fugitive", "The Egg"}
+def test_latching_is_only_for_conditions_that_cannot_be_undone():
+    assert LATCHING == {
+        "Power Reactors", "The Tower", "Fugitive", "The Egg",
+        "Riverside", "Car Park", "Dome Campus",
+    }
+    assert not (LATCHING & {"Shiny Thing", "Lake Crosses", "Solar Farm"}), (
+        "a carried token and a charge count can still change hands"
+    )
 
 
 def test_creating_an_objective_spawns_its_tokens():
@@ -298,39 +309,63 @@ def test_holo_spires_default_to_the_defender():
 # --------------------------------------------------------------------------
 
 
-def test_the_fugitive_is_towed_by_an_adjacent_ally_of_the_defender():
-    state = make_state()
-    obj = setup_objective(state, "Fugitive", owner=0, tiles=[Pos(9, 9)],
-                          spawns=[Pos(2, 2)])
+def drop_token(state, obj, pos):
+    """Put an objective's token on the board the way setup would."""
     token = O.tokens_of(state, obj)[0]
+    O.place_token(state, token, pos)
+    return token
+
+
+def test_the_fugitive_is_picked_up_by_a_defender_that_walks_onto_it():
+    """Held, not towed: "if a frame enters the tile the token is in" (826)."""
+    state = make_state()
+    obj = setup_objective(state, "Fugitive", owner=0, tiles=[Pos(9, 9)])
+    token = drop_token(state, obj, Pos(2, 2))
     escort = add_frame(state, 0, "Kuwagata", Pos(3, 2))
     O.on_move(state, escort, Pos(3, 2))
-    assert token.carrier == escort.id, "adjacent is enough to take it in tow"
+    assert token.carrier is None, "standing next to it is not holding it"
+
+    escort.pos = Pos(2, 2)
+    O.on_move(state, escort, Pos(3, 2))
+    assert token.carrier == escort.id
 
     escort.pos = Pos(5, 5)
-    O.on_move(state, escort, Pos(3, 2))
-    assert token.pos == Pos(5, 5)
+    O.on_move(state, escort, Pos(2, 2))
+    assert token.pos == Pos(5, 5), "it comes along once held"
 
 
-def test_the_enemy_cannot_tow_the_fugitive():
+def test_the_enemy_cannot_hold_the_fugitive():
+    """"The fugitive token can be held by allies" -- only by allies."""
     state = make_state()
-    obj = setup_objective(state, "Fugitive", owner=0, tiles=[Pos(9, 9)],
-                          spawns=[Pos(2, 2)])
-    token = O.tokens_of(state, obj)[0]
-    enemy = add_frame(state, 1, "Adam", Pos(2, 3))
+    obj = setup_objective(state, "Fugitive", owner=0, tiles=[Pos(9, 9)])
+    token = drop_token(state, obj, Pos(2, 2))
+    enemy = add_frame(state, 1, "Adam", Pos(2, 2))
     O.on_move(state, enemy, Pos(2, 3))
     assert token.carrier is None
 
 
+def test_a_damaged_escort_drops_the_fugitive():
+    state = make_state()
+    obj = setup_objective(state, "Fugitive", owner=0, tiles=[Pos(9, 9)])
+    token = drop_token(state, obj, Pos(5, 5))
+    escort = add_frame(state, 0, "Kuwagata", Pos(5, 5))
+    O.on_move(state, escort, Pos(5, 4))
+    assert token.carrier == escort.id
+
+    shooter = add_frame(state, 1, "Adam", Pos(5, 8))
+    deal_damage(state, escort, "Mid", 1, source=shooter)
+    assert token.carrier is None
+    assert token.pos == Pos(5, 6), "dropped toward whatever hit them"
+
+
 def test_the_fugitive_latches_for_the_defender_at_the_objective_point():
     state = make_state()
-    obj = setup_objective(state, "Fugitive", owner=0, tiles=[Pos(9, 9)],
-                          spawns=[Pos(8, 8)])
-    token = O.tokens_of(state, obj)[0]
-    escort = add_frame(state, 0, "Kuwagata", Pos(8, 9))
+    obj = setup_objective(state, "Fugitive", owner=0, tiles=[Pos(9, 9)])
+    token = drop_token(state, obj, Pos(8, 8))
+    escort = add_frame(state, 0, "Kuwagata", Pos(8, 8))
     O.on_move(state, escort, Pos(8, 9))
     escort.pos = Pos(9, 9)
-    O.on_move(state, escort, Pos(8, 9))
+    O.on_move(state, escort, Pos(8, 8))
     assert token.pos == Pos(9, 9)
     assert obj.latched == 0
     assert objective_score(state, obj) == (0, obj.defend)
@@ -338,8 +373,8 @@ def test_the_fugitive_latches_for_the_defender_at_the_objective_point():
 
 def test_a_fugitive_that_never_arrives_scores_for_the_attacker():
     state = make_state()
-    obj = setup_objective(state, "Fugitive", owner=0, tiles=[Pos(9, 9)],
-                          spawns=[Pos(2, 2)])
+    obj = setup_objective(state, "Fugitive", owner=0, tiles=[Pos(9, 9)])
+    drop_token(state, obj, Pos(2, 2))
     finish(state)
     assert objective_score(state, obj) == (1, obj.attack)
 
@@ -492,3 +527,348 @@ def test_ownership_is_provenance_not_board_position():
     add_frame(state, 0, "Kuwagata", Pos(0, 0))            # attacker on the spire
     finish(state)
     assert objective_score(state, obj) == (0, obj.attack)
+
+
+# --------------------------------------------------------------------------
+# The Tower -- and damage reduction, which is per zone
+# --------------------------------------------------------------------------
+
+
+def test_the_tower_takes_one_less_from_every_zone_of_an_attack():
+    """The worked example in rules.tex "Damage reduction and increases".
+
+    Spear Impale is 1 High and 2 Low. Against -1 per zone that is 0 and 1,
+    for a total of 1 -- not the 2 that taking it off the total would give.
+    """
+    state = make_state()
+    obj = setup_objective(state, "The Tower", owner=1, tiles=[Pos(2, 1)],
+                          spawns=[Pos(2, 1)])
+    token = O.tokens_of(state, obj)[0]
+    assert token.damage_reduction == 1
+    attacker = add_frame(state, 0, "Kuwagata", Pos(1, 1))
+    add_frame(state, 1, "Adam", Pos(9, 9))
+    run_attack(state, attacker, give(state, attacker, "Spear_Impale"),
+               token, target_kind="token")
+    assert token.hp == 3, "1 High and 2 Low, each reduced by 1"
+
+
+def test_an_attack_that_cannot_beat_the_reduction_does_nothing():
+    state = make_state()
+    obj = setup_objective(state, "The Tower", owner=1, tiles=[Pos(2, 1)],
+                          spawns=[Pos(2, 1)])
+    token = O.tokens_of(state, obj)[0]
+    attacker = add_frame(state, 0, "Kuwagata", Pos(1, 1))
+    add_frame(state, 1, "Adam", Pos(9, 9))
+    run_attack(state, attacker, give(state, attacker, "Basic_Kick"),   # Low 1
+               token, target_kind="token")
+    assert token.hp == 4 and token.alive
+
+
+# --------------------------------------------------------------------------
+# Riverside -- the attacker's gangs, which the defender must clear out
+# --------------------------------------------------------------------------
+
+
+def test_the_gangs_belong_to_the_attacker_who_places_and_moves_them():
+    state = make_state()
+    obj = setup_objective(state, "Riverside", owner=0)
+    tokens = O.tokens_of(state, obj)
+    assert len(tokens) == 3
+    assert all(t.owner == 1 for t in tokens), "created by the other side"
+    assert all(t.pos is None for t in tokens), "not placed until deployment"
+    assert all(t.hp == 1 and t.movement == 1 and t.initiative == 1 for t in tokens)
+    assert O.creator_seat(state, obj) == 1
+
+
+def test_riverside_latches_for_the_defender_once_every_gang_is_dead():
+    state = make_state()
+    obj = setup_objective(state, "Riverside", owner=0)
+    tokens = O.tokens_of(state, obj)
+    for token in tokens[:2]:
+        damage_token(state, token, 1)
+    latch_objectives(state)
+    assert obj.latched is None, "two of three is not all of them"
+
+    damage_token(state, tokens[2], 1)
+    latch_objectives(state)
+    assert obj.latched == 0
+    assert objective_score(state, obj) == (0, obj.defend)
+
+
+def test_a_surviving_gang_scores_for_the_attacker():
+    state = make_state()
+    obj = setup_objective(state, "Riverside", owner=0)
+    damage_token(state, O.tokens_of(state, obj)[0], 1)
+    finish(state)
+    assert objective_score(state, obj) == (1, obj.attack)
+
+
+# --------------------------------------------------------------------------
+# Car Park -- the defender's refugees, which the attacker must kill
+# --------------------------------------------------------------------------
+
+
+def test_the_refugees_belong_to_the_defender_who_brought_the_card():
+    state = make_state()
+    obj = setup_objective(state, "Car Park", owner=1)
+    tokens = O.tokens_of(state, obj)
+    assert len(tokens) == 3 and all(t.owner == 1 for t in tokens)
+    assert O.creator_seat(state, obj) == 1
+
+
+def test_car_park_latches_for_the_attacker_only_when_all_three_are_dead():
+    state = make_state()
+    obj = setup_objective(state, "Car Park", owner=1)
+    tokens = O.tokens_of(state, obj)
+    for token in tokens[:2]:
+        damage_token(state, token, 1)
+    latch_objectives(state)
+    assert obj.latched is None
+
+    damage_token(state, tokens[2], 1)
+    latch_objectives(state)
+    assert obj.latched == 0, "the attacker of a seat-1 card is seat 0"
+    assert objective_score(state, obj) == (0, obj.attack)
+
+
+def test_one_refugee_left_alive_scores_for_the_defender():
+    state = make_state()
+    obj = setup_objective(state, "Car Park", owner=1)
+    damage_token(state, O.tokens_of(state, obj)[0], 1)
+    finish(state)
+    assert objective_score(state, obj) == (1, obj.defend)
+
+
+# --------------------------------------------------------------------------
+# Solar Farm -- a charge per frame per turn, most charge scores
+# --------------------------------------------------------------------------
+
+
+def test_the_farm_banks_one_charge_per_frame_per_turn():
+    state = make_state()
+    obj = setup_objective(state, "Solar Farm", owner=0,
+                          tiles=[Pos(4, 4), Pos(5, 4)])
+    mine = add_frame(state, 0, "Kuwagata", Pos(4, 4))
+    add_frame(state, 0, "Adam", Pos(5, 4))
+    theirs = add_frame(state, 1, "Fenrir", Pos(9, 9))
+    O.end_of_turn(state)
+    assert obj.memo["charge"] == {0: 2}
+
+    mine.pos = Pos(9, 1)
+    theirs.pos = Pos(5, 4)
+    O.end_of_turn(state)
+    assert obj.memo["charge"] == {0: 3, 1: 1}
+    finish(state)
+    assert objective_score(state, obj) == (0, obj.defend)
+
+
+def test_a_farm_nobody_stood_on_scores_for_nobody():
+    state = make_state()
+    obj = setup_objective(state, "Solar Farm", owner=0, tiles=[Pos(4, 4)])
+    O.end_of_turn(state)
+    finish(state)
+    assert objective_score(state, obj) == (None, 0)
+
+
+def test_a_tied_farm_scores_for_nobody():
+    state = make_state()
+    obj = setup_objective(state, "Solar Farm", owner=0, tiles=[Pos(4, 4), Pos(5, 4)])
+    add_frame(state, 0, "Kuwagata", Pos(4, 4))
+    add_frame(state, 1, "Fenrir", Pos(5, 4))
+    O.end_of_turn(state)
+    finish(state)
+    assert objective_score(state, obj) == (None, 0)
+
+
+# --------------------------------------------------------------------------
+# Lake Crosses -- both platforms, then a relic to hold on to
+# --------------------------------------------------------------------------
+
+
+def lake(state, owner=0):
+    return setup_objective(state, "Lake Crosses", owner=owner,
+                           tiles=[Pos(3, 3), Pos(6, 3)])
+
+
+def test_the_relic_starts_off_the_board_and_needs_both_platforms():
+    state = make_state()
+    obj = lake(state)
+    relic = O.tokens_of(state, obj)[0]
+    assert relic.pos is None and relic.carrier is None
+
+    one = add_frame(state, 0, "Kuwagata", Pos(3, 3))
+    O.end_of_turn(state)
+    assert relic.carrier is None, "one platform is half a ritual"
+
+    other = add_frame(state, 0, "Adam", Pos(6, 3))
+    O.end_of_turn(state)
+    assert relic.carrier in (one.id, other.id), "one of the two on the platforms"
+    assert relic.pos == state.frames[relic.carrier].pos
+    finish(state)
+    assert objective_score(state, obj) == (0, obj.defend)
+
+
+def test_both_teams_completing_the_ritual_at_once_gives_it_to_neither():
+    state = make_state()
+    obj = lake(state)
+    relic = O.tokens_of(state, obj)[0]
+    add_frame(state, 0, "Kuwagata", Pos(3, 3))
+    add_frame(state, 0, "Adam", Pos(6, 3))
+    add_frame(state, 1, "Fenrir", Pos(3, 3))
+    add_frame(state, 1, "Elemiah", Pos(6, 3))
+    O.end_of_turn(state)
+    assert relic.carrier is None, "there is no first, so nobody takes it"
+
+
+def test_the_relic_changes_hands_like_any_carried_token():
+    state = make_state()
+    obj = lake(state)
+    relic = O.tokens_of(state, obj)[0]
+    O.place_token(state, relic, Pos(5, 5))
+    thief = add_frame(state, 1, "Fenrir", Pos(5, 5))
+    O.on_move(state, thief, Pos(5, 6))
+    assert relic.carrier == thief.id, "either side can hold it"
+    finish(state)
+    assert objective_score(state, obj) == (1, obj.attack)
+
+
+def test_a_relic_lying_on_the_ground_scores_for_nobody():
+    state = make_state()
+    obj = lake(state)
+    O.place_token(state, O.tokens_of(state, obj)[0], Pos(5, 5))
+    finish(state)
+    assert objective_score(state, obj) == (None, 0)
+
+
+# --------------------------------------------------------------------------
+# Dome Campus -- the bomb carrier
+# --------------------------------------------------------------------------
+
+
+def test_the_bomb_latches_for_the_attacker_when_its_carrier_reaches_the_site():
+    state = make_state()
+    obj = setup_objective(state, "Dome Campus", owner=0, tiles=[Pos(2, 2)])
+    runner = add_frame(state, 1, "Fenrir", Pos(8, 8))
+    add_frame(state, 1, "Elemiah", Pos(2, 2))     # not the carrier
+    O.set_bomb_carrier(state, obj, runner.id)
+    O.end_of_turn(state)
+    assert obj.latched is None, "an ally standing there is not the bomb"
+
+    runner.pos = Pos(2, 2)
+    O.end_of_turn(state)
+    assert obj.latched == 1
+    assert objective_score(state, obj) == (1, obj.attack)
+
+
+def test_a_bomb_that_never_arrives_scores_for_the_defender():
+    state = make_state()
+    obj = setup_objective(state, "Dome Campus", owner=0, tiles=[Pos(2, 2)])
+    runner = add_frame(state, 1, "Fenrir", Pos(8, 8))
+    O.set_bomb_carrier(state, obj, runner.id)
+    O.end_of_turn(state)
+    finish(state)
+    assert objective_score(state, obj) == (0, obj.defend)
+
+
+# --------------------------------------------------------------------------
+# Where the tokens go down, and who moves them afterwards
+# --------------------------------------------------------------------------
+
+
+def test_the_fugitive_may_only_be_hidden_in_the_enemy_back_row():
+    state = make_state()
+    obj = setup_objective(state, "Fugitive", owner=0, tiles=[Pos(9, 9)])
+    tiles = O.placement_tiles(state, obj)
+    assert tiles, "there is somewhere to put it"
+    assert {p.y for p in tiles} == {0}, "seat 0 hides it on seat 1's own row"
+
+
+def test_the_gangs_go_anywhere_off_their_creators_back_row_of_cards():
+    """"outside their back row of cards" -- a card row is four tiles deep."""
+    state = make_state()
+    obj = setup_objective(state, "Riverside", owner=0)
+    rows = {p.y for p in O.placement_tiles(state, obj)}
+    # Created by seat 1, whose own back row is the top four tile rows.
+    assert rows == set(range(4, state.board.height))
+
+
+def test_the_refugees_go_in_the_enemy_half():
+    state = make_state()
+    obj = setup_objective(state, "Car Park", owner=0)
+    rows = {p.y for p in O.placement_tiles(state, obj)}
+    # Created by seat 0 (the bottom), so "the enemy half" is the top half.
+    assert rows == set(range(state.board.height // 2))
+
+
+def test_a_tile_with_a_frame_or_a_token_on_it_is_not_offered():
+    state = make_state()
+    obj = setup_objective(state, "Car Park", owner=0)
+    add_frame(state, 1, "Adam", Pos(3, 2))
+    taken = O.tokens_of(state, obj)[0]
+    O.place_token(state, taken, Pos(4, 2))
+    tiles = O.placement_tiles(state, obj)
+    assert Pos(3, 2) not in tiles and Pos(4, 2) not in tiles
+
+
+def test_setup_asks_the_creator_where_each_token_goes():
+    state = make_state()
+    obj = setup_objective(state, "Riverside", owner=0)
+    decision = O.setup_decision(state)
+    assert decision is not None
+    assert decision.kind == "place_objective"
+    assert decision.seat == 1, "the side that creates them places them"
+    assert decision.pick_kind == "place"
+    assert decision.pick_min == decision.pick_max == 3, "all three at once"
+    assert "3 left" in decision.prompt
+
+    token = state.tokens[str(decision.options[0]["token"])]
+    O.place_token(state, token, Pos(5, 5))
+    again = O.setup_decision(state)
+    assert again is not None and again.pick_max == 2, "two still to place"
+    assert str(again.options[0]["token"]) != token.id
+
+
+def test_the_bomb_carrier_is_chosen_by_the_attacker():
+    state = make_state()
+    obj = setup_objective(state, "Dome Campus", owner=0, tiles=[Pos(2, 2)])
+    add_frame(state, 0, "Kuwagata", Pos(5, 9))
+    theirs = [add_frame(state, 1, "Adam", Pos(1, 0)),
+              add_frame(state, 1, "Fenrir", Pos(2, 0))]
+    decision = O.setup_decision(state)
+    assert decision is not None and decision.kind == "choose_frame"
+    assert decision.seat == 1
+    assert {o["frame"] for o in decision.options} == {f.id for f in theirs}
+
+    O.set_bomb_carrier(state, obj, theirs[0].id)
+    assert O.setup_decision(state) is None, "asked once"
+
+
+def test_a_gang_moves_at_its_own_initiative_and_only_once_a_turn():
+    state = make_state()
+    state.turn = 2
+    obj = setup_objective(state, "Riverside", owner=0)
+    token = O.tokens_of(state, obj)[0]
+    O.place_token(state, token, Pos(5, 5))
+
+    assert O.token_decision(state, 4) is None, "cards at 4 go first"
+    decision = O.token_decision(state, 1)
+    assert decision is not None
+    assert decision.kind == "move_token" and decision.seat == 1
+    assert decision.pick_kind == "move"
+    spots = {(o["x"], o["y"]) for o in decision.options}
+    assert (5, 5) in spots and (6, 6) in spots, "one tile in any direction"
+    assert (7, 5) not in spots, "and no further"
+
+    O.move_token(state, token, Pos(6, 6))
+    assert token.pos == Pos(6, 6)
+    assert O.token_decision(state, 1) is None, "it has had its move this turn"
+    state.turn = 3
+    assert O.token_decision(state, 1) is not None, "and gets another next turn"
+
+
+def test_a_token_that_cannot_move_is_never_asked_about():
+    state = make_state()
+    obj = setup_objective(state, "Shiny Thing", owner=0, spawns=[Pos(4, 4)])
+    assert O.tokens_of(state, obj)[0].movement == 0
+    assert O.mobile_tokens(state) == []
+    assert O.token_decision(state, None) is None

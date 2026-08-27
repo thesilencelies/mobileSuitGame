@@ -422,6 +422,10 @@ const KEYWORD_WORDS = {
   feint: 'Feint', committed: 'Committed', flying: 'Flying', shield: 'Shield',
   slowed: 'Slowed', stunned: 'Stunned', dazed: 'Dazed', lucid: 'Lucid',
   stimmed: 'Stimmed', boosted: 'Boosted', revealed: 'Revealed',
+  // The damage-type marks a terrain card's rules text stamps inline
+  // (`\smallenergy low` on the Railway).
+  smallcut: 'cut', smallpierce: 'pierce', smallimpact: 'impact',
+  smallprojectile: 'projectile', smallenergy: 'energy',
 };
 
 function keywordWord(name) {
@@ -435,6 +439,9 @@ export function cleanText(text) {
   return (text || '')
     .replace(/\\\\/g, '\n')
     .replace(/\\(?:full)?kw\s*\{([^}]*)\}/g, '$1')
+    // A terrain card's rules text opens with its own name in \emph{}. That is
+    // typesetting, not a keyword -- keep the words, drop the macro.
+    .replace(/\\(?:emph|textit|textbf|text)\s*\{([^}]*)\}/g, '$1')
     .replace(/\\([a-zA-Z]+)\s*\{([^}]*)\}/g,
       (m, name, arg) => `${keywordWord(name)} (${arg})`)
     .replace(/\\([a-zA-Z]+)/g, (m, name) => keywordWord(name))

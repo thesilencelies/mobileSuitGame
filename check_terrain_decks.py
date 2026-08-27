@@ -1,11 +1,24 @@
 #!/usr/bin/env python3
-"""Check terrain deck coverage and objective counts."""
+"""Check terrain and objective deck coverage against `Terrain_square.csv`.
+
+Each player brings a 10-card terrain deck and a 5-card objective deck
+(rules.tex:253), and a card that scores points may only be in the objective
+deck. This reports, per deck: its size, whether any card is in the wrong deck,
+and any name that is not a terrain card at all -- then, across all the decks,
+which cards appear in none of them.
+
+Deck files list one bare card name per row (`decks/deck_terrain_*.csv`,
+`decks/deck_objective_*.csv`). The older `terrain/<Name>.tex` form is still
+accepted so an old deck file reads correctly.
+"""
 
 import csv
-import os
 from pathlib import Path
 
 ROOT = Path(__file__).parent
+
+TERRAIN_DECK_SIZE = 10
+OBJECTIVE_DECK_SIZE = 5
 
 
 def load_terrain_cards():
@@ -37,19 +50,51 @@ def _parse_points(value):
 
 
 def load_deck(path):
-    """Return set of card names referenced by a deck CSV."""
-    names = set()
+    """Return the list of card names a deck file references, in order."""
+    names = []
     with open(path, newline="", encoding="utf-8") as f:
         for row in csv.reader(f):
             for cell in row:
                 cell = cell.strip()
-                # Entries look like: terrain/<Name> (optionally with a .tex suffix)
+                if not cell:
+                    continue
+                # Bare names today; `terrain/<Name>[.tex]` in older deck files.
                 if cell.startswith("terrain/"):
-                    name = cell[len("terrain/"):]
-                    if name.endswith(".tex"):
-                        name = name[:-len(".tex")]
-                    names.add(name)
+                    cell = cell[len("terrain/"):]
+                if cell.endswith(".tex"):
+                    cell = cell[:-len(".tex")]
+                names.append(cell)
     return names
+
+
+def report_deck(path, kind, cards):
+    """One deck's line in the report. Returns the names it uses."""
+    by_name = {c["name"]: c for c in cards}
+    names = load_deck(path)
+    wanted = TERRAIN_DECK_SIZE if kind == "terrain" else OBJECTIVE_DECK_SIZE
+    unknown = [n for n in names if n not in by_name]
+    known = [by_name[n] for n in names if n in by_name]
+    misfiled = [
+        c["name"] for c in known
+        if c["is_objective"] != (kind == "objective")
+    ]
+    duplicates = sorted({n for n in names if names.count(n) > 1})
+
+    print(f"\n{path.stem}")
+    print(f"  Cards         : {len(names)}"
+          + ("" if len(names) == wanted else f"  (expected {wanted})"))
+    if unknown:
+        print(f"  Not in the CSV ({len(unknown)}):")
+        for name in unknown:
+            print(f"    ? {name}")
+    if misfiled:
+        where = "scores points but is in the terrain deck" if kind == "terrain" \
+            else "scores nothing but is in the objective deck"
+        for name in misfiled:
+            print(f"    ! {name} {where}")
+    if duplicates:
+        print(f"  Duplicated    : {', '.join(duplicates)}")
+    return set(names)
 
 
 def main():
@@ -57,45 +102,23 @@ def main():
     all_names = {c["name"] for c in terrain_cards}
     objectives = [c for c in terrain_cards if c["is_objective"]]
 
-    deck_paths = sorted((ROOT / "decks").glob("deck_terrain_*.csv"))
-
-    # --- All objectives for reference ---
     print("=" * 60)
     print("OBJECTIVES (terrain with non-zero points)")
     print("=" * 60)
     for c in objectives:
         print(f"  {c['name']:30s}  defend={c['defend']}  attack={c['attack']}")
+
     print()
-
-    # --- Per-deck report ---
     print("=" * 60)
-    print("TERRAIN DECK COVERAGE")
+    print("DECK COVERAGE")
     print("=" * 60)
 
-    for deck_path in deck_paths:
-        deck_name = deck_path.stem
-        deck_names = load_deck(deck_path)
+    used = set()
+    for kind in ("terrain", "objective"):
+        for path in sorted((ROOT / "decks").glob(f"deck_{kind}_*.csv")):
+            used |= report_deck(path, kind, terrain_cards)
 
-        extra   = sorted(deck_names - all_names)
-        obj_count = sum(
-            1 for c in objectives if c["name"] in deck_names
-        )
-
-        print(f"\n{deck_name}")
-        print(f"  Cards in deck : {len(deck_names)}/{len(all_names)}")
-        print(f"  Objectives    : {obj_count}")
-
-        if extra:
-            print(f"  Unrecognised entries ({len(extra)}):")
-            for name in extra:
-                print(f"    ? {name}")
-
-    # --- Union coverage ---
-    all_deck_names = set()
-    for deck_path in deck_paths:
-        all_deck_names |= load_deck(deck_path)
-
-    uncovered = sorted(all_names - all_deck_names)
+    uncovered = sorted(all_names - used)
     print(f"\n{'=' * 60}")
     print("CARDS IN NO DECK")
     print("=" * 60)

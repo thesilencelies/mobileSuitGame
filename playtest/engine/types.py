@@ -308,7 +308,9 @@ DecisionKind = Literal[
     "effect_choice",    # a prompt from card text
     "echo_card",        # Echoes of the fallen
     "deploy",           # setup: place a frame
-    "place_objective",  # setup: choose an objective's slot in a row
+    "place_objective",  # setup: put an objective's token on a tile
+    "choose_frame",     # setup: one frame, for what an objective needs one for
+    "move_token",       # an objective token its creator moves each turn
 ]
 
 

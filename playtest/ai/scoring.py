@@ -28,6 +28,7 @@ from bisect import bisect_left, bisect_right
 from dataclasses import dataclass, field
 from typing import Iterable, Mapping, Optional, Sequence
 
+from ..engine.hazards import hazard_for
 from ..engine.types import Pos, TURNS_PER_GAME, ZONES
 from .params import AIParams
 from .view import (
@@ -53,6 +54,12 @@ KILL_VALUE = 7.0
 #: Value of pushing a zone to its last hit (the -1 initiative/cards/movement
 #: penalty, plus being one hit from death).
 LAST_HIT_VALUE = 1.2
+
+#: Cost of one mark of hazard damage, per turn still to be played, for a tile
+#: that deals it at the end of every turn (the Railway's rails). Priced above
+#: a mark of ordinary incoming damage because it is certain rather than
+#: likely, and no block stops it.
+HAZARD_TILE_COST = 0.6
 
 #: Multiplier on a card's offence when it has no reachable target this turn.
 #: Not zero -- it can still block, and next turn exists.
@@ -586,6 +593,11 @@ def image_value(
     return hit / count + strip * (count - 1) / count
 
 
+#: Objectives that need several tokens gone before anything is scored, so one
+#: kill is worth a fraction of the stake rather than all of it.
+_TOKEN_SET_SCALE = {"Power Reactors": 0.45, "Riverside": 0.4, "Car Park": 0.4}
+
+
 def token_value(
     snap: Snapshot,
     attacker: FrameView,
@@ -612,11 +624,16 @@ def token_value(
     if obj is None or obj.settled:
         return 0.0
     stake = obj.value_for(snap.seat)
-    if obj.owner == snap.seat:
-        return 0.0                          # never shoot the thing you defend
+    # Never shoot your own -- and "your own" is the side that *created* the
+    # token, not the side that brought the card. Riverside's gangs belong to
+    # the attacker and it is the card's own owner who has to clear them out.
+    if token.owner is not None and token.owner == snap.seat:
+        return 0.0
+    if token.owner is None and obj.owner == snap.seat:
+        return 0.0
     progress = min(1.0, damage / max(1, token.hp))
-    # Reactors need three of four destroyed before they score at all.
-    scale = 0.45 if obj.name == "Power Reactors" else 1.0
+    # Some objectives need most of a set destroyed before they score at all.
+    scale = _TOKEN_SET_SCALE.get(obj.name, 1.0)
     return params.objective_weight * stake * progress * scale * 2.0
 
 
@@ -870,6 +887,10 @@ def softmax_pick(scores: Sequence[float], temperature: float, rng: random.Random
 #: from the objective tiles still counts.
 _STAND_ON = {"Triangle", "Holo Spires", "The Egg"}
 _WITHIN_TWO = {"Church"}
+#: Scored by clearing a set of tokens off the board. Which side does the
+#: clearing is read off the tokens, not the card: Riverside's gangs belong to
+#: the attacker and it is the defender who has to kill them.
+_TOKEN_HUNT = {"Power Reactors", "The Tower", "Riverside", "Car Park"}
 
 
 def objective_value(
@@ -894,7 +915,10 @@ def objective_value(
         if obj.name == "Shiny Thing":
             # The only objective with no tiles of its own: it is wherever its
             # token is, so it must be handled before the tile lookup below.
-            total += late * stake * _shiny_value(snap, frame, pos)
+            total += late * stake * _held_value(snap, frame, pos, "shiny")
+            continue
+        if obj.name in _TOKEN_HUNT:
+            total += _hunt_value(snap, pos, obj, stake)
             continue
         if not obj.tiles:
             continue
@@ -915,11 +939,67 @@ def objective_value(
             total += late * stake * near
         elif obj.name == "Fugitive":
             total += _fugitive_value(snap, frame, pos, obj, stake)
-        elif obj.name in ("Power Reactors", "The Tower"):
-            if obj.owner != snap.seat:
-                # Attacker: being in reach of the tokens is what matters.
-                total += 0.35 * stake * _falloff(distance, 8)
+        elif obj.name == "Solar Farm":
+            # A charge per frame per turn, so a turn spent walking there is a
+            # charge nobody banked -- this one does not wait for the endgame.
+            total += stake * (1.5 if distance == 0 else 0.5 * _falloff(distance, 7))
+        elif obj.name == "Lake Crosses":
+            total += _relic_value(snap, frame, pos, obj, stake, distance, late)
+        elif obj.name == "Dome Campus":
+            total += _bomb_value(snap, frame, pos, obj, stake, distance, late)
     return params.objective_weight * total
+
+
+def _hunt_value(snap: Snapshot, pos: Pos, obj: ObjectiveView, stake: int) -> float:
+    """Getting in reach of the tokens this objective wants destroyed."""
+    marks = [
+        t.pos for t in snap.tokens_for(obj)
+        if t.alive and t.pos is not None and t.owner != snap.seat
+    ]
+    if not marks:
+        return 0.0
+    return 0.35 * stake * _falloff(min(snap.distance(pos, m) for m in marks), 8)
+
+
+def _relic_value(
+    snap: Snapshot, frame: FrameView, pos: Pos, obj: ObjectiveView,
+    stake: int, distance: int, late: float,
+) -> float:
+    """Two platforms to stand on at once, then a relic to hold on to.
+
+    Before the ritual this wants *both* platforms occupied, so it is worth
+    standing on one only while the other is covered or coverable; after it,
+    the relic is an ordinary carried token and reads like the Shiny Thing.
+    """
+    relic = next((t for t in snap.tokens_for(obj) if t.alive), None)
+    if relic is not None and (relic.pos is not None or relic.carrier):
+        return late * stake * _held_value(snap, frame, pos, relic.kind)
+    if distance > 0:
+        return late * stake * 0.4 * _falloff(distance, 7)
+    # On a platform. Worth far more if a squadmate is on (or near) the other.
+    others = [t for t in obj.tiles if t != pos]
+    mates = [
+        f for f in snap.mine()
+        if f.id != frame.id and f.alive and f.pos is not None
+    ]
+    if not others or not mates:
+        return late * stake * 0.5
+    gap = min(snap.distance(f.pos, t) for f in mates for t in others)
+    return late * stake * (1.6 if gap == 0 else 0.9 * _falloff(gap, 5))
+
+
+def _bomb_value(
+    snap: Snapshot, frame: FrameView, pos: Pos, obj: ObjectiveView,
+    stake: int, distance: int, late: float,
+) -> float:
+    """Run the bomb in, or stand on the site so it cannot be run in."""
+    if obj.carrier == frame.id:
+        return stake * (2.0 if distance == 0 else 0.7 * _falloff(distance, 10))
+    if obj.owner == snap.seat:
+        # Defender: the site is one tile and a frame cannot walk through
+        # another, so sitting on it is a real block.
+        return late * stake * (0.9 if distance == 0 else 0.2 * _falloff(distance, 6))
+    return 0.0
 
 
 def _falloff(distance: int, span: int) -> float:
@@ -945,8 +1025,13 @@ def _fugitive_value(
     return 0.5 * stake * _falloff(snap.distance(pos, goal), 8)
 
 
-def _shiny_value(snap: Snapshot, frame: FrameView, pos: Pos) -> float:
-    token = next((t for t in snap.tokens if t.kind == "shiny" and t.alive), None)
+def _held_value(snap: Snapshot, frame: FrameView, pos: Pos, kind: str) -> float:
+    """Chasing, taking or keeping hold of a carried token.
+
+    One shape for every carried token: hold it and stay alive, or walk onto
+    the tile it is lying on, or run down whoever is carrying it.
+    """
+    token = next((t for t in snap.tokens if t.kind == kind and t.alive), None)
     if token is None:
         return 0.0
     if token.carrier == frame.id:
@@ -1001,8 +1086,19 @@ def exposure(
 
 
 def terrain_value(snap: Snapshot, pos: Pos, params: AIParams) -> float:
-    """A standing preference for high ground -- it shifts melee and sees further."""
-    return params.elevation * 0.25 * snap.elevation(pos)
+    """A standing preference for high ground, and none at all for the rails.
+
+    High ground shifts melee up a zone and sees further. A hazard tile is the
+    opposite: it costs a hit at the end of every turn the frame is still on
+    it, and nothing about it is worth that -- so it is priced by what it will
+    cost over the turns that are left rather than as a flat dislike.
+    """
+    value = params.elevation * 0.25 * snap.elevation(pos)
+    hazard = hazard_for(snap.tile(pos))
+    if hazard is not None:
+        turns_left = max(1, TURNS_PER_GAME - snap.turn + 1)
+        value -= HAZARD_TILE_COST * hazard.amount * turns_left
+    return value
 
 
 def position_value(

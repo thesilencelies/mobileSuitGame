@@ -150,7 +150,7 @@ loopback: there is no authentication and no encryption, so do not expose it.
 
 ## Using the client
 
-Five tabs along the bottom, all reachable one-handed with a thumb:
+Six tabs along the bottom, all reachable one-handed with a thumb:
 
 | Tab | What it is |
 |---|---|
@@ -158,6 +158,7 @@ Five tabs along the bottom, all reachable one-handed with a thumb:
 | **Plan** | Your hand, and the actions you are committing face down. |
 | **Field** | The tableau: every card standing in front of every frame. |
 | **Initiative** | Every committed card in initiative order, highest first. |
+| **Goals** | The objective cards on this battlefield: what each one asks, in its own printed words, who brought it (and so defends it), what it is worth to each side, how it stands right now, and a button that centres the board on it. Objectives are about half the victory points on offer and the cards are face down on a table you cannot pick up, so this is the card. |
 | **Log** | The full event log, newest first. |
 
 Tapping a frame — on the board or in the strip along the top — opens its
@@ -219,6 +220,11 @@ with its own camera rather than a table the browser scrolls:
   `test_the_board_draws_elevation_the_way_the_card_does` and
   `test_the_board_hatches_a_tile_the_way_the_card_does` re-derive them from
   `terrain_cards.py` and are what stop the two drifting apart.
+* **Terrain that hurts** carries no marking of its own: the Railway's rails are
+  its `tkn` cells, marked exactly as the printed card marks them. Tapping the
+  tile reads the rule out — "the rails: 1 energy Low at the end of a turn" —
+  from `hazard` on the tile, which the engine writes; the client never restates
+  a rule it could get wrong.
 * Tokens are discs with their remaining HP — the one board marking that is the
   client's own, because nothing is printed for them.
 
@@ -237,8 +243,10 @@ Tapping:
 ### Putting things on the board
 
 Barricade places up to three tokens, Portal two ends, an Attack Dog card two
-dogs, a Gun Tower one within 3, and the Fugitive objective hides its token
-anywhere in the enemy back row. All of them are answered on the board, in
+dogs, a Gun Tower one within 3, and the objectives put their own tokens down
+after deployment — the Fugitive anywhere in the enemy back row, Riverside's
+three gangs anywhere off their creator's back row of cards, Car Park's three
+refugees anywhere in the enemy half. All of them are answered on the board, in
 **orange** rather than movement's green: the question is not "where do I go"
 but "where does this go", and confusing the two costs an action.
 
@@ -556,7 +564,7 @@ GET    /api/game/{id}/threat?frame=…   reach + line of sight, public info only
 ```
 
 `/?game=<id>` deep-links straight into a running game;
-`&view=board|plan|field|order|log` picks the tab.
+`&view=board|plan|field|order|goals|log` picks the tab.
 
 ### What a game view carries beyond `view_for`
 
@@ -590,7 +598,9 @@ a handle on a card that is in the AI's hand now.
 | `effect_choice` | the option the engine offered, e.g. `{"mulligan": true}` |
 | `echo_card` | `{"dead": "Blue Adam", "host": "Blue Kuwagata 1"}` or `{"decline": true}` |
 | `deploy` | `{"frame": "Blue Kuwagata 1", "x": 7, "y": 15}` (setup, before turn 1) |
-| `place_objective` | `{"token": "t12", "x": 6, "y": 0}` — where the Fugitive hides (setup) |
+| `place_objective` | `{"token": "t12", "x": 6, "y": 0}` — where an objective's token goes down (setup) |
+| `choose_frame` | `{"frame": "Red Fenrir"}` — one of your frames, for what an objective needs one for (Dome Campus's bomb carrier) |
+| `move_token` | `{"token": "t12", "x": 6, "y": 1}` — a gang or a refugee taking its move, at its own initiative |
 
 `POST /command` also accepts `replayMine: true` alongside the command, which
 records the player's own frames in the response's `replay` — see

@@ -155,7 +155,7 @@ def test_defender_is_whoever_brought_the_card(field):
 
 def test_objective_points_and_tokens_survive_placement(field):
     tower = next(o for o in field.objectives if o.name == "The Tower")
-    assert (tower.defend_points, tower.attack_points) == (2, 2)
+    assert (tower.defend_points, tower.attack_points) == (2, 1)
     assert tower.token_count == 1
     assert "hitpoints" in tower.rules_text
     assert len(tower.tiles) == 1 and len(tower.token_tiles) == 1

@@ -121,13 +121,26 @@ def attack_zones_against(
     defender: Optional[FrameState] = None,
     *,
     extra: Optional[Mapping[str, int]] = None,
+    spread: int = 0,
 ) -> dict[str, int]:
-    """The zones and damage an attack lands with against this target."""
+    """The zones and damage an attack lands with against this target.
+
+    `extra` is per-zone and may open a zone the card does not print; `spread`
+    is a flat "+N damage" from card text with no zone named, which the rules
+    put on every zone the attack already applies to.
+    """
     zones = zones_in_range(state, attacker, card, target_pos, defender)
     if extra and zones:
-        # Bonus marks only exist if the attack reaches at all.
+        # Bonus marks only exist if the attack reaches at all. These *can*
+        # open a zone the card does not print -- Kamikiri's extra cut Mid.
         for zone, bonus in extra.items():
             zones[zone] = zones.get(zone, 0) + bonus
+    if spread and zones:
+        # "If a zone is not specified, this additional/reduced damage is
+        # applied to each zone that the attack applies" (rules.tex "Damage
+        # reduction and increases") -- so this one lands on the zones that are
+        # already there and never invents a new one.
+        zones = {z: d + spread for z, d in zones.items()}
     if not card.is_ranged and defender is not None:
         delta = state.elevation(attacker.pos) - state.elevation(defender.pos)
         zones = elevation_shift(zones, delta)
@@ -294,19 +307,21 @@ def declare_attack(
     extra = kw.bonus_attacks(state, attacker, card)
     from . import effects
 
-    extra_from_text = effects.attack_damage_bonus(state, attacker, card, target_id)
+    extra_from_text, spread = effects.attack_damage_bonus(
+        state, attacker, card, target_id
+    )
     for zone, bonus in extra_from_text.items():
         extra[zone] = extra.get(zone, 0) + bonus
 
     if target_kind == "frame":
         defender = state.frames[target_id]
         zones = attack_zones_against(
-            state, attacker, card, defender.pos, defender, extra=extra
+            state, attacker, card, defender.pos, defender, extra=extra, spread=spread
         )
         attack.targets.append(AttackTarget("frame", target_id, zones))
         for other in _splash_targets(state, attacker, card, defender):
             splash_zones = attack_zones_against(
-                state, attacker, card, other.pos, other, extra=extra
+                state, attacker, card, other.pos, other, extra=extra, spread=spread
             )
             if splash_zones:
                 attack.targets.append(AttackTarget("frame", other.id, splash_zones))
@@ -319,11 +334,16 @@ def declare_attack(
             defender = image[0]
             effects.reveal_images(state, defender, why=f"{attacker.id} found it")
             zones = attack_zones_against(
-                state, attacker, card, defender.pos, defender, extra=extra
+                state, attacker, card, defender.pos, defender,
+                extra=extra, spread=spread,
             )
             attack.targets.append(AttackTarget("frame", defender.id, zones))
         else:
-            zones = zones_in_range(state, attacker, card, token.pos)
+            # No defender, so no elevation shift -- but a token is still shot
+            # with whatever the card text is adding this turn.
+            zones = attack_zones_against(
+                state, attacker, card, token.pos, extra=extra, spread=spread
+            )
             attack.targets.append(AttackTarget("token", target_id, zones))
 
     for target in attack.targets:
@@ -459,6 +479,13 @@ def finish_target(state: GameState, attack: AttackInProgress) -> None:
 
     if target.kind == "token":
         token = state.tokens.get(target.id)
+        # Damage reduction is per zone, not off the total: the Tower's -1
+        # against an attack of 1 High and 2 Low takes 1, not 2
+        # (rules.tex "Damage reduction and increases").
+        if token is not None and token.damage_reduction:
+            landed = {
+                z: max(0, d - token.damage_reduction) for z, d in landed.items()
+            }
         total = sum(landed.values())
         # A fake image is "removed if attacked" -- not damaged, and not saved
         # by a Feint that landed nothing.

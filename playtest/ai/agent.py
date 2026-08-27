@@ -201,6 +201,8 @@ class Agent:
         handler = {
             "deploy": self._deploy,
             "place_objective": self._place_objective,
+            "choose_frame": self._choose_frame,
+            "move_token": self._move_token,
             "choose_actor": self._choose_actor,
             "commit_actions": self._commit_actions,
             "resolve_order": self._resolve_order,
@@ -517,18 +519,78 @@ class Agent:
         pending: Mapping[str, Any],
         options: Sequence[Mapping[str, Any]],
     ) -> Command:
-        """Where to hide the fugitive: as far from the enemy as the row allows.
+        """Where to put down a token the objectives hand you at setup.
 
-        It has to be walked to its objective tile by the side that brought it,
-        and every step of that walk is a step under fire, so the only thing
-        worth optimising is the head start.
+        Fugitive, gangs, refugees: every one of them is a token the side
+        placing it wants to *survive*, and every one has to live through five
+        turns of somebody hunting it. So the only two things worth optimising
+        are the head start and not stacking the whole set on one tile, where
+        one splash attack would take the lot.
+        """
+        marks = [f.pos for f in snap.enemies() if f.pos is not None]
+        mine = [
+            t.pos for t in snap.tokens
+            if t.alive and t.pos is not None and t.owner == self.seat
+        ]
+        if not marks and not mine:
+            return Command("place_objective", self.seat, dict(options[0]))
+
+        def value(option: Mapping[str, Any]) -> float:
+            pos = Pos(int(option["x"]), int(option["y"]))
+            away = min((snap.distance(pos, p) for p in marks), default=0)
+            spread = min((snap.distance(pos, p) for p in mine), default=0)
+            return away + 0.75 * min(spread, 4)
+
+        return Command("place_objective", self.seat,
+                       dict(max(options, key=value)))
+
+    def _choose_frame(
+        self,
+        snap: Snapshot,
+        pending: Mapping[str, Any],
+        options: Sequence[Mapping[str, Any]],
+    ) -> Command:
+        """One of your own frames, for what an objective needs one for.
+
+        Only Dome Campus asks today: who runs the bomb in. That wants the
+        frame that can actually get there -- fewest turns of walking, and a
+        tie broken toward the one that can take a hit on the way.
+        """
+        obj = next((o for o in snap.objectives if o.name == "Dome Campus"), None)
+        tiles = tuple(obj.tiles) if obj is not None else ()
+
+        def turns(option: Mapping[str, Any]) -> tuple[float, float]:
+            frame = snap.frame(str(option.get("frame")))
+            if frame is None or frame.pos is None or not tiles:
+                return (99.0, 0.0)
+            gap = min(snap.distance(frame.pos, t) for t in tiles)
+            speed = max(1, frame.movement)
+            return (gap / float(speed), -float(sum(frame.health.values())))
+
+        return Command("choose_frame", self.seat,
+                       dict(min(options, key=turns)))
+
+    def _move_token(
+        self,
+        snap: Snapshot,
+        pending: Mapping[str, Any],
+        options: Sequence[Mapping[str, Any]],
+    ) -> Command:
+        """A gang or a refugee, moved by the side that created it.
+
+        Both cards score for the creator only while the token is *alive*, so
+        this is a flight: away from anything that could shoot it, and out of
+        the corner it would otherwise be pinned in.
         """
         marks = [f.pos for f in snap.enemies() if f.pos is not None]
         if not marks:
-            return Command("place_objective", self.seat, dict(options[0]))
-        best = max(options, key=lambda o: min(
-            snap.distance(Pos(int(o["x"]), int(o["y"])), p) for p in marks))
-        return Command("place_objective", self.seat, dict(best))
+            return Command("move_token", self.seat, dict(options[0]))
+
+        def value(option: Mapping[str, Any]) -> float:
+            pos = Pos(int(option["x"]), int(option["y"]))
+            return min(snap.distance(pos, p) for p in marks)
+
+        return Command("move_token", self.seat, dict(max(options, key=value)))
 
     def _choose_actor(
         self,

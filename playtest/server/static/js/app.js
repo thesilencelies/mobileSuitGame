@@ -577,7 +577,7 @@ function setView(view, opts = {}) {
     if (pending && !pending.waiting && pending.seat === view.seat) {
       if (pending.kind === 'commit_actions') showView('plan');
       else if (['move', 'attack_target', 'choose_block', 'deploy',
-        'effect_choice', 'place_objective'].includes(pending.kind)) {
+        'choose_frame', ...TILE_DECISIONS].includes(pending.kind)) {
         showView('board');
       }
       $('sheet').dataset.open = '1';
@@ -602,6 +602,7 @@ function setView(view, opts = {}) {
   renderLog();
   renderPlan();
   renderLadder();
+  renderObjectives();
   // A replay frame carries no `pending`, so the sheet falls through to its
   // "resolving" state. That matters: leaving the last decision on screen would
   // leave live buttons for a decision that has already been answered.
@@ -1117,8 +1118,16 @@ function proposalKey(kind, payload) {
  *  the whole decision into a list of raw grid coordinates with no board
  *  overlay and no way to tap it out. Non-tile options are simply not tiles.
  */
+/** The decision kinds whose answer is a tile, tapped on the board.
+ *
+ *  `effect_choice` is card text, `place_objective` is a token an objective
+ *  hands you at setup, `move_token` is one of those tokens taking its move.
+ *  All three are answered the same way, so they are listed once.
+ */
+const TILE_DECISIONS = ['effect_choice', 'place_objective', 'move_token'];
+
 function effectTileOptions(pending) {
-  if (!pending || !['effect_choice', 'place_objective'].includes(pending.kind)) {
+  if (!pending || !TILE_DECISIONS.includes(pending.kind)) {
     return [];
   }
   const tiles = (pending.options || []).filter(
@@ -1351,6 +1360,16 @@ function onTapFrame(frame) {
   selectFrame(frame.id);
 }
 
+// The engine's token `kind` is a bare slug. Only the ones that do not read as
+// English on their own need a word here.
+const TOKEN_WORDS = {
+  shiny: 'shiny thing', gravitywell: 'gravity well', reactor: 'power reactor',
+};
+
+function tokenWord(kind) {
+  return TOKEN_WORDS[kind] || kind;
+}
+
 /** What a token is called on screen. Images and drones belong to a frame. */
 function tokenLabel(token) {
   if (!token) return 'it';
@@ -1361,7 +1380,7 @@ function tokenLabel(token) {
   if (token.kind === 'drone') {
     return token.frame ? `${C.frameLabel(token.frame)}'s drone` : 'the drone';
   }
-  return `the ${token.kind}`;
+  return `the ${tokenWord(token.kind)}`;
 }
 
 function attackDetail(option) {
@@ -1464,6 +1483,7 @@ function onTapTile(x, y) {
     ${tile.impassable ? ' · impassable' : ''}${tile.obstacle ? ' · obstacle' : ''}
     <br>${C.escapeHtml(tile.card || 'open ground')}
     ${obj ? `<br>objective: <b>${C.escapeHtml(obj.name)}</b> — ${C.escapeHtml(obj.status)}` : ''}
+    ${tile.hazard ? `<br><b class="hazard">${C.escapeHtml(tile.hazard)}</b>` : ''}
     ${token ? `<br>${C.escapeHtml(tokenReadout(token))}` : ''}`;
 }
 
@@ -1514,7 +1534,7 @@ async function refreshOverlays() {
       const pos = (frame && frame.pos) || (token && token.pos);
       if (pos) overlays.targets.add(`${pos.x},${pos.y}`);
     }
-  } else if (mine && ['effect_choice', 'place_objective'].includes(pending.kind)) {
+  } else if (mine && TILE_DECISIONS.includes(pending.kind)) {
     // Two kinds of tile question, coloured apart. Green for sending something
     // that is already on the board somewhere -- a drone's move, a reflex step,
     // a Teleport, a shove. Orange for putting something new down.
@@ -1851,6 +1871,140 @@ function renderLadder() {
 }
 
 // ---------------------------------------------------------------- log
+
+/** The objective cards on this battlefield, in their own printed words.
+ *
+ *  Objectives are about half the victory points on offer and every one of
+ *  them is a card sitting somewhere on the table -- which the player cannot
+ *  pick up and read. So this is the card: who brought it (and therefore who
+ *  defends it), what it is worth to each side, what it says, how it stands
+ *  right now, and a button that goes and finds it on the map.
+ */
+function renderObjectives() {
+  const host = $('goals');
+  host.innerHTML = '';
+  const view = app.view;
+  const objectives = ((view.board || {}).objectives) || [];
+  if (!objectives.length) {
+    const empty = document.createElement('p');
+    empty.className = 'hint';
+    empty.textContent = 'No objectives on this battlefield.';
+    host.appendChild(empty);
+    return;
+  }
+
+  const note = document.createElement('p');
+  note.className = 'hint';
+  note.textContent = 'Whoever brought a card defends it and scores the first '
+    + 'number; the other side scores the second. Tap "Find it" to centre the '
+    + 'board on the card.';
+  host.appendChild(note);
+
+  for (const obj of objectives) {
+    const mine = obj.owner === view.seat;
+    const box = document.createElement('div');
+    box.className = 'goal';
+    box.dataset.mine = mine ? '1' : '0';
+
+    const head = document.createElement('div');
+    head.className = 'goal-head';
+    const name = document.createElement('b');
+    name.textContent = obj.name;
+    const who = document.createElement('small');
+    who.textContent = mine ? 'yours to defend' : 'theirs to defend';
+    const points = document.createElement('span');
+    points.className = 'goal-points';
+    points.textContent = mine
+      ? `${obj.defend} to you · ${obj.attack} to them`
+      : `${obj.attack} to you · ${obj.defend} to them`;
+    head.append(name, who, points);
+    box.appendChild(head);
+
+    const status = document.createElement('p');
+    status.className = 'goal-status';
+    status.dataset.settled = obj.settled ? '1' : '0';
+    status.textContent = objectiveStatusText(obj);
+    box.appendChild(status);
+
+    if (obj.text) {
+      const text = document.createElement('p');
+      text.className = 'goal-text';
+      text.textContent = C.cleanText(obj.text);
+      box.appendChild(text);
+    }
+
+    const tokens = (view.tokens || []).filter((t) => t.objective === obj.name);
+    if (tokens.length) {
+      const line = document.createElement('p');
+      line.className = 'goal-tokens';
+      line.textContent = objectiveTokenText(tokens);
+      box.appendChild(line);
+    }
+
+    const spot = objectiveSpot(obj);
+    if (spot) {
+      const actions = document.createElement('div');
+      actions.className = 'goal-actions';
+      const go = document.createElement('button');
+      go.className = 'btn ghost sm';
+      go.textContent = 'Find it on the board';
+      go.addEventListener('click', () => {
+        showView('board');
+        if (app.board) app.board.centreOn(spot.x, spot.y, app.board.tacticalZoom());
+      });
+      actions.appendChild(go);
+      box.appendChild(actions);
+    }
+    host.appendChild(box);
+  }
+}
+
+/** "Nobody has it yet" beats "unscored" when the word has to carry the rule. */
+function objectiveStatusText(obj) {
+  const view = app.view;
+  const side = (seat) => (seat === view.seat ? 'you' : 'the enemy');
+  if (obj.settled) return `Scored by ${side(obj.scorer)} — locked in`;
+  if (obj.scorer === null || obj.scorer === undefined) {
+    return 'Nobody is scoring this yet';
+  }
+  return `As it stands: ${side(obj.scorer)} score${obj.scorer === view.seat ? '' : 's'
+    } ${obj.value}`;
+}
+
+/** How the objective's tokens are doing, in one line.
+ *
+ *  A set reads as a count ("2 of 4 reactors left"); a single token reads as
+ *  its own state, because "1 of 1 tower left" says nothing a player wanted.
+ */
+function objectiveTokenText(tokens) {
+  const alive = tokens.filter((t) => t.alive !== false);
+  const kind = tokenWord(tokens[0].kind);
+  const held = alive.find((t) => t.carrier);
+  const parts = [];
+  if (tokens.length === 1) {
+    const one = tokens[0];
+    if (one.alive === false) parts.push(`the ${kind} is destroyed`);
+    else if (!one.pos) parts.push(`the ${kind} is not on the board yet`);
+    else if (one.maxHp > 1) parts.push(`the ${kind} is on ${one.hp} of ${one.maxHp} hit points`);
+    else parts.push(`the ${kind} is on the board`);
+  } else {
+    parts.push(`${alive.length} of ${tokens.length} ${kind}s left`);
+    if (alive.length && !alive.some((t) => t.pos)) parts.push('not on the board yet');
+  }
+  if (held) {
+    const holder = (app.view.frames || []).find((f) => f.id === held.carrier);
+    parts.push(`carried by ${holder ? C.frameLabel(holder.id, holder.name) : held.carrier}`);
+  }
+  return parts.join(' · ');
+}
+
+/** A tile to centre on: the objective's own cells, else anywhere on its card. */
+function objectiveSpot(obj) {
+  const tiles = (obj.tiles && obj.tiles.length) ? obj.tiles : (obj.cardTiles || []);
+  if (!tiles.length) return null;
+  const mid = tiles[Math.floor(tiles.length / 2)];
+  return { x: mid[0], y: mid[1] };
+}
 
 function renderLog() {
   const host = $('log');

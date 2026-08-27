@@ -83,24 +83,17 @@ def test_helpcard_is_a_legend_not_a_card(cards):
     assert "Helpcard" in load_terrain_cards(include_legends=True)
 
 
-def test_eight_objectives_are_in_scope(cards):
-    objs = objective_cards(cards)
-    assert set(objs) == {
-        "Power Reactors",
-        "Shiny Thing",
-        "Triangle",
-        "Fugitive",
-        "Holo Spires",
-        "Church",
-        "The Tower",
-        "The Egg",
-    }
+def test_the_scoring_cards_are_exactly_the_ones_the_engine_scripts(cards):
+    """A card with points and no scorer would sit on the board doing nothing."""
+    from playtest.engine.objectives import OBJECTIVE_NAMES
+
+    assert set(objective_cards(cards)) == set(OBJECTIVE_NAMES)
 
 
 def test_objective_metadata(cards):
     tower = cards["The Tower"]
     assert tower.is_objective
-    assert (tower.defend_points, tower.attack_points, tower.token_count) == (2, 2, 1)
+    assert (tower.defend_points, tower.attack_points, tower.token_count) == (2, 1, 1)
     assert "4 hitpoints" in tower.rules_text
     assert tower.image == "terrain_27.png"
     # The Tower's single objective/token cell is the e3 obstacle block.
@@ -180,7 +173,7 @@ def test_rotation_moves_a_corner_feature_to_the_opposite_corner(cards):
 def test_rotation_preserves_metadata(cards):
     tower = cards["The Tower"].rotated_180()
     assert tower.name == "The Tower"
-    assert tower.defend_points == 2 and tower.attack_points == 2
+    assert tower.defend_points == 2 and tower.attack_points == 1
     assert tower.token_count == 1
 
 

@@ -764,9 +764,10 @@ def test_combo_strike_adds_a_second_attack_from_the_same_weapon():
     assert answer(state, decision, {"uid": spare}) is None
     assert state.cards[spare].location == "discard"
 
-    bonus = effects.attack_damage_bonus(state, attacker, card, defender.id)
-    assert bonus == {"Low": 3}, "Halberd_Crush's attack is added"
-    assert effects.attack_damage_bonus(state, attacker, card, defender.id) == {}, (
+    bonus, spread = effects.attack_damage_bonus(state, attacker, card, defender.id)
+    assert bonus == {"Low": 3}, "Halberd_Crush's attack is added, in its own zone"
+    assert spread == 0, "a combo names its zones; it is not a flat +N"
+    assert effects.attack_damage_bonus(state, attacker, card, defender.id) == ({}, 0), (
         "and only once"
     )
 
@@ -794,9 +795,11 @@ def test_snipers_aim_extends_range_ignores_obstacles_and_adds_damage():
 
     assert combat.effective_range(state, sniper, card, "Mid", target) == before + 4
     assert effects.ignores_obstacles(state, sniper)
-    assert effects.attack_damage_bonus(state, sniper, card, target.id) == {"Mid": 1}
+    assert effects.attack_damage_bonus(state, sniper, card, target.id) == ({}, 1), (
+        "no zone named, so it spreads over every zone the attack applies to"
+    )
     melee = CATALOGUE["Spear_Thrust"]
-    assert effects.attack_damage_bonus(state, sniper, melee, target.id) == {}, (
+    assert effects.attack_damage_bonus(state, sniper, melee, target.id) == ({}, 0), (
         "ranged attacks only"
     )
 
@@ -832,17 +835,17 @@ def test_practiced_technique_stacks_damage_across_one_weapon_next_turn():
 
     card = CATALOGUE["Halberd_Eviscerate"]
     give(state, attacker, "Halberd_Eviscerate")
-    assert effects.attack_damage_bonus(state, attacker, card, defender.id) == {}, (
+    assert effects.attack_damage_bonus(state, attacker, card, defender.id) == ({}, 0), (
         "'next turn'"
     )
 
     carry_over(state, uid)
     give(state, attacker, "Halberd_Crush")
-    assert effects.attack_damage_bonus(state, attacker, card, defender.id) == {"Mid": 1}
+    assert effects.attack_damage_bonus(state, attacker, card, defender.id) == ({}, 1)
     give(state, attacker, "Halberd_Sweep")
-    assert effects.attack_damage_bonus(state, attacker, card, defender.id) == {"Mid": 2}
+    assert effects.attack_damage_bonus(state, attacker, card, defender.id) == ({}, 2)
     give(state, attacker, "Spear_Thrust")
-    assert effects.attack_damage_bonus(state, attacker, card, defender.id) == {"Mid": 2}, (
+    assert effects.attack_damage_bonus(state, attacker, card, defender.id) == ({}, 2), (
         "another weapon adds nothing"
     )
 

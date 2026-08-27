@@ -467,7 +467,7 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width:
 /* ---------------------------------------------------------------- tabs */
 
 #tabs {
-  flex: 0 0 auto; display: grid; grid-template-columns: repeat(5, 1fr);
+  flex: 0 0 auto; display: grid; grid-template-columns: repeat(6, 1fr);
   background: var(--panel); border-top: 1px solid var(--line);
   padding-bottom: var(--safe-b);
 }
@@ -622,3 +622,26 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width:
 }
 .sheet-subject[data-seat="mine"] { color: var(--mine); }
 .sheet-subject[data-seat="theirs"] { color: var(--theirs); }
+
+/* ---------------------------------------------------------------- goals */
+
+/* The objective cards on this battlefield. One block each: what it wants, in
+   its own printed words, and a button that goes and finds it on the map. */
+.goals { padding: 12px 12px calc(24px + var(--sheet-h, 0px)); }
+.goal { border: 1px solid var(--line); border-radius: 12px; background: var(--panel);
+  padding: 10px 12px; margin-bottom: 10px; }
+.goal[data-mine="1"] { border-left: 3px solid var(--mine); }
+.goal[data-mine="0"] { border-left: 3px solid var(--theirs); }
+.goal-head { display: flex; align-items: baseline; gap: 8px; }
+.goal-head b { font-size: 15px; }
+.goal-head .goal-points { margin-left: auto; font-size: 12px; color: var(--muted);
+  white-space: nowrap; }
+.goal-status { font-size: 12px; margin: 4px 0 0; }
+.goal-status[data-settled="1"] { color: var(--gold); font-weight: 600; }
+.goal-text { font-size: 13px; line-height: 1.35; white-space: pre-wrap;
+  margin: 6px 0 0; color: var(--text); }
+.goal-tokens { font-size: 12px; color: var(--muted); margin: 6px 0 0; }
+.goal-actions { display: flex; gap: 8px; margin-top: 8px; }
+
+/* Terrain that hurts whatever ends a turn on it, in the tile read-out. */
+.tile-readout .hazard { color: var(--danger); }

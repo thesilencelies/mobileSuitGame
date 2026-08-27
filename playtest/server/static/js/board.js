@@ -128,6 +128,24 @@ const ZONE_ORDER = ['High', 'Mid', 'Low'];
 //: movement. Green is the buff of a pair, red the debuff -- so "M" in red is
 //: Slowed and "M" in green is Boosted, and there is one thing to learn rather
 //: than seven. Revealed has no opposite and gets the board's own gold.
+// The counter a token draws as when no piece art is bundled for it. `mark` is
+// the letter stamped on it: with one hit point there is no number to show, and
+// a gang, a refugee and a relic all being plain circles tells the player
+// nothing. Every kind the engine can spawn belongs here or in `api.js`'s
+// TOKEN_ART -- a kind in neither draws as an unlabelled blob.
+const TOKEN_STYLE = {
+  reactor: { css: '#f2c14e', mark: 'R' },
+  tower: { css: '#b9c6d6', mark: 'T' },
+  shiny: { css: '#ffe28a', mark: 'S' },
+  fugitive: { css: '#6fe3d0', mark: 'F' },
+  relic: { css: '#ffd76e', mark: 'R' },
+  gang: { css: '#ff8f5c', mark: 'G' },
+  refugee: { css: '#9fd0ff', mark: 'C' },
+  egg: { css: '#e9d7a0', mark: 'E' },
+  image: { css: '#b9a6ff', mark: '?' },
+  drone: { css: '#8fe0a0', mark: 'D' },
+};
+
 const STATUS_PIPS = {
   stunned: { mark: 'I', css: '#ff5d5d' },
   stimmed: { mark: 'I', css: '#4ec98a' },
@@ -866,25 +884,25 @@ export class BoardView {
         }
         continue;
       }
-      const colour = {
-        reactor: '#f2c14e', tower: '#b9c6d6', shiny: '#ffe28a',
-        fugitive: '#6fe3d0', egg: '#e9d7a0',
-        image: '#b9a6ff', drone: '#8fe0a0',
-      }[token.kind] || '#c8b6ff';
+      const style = TOKEN_STYLE[token.kind] || {};
       ctx.beginPath();
       ctx.arc(x + 0.5, y + 0.5, 0.3, 0, Math.PI * 2);
-      ctx.fillStyle = colour;
+      ctx.fillStyle = style.css || '#c8b6ff';
       ctx.globalAlpha = 0.85;
       ctx.fill();
       ctx.globalAlpha = 1;
       ctx.lineWidth = 1.5 / s;
-      ctx.strokeStyle = 'rgba(10,13,18,0.9)';
+      ctx.strokeStyle = token.carrier ? 'rgba(242,193,78,0.95)' : 'rgba(10,13,18,0.9)';
       ctx.stroke();
-      if (token.maxHp > 1 && s > 18) {
+      // A counter with hit points shows them; one with a single hit point --
+      // a gang, a refugee -- shows what it *is*, because three anonymous
+      // circles in the same corner of the map are not a game state.
+      const mark = token.maxHp > 1 ? String(token.hp) : (style.mark || '');
+      if (mark && s > 18) {
         ctx.fillStyle = '#0a0d12';
         ctx.font = `700 ${0.34}px system-ui, sans-serif`;
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText(String(token.hp), x + 0.5, y + 0.54);
+        ctx.fillText(mark, x + 0.5, y + 0.54);
       }
     }
   }
