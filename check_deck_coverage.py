@@ -39,7 +39,7 @@ def load_defined_cards():
                 group = row.get("Group", "").strip()
                 if not name or not group:
                     continue
-                tex_name = f"card/{group}_{name}.tex"
+                tex_name = f"{group}_{name}.tex"
                 cards[tex_name] = (os.path.splitext(csv_file)[0], group, name)
     return cards
 
@@ -64,8 +64,6 @@ def load_deck_counts():
         with open(deck_path, newline="", encoding="utf-8") as f:
             for line in f:
                 tex = line.strip()
-                if not tex.startswith("card/"):
-                    continue
                 # Deck CSVs list base names without the .tex extension; append
                 # it so keys match those built in load_defined_cards().
                 if not tex.endswith(".tex"):
