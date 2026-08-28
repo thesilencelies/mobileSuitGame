@@ -150,6 +150,23 @@ loopback: there is no authentication and no encryption, so do not expose it.
 
 ## Using the client
 
+### Starting a game
+
+Pick a squad a deck at a time (tapping a deck twice fields two of that frame),
+then **a battlefield for each side**: the archetype pairs in `decks/`, each one
+ten terrain cards and the five objectives it can deal. The chips list those
+five, because two of them end up on your half of the board and they are about
+half the victory points — picking blind from four words is a coin toss, not a
+choice. *Random* is the default and is the old behaviour: the engine deals a
+pair from the game's own rng, so a seed still reproduces the battlefield.
+
+At the bottom of the setup screen (and in the drawer) is the **build marker** —
+`build 3f9a2c1 · commit d5ba8e8`. There is no packaging step, the app runs
+straight out of a clone, so this is the only way to tell whether the phone is
+running what you just pulled: it is a hash of every source file the app runs
+and every static file the browser loaded, identical on two machines holding the
+same code. Tap it to copy.
+
 Six tabs along the bottom, all reachable one-handed with a thumb:
 
 | Tab | What it is |
@@ -170,6 +187,11 @@ the panel — the board stays visible.
 
 The **decision sheet** at the bottom always shows what the engine is waiting
 for. Drag its handle to collapse it when you want more board.
+
+A decision that is *about* cards shows them: Kuwagata's once-per-game mulligan
+("discard your hand and draw a new one") lays the seven cards out in the sheet
+and opens the Plan tab on the same hand, because nobody can answer that
+question without seeing what they would be throwing away.
 
 ### The board on a phone
 
@@ -220,6 +242,12 @@ with its own camera rather than a table the browser scrolls:
   `test_the_board_draws_elevation_the_way_the_card_does` and
   `test_the_board_hatches_a_tile_the_way_the_card_does` re-derive them from
   `terrain_cards.py` and are what stop the two drifting apart.
+* **Line of sight from where you are going.** Propose a move — the first of
+  the two taps — and the board shades what that frame would see *from the tile
+  it is thinking about*, not from where it stands. Half of movement is deciding
+  where you will be able to shoot from next turn. It needs no toggle: it only
+  appears in answer to a deliberate tap and goes with it. The LoS toggle in the
+  drawer still shades the selected frame's own sight lines.
 * **Terrain that hurts** carries no marking of its own: the Railway's rails are
   its `tkn` cells, marked exactly as the printed card marks them. Tapping the
   tile reads the rule out — "the rails: 1 energy Low at the end of a turn" —
@@ -560,7 +588,9 @@ POST   /api/game/{id}/command      {kind, payload{}} -> new view
 POST   /api/game/{id}/undo         step back one human decision
 POST   /api/game/{id}/ai-params    {aiParams{}} retune the AI mid-game
 GET    /api/game/{id}/log          full event log
-GET    /api/game/{id}/threat?frame=…   reach + line of sight, public info only
+GET    /api/game/{id}/threat?frame=…[&x=&y=]  reach + line of sight, public only
+                                    x/y = what it would see from a tile it is
+                                    only considering; reach stays where it is
 ```
 
 `/?game=<id>` deep-links straight into a running game;

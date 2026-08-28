@@ -36,7 +36,7 @@ from ..engine import (
     load_frames,
     validate_all_decks,
 )
-from . import ai_bridge, assets, images
+from . import ai_bridge, assets, build, images
 from .games import REGISTRY, GameNotFound, Registry, Session, default_decks
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
@@ -258,6 +258,9 @@ class Router:
     def _health(self, **_: Any) -> dict[str, Any]:
         return {
             "ok": True,
+            # What build the client is looking at. Static files are served
+            # `no-cache`, so this describes the code the browser just loaded.
+            **build.info(),
             "cards": len(self.catalogue()),
             "frames": len(self.frames()),
             "decks": len(available_decks()),
@@ -286,7 +289,7 @@ class Router:
                 "legal": bool(report.legal) if report else True,
                 "errors": list(report.errors) if report else [],
             })
-        return {"decks": out}
+        return {"decks": out, "terrain": _terrain_decks()}
 
     def _card_image(self, key: str, query: Mapping[str, str], **_: Any) -> Response:
         from urllib.parse import unquote
@@ -320,6 +323,8 @@ class Router:
         if len(player_decks) < frames_per_side or len(ai_decks) < frames_per_side:
             raise HttpError(400, f"need {frames_per_side} decks per side", "bad_request")
         seed = payload.get("seed")
+        human_seat = _int(payload.get("humanSeat"), 0)
+        terrain = _terrain_choice(payload, human_seat)
         try:
             session = self.registry.create(
                 player_decks=player_decks[:frames_per_side],
@@ -327,7 +332,8 @@ class Router:
                 seed=int(seed) if seed not in (None, "") else None,
                 frames_per_side=frames_per_side,
                 ai_params=dict(payload.get("aiParams") or {}),
-                human_seat=_int(payload.get("humanSeat"), 0),
+                human_seat=human_seat,
+                terrain_decks=terrain,
             )
         except (FileNotFoundError, ValueError) as exc:
             raise HttpError(400, str(exc), "bad_request") from exc
@@ -385,7 +391,14 @@ class Router:
         frame_id = query.get("frame")
         if not frame_id:
             raise HttpError(400, "threat needs ?frame=<id>", "bad_request")
-        return _threat_overlay(self.registry.get(game_id), frame_id)
+        # `?x=&y=` asks the same question about a tile the frame is only
+        # *considering*: what it would see from there. Terrain and frame
+        # positions are both public, so a hypothetical vantage point gives
+        # away nothing the real one does not.
+        at = None
+        if query.get("x") is not None and query.get("y") is not None:
+            at = Pos(_int(query.get("x"), 0), _int(query.get("y"), 0))
+        return _threat_overlay(self.registry.get(game_id), frame_id, at=at)
 
 
 # --------------------------------------------------------------------------
@@ -412,18 +425,74 @@ def _int(value: Any, default: int) -> int:
         return default
 
 
-def _threat_overlay(session: Session, frame_id: str) -> dict[str, Any]:
+def _terrain_choice(
+    payload: Mapping[str, Any], human_seat: int
+) -> dict[int, str]:
+    """`playerTerrain` / `aiTerrain` as seats. Empty means "deal me one".
+
+    A seat left out keeps the old behaviour: the engine draws an archetype at
+    random from the shipped pairs, using the game's own rng so the seed still
+    reproduces the battlefield.
+    """
+    known = {deck["name"] for deck in _terrain_decks()}
+    out: dict[int, str] = {}
+    for key, seat in (("playerTerrain", human_seat), ("aiTerrain", 1 - human_seat)):
+        name = str(payload.get(key) or "").strip()
+        if not name:
+            continue
+        if name not in known:
+            raise HttpError(400, f"no terrain deck {name!r}", "bad_request")
+        out[seat] = name
+    return out
+
+
+def _terrain_decks() -> list[dict[str, Any]]:
+    """The battlefields a player can bring, with what each one is made of.
+
+    Every archetype is a *pair* -- ten terrain cards and five objectives
+    (rules.tex:253) -- and the objectives are what the choice is really about,
+    since two of the five end up on the board and they are half the victory
+    points. So the objective names come along: picking a battlefield blind
+    from four words is not a choice, it is a coin toss.
+    """
+    from ..engine import setup as _setup
+
+    out = []
+    for name in _setup.available_deck_pairs():
+        try:
+            decks = _setup.load_deck_pair(name)
+        except (FileNotFoundError, KeyError, ValueError):
+            continue
+        out.append({
+            "name": name,
+            "label": name.replace("_", " ").title(),
+            "terrain": len(decks.terrain),
+            "objectives": sorted({card.name for card in decks.objectives}),
+        })
+    return out
+
+
+def _threat_overlay(
+    session: Session, frame_id: str, at: Optional[Pos] = None
+) -> dict[str, Any]:
     """Board overlays for one frame: reach and line of sight.
 
     Public information only -- terrain, frame positions and the frame's *base*
     movement. It deliberately does not use the frame's committed cards, because
     for an enemy frame those are face down and using them would leak hidden
     information into the overlay.
+
+    `at` moves the vantage point without moving the frame: what it *would* see
+    from a tile it is thinking about. Reach still comes from where the frame
+    actually stands -- that is where it can go from -- so only the sight lines
+    move.
     """
     state = session.state
     frame = state.frames.get(frame_id)
     if frame is None or frame.pos is None or state.board is None:
         raise HttpError(404, f"no such frame {frame_id!r}", "no_such_frame")
+    if at is not None and not state.board.in_bounds(at):
+        raise HttpError(400, f"({at.x},{at.y}) is off the board", "bad_request")
     # An overlay is drawn *from* the frame's tile, so one for a frame hiding
     # behind Ephemeral Images would hand over the very thing the card hides.
     if frame.seat != session.human_seat and fx.is_cloaked(state, frame):
@@ -435,22 +504,26 @@ def _threat_overlay(session: Session, frame_id: str) -> dict[str, Any]:
     occupied = state.occupied(exclude=frame.id)
     reach = board.reachable(
         frame.pos, frame.base_movement, occupied=occupied, flying=flying)
+    eye = at or frame.pos
     los: list[list[int]] = []
     for y in range(board.height):
         for x in range(board.width):
             pos = Pos(x, y)
-            if pos == frame.pos:
+            if pos == eye:
                 continue
             try:
                 clear = board.has_line_of_sight(
-                    frame.pos, pos, occupied=occupied, flying_attacker=flying)
+                    eye, pos, occupied=occupied, flying_attacker=flying)
             except TypeError:                      # pragma: no cover
-                clear = board.has_line_of_sight(frame.pos, pos)
+                clear = board.has_line_of_sight(eye, pos)
             if clear:
                 los.append([x, y])
     return {
         "frame": frame_id,
         "pos": {"x": frame.pos.x, "y": frame.pos.y},
+        # Where the sight lines were drawn from, which is the frame's own tile
+        # unless the caller asked about somewhere it is only considering.
+        "from": {"x": eye.x, "y": eye.y},
         "movement": frame.base_movement,
         "reach": [[p.x, p.y, cost] for p, cost in reach.items()],
         "los": los,

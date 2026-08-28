@@ -53,6 +53,9 @@ const app = {
   // is one decision on the board rather than three confirmations.
   placeSelection: [],
   orderPick: [],
+  // The battlefield each side brings. Empty means "deal me one".
+  terrain: { player: '', ai: '' },
+  terrainDecks: [],
   lastPendingSig: null,
   threatCache: new Map(),
   currentView: 'board',
@@ -116,8 +119,9 @@ async function boot() {
   loadPrefs();
   bindChrome();
   try {
-    const [catalogue, decks, aiSchema, frames] = await Promise.all([
+    const [catalogue, decks, aiSchema, frames, health] = await Promise.all([
       api.getCatalogue(), api.getDecks(), api.getAiParams(), api.getFrames(),
+      api.getHealth(),
     ]);
     app.catalogue = catalogue;
     C.setCatalogue(catalogue);
@@ -125,12 +129,15 @@ async function boot() {
     app.frames = frames;
     app.decks = decks.decks || [];
     app.aiSchema = aiSchema;
+    app.health = health;
+    app.terrainDecks = decks.terrain || [];
   } catch (err) {
     $('setup-error').hidden = false;
     $('setup-error').textContent = `Could not reach the server: ${err.message}`;
     return;
   }
   buildSetupScreen();
+  showBuildMarker();
   const saved = localStorage.getItem(STORE_KEY);
   if (saved) {
     $('resume-game').hidden = false;
@@ -144,6 +151,32 @@ async function boot() {
     await resume(deepLink);
     const wanted = params.get('view');
     if (wanted && document.getElementById(`view-${wanted}`)) showView(wanted);
+  }
+}
+
+/** Which build this is, on the setup screen and in the drawer.
+ *
+ *  There is no packaging step -- the app runs out of a clone -- so "am I on
+ *  the code I just pulled?" has no other answer. The id is a hash of every
+ *  source file the app runs and every static file the browser loaded, so it
+ *  is identical on two machines holding the same code and different the
+ *  moment any of it changes. Static files are served `no-cache`, so what the
+ *  server hashes really is what is on screen.
+ */
+function showBuildMarker() {
+  const health = app.health || {};
+  if (!health.build) return;
+  const text = `build ${health.build}`
+    + (health.commit ? ` · commit ${health.commit}` : '');
+  for (const id of ['build-marker', 'drawer-build']) {
+    const el = document.getElementById(id);
+    if (!el) continue;
+    el.textContent = text;
+    el.title = `${health.files} source files · tap to copy`;
+    el.addEventListener('click', () => {
+      if (navigator.clipboard) navigator.clipboard.writeText(text).catch(() => {});
+      toast(text);
+    });
   }
 }
 
@@ -261,6 +294,7 @@ function buildSetupScreen() {
   };
   pick($('player-decks'), 'player');
   pick($('ai-decks'), 'ai');
+  buildTerrainPicker();
 
   const names = legal.map((d) => d.name);
   app.selection.player = names.slice(0, 3);
@@ -282,6 +316,49 @@ function buildSetupScreen() {
     : `Parameters served by ${app.aiSchema.source}.`;
 
   $('start-game').addEventListener('click', startGame);
+}
+
+/** The battlefield each side brings, as chips listing its five objectives.
+ *
+ *  "Random" is the default and is not a cop-out: it is the old behaviour, and
+ *  the engine deals a pair from the game's own rng so the seed still
+ *  reproduces the board. Naming one pins that seat's half of the map.
+ */
+function buildTerrainPicker() {
+  for (const [side, host] of [['player', $('player-terrain')],
+    ['ai', $('ai-terrain')]]) {
+    host.innerHTML = '';
+    const options = [{ name: '', label: 'Random', objectives: [] },
+      ...app.terrainDecks];
+    for (const deck of options) {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'deck-chip';
+      chip.innerHTML = `<b>${C.escapeHtml(deck.label)}</b>`
+        + (deck.objectives.length
+          ? `<span class="terrain-chip-objectives">${
+            C.escapeHtml(deck.objectives.join(' · '))}</span>`
+          : '<small>dealt from the shipped battlefields</small>');
+      chip.addEventListener('click', () => {
+        app.terrain[side] = deck.name;
+        syncTerrainChips();
+      });
+      host.appendChild(chip);
+    }
+  }
+  syncTerrainChips();
+}
+
+function syncTerrainChips() {
+  for (const [side, host] of [['player', $('player-terrain')],
+    ['ai', $('ai-terrain')]]) {
+    const chosen = app.terrain[side] || '';
+    const names = ['', ...app.terrainDecks.map((d) => d.name)];
+    [...host.children].forEach((chip, i) => {
+      if (names[i] === chosen) chip.dataset.on = '1';
+      else delete chip.dataset.on;
+    });
+  }
 }
 
 function syncDeckChips() {
@@ -373,6 +450,8 @@ async function startGame() {
       seed: seedRaw === '' ? null : Number(seedRaw),
       playerDecks: app.selection.player,
       aiDecks: app.selection.ai,
+      playerTerrain: app.terrain.player,
+      aiTerrain: app.terrain.ai,
       framesPerSide: limit,
       aiParams: app.setupForm.payload(),
     });
@@ -575,7 +654,7 @@ function setView(view, opts = {}) {
     // against. The decision has moved on, so the proposal is void.
     app.confirm = null;
     if (pending && !pending.waiting && pending.seat === view.seat) {
-      if (pending.kind === 'commit_actions') showView('plan');
+      if (pending.kind === 'commit_actions' || isMulligan(pending)) showView('plan');
       else if (['move', 'attack_target', 'choose_block', 'deploy',
         'choose_frame', ...TILE_DECISIONS].includes(pending.kind)) {
         showView('board');
@@ -1555,17 +1634,27 @@ async function refreshOverlays() {
     }
   }
 
+  // A destination that has been proposed but not committed: show what the
+  // frame would *see* from there. That is the whole question being asked at
+  // that moment -- half of movement is where you can shoot from next -- and
+  // it needs no toggle, because it only appears in answer to a deliberate
+  // tap and disappears with it.
+  const preview = movePreview();
   const selected = (view.frames || []).find((f) => f.id === app.selectedFrame);
   // A frame hiding behind its images has no position to draw an overlay from,
   // and the server refuses to invent one -- so do not ask.
   const readable = selected && selected.alive && selected.pos && !selected.cloaked;
   const wantThreat = readable && selected.seat !== view.seat && app.options.threat;
-  if ((app.options.los || wantThreat) && readable) {
-    const key = `${view.gameId}:${selected.id}:${view.log.length}`;
+  const source = preview || ((app.options.los || wantThreat) && readable
+    ? { frame: selected.id, at: null } : null);
+  if (source) {
+    const at = source.at;
+    const key = `${view.gameId}:${source.frame}:${view.log.length}`
+      + (at ? `:${at.x},${at.y}` : '');
     let data = app.threatCache.get(key);
     if (!data) {
       try {
-        data = await api.getThreat(app.gameId, selected.id);
+        data = await api.getThreat(app.gameId, source.frame, at);
         app.threatCache.set(key, data);
         if (app.threatCache.size > 24) {
           app.threatCache.delete(app.threatCache.keys().next().value);
@@ -1573,14 +1662,36 @@ async function refreshOverlays() {
       } catch { data = null; }
     }
     if (data) {
-      if (app.options.los) for (const [x, y] of data.los) overlays.los.add(`${x},${y}`);
-      if (wantThreat && !overlays.reach.size) {
+      if (preview || app.options.los) {
+        for (const [x, y] of data.los) overlays.los.add(`${x},${y}`);
+      }
+      if (!preview && wantThreat && !overlays.reach.size) {
         for (const [x, y, cost] of data.reach) overlays.reach.set(`${x},${y}`, cost);
       }
     }
   }
+  overlays.losFrom = preview ? preview.at : null;
   app.board.setOverlays(overlays);
   renderLegend(overlays, mine ? pending : null);
+}
+
+/** The move being proposed right now, as `{frame, at}`, or null.
+ *
+ *  Only a real destination counts: a proposal on the frame's own tile ("stay
+ *  put") would draw the sight lines it already has, and a placement is not a
+ *  question about what anything can see.
+ */
+function movePreview() {
+  const proposal = app.confirm;
+  const pending = app.view.pending;
+  if (!proposal || !pending || pending.waiting) return null;
+  // A frame's own move only: a gang being shuffled a tile does not shoot.
+  if (proposal.kind !== 'move') return null;
+  const at = confirmTile();
+  const frame = (app.view.frames || []).find((f) => f.id === pending.frameId);
+  if (!at || !frame || !frame.pos) return null;
+  if (at.x === frame.pos.x && at.y === frame.pos.y) return null;
+  return { frame: frame.id, at };
 }
 
 function renderLegend(overlays, pending) {
@@ -1604,20 +1715,38 @@ function renderLegend(overlays, pending) {
       : 'orange = where it can go · tap twice');
   }
   if (overlays.targets.size) bits.push('red pulse = legal target · tap twice');
-  if (overlays.los.size) bits.push('red wash = line of sight');
+  if (overlays.los.size) {
+    bits.push(overlays.losFrom
+      ? 'red wash = what you would see from the proposed tile'
+      : 'red wash = line of sight');
+  }
   if (!bits.length) bits.push('pinch to zoom · double tap = fit');
   host.innerHTML = bits.map((b) => `<span>${C.escapeHtml(b)}</span>`).join('');
 }
 
 // ---------------------------------------------------------------- plan view
 
+/** Kuwagata's mulligan: an `effect_choice` whose options are keep-or-redraw.
+ *
+ *  Recognised by its option shape, like every other effect the sheet has to
+ *  tell apart -- there is no decision kind of its own to check.
+ */
+function isMulligan(pending) {
+  const options = (pending && pending.options) || [];
+  return pending && pending.kind === 'effect_choice' && options.length > 0
+    && options.every((o) => 'mulligan' in o);
+}
+
 function renderPlan() {
   const view = app.view;
   const pending = view.pending;
-  const committing = pending && !pending.waiting && pending.seat === view.seat
-    && pending.kind === 'commit_actions';
+  const mine = pending && !pending.waiting && pending.seat === view.seat;
+  const committing = mine && pending.kind === 'commit_actions';
+  // A mulligan is answered against the hand, so the Plan tab shows that hand
+  // rather than the field -- the same seven cards the sheet is asking about.
+  const mulliganing = mine && isMulligan(pending);
   const frame = (view.frames || []).find(
-    (f) => f.id === (committing ? pending.frameId : app.selectedFrame))
+    (f) => f.id === (committing || mulliganing ? pending.frameId : app.selectedFrame))
     || (view.frames || []).find((f) => f.seat === view.seat && f.alive);
 
   $('plan-frame').textContent = frame ? C.frameLabel(frame.id, frame.name) : '';
@@ -1656,6 +1785,19 @@ function renderPlan() {
         onTap: () => toggleCommit(option.uid),
       });
       attachLongPress(el, option.key);
+      hand.appendChild(el);
+    }
+    return;
+  }
+
+  if (mulliganing) {
+    const cards = (frame && frame.hand) || [];
+    $('plan-count').textContent =
+      `${cards.length} in hand · keep them or draw ${cards.length} new ones`;
+    for (const card of cards) {
+      const el = C.thumb(card.key, { width: 240 });
+      attachLongPress(el, card.key);
+      el.addEventListener('click', () => C.showCard(card.key));
       hand.appendChild(el);
     }
     return;

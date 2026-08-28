@@ -40,6 +40,19 @@
       <div class="deck-grid" id="ai-decks"></div>
     </div>
 
+    <!-- Each player brings a battlefield: ten terrain cards and five
+         objectives (rules.tex:253). Two of the five end up on the board, so
+         this is half the victory points on offer. -->
+    <div class="card-panel">
+      <h2>Battlefield</h2>
+      <p class="hint">Each side brings a terrain deck and its five objectives.
+        Two of yours are dealt into your half.</p>
+      <h3 class="pick-head">Yours</h3>
+      <div class="deck-grid terrain-grid" id="player-terrain"></div>
+      <h3 class="pick-head">Theirs</h3>
+      <div class="deck-grid terrain-grid" id="ai-terrain"></div>
+    </div>
+
     <div class="card-panel">
       <h2>Opponent</h2>
       <div class="preset-row" id="preset-row"></div>
@@ -64,6 +77,10 @@
       <button class="btn primary big" id="start-game" type="button">Start game</button>
       <button class="btn ghost" id="resume-game" type="button" hidden>Resume last game</button>
     </div>
+
+    <!-- Which build this is. The app runs out of a git clone with no
+         packaging step, so this is the only way to tell what you pulled. -->
+    <p class="hint build-marker" id="build-marker"></p>
   </div>
 </section>
 
@@ -181,6 +198,7 @@
         <button class="btn danger" id="drawer-new" type="button">New game</button>
       </div>
       <p class="hint" id="drawer-game-info"></p>
+      <p class="hint build-marker" id="drawer-build"></p>
     </section>
     <section>
       <h3>Board</h3>

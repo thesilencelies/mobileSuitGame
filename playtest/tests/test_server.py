@@ -835,6 +835,90 @@ def test_threat_overlay_uses_public_information_only(client: Client) -> None:
     assert client.get(f"/api/game/{game_id}/threat").status_code == 400
 
 
+def test_threat_answers_from_a_tile_the_frame_is_only_considering(
+    client: Client,
+) -> None:
+    """Half of movement is what you will be able to see from the far end.
+
+    Terrain and frame positions are both public, so a hypothetical vantage
+    point gives away nothing the frame's own does not -- and the reach still
+    comes from where it actually stands, because that is where it moves from.
+    """
+    game_id, view = start(client)
+    frame = next(f for f in view["frames"] if f["seat"] == 0)
+    here = client.get(f"/api/game/{game_id}/threat?frame={frame['id']}").json()
+    assert here["from"] == here["pos"]
+
+    x, y = frame["pos"]["x"], frame["pos"]["y"]
+    elsewhere = client.get(
+        f"/api/game/{game_id}/threat?frame={frame['id']}&x={x}&y={y - 6}"
+    ).json()
+    assert elsewhere["from"] == {"x": x, "y": y - 6}
+    assert elsewhere["pos"] == here["pos"], "the frame has not moved"
+    assert elsewhere["reach"] == here["reach"], "reach is still from where it is"
+    assert elsewhere["los"] != here["los"], "but the sight lines are not"
+
+    off = client.get(f"/api/game/{game_id}/threat?frame={frame['id']}&x=99&y=99")
+    assert off.status_code == 400
+
+
+def test_a_terrain_deck_can_be_chosen_for_each_side(client: Client) -> None:
+    """"Each player must bring a terrain deck of 10 cards, and an objective
+    deck of 5" (rules.tex:253) -- so which one is the player's call."""
+    listed = client.get("/api/decks").json()["terrain"]
+    assert listed, "the client has to be able to offer them"
+    names = {deck["name"] for deck in listed}
+    assert {"assault", "control", "siege", "strike"} <= names
+    for deck in listed:
+        assert deck["objectives"], "the objectives are what the choice is about"
+
+    response = client.post("/api/game", {
+        "seed": 4242, "playerDecks": DECKS[:3], "aiDecks": DECKS[3:6],
+        "framesPerSide": 3, "playerTerrain": "siege", "aiTerrain": "control",
+    })
+    assert response.status_code == 200, response.text
+    view = response.json()["view"]
+    brought = [
+        entry["text"] for entry in view["log"] if "terrain deck" in entry["text"]
+    ]
+    assert any("siege" in line for line in brought)
+    assert any("control" in line for line in brought)
+
+    bad = client.post("/api/game", {
+        "seed": 1, "playerDecks": DECKS[:3], "aiDecks": DECKS[3:6],
+        "playerTerrain": "not-a-battlefield",
+    })
+    assert bad.status_code == 400
+
+
+def test_the_build_marker_changes_with_the_code(tmp_path) -> None:
+    """The app runs out of a clone, so this is the only "which version".
+
+    Same code, same id, on any machine; a byte changes and so does the id.
+    """
+    from playtest.server import build
+
+    first = build.build_id()
+    assert len(first) == 8 and first == build.build_id(), "stable while nothing moves"
+    info = build.info()
+    assert info["build"] == first and info["files"] > 10
+
+    target = next(p for p in build._files() if p.suffix == ".js")
+    original = target.read_bytes()
+    try:
+        target.write_bytes(original + b"\n// touched\n")
+        assert build.build_id() != first, "an edited client is a different build"
+    finally:
+        target.write_bytes(original)
+    assert build.build_id() == first, "and putting it back puts the id back"
+
+
+def test_health_carries_the_build_marker(client: Client) -> None:
+    body = client.get("/api/health").json()
+    assert len(str(body["build"])) == 8
+    assert body["files"] > 10
+
+
 # --------------------------------------------------------------------------
 # The optional FastAPI adapter (desktop development only)
 # --------------------------------------------------------------------------

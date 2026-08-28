@@ -10,7 +10,7 @@
 //
 // The contract, in full:
 //
-//   getHealth()                     -> {ok, cards, frames, decks, images, ai}
+//   getHealth()                     -> {ok, build, commit, cards, frames, ai, ...}
 //   getCatalogue()                  -> {"{Group}_{Name}": cardJson, ...}
 //   getFrames()                     -> {frameName: frameJson, ...}
 //   getDecks()                      -> {decks: [...]}
@@ -20,7 +20,7 @@
 //   sendCommand(gameId, kind, payload) -> view
 //   undo(gameId)                    -> view
 //   getLog(gameId)                  -> {gameId, log}
-//   getThreat(gameId, frameId)      -> {reach, los, movement, ...}
+//   getThreat(gameId, frameId, at)  -> {reach, los, from, movement, ...}
 //   setAiParams(gameId, params)     -> view
 //   cardImageUrl(key, width)        -> a URL the client can put in an <img>
 //   terrainImageUrl(cardName)       -> the terrain card's playable grid
@@ -77,8 +77,11 @@ export const api = {
 
   undo: (gameId) => post(`/api/game/${gameId}/undo`),
   getLog: (gameId) => request(`/api/game/${gameId}/log`),
-  getThreat: (gameId, frameId) =>
-    request(`/api/game/${gameId}/threat?frame=${encodeURIComponent(frameId)}`),
+  // `at` asks what the frame would see from a tile it is only considering,
+  // rather than from where it is standing.
+  getThreat: (gameId, frameId, at = null) =>
+    request(`/api/game/${gameId}/threat?frame=${encodeURIComponent(frameId)}`
+      + (at ? `&x=${at.x}&y=${at.y}` : '')),
   setAiParams: (gameId, params) =>
     post(`/api/game/${gameId}/ai-params`, { aiParams: params }),
 

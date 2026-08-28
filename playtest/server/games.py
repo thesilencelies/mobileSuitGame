@@ -309,6 +309,7 @@ class Registry:
         frames_per_side: int = 3,
         ai_params: Optional[Mapping[str, Any]] = None,
         human_seat: int = 0,
+        terrain_decks: Optional[Mapping[int, str]] = None,
     ) -> Session:
         # Pass the client's parameters through untouched: the AI package
         # applies its own defaults and its own `preset` handling, and merging
@@ -320,6 +321,9 @@ class Registry:
             seed=seed,
             frames_per_side=frames_per_side,
             ai_params=params,
+            # A seat with no battlefield named gets one dealt from the shipped
+            # pairs by the game's own rng, which is the old behaviour.
+            terrain_decks=dict(terrain_decks or {}) or None,
         )
         state = new_game(config)
         agent = ai_bridge.make_agent(
@@ -336,6 +340,7 @@ class Registry:
                 "aiDecks": list(ai_decks),
                 "seed": seed,
                 "framesPerSide": frames_per_side,
+                "terrainDecks": dict(terrain_decks or {}),
             },
             agent=agent,
             ai_source=getattr(agent, "source", "fallback"),

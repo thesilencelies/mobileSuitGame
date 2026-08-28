@@ -49,7 +49,10 @@ export function renderDecision(host, ctx) {
   // prose written by the engine and "Kuwagata must block Low" is not an
   // instruction when you are fielding two Kuwagatas. The prose is still shown
   // -- it is the engine's own explanation -- but nothing is *identified* by it.
-  title(host, prettyKind(pending.kind), pending.prompt, subjectOf(ctx, pending));
+  // One decision kind covers every card effect, so the ones with a name of
+  // their own say it here rather than reading "Card effect".
+  title(host, isMulligan(pending) ? 'Mulligan' : prettyKind(pending.kind),
+    pending.prompt, subjectOf(ctx, pending));
   // A tap has proposed something irreversible and is waiting to be meant. It
   // goes above the decision itself, because until it is answered it *is* the
   // decision -- and it is answerable here as well as on the board, for anyone
@@ -670,6 +673,9 @@ function blockChoices(host, ctx, pending, kind) {
 function effectChoice(host, ctx, pending) {
   const options = pending.options || [];
   const every = (fn) => options.length > 0 && options.every(fn);
+  if (isMulligan(pending)) {
+    return mulligan(host, ctx, pending);
+  }
   if (every((o) => 'frame' in o && !('x' in o) && !('token' in o))) {
     return effectFrames(host, ctx, pending);
   }
@@ -706,6 +712,55 @@ function effectChoice(host, ctx, pending) {
  *  commit the set with one button -- the engine still takes them one at a
  *  time, which `commitPlacements` walks through.
  */
+/** Kuwagata's keep-or-redraw, told apart by its option shape. */
+function isMulligan(pending) {
+  const options = (pending && pending.options) || [];
+  return pending.kind === 'effect_choice' && options.length > 0
+    && options.every((o) => 'mulligan' in o);
+}
+
+/** Kuwagata's once-per-game mulligan -- with the hand it is about.
+ *
+ *  "Discard your hand and draw a new one" is not a question anyone can answer
+ *  without seeing the hand, and the hand lives on the Plan tab. So the cards
+ *  come here too: seven thumbnails, tappable to read, above the two answers.
+ */
+function mulligan(host, ctx, pending) {
+  const frame = (ctx.view.frames || []).find((f) => f.id === pending.frameId);
+  const hand = (frame && frame.hand) || [];
+  banner(host,
+    hand.length
+      ? `${hand.length} cards in hand — keep them, or throw the lot away`
+      : 'No hand to look at',
+    'info');
+
+  if (hand.length) {
+    const strip = document.createElement('div');
+    strip.className = 'hand-strip';
+    for (const card of hand) {
+      const thumb = C.thumb(card.key, { width: 200 });
+      thumb.addEventListener('click', () => C.showCard(card.key));
+      strip.appendChild(thumb);
+    }
+    host.appendChild(strip);
+    hint(host, 'Tap a card to read it. A mulligan is once per game.');
+  }
+
+  const el = list(host);
+  optionRow(el, {
+    main: `Redraw all ${hand.length}`,
+    sub: 'Discard this hand and draw a new one',
+    go: 'redraw',
+    onTap: () => ctx.send('effect_choice', { mulligan: true }),
+  });
+  optionRow(el, {
+    main: 'Keep this hand',
+    sub: 'Save the mulligan for a worse one',
+    go: 'keep',
+    onTap: () => ctx.send('effect_choice', { mulligan: false }),
+  });
+}
+
 /** "Which frame" -- the first half of a shove, and Encode's ally. */
 function effectFrames(host, ctx, pending) {
   banner(host, 'Choose a frame — on the board or from the list', 'info');
