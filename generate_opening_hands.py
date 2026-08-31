@@ -5,34 +5,48 @@ Writes decks/hands/<deckname>_hand.csv, one bare `Group_Name` per row, matching
 the naming culture of the parent decks/ folder (parent deck name + `_hand`).
 
 The hand is a *baseline* the designer edits by hand afterwards. Seeding rules:
-  - 2 booster cards (fall back to Basic_Sprint if the deck lacks 2 boosters)
+  - 2 booster cards
   - 2 ranged attack cards (prefer longest range; if the deck has no ranged
     attacks, use the highest-movement attack cards instead)
   - 2 setup cards (pilot self/ally buffs, shield creators, drone/token creators)
-  - 1 decent blocker (highest block; fall back to Basic_Dodge)
+  - 1 decent blocker (highest block)
 
-Cards are only drawn from the parent deck, except the universal Basic fallbacks
-(Sprint, Dodge) named by the rules above.  Run: python generate_opening_hands.py
+Every card in the hand comes out of the parent deck — there are no universal
+fallbacks. If the deck cannot fill a category (no boosters, say), the empty
+slots go to the next-best card from the *other* categories, and failing that to
+a random card the deck still has left, so the hand is always 7 cards (or the
+whole deck, if it is smaller). A deck listing a card twice may draw it twice.
+
+Run: python generate_opening_hands.py
 """
 import csv
 import os
 import re
 import glob
+import random
 
 REPO = os.path.dirname(os.path.abspath(__file__))
 DECKS_DIR = os.path.join(REPO, "decks")
 HANDS_DIR = os.path.join(DECKS_DIR, "hands")
 
+HAND_SIZE = 7
+
+# The card CSVs are the single source of truth for what counts as a pilot or a
+# drone card: whichever file a row came out of decides, so adding a new drone
+# group to Drone actions.csv needs no change here.
+PILOT_CSV = "Pilot actions.csv"
+DRONE_CSV = "Drone actions.csv"
 CARD_CSVS = [
     "Weapon actions.csv",
     "Booster actions.csv",
-    "Pilot actions.csv",
+    PILOT_CSV,
     "Basic actions.csv",
-    "Drone actions.csv",
+    DRONE_CSV,
 ]
 
-PILOT_GROUPS = {"Bruiser", "Mystic", "Tactician", "Wunderkid", "Engineer", "Specialist"}
-DRONE_GROUPS = {"Swarm"}
+# decks/ also holds the terrain and objective decks, which list tiles rather
+# than action cards and so get no opening hand.
+SKIP_DECK_PREFIXES = ("deck_terrain_", "deck_objective_")
 
 # Keywords marking a pilot/card as a self/ally buff (setup), case-insensitive.
 # (No "repair" — healing is useless on turn 1, so repair cards are not setup.)
@@ -81,8 +95,8 @@ def load_cards():
                     "max_block": max(blk),
                     "total_block": sum(blk),
                     "is_attack": sum(atk) > 0,
-                    "is_pilot": group in PILOT_GROUPS,
-                    "is_drone": group in DRONE_GROUPS,
+                    "is_pilot": fn == PILOT_CSV,
+                    "is_drone": fn == DRONE_CSV,
                 }
                 db[card["key"]] = card
     return db
@@ -108,90 +122,90 @@ def is_pilot_buff(c):
     return any(k in t for k in BUFF_KEYWORDS)
 
 
-def pick_hand(deck_keys, db):
-    """Return an ordered list of 7 card keys for the opening hand."""
-    cards = [db[k] for k in deck_keys if k in db]
+# Each category ranks the cards the deck still holds, best first. Every list is
+# sorted with the deck position as the final tiebreak so runs are reproducible.
+def booster_candidates(avail):
+    """Boosters, most movement first."""
+    return sorted((e for e in avail if e[1]["group"] == "Booster"),
+                  key=lambda e: (-e[1]["movement"], e[0]))
+
+
+def ranged_candidates(avail):
+    """Ranged attacks by reach, then melee attacks by how far they close."""
+    ranged = sorted((e for e in avail if e[1]["max_range"] > 0),
+                    key=lambda e: (-e[1]["max_range"], -e[1]["total_atk"], e[0]))
+    melee = sorted((e for e in avail
+                    if e[1]["max_range"] == 0 and e[1]["is_attack"]),
+                   key=lambda e: (-e[1]["movement"], -e[1]["total_atk"], e[0]))
+    return ranged + melee
+
+
+def setup_candidates(avail):
+    """Drone creators, then shield creators, then pilot buffs, then any pilot."""
+    out = []
+    for pred in (is_drone_setup, is_shield_setup, is_pilot_buff,
+                 lambda c: c["is_pilot"]):
+        out += [e for e in avail if pred(e[1]) and e not in out]
+    return out
+
+
+def blocker_candidates(avail):
+    """Anything that blocks, biggest block first (2+ is the one we want)."""
+    return sorted((e for e in avail if e[1]["max_block"] > 0),
+                  key=lambda e: (-e[1]["max_block"], -e[1]["total_block"], e[0]))
+
+
+CATEGORIES = [
+    ("booster", 2, booster_candidates),
+    ("ranged", 2, ranged_candidates),
+    ("setup", 2, setup_candidates),
+    ("block", 1, blocker_candidates),
+]
+
+
+def pick_hand(deck_keys, db, rng):
+    """Return an ordered list of up to 7 card keys drawn from this deck only.
+
+    Cards are held as (deck position, card) pairs so a deck that lists a card
+    twice can play it twice, while one listing stays one copy in the hand.
+    """
+    entries = [(i, db[k]) for i, k in enumerate(deck_keys) if k in db]
+    taken = set()
     chosen = []
-    seen = set()
 
-    def take(card):
-        if card and card["key"] not in seen:
-            chosen.append(card["key"])
-            seen.add(card["key"])
-            return True
-        return False
+    def avail():
+        return [e for e in entries if e[0] not in taken]
 
-    avail = lambda pool: [c for c in pool if c["key"] not in seen]
+    def take(entry):
+        if entry is None or entry[0] in taken:
+            return False
+        taken.add(entry[0])
+        chosen.append(entry[1]["key"])
+        return True
 
-    # 1) Two boosters, filling short slots with Sprint. Only duplicate Sprint if
-    # the deck itself lists two Sprints (it normally lists none -> cap of 1);
-    # any still-empty booster slot is filled later by the top-up-to-7 pass.
-    boosters = sorted((c for c in cards if c["group"] == "Booster"),
-                      key=lambda c: -c["movement"])
-    for c in boosters[:2]:
-        take(c)
-    sprint_cap = max(1, sum(1 for k in deck_keys if k == "Basic_Sprint"))
-    sprint_used = 0
-    while (sprint_used < sprint_cap
-           and sum(1 for k in chosen if db.get(k, {}).get("group") == "Booster"
-                   or k == "Basic_Sprint") < 2):
-        chosen.append("Basic_Sprint")
-        sprint_used += 1
+    hand_size = min(HAND_SIZE, len(entries))
 
-    # 2) Two ranged attacks (prefer longest range), else highest-movement attacks.
-    ranged = sorted((c for c in avail(cards) if c["max_range"] > 0),
-                    key=lambda c: (-c["max_range"], -c["total_atk"]))
-    ranged_taken = 0
-    for c in ranged:
-        if ranged_taken >= 2:
-            break
-        if take(c):
-            ranged_taken += 1
-    if ranged_taken < 2:
-        mv_attacks = sorted((c for c in avail(cards) if c["is_attack"]),
-                            key=lambda c: (-c["movement"], -c["total_atk"]))
-        for c in mv_attacks:
-            if ranged_taken >= 2:
+    for _name, quota, candidates in CATEGORIES:
+        filled = 0
+        for entry in candidates(avail()):
+            if filled >= quota or len(chosen) >= hand_size:
                 break
-            if take(c):
-                ranged_taken += 1
+            if take(entry):
+                filled += 1
 
-    # 3) Two setup cards: drone creators, then shield creators, then pilot buffs.
-    setup_pool = []
-    for pred in (is_drone_setup, is_shield_setup, is_pilot_buff):
-        setup_pool += [c for c in avail(cards) if pred(c) and c not in setup_pool]
-    setup_taken = 0
-    for c in setup_pool:
-        if setup_taken >= 2:
-            break
-        if take(c):
-            setup_taken += 1
-    # top up setup from any remaining pilot if short
-    if setup_taken < 2:
-        for c in sorted(avail(cards), key=lambda c: (not c["is_pilot"],)):
-            if setup_taken >= 2:
+    # Slots the deck could not fill in their own category go to the next-best
+    # card from another category, and to a random leftover if none of them
+    # match either.
+    while len(chosen) < hand_size:
+        rest = avail()
+        for _name, _quota, candidates in CATEGORIES:
+            pool = candidates(rest)
+            if pool and take(pool[0]):
                 break
-            if take(c):
-                setup_taken += 1
+        else:
+            take(rng.choice(rest))
 
-    # 4) One decent blocker (max block >= 2 preferred), else Dodge.
-    blockers = sorted(avail(cards), key=lambda c: (-c["max_block"], -c["total_block"]))
-    if blockers and blockers[0]["max_block"] >= 2:
-        take(blockers[0])
-    else:
-        chosen.append("Basic_Dodge")
-        seen.add("Basic_Dodge")
-
-    # Top up to 7 from the best remaining deck cards if any category underfilled.
-    if len(chosen) < 7:
-        rest = sorted(avail(cards),
-                      key=lambda c: -(c["total_atk"] + c["total_block"] + c["max_range"]))
-        for c in rest:
-            if len(chosen) >= 7:
-                break
-            take(c)
-
-    return chosen[:7]
+    return chosen
 
 
 def load_deck(path):
@@ -210,10 +224,14 @@ def main():
     deck_paths = sorted(glob.glob(os.path.join(DECKS_DIR, "deck_*.csv")))
     for path in deck_paths:
         base = os.path.basename(path)
-        if "terrain" in base:
+        if base.startswith(SKIP_DECK_PREFIXES):
             continue
         deck_keys = load_deck(path)
-        hand = pick_hand(deck_keys, db)
+        unknown = sorted({k for k in deck_keys if k not in db})
+        if unknown:
+            print(f"{base:32s} !! not defined in any card CSV: {', '.join(unknown)}")
+        # Seed per deck so re-running leaves the other hands byte-identical.
+        hand = pick_hand(deck_keys, db, random.Random(base))
         out = os.path.join(HANDS_DIR, base.replace(".csv", "_hand.csv"))
         with open(out, "w", newline="") as f:
             for k in hand:

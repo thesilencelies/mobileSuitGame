@@ -233,6 +233,7 @@ TSWLatexianTemp*
 !AllCardImages/*.png
 !RulesImages/*.png
 !pictures/*.png
+!pictures/weapons/*.png
 !terrain/*.png
 
 # the playtest app's downscaled art ships WITH the app -- a phone clones the repo
