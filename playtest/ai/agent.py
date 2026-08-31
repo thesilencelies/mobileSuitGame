@@ -980,6 +980,12 @@ class Agent:
                 self.stats["timeout"] = self.stats.get("timeout", 0) + 1
                 tiles = tiles[: len(values)]
                 break
+        if frame.seat != self.seat:
+            # System Override: "you choose which tile target frame moves to".
+            # The scorer just worked out where that frame would *like* to
+            # stand, and the whole point of the card is to put it somewhere
+            # else -- so the same numbers are read upside down.
+            values = [-v for v in values]
         # Movement is far less forgiving than card choice, so the policy is much
         # sharper here than the headline temperature suggests.
         index = S.softmax_pick(values, params.temperature * 0.35, self.rng)
@@ -1010,7 +1016,12 @@ class Agent:
                 score -= 0.5 * min(abs(snap.distance(tile, e) - ideal) for e in enemies)
             return -score
 
-        shortlist = sorted(tiles, key=lambda p: (key(p), p.y, p.x))[: self.move_candidates]
+        # A frame that is not ours is being moved *against* its own interest
+        # (System Override), so the shortlist is taken from the other end.
+        sign = 1 if frame.seat == self.seat else -1
+        shortlist = sorted(
+            tiles, key=lambda p: (sign * key(p), p.y, p.x)
+        )[: self.move_candidates]
         if frame.pos is not None and frame.pos in tiles and frame.pos not in shortlist:
             shortlist.append(frame.pos)
         return shortlist
@@ -1227,7 +1238,56 @@ class Agent:
             return Command(
                 "effect_choice", self.seat, dict(self._pick_victim(snap, options))
             )
+        # Parallel Action: a second hand, and which of the actions already face
+        # down to throw away for it.
+        if any("swap" in o for o in options):
+            return Command(
+                "effect_choice", self.seat, dict(self._pick_swap(snap, pending, options))
+            )
         return Command("effect_choice", self.seat, dict(options[0]))
+
+    def _pick_swap(
+        self,
+        snap: Snapshot,
+        pending: Mapping[str, Any],
+        options: Sequence[Mapping[str, Any]],
+    ) -> Mapping[str, Any]:
+        """Parallel Action, both halves: worst card out, best card in.
+
+        Rated one card at a time with the same function that rates a whole
+        turn's hand, which is crude -- it cannot see that the two remaining
+        actions want to be from the same weapon -- but it is the same yardstick
+        the planner uses, so the swap at least moves in the planner's direction.
+        """
+        frame = snap.frame(pending.get("frameId"))
+        prof = self.opponent_profile(snap)
+        health = frame.health if frame is not None else {z: 3 for z in ZONES}
+        rated: list[tuple[float, Mapping[str, Any]]] = []
+        for option in options:
+            card = self.card(str(option.get("key")))
+            if card is None:
+                continue
+            rated.append(
+                (S.score_hand([card], prof, self.params, health), option)
+            )
+        if not rated:
+            return options[0]
+        outgoing = any(o.get("swap") == "out" for o in options)
+        if outgoing:
+            worst_score, worst = min(rated, key=lambda pair: pair[0])
+            done = next((o for o in options if o.get("done")), None)
+            # Only spend the swap on something actually poor: a hand rated at
+            # or above what the planner already chose is not worth churning.
+            if done is not None and worst_score >= self._swap_floor(rated):
+                return done
+            return worst
+        return max(rated, key=lambda pair: pair[0])[1]
+
+    @staticmethod
+    def _swap_floor(rated: Sequence[tuple[float, Mapping[str, Any]]]) -> float:
+        """The middle of what is on offer -- swap the below-average half."""
+        scores = sorted(score for score, _ in rated)
+        return scores[len(scores) // 2]
 
     def _pick_tile(
         self, snap: Snapshot, options: Sequence[Mapping[str, Any]]
@@ -1279,6 +1339,13 @@ class Agent:
                 if target is None:
                     continue
                 score = 3.0 - 0.4 * target.total_remaining
+                if target.seat == self.seat:
+                    # Several cards offer "target frame" without saying whose
+                    # (Lockdown, Doom, System Override). Ours is never the
+                    # answer when an enemy is on the list; when the card is a
+                    # kindness (Battlefield Repairs, Encode) every option is
+                    # ours and this shifts them all alike.
+                    score -= 5.0
                 if target.id == focus_id:
                     score += 1.5
             if score > best_score:

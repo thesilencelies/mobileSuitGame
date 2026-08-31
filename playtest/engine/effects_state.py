@@ -116,6 +116,18 @@ GRAVITY_WELL = "gravitywell"
 PORTAL = "portal"
 DRONE = "drone"
 IMAGE = "image"
+#: Psychic Storm's weather, Rebound's mirror and Cage Fight's walls. The cage
+#: blocks movement the way a barricade does, which is why `GameState.occupied`
+#: names both.
+STORM = "storm"
+REBOUND = "rebound"
+CAGE = "cage"
+
+#: Token kinds that are *units* rather than scenery: they act on their own and
+#: so are what "every unit within 5" (Psychic Storm) means beside the frames.
+#: A structure an objective put on the board -- the Tower, a reactor -- and
+#: anything a frame can pick up and carry are not units.
+UNIT_KINDS = (DRONE,)
 
 
 def image_records(state: GameState) -> dict:
@@ -152,6 +164,17 @@ def spawn_token(
     )
     state.tokens[token.id] = token
     return token
+
+
+def is_unit(token: TokenState) -> bool:
+    """True for a token that acts on its own, rather than being scenery.
+
+    Drones, and the objective tokens that move under their own power (a
+    Riverside gang, a Car Park refugee). The Tower and the reactors are
+    buildings, and the Shiny Thing is luggage -- none of them is a "unit" that
+    a card sweeping an area is talking about.
+    """
+    return token.kind in UNIT_KINDS or token.movement > 0
 
 
 def tokens_of_kind(state: GameState, kind: str) -> list[TokenState]:

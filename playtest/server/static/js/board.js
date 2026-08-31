@@ -144,6 +144,9 @@ const TOKEN_STYLE = {
   egg: { css: '#e9d7a0', mark: 'E' },
   image: { css: '#b9a6ff', mark: '?' },
   drone: { css: '#8fe0a0', mark: 'D' },
+  cage: { css: '#8d8f96', mark: 'X' },
+  rebound: { css: '#7fd4ff', mark: 'M' },
+  storm: { css: '#c58cff', mark: 'W' },
 };
 
 const STATUS_PIPS = {

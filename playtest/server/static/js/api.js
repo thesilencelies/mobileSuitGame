@@ -153,6 +153,9 @@ const TOKEN_ART = {
   real: 'Real',
   image: 'Image',
   drone: 'Swarm',
+  cage: 'Cage',
+  rebound: 'Rebound',
+  storm: 'Storm',
 };
 
 function slug(name) {

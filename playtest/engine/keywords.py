@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from typing import Iterable, Mapping, Optional
 
-from .state import GameState, FrameState, discard_card, move_card
+from .state import GameState, FrameState, discard_card, move_card, record_movement
 from .types import Card, Pos, ZONES, Zone
 
 # --------------------------------------------------------------------------
@@ -215,6 +215,7 @@ def apply_knockback(
         pos = nxt
     if pos != target.pos:
         state.note(f"{target.id} is knocked back to ({pos.x},{pos.y})")
+        record_movement(state, target, target.pos, pos)
         target.pos = pos
 
 
@@ -275,6 +276,11 @@ def block_is_kept(state: GameState, defender: FrameState, block_card: Card,
     first block each turn is likewise kept.
     """
     if any(block_card.blocks[z] >= 2 for z in zones if z in block_card.blocks):
+        return True
+    from . import effects
+
+    if effects.blocks_are_kept(state, defender):
+        state.note(f"{defender.id} is showboating: the block is not discarded")
         return True
     if defender.spec.name == "Hector MkI" and not defender.turn_flags.get(
         "hector_block_used"

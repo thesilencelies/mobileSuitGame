@@ -280,8 +280,12 @@ but "where does this go", and confusing the two costs an action.
 
 Which colour a tile decision gets is the engine's answer, not a guess from the
 option shape: `pickKind` on the decision is `"place"` (orange) or `"move"`
-(green). A shove, a drone's move, a reflex step and a Teleport all send
-something that is already on the board somewhere, so they are green.
+(green). A shove, a drone's move and a reflex step are *walks* — the thing
+covers the ground, each tile carries what it costs — so they are green. The
+cards that pick a tile up and put it down are orange even though what they move
+is already on the board: Teleport, Displace and Suplex ignore walls, cost
+nothing and have no route, so a green tile promising a movement cost would be
+telling you something untrue.
 
 The engine asks for one tile at a time, which would make Barricade three
 separate confirmations. So each decision carries `pickMin`/`pickMax` — how many
@@ -535,6 +539,50 @@ than always closing.
 Pilot cards are not like this — each one's text is its own — so an unlisted
 pilot card is deferred on purpose and
 `test_all_pilot_and_drone_text_is_implemented_or_flagged` says so.
+
+#### Readings the cards did not settle themselves
+
+Some pilot text leaves a real question open. Each of these is a decision the
+engine had to make, not something the card says:
+
+* **Psychic Storm** hits "every unit within 5" — read as everything that acts
+  on its own: frames, drones, and the objective tokens that move (a Riverside
+  gang, a Car Park refugee). The Tower and the reactors are buildings and the
+  Shiny Thing is luggage, so the weather leaves them alone. It hits both sides.
+* **Doom** collects from a frame that has "not moved more than 3 spaces" at the
+  end of the next turn, and *any* displacement counts — its own movement, a
+  shove, a knockback. The card wants the frame to leave; who did the pushing is
+  not the point. `state.record_movement` is the one place that counts.
+* **Bind** is stored against the Bruiser, not its victim: "as long as that
+  frame is adjacent" is the grappler's job to maintain, so the hold lifts by
+  itself when the Bruiser dies, is moved off, or the card leaves play.
+* **Suplex** throws to "the other side of this frame", which is read by sign:
+  a destination counts when it is not back in the direction the target came
+  from. Straight sideways is allowed; the tile it was thrown from is not.
+* **Sensory Overload** and **System Override** print no range at all, so they
+  have none — reading a missing "within N" as the usual 3 would be inventing a
+  restriction. System Override is spent on the next movement decision that
+  frame is *offered*: an action with no movement in it has no tile to choose.
+* **Showboating** filters the attacker's target list rather than punishing a
+  choice afterwards — including tokens, since shooting a reactor instead would
+  be exactly the dodge the card forbids. If the showboater cannot legally be
+  targeted (Utter darkness), nothing is forced.
+* **Parallel Action** fires between cards, from `followup_decision`: that is
+  the one moment "would take an action" is well defined and the swap can still
+  change what happens next. Being attacked only sets a flag — an attack cannot
+  stop half way to ask a question — and the flag is read at the same seam.
+  Nothing fires on the turn the card is played: it is printed "Next turn:" for
+  the same reason Hyper and Fog of war are, and asked the same way (the card is
+  only in the `aside` pile from the turn after it resolved), because otherwise
+  the opponent takes the card off you by swinging once — a redraw with nothing
+  left to change is no card at all. The extra hand is discarded when the
+  swapping stops; nothing on the card says it is kept.
+* **Cage Fight** does not ask where the box goes. Both fighters have to end up
+  inside the 3x3 the walls enclose and they are at most two apart, so the
+  centre is their midpoint and the only question is who is locked in. The walls
+  are ordinary impassable tokens (`GameState.occupied` names `cage` beside
+  `barricade`), and `sync_cages` takes them down from the advance loop rather
+  than from each of the ways a frame can leave a tile.
 
 ### Ephemeral Images
 

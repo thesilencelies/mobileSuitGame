@@ -686,8 +686,15 @@ function effectChoice(host, ctx, pending) {
   if (ctx.effectTileOptions(pending).length) {
     return effectTiles(host, ctx, pending);
   }
-  if (every((o) => 'uid' in o && 'key' in o)) {
+  if (every((o) => 'uid' in o && 'key' in o) && !options.some((o) => 'swap' in o)) {
     return blockChoices(host, ctx, pending, 'effect_choice');
+  }
+  // Cards to pick between, with a way out: Parallel Action's two questions and
+  // Combo strike's "add one of these, or don't". These used to fall through to
+  // the raw-payload list at the bottom, which showed a uid and nothing else.
+  if (options.some((o) => 'uid' in o && 'key' in o)
+      && every((o) => ('uid' in o && 'key' in o) || o.done || o.skip)) {
+    return effectCards(host, ctx, pending);
   }
   if (every((o) => ('frame' in o && !('x' in o)) || 'token' in o)) {
     return effectTargets(host, ctx, pending);
@@ -759,6 +766,43 @@ function mulligan(host, ctx, pending) {
     go: 'keep',
     onTap: () => ctx.send('effect_choice', { mulligan: false }),
   });
+}
+
+/** "Which of these cards" -- with the option of none of them.
+ *
+ *  Parallel Action swapping an action out and a new one in, Combo strike
+ *  adding a second attack. Each row is the card itself, because "swap out
+ *  c17" is not a question anybody can answer.
+ */
+function effectCards(host, ctx, pending) {
+  const el = list(host);
+  const swapping = pending.options.some((o) => o.swap);
+  for (const option of pending.options) {
+    if (option.done || option.skip) continue;
+    const info = C.card(option.key);
+    const bits = [];
+    if (info && info.initiative && info.initiative.length) {
+      bits.push(`initiative ${info.initiative.join('/')}`);
+    }
+    const line = C.summaryLine(option.key);
+    if (line) bits.push(line);
+    optionRow(el, {
+      thumbKey: option.key,
+      main: C.displayName(option.key),
+      sub: bits.join(' · '),
+      go: option.swap === 'out' ? 'drop' : (swapping ? 'play' : 'add'),
+      onTap: () => ctx.send('effect_choice', { ...option }),
+    });
+  }
+  const out = pending.options.find((o) => o.done || o.skip);
+  if (out) {
+    optionRow(el, {
+      main: swapping ? 'Keep what is already down' : 'Leave it',
+      sub: 'Change nothing',
+      go: 'skip',
+      onTap: () => ctx.send('effect_choice', { ...out }),
+    });
+  }
 }
 
 /** "Which frame" -- the first half of a shove, and Encode's ally. */

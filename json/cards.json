@@ -974,6 +974,58 @@
       "4": "Factionless"
     }
   },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Mace_Crush.png":
+  {
+    "name": "Mace Crush",
+    "description": "",
+    "gm_notes": "4init\n-3mv\natk:3H impact\nBlk:1L",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Mace_Beat.png":
+  {
+    "name": "Mace Beat",
+    "description": "Knockback X: move the target frame X steps in any direction away from the source (it cannot move up elevation)",
+    "gm_notes": "7init\n0mv\natk:1M impact\nBlk:1L\nKnockback 2 (Move the target frame 2 steps in any direction away from the source)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Mace_Break.png":
+  {
+    "name": "Mace Break",
+    "description": "",
+    "gm_notes": "6init\n0mv\natk:1H,1M impact\nBlk:1L",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Mace_Batter.png":
+  {
+    "name": "Mace Batter",
+    "description": "Guard Break: this attack consumes one block per zone; zones that are not blocked still deal damage",
+    "gm_notes": "6init\n-1mv\natk:2H,2M impact\nBlk:1L\nGuard Break (This attack consumes one block per zone)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Weapon",
+      "4": "Factionless"
+    }
+  },
   "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Basic_Punch.png":
   {
     "name": "Basic Punch",
@@ -1185,8 +1237,34 @@
   "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Bruiser_Lockdown.png":
   {
     "name": "Bruiser Lockdown",
-    "description": "Slowed: while slowed a frame gets -2 mv\nCommitted: this attack is discarded after it resolves",
-    "gm_notes": "5init\n-1mv\nBlk:1H\nTarget frame within 3 gets 3 Slowed (-2 mv)\nCommitted (this attack is discarded after resolving)",
+    "description": "Slowed: while slowed a frame gets -2 mv\nStunned: while stunned a frame gets -2 init\nCommitted: this attack is discarded after it resolves",
+    "gm_notes": "5init\n-1mv\nBlk:1H\nTarget frame within 3 gets 3 Slowed (-2 mv) and 3 Stunned (-2 init)\nCommitted (this attack is discarded after resolving)",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Pilot",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Bruiser_Bind.png":
+  {
+    "name": "Bruiser Bind",
+    "description": "",
+    "gm_notes": "3init\n1mv\nBlk:1H\npersist:permanent\nTarget an adjacent frame: as long as that frame is adjacent it cannot move",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Pilot",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Bruiser_Suplex.png":
+  {
+    "name": "Bruiser Suplex",
+    "description": "Stunned: while stunned a frame gets -2 init\nDazed: while dazed a frame gets -2 cards",
+    "gm_notes": "4init\n-1mv\nBlk:1H\nMove Target frame within 3 to a position within 3 the other side of this frame. That target gets 2 Stunned and 2 Dazed",
     "tags":
     {
       "1": "Card",
@@ -1212,7 +1290,7 @@
   {
     "name": "Mystic Teleport",
     "description": "",
-    "gm_notes": "1init\n-4mv\nBlk:1H\npersist:1 turn\nNext turn: Reposition this frame anywhere on the map at initiative 4",
+    "gm_notes": "1init\n-4mv\nBlk:1H\nReposition this frame anywhere on the map",
     "tags":
     {
       "1": "Card",
@@ -1239,6 +1317,32 @@
     "name": "Mystic Encode the future",
     "description": "",
     "gm_notes": "1init\n-3mv\nBlk:1H\npersist:1 turn\nNext turn: one allied frame (includes this) chooses cards from their deck",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Pilot",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Mystic_Psychic%20Storm.png":
+  {
+    "name": "Mystic Psychic Storm",
+    "description": "",
+    "gm_notes": "1init\n-2mv\nBlk:1H\nCreate storm token within 5. At the end of each turn, every unit within 5 of that storm token takes energy high",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Pilot",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Mystic_Doom.png":
+  {
+    "name": "Mystic Doom",
+    "description": "Dazed: while dazed a frame gets -2 cards",
+    "gm_notes": "1init\n-2mv\nBlk:1H\npersist:1 turn\nTarget a frame within 5: they get Dazed (-2 card) and at the end of next turn, if they have not moved more than 3 spaces they take 3 energy high",
     "tags":
     {
       "1": "Card",
@@ -1299,6 +1403,32 @@
       "4": "Factionless"
     }
   },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Tactician_Displace.png":
+  {
+    "name": "Tactician Displace",
+    "description": "",
+    "gm_notes": "1init\n-2mv\nBlk:1H\nMove another target frame within 8 to a new position within 8",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Pilot",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Tactician_Ennervate.png":
+  {
+    "name": "Tactician Ennervate",
+    "description": "Stimmed: while stimmed a frame gets +2 init\nCommitted: this attack is discarded after it resolves",
+    "gm_notes": "8init\n0mv\nBlk:1H\nAllied frames within 8 get 3 Stimmed (+2 init)\nCommitted",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Pilot",
+      "4": "Factionless"
+    }
+  },
   "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Wunderkid_Hyper.png":
   {
     "name": "Wunderkid Hyper",
@@ -1343,6 +1473,32 @@
     "name": "Wunderkid Ace Reflexes",
     "description": "",
     "gm_notes": "8init\n1mv\nBlk:1H\nWhenever this frame is attacked this turn, move 2 after the attack",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Pilot",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Wunderkid_Parallel%20Action.png":
+  {
+    "name": "Wunderkid Parallel Action",
+    "description": "",
+    "gm_notes": "3init\n-1mv\nBlk:1H\npersist:1 turn\nNext turn: The next time this frame would take an action or is attacked, draw another hand and swap any face down actions you like with cards from that hand.",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Pilot",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Wunderkid_Showboating.png":
+  {
+    "name": "Wunderkid Showboating",
+    "description": "",
+    "gm_notes": "7init\n0mv\nBlk:1H\nFor the rest of this turn, any frame that is able to must attack this frame and this frame's blocks are not discarded.",
     "tags":
     {
       "1": "Card",
@@ -1403,6 +1559,32 @@
       "4": "Factionless"
     }
   },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Engineer_System%20Override.png":
+  {
+    "name": "Engineer System Override",
+    "description": "",
+    "gm_notes": "4init\n-1mv\nBlk:1H\npersist:1 turn\nYou choose which tile target frame moves to on their next action",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Pilot",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Engineer_Sensory%20Overload.png":
+  {
+    "name": "Engineer Sensory Overload",
+    "description": "Dazed: while dazed a frame gets -2 cards\nStunned: while stunned a frame gets -2 init",
+    "gm_notes": "3init\n-1mv\nBlk:1H\nTarget frame gets 2 Dazed (-2 card) 3 Stunned (-2 init) and their ranged attacks this turn have a range of 2",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Pilot",
+      "4": "Factionless"
+    }
+  },
   "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Specialist_Combo%20strike.png":
   {
     "name": "Specialist Combo strike",
@@ -1433,7 +1615,7 @@
   {
     "name": "Specialist Master duelist",
     "description": "Revealed: while revealed a frame's chosen actions are turned face up",
-    "gm_notes": "3init\n-2mv\nBlk:1H\npersist:3 turns\nFor the next 3 turns: Enemies targeted by melee attacks get Revealed and you choose which card blocks",
+    "gm_notes": "3init\n-2mv\nBlk:1H\npersist:3 turns\nFor the next 3 turns: Enemies targeted by this frame's melee attacks get Revealed and you choose which card blocks",
     "tags":
     {
       "1": "Card",
@@ -1447,6 +1629,32 @@
     "name": "Specialist Practiced Technique",
     "description": "Lucid: while lucid a frame gets +2 cards",
     "gm_notes": "5init\n-1mv\nBlk:1H\npersist:1 turn\nLucid (+2 cards)\nNext turn: attacks deal 1 extra damage for each other attack played from the same weapon",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Pilot",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Specialist_Rebound.png":
+  {
+    "name": "Specialist Rebound",
+    "description": "",
+    "gm_notes": "3init\n-2mv\nBlk:1H\npersist:1 turn\nCreate a Rebound token within 5. If this frame can see the token, its treated as if it can see every enemy within 4 of that token",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Pilot",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Specialist_Cage%20Fight.png":
+  {
+    "name": "Specialist Cage Fight",
+    "description": "",
+    "gm_notes": "3init\n-2mv\nBlk:1H\npersist:permanent\nSurround this frame and an enemy within 2 with a 5x5 box of impassible terrain, pushing units aside. This box is removed if either frame leaves it or is destroyed.",
     "tags":
     {
       "1": "Card",

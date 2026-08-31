@@ -35,6 +35,7 @@ from .state import (
     draw,
     destroy_frame,
     move_card,
+    record_movement,
     tick_statuses,
     victory_points,
 )
@@ -779,7 +780,9 @@ def _movement_decision(state: GameState, frame: FrameState, card: Card) -> bool:
         return False
     state.pending = PendingDecision(
         kind="move",
-        seat=frame.seat,
+        # Normally the frame's own seat -- but System Override hands the next
+        # move of a frame to whoever played it.
+        seat=effects.move_chooser(state, frame),
         # Named after the card, because a card with several steps asks several
         # questions and the corner panel says "Gravity Well" throughout all of
         # them. Without the name here, the movement step of a card that also
@@ -910,6 +913,7 @@ def cleanup_phase(state: GameState) -> None:
                 frame.deathstrike_until = None
                 destroy_frame(state, frame)
     _terrain_hazards(state)
+    effects.end_of_turn(state)
     objectivelib.end_of_turn(state)
     state.rotate_priority()
 
@@ -959,6 +963,7 @@ def advance(state: GameState) -> GameState:
         # Ephemeral Images: the fakes follow the frame wherever it was moved
         # from, and the trick ends when there is nothing left to hide behind.
         effects.sync_images(state)
+        effects.sync_cages(state)
         if _team_wiped(state):
             state.phase = "finished"
             state.note("one side has no frames left")
@@ -1208,6 +1213,7 @@ def _handle_move(state: GameState, pending: PendingDecision, cmd: Command) -> No
     if dest != old:
         frame.pos = dest
         frame.moved_this_turn = True
+        record_movement(state, frame, old, dest)
         state.note(f"{frame.id} moves to ({dest.x},{dest.y})")
     objectivelib.on_move(state, frame, old)
     effects.after_move(state, frame, old, dest)

@@ -1443,6 +1443,7 @@ function onTapFrame(frame) {
 // English on their own need a word here.
 const TOKEN_WORDS = {
   shiny: 'shiny thing', gravitywell: 'gravity well', reactor: 'power reactor',
+  rebound: 'rebound mirror', storm: 'psychic storm', cage: 'cage wall',
 };
 
 function tokenWord(kind) {

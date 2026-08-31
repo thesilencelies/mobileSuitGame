@@ -42,7 +42,12 @@ from .state import (
     TokenState,
     add_shield,
     apply_status,
+    damage_token,
+    deal_damage,
     discard_card,
+    draw,
+    move_card,
+    record_movement,
     repair,
 )
 from .types import (
@@ -125,31 +130,43 @@ RELENTLESS = "Bruiser_Relentless Assault"
 INTIMIDATE = "Bruiser_Intimidate"
 NET_STRENGTH = "Bruiser_Net Strength"
 LOCKDOWN = "Bruiser_Lockdown"
+BIND = "Bruiser_Bind"
+SUPLEX = "Bruiser_Suplex"
 
 EPHEMERAL = "Mystic_Ephemeral Images"
 TELEPORT = "Mystic_Teleport"
 UTTER_DARKNESS = "Mystic_Utter darkness"
 ENCODE = "Mystic_Encode the future"
+PSYCHIC_STORM = "Mystic_Psychic Storm"
+DOOM = "Mystic_Doom"
 
 BROADCAST = "Tactician_Tactical broadcast"
 FOG_OF_WAR = "Tactician_Fog of war"
 SET_THE_TRAP = "Tactician_Set the trap"
 OUTFOX = "Tactician_Outfox"
+DISPLACE = "Tactician_Displace"
+ENNERVATE = "Tactician_Ennervate"
 
 HYPER = "Wunderkid_Hyper"
 NET_SPEED = "Wunderkid_Net Speed"
 PORTAL = "Wunderkid_Portal"
 ACE_REFLEXES = "Wunderkid_Ace Reflexes"
+PARALLEL_ACTION = "Wunderkid_Parallel Action"
+SHOWBOATING = "Wunderkid_Showboating"
 
 REPAIRS = "Engineer_Battlefield Repairs"
 BARRICADE = "Engineer_Barricade"
 GRAVITY_WELL = "Engineer_Gravity Well"
 PRECISION_TUNING = "Engineer_Precision Tuning"
+SYSTEM_OVERRIDE = "Engineer_System Override"
+SENSORY_OVERLOAD = "Engineer_Sensory Overload"
 
 COMBO_STRIKE = "Specialist_Combo strike"
 SNIPERS_AIM = "Specialist_Snipers aim"
 MASTER_DUELIST = "Specialist_Master duelist"
 PRACTICED = "Specialist_Practiced Technique"
+REBOUND = "Specialist_Rebound"
+CAGE_FIGHT = "Specialist_Cage Fight"
 
 #: Gravity Well's radius and per-step cost (from the card text).
 GRAVITY_RADIUS = 5
@@ -158,6 +175,28 @@ GRAVITY_PENALTY = 1
 #: Barricade tokens per card, and Utter darkness' radius.
 BARRICADE_COUNT = 3
 DARKNESS_RADIUS = 5
+
+#: Psychic Storm: how far the weather reaches and what it does to everything
+#: standing in it, once per turn.
+STORM_RADIUS = 5
+STORM_DAMAGE = 1
+STORM_ZONE = "High"
+
+#: Doom: how far a marked frame has to run to shake it off, and what it takes
+#: at the end of the next turn if it does not.
+DOOM_ESCAPE = 3
+DOOM_DAMAGE = 3
+DOOM_ZONE = "High"
+
+#: Rebound: how far the mirror sees for the frame that put it down.
+REBOUND_RADIUS = 4
+
+#: Cage Fight: the box is 5x5, so its walls are the ring at exactly this
+#: distance from the centre and both fighters stand inside the 3x3 it encloses.
+CAGE_RADIUS = 2
+
+#: Sensory Overload: what a jammed frame's ranged attacks can still reach.
+OVERLOAD_RANGE_CAP = 2
 
 #: Cards whose attack is made by a summoned token, not by the frame that
 #: played them (rules.tex "Drones": the drone takes the action on the card).
@@ -400,23 +439,56 @@ def _effect_call_of_nature(state: GameState, frame: FrameState, uid: str):
 
 
 def _shove_victims(
-    state: GameState, frame: FrameState, reach: int, steps: int, *, side: str
+    state: GameState, frame: FrameState, reach: int, steps: int, *,
+    side: str, origin: Optional[Pos] = None,
 ) -> list[FrameState]:
     """Frames "move a frame within N up to M" could actually move."""
     if state.board is None or frame.pos is None:
         return []
     return [
         other for other in fx.frames_within(state, frame, reach, side=side)
-        if other.pos is not None and _shove_tiles(state, other, steps)
+        if other.pos is not None
+        and _shove_tiles(state, other, steps, origin=origin)
     ]
 
 
 def _shove_tiles(
-    state: GameState, target: FrameState, steps: int
+    state: GameState,
+    target: FrameState,
+    steps: int,
+    *,
+    origin: Optional[Pos] = None,
+    away_from: Optional[Pos] = None,
 ) -> list[dict[str, Any]]:
-    """Where a shoved frame can end up, with the steps it costs to get there."""
+    """Where a moved frame can end up, with the steps it costs to get there.
+
+    Two kinds of card move a frame that is not their own. Most of them *walk*
+    it -- "move an allied frame within 5 2 space" -- so the destination is
+    whatever the frame could reach on its own legs, and `cost` is that walk.
+    `origin` switches to the other kind: Displace and Suplex *place* the frame
+    rather than walking it, anywhere free within `steps` of the tile named --
+    which is the caster's, not the target's -- so the wall between them is no
+    obstacle and the cost is meaningless (a placement is not a walk, and the
+    board draws these as an orange placement rather than a green move).
+
+    `away_from` keeps only the tiles on the far side of `origin` from it: the
+    "other side of this frame" a Suplex throws its target to.
+    """
     if state.board is None or target.pos is None:
         return []
+    if origin is not None:
+        tiles = fx.free_tiles(state, origin, steps)
+        if away_from is not None:
+            # The far side, by the sign of the displacement: a tile counts as
+            # "the other side of" the thrower when it is not in the direction
+            # the target came from. Zero on an axis is neither side, so a
+            # sideways throw is allowed; the same direction is not.
+            back = (away_from.x - origin.x, away_from.y - origin.y)
+            tiles = [
+                p for p in tiles
+                if (p.x - origin.x) * back[0] + (p.y - origin.y) * back[1] <= 0
+            ]
+        return [{"x": p.x, "y": p.y} for p in tiles if p != target.pos]
     reachable = state.board.reachable(
         target.pos,
         steps,
@@ -439,6 +511,8 @@ def _shove_step(
     steps: int,
     side: str,
     after: str,
+    place: bool = False,
+    away: bool = False,
 ) -> Optional[PendingDecision]:
     """"Move a frame within N up to M", asked as two plain questions.
 
@@ -447,13 +521,18 @@ def _shove_step(
     see any of it on the map. Split, each half is something the board can show:
     the frames you may shove, then that frame's own reachable tiles in the same
     green a move uses.
+
+    `place` means the destinations are measured from the caster rather than
+    walked by the target (Displace, Suplex); `away` additionally keeps only the
+    far side of the caster (Suplex's throw).
     """
-    victims = _shove_victims(state, frame, reach, steps, side=side)
+    origin = frame.pos if place else None
+    victims = _shove_victims(state, frame, reach, steps, side=side, origin=origin)
     if not victims:
         return None
     if len(victims) == 1:
-        return _shove_destination(state, frame, victims[0],
-                                  label=label, steps=steps, after=after)
+        return _shove_destination(state, frame, victims[0], label=label,
+                                  steps=steps, after=after, place=place, away=away)
     return _ask(
         state,
         "shove_frame",
@@ -461,16 +540,21 @@ def _shove_step(
         frame_id=frame.id,
         prompt=f"{label}: which frame within {reach}?",
         options=_frame_options(victims),
-        ctx={"steps": steps, "label": label, "after": after},
+        ctx={"steps": steps, "label": label, "after": after,
+             "place": place, "away": away},
         pick_kind="frame",
     )
 
 
 def _shove_destination(
     state: GameState, frame: FrameState, target: FrameState, *,
-    label: str, steps: int, after: str,
+    label: str, steps: int, after: str, place: bool = False, away: bool = False,
 ) -> Optional[PendingDecision]:
-    tiles = _shove_tiles(state, target, steps)
+    tiles = _shove_tiles(
+        state, target, steps,
+        origin=frame.pos if place else None,
+        away_from=target.pos if (place and away) else None,
+    )
     if not tiles:
         return None
     return _ask(
@@ -478,10 +562,13 @@ def _shove_destination(
         "shove_to",
         seat=frame.seat,
         frame_id=frame.id,
-        prompt=f"{label}: move {target.id} up to {steps}",
+        prompt=(
+            f"{label}: put {target.id} within {steps}" if place
+            else f"{label}: move {target.id} up to {steps}"
+        ),
         options=tiles,
         ctx={"target": target.id, "after": after},
-        pick_kind="move",
+        pick_kind="place" if place else "move",
     )
 
 
@@ -496,6 +583,8 @@ def _choice_shove_frame(
         label=str(ctx.get("label", "Move")),
         steps=int(ctx.get("steps", 2)),
         after=str(ctx.get("after", "")),
+        place=bool(ctx.get("place")),
+        away=bool(ctx.get("away")),
     )
     if nxt is not None:
         state.pending = nxt
@@ -511,6 +600,11 @@ def _choice_shove_to(
     if ctx.get("after") == "reveal_nearby":
         for enemy in fx.frames_within(state, target, 3, side="enemy"):
             _apply_statuses(state, enemy, [("revealed", 1)])
+    elif ctx.get("after") == "suplex":
+        # "That target gets 2 stunned and 2 dazed" -- after the throw, so a
+        # frame thrown onto the rails takes the fall and the jolt both.
+        _apply_statuses(state, target, _parse_statuses(
+            state.catalogue[SUPLEX].text))
 
 
 def _move_frame(state: GameState, target: FrameState, pos: Pos) -> None:
@@ -528,6 +622,7 @@ def _move_frame(state: GameState, target: FrameState, pos: Pos) -> None:
         return
     target.pos = pos
     target.moved_this_turn = True
+    record_movement(state, target, old, pos)
     objectivelib.on_move(state, target, old)
     state.note(f"{target.id} is moved to ({pos.x},{pos.y})")
     _resolve._beat(state, "move")
@@ -626,23 +721,47 @@ def _effect_net_strength(state: GameState, frame: FrameState, uid: str):
 
 def _effect_target_status(state: GameState, frame: FrameState, uid: str):
     """"Target frame within N gets <statuses>" -- Lockdown and Outfox."""
+    return _target_effect_step(state, frame, uid)
+
+
+def _target_effect_step(
+    state: GameState, frame: FrameState, uid: str, *, reach: Optional[int] = None
+):
+    """One frame picked, then whatever the card does to it.
+
+    `reach` overrides the "within N" the text prints. Two cards print none at
+    all (System Override, Sensory Overload), and reading a missing range as
+    the default three would be inventing a restriction the card does not have.
+    """
     card = state.card(uid)
-    reach = _reach_from_text(card.text, 3)
+    if reach is None:
+        reach = _reach_from_text(card.text, 3)
     targets = fx.frames_within(state, frame, reach, side="any")
     if not targets:
         return None
     if len(targets) == 1:
-        _apply_statuses(state, targets[0], _parse_statuses(card.text))
+        _apply_target_effect(state, targets[0], card)
         return None
+    within = f" within {reach}" if reach < 10 ** 6 else ""
     return _ask(
         state,
         "target_status",
         seat=frame.seat,
         frame_id=frame.id,
-        prompt=f"{card.name}: choose a frame within {reach}",
+        prompt=f"{card.name}: choose a frame{within}",
         options=_frame_options(targets),
         ctx={"uid": uid},
+        pick_kind="frame",
     )
+
+
+def _apply_target_effect(
+    state: GameState, target: FrameState, card: Card
+) -> None:
+    """The statuses the card prints, plus anything else it does to one frame."""
+    _apply_statuses(state, target, _parse_statuses(card.text))
+    if card.key == SENSORY_OVERLOAD:
+        _range_cap(state, target, OVERLOAD_RANGE_CAP)
 
 
 def _choice_target_status(
@@ -652,7 +771,81 @@ def _choice_target_status(
     if target is None:
         return
     card = state.catalogue[state.cards[str(ctx["uid"])].key]
-    _apply_statuses(state, target, _parse_statuses(card.text))
+    _apply_target_effect(state, target, card)
+
+
+def _effect_bind(state: GameState, frame: FrameState, uid: str):
+    """"Target an adjacent frame: as long as that frame is adjacent it cannot
+    move."
+
+    A grapple, and it is the *grappler* that has to keep hold: the lock is
+    stored against this frame and asked about at movement time
+    (`is_bound`), so it lifts the moment the Bruiser dies, is moved away, or
+    the card leaves play -- rather than leaving a flag on the victim that
+    something has to remember to clear.
+    """
+    victims = fx.frames_within(state, frame, 1, side="any")
+    if not victims:
+        state.note(f"{frame.id} grabs at nothing -- no frame is adjacent")
+        return None
+    if len(victims) == 1:
+        _bind(state, frame, victims[0])
+        return None
+    return _ask(
+        state,
+        "bind",
+        seat=frame.seat,
+        frame_id=frame.id,
+        prompt="Bind: which adjacent frame?",
+        options=_frame_options(victims),
+        pick_kind="frame",
+    )
+
+
+def _bind(state: GameState, frame: FrameState, target: FrameState) -> None:
+    fx.slot(state, "bind")[frame.id] = target.id
+    state.note(f"{frame.id} binds {target.id}: it cannot move while held")
+
+
+def _choice_bind(
+    state: GameState, frame: FrameState, choice: Mapping, ctx: Mapping
+) -> None:
+    target = state.frames.get(str(choice.get("frame")))
+    if target is not None:
+        _bind(state, frame, target)
+
+
+def is_bound(state: GameState, frame: FrameState) -> bool:
+    """True while a living Bruiser is holding this frame in place."""
+    if frame.pos is None:
+        return False
+    for holder_id, held_id in fx.slot(state, "bind").items():
+        if held_id != frame.id:
+            continue
+        holder = state.frames.get(holder_id)
+        if holder is None or not holder.alive or holder.pos is None:
+            continue
+        if not fx.card_active(state, holder, BIND):
+            continue
+        gap = fx.distance(state, holder.pos, frame.pos)
+        if gap is not None and gap <= 1:
+            return True
+    return False
+
+
+def _effect_suplex(state: GameState, frame: FrameState, uid: str):
+    """"Move Target frame within 3 to a position within 3 the other side of
+    this frame. That target gets 2 stunned and 2 dazed."
+
+    The throw goes *through* the thrower, so the destination is measured from
+    this frame and only the far side of it counts -- see `_shove_tiles`.
+    """
+    card = state.card(uid)
+    reach = _reach_from_text(card.text, 3)
+    return _shove_step(
+        state, frame, label=card.name, reach=reach, steps=reach,
+        side="any", after="suplex", place=True, away=True,
+    )
 
 
 # --------------------------------------------------------------------------
@@ -661,10 +854,27 @@ def _choice_target_status(
 
 
 def _effect_teleport(state: GameState, frame: FrameState, uid: str):
-    state.note(
-        f"{frame.id} charges a jump: next turn it repositions at initiative 4"
+    """"Reposition this frame anywhere on the map."
+
+    It used to read "next turn ... at initiative 4", which made it a follow-up
+    the driver had to offer between cards. It is now an ordinary effect step:
+    the card resolves, the frame goes wherever it likes.
+    """
+    options = [
+        {"x": p.x, "y": p.y}
+        for p in fx.free_tiles(state, frame.pos, 10 ** 6, include_origin=True)
+    ]
+    if not options:
+        return None
+    return _ask(
+        state,
+        "reposition",
+        seat=frame.seat,
+        frame_id=frame.id,
+        prompt=f"Teleport: reposition {frame.id} anywhere on the map",
+        options=options,
+        pick_kind="place",
     )
-    return None
 
 
 def _effect_utter_darkness(state: GameState, frame: FrameState, uid: str):
@@ -710,6 +920,115 @@ def _choice_encode(
         _arm_encode(state, target)
 
 
+def _effect_psychic_storm(state: GameState, frame: FrameState, uid: str):
+    """"Create storm token within 5. At the end of each turn, every unit
+    within 5 of that storm token takes 1 energy High."
+
+    The storm outlives the card: Persistence is 0, but what the card makes is
+    a token, and nothing on it says the weather clears. It hurts both sides --
+    it says "every unit", and a storm that politely stepped around its own
+    caster's frames would be a different card.
+    """
+    reach = _reach_from_text(state.card(uid).text, STORM_RADIUS)
+    tiles = fx.free_tiles(state, frame.pos, reach)
+    if not tiles:
+        return None
+    return _ask(
+        state,
+        "psychic_storm",
+        seat=frame.seat,
+        frame_id=frame.id,
+        prompt=f"Psychic Storm: where does it break (within {reach})?",
+        options=[{"x": p.x, "y": p.y} for p in tiles],
+        pick_kind="place",
+    )
+
+
+def _choice_psychic_storm(
+    state: GameState, frame: FrameState, choice: Mapping, ctx: Mapping
+) -> None:
+    pos = Pos(int(choice["x"]), int(choice["y"]))
+    fx.spawn_token(state, fx.STORM, pos, owner=frame.seat)
+    state.note(f"a psychic storm breaks over ({pos.x},{pos.y})")
+
+
+def _storm_step(state: GameState) -> None:
+    """Every unit standing in a storm takes its damage, once per turn."""
+    for storm in fx.tokens_of_kind(state, fx.STORM):
+        for target in state.frames.values():
+            if not target.alive or target.pos is None:
+                continue
+            gap = fx.distance(state, storm.pos, target.pos)
+            if gap is not None and gap <= STORM_RADIUS:
+                state.note(f"{target.id} is caught in the storm")
+                deal_damage(state, target, STORM_ZONE, STORM_DAMAGE)
+        for token in list(state.tokens.values()):
+            if not token.alive or token.pos is None or not fx.is_unit(token):
+                continue
+            gap = fx.distance(state, storm.pos, token.pos)
+            if gap is not None and gap <= STORM_RADIUS:
+                damage_token(state, token, STORM_DAMAGE)
+
+
+def _effect_doom(state: GameState, frame: FrameState, uid: str):
+    """"Target a frame within 5: they get Dazed, and at the end of next turn,
+    if they have not moved more than 3 spaces they take 3 energy High."
+
+    "Next turn" is the turn after this one, and the count is that turn's
+    movement -- so the daze lands now and the frame has a whole turn to run.
+    """
+    card = state.card(uid)
+    reach = _reach_from_text(card.text, 5)
+    targets = fx.frames_within(state, frame, reach, side="any")
+    if not targets:
+        return None
+    if len(targets) == 1:
+        _doom(state, targets[0], card)
+        return None
+    return _ask(
+        state,
+        "doom",
+        seat=frame.seat,
+        frame_id=frame.id,
+        prompt=f"Doom: which frame within {reach}?",
+        options=_frame_options(targets),
+        pick_kind="frame",
+    )
+
+
+def _doom(state: GameState, target: FrameState, card: Card) -> None:
+    _apply_statuses(state, target, _parse_statuses(card.text))
+    fx.slot(state, "doom")[target.id] = state.turn + 1
+    state.note(
+        f"{target.id} is doomed: it must move more than {DOOM_ESCAPE} "
+        f"spaces next turn or take {DOOM_DAMAGE}"
+    )
+
+
+def _choice_doom(
+    state: GameState, frame: FrameState, choice: Mapping, ctx: Mapping
+) -> None:
+    target = state.frames.get(str(choice.get("frame")))
+    if target is not None:
+        _doom(state, target, state.catalogue[DOOM])
+
+
+def _doom_step(state: GameState) -> None:
+    """End of turn: collect from anything the doom caught standing still."""
+    marked = fx.slot(state, "doom")
+    for frame_id in [k for k, turn in marked.items() if turn == state.turn]:
+        marked.pop(frame_id, None)
+        target = state.frames.get(frame_id)
+        if target is None or not target.alive:
+            continue
+        moved = int(target.turn_flags.get("moved_distance", 0))
+        if moved > DOOM_ESCAPE:
+            state.note(f"{target.id} outruns its doom ({moved} spaces)")
+            continue
+        state.note(f"{target.id}'s doom lands ({moved} spaces moved)")
+        deal_damage(state, target, DOOM_ZONE, DOOM_DAMAGE)
+
+
 # --------------------------------------------------------------------------
 # Pilot cards -- Tactician
 # --------------------------------------------------------------------------
@@ -743,6 +1062,22 @@ def _effect_set_the_trap(state: GameState, frame: FrameState, uid: str):
     return _shove_step(
         state, frame, label="Set the trap", reach=5, steps=2,
         side="ally", after="reveal_nearby",
+    )
+
+
+def _effect_displace(state: GameState, frame: FrameState, uid: str):
+    """"Move another target frame within 8 to a new position within 8."
+
+    Both eights are measured from the Tactician: it picks something within
+    eight of itself and puts it down anywhere within eight of itself. Unlike
+    Set the trap the frame does not walk there -- it is displaced, so walls and
+    its own movement have nothing to say about where it ends up.
+    """
+    card = state.card(uid)
+    reach = _reach_from_text(card.text, 8)
+    return _shove_step(
+        state, frame, label=card.name, reach=reach, steps=reach,
+        side="any", after="", place=True,
     )
 
 
@@ -831,6 +1166,159 @@ def _choice_portal(
 
 def _effect_ace_reflexes(state: GameState, frame: FrameState, uid: str):
     state.note(f"{frame.id} is on its toes: it moves 2 after every attack on it")
+    return None
+
+
+def _effect_parallel_action(state: GameState, frame: FrameState, uid: str):
+    """""Next turn:" the next time this frame would take an action or is
+    attacked, draw another hand and swap any face down actions you like with
+    cards from that hand."
+
+    Armed here and fired by `followup_decision` -- which is exactly the moment
+    the driver is between cards, so "would take an action" is checked before
+    the action is chosen and the swap can still change what happens next.
+    Being attacked sets the same flag from `after_attacked`, because an attack
+    cannot stop half way to ask a question.
+
+    Nothing fires on the turn it is played: the card is a plan for the turn
+    after, and without the delay the opponent could burn it by attacking after
+    it resolved -- a redraw with nothing left to change is no card at all.
+    That is what "Next turn:" means everywhere else on these cards, so it is
+    asked the same way: the card is only in the `aside` pile from the turn
+    after it resolved (`card_active(this_turn=False)`).
+    """
+    fx.slot(state, "parallel")[frame.id] = {"card": uid}
+    state.note(f"{frame.id} runs its actions in parallel: next turn's may change")
+    return None
+
+
+def _parallel_armed(state: GameState, frame: FrameState) -> bool:
+    """Armed *and* far enough into the game to fire -- see the card's docstring."""
+    return (
+        frame.id in fx.slot(state, "parallel")
+        and fx.card_active(state, frame, PARALLEL_ACTION, this_turn=False)
+    )
+
+
+def _swappable(state: GameState, frame: FrameState) -> list[str]:
+    """The face-down actions still in front of the frame."""
+    return [
+        uid for uid in frame.committed
+        if state.cards[uid].location == "committed"
+        and not state.cards[uid].resolved
+        and state.cards[uid].face_down
+    ]
+
+
+def _parallel_step(state: GameState, frame: FrameState) -> Optional[PendingDecision]:
+    """Ask which face-down action to swap out, or to stop."""
+    mine = _swappable(state, frame)
+    fresh = [uid for uid in frame.hand]
+    if not mine or not fresh:
+        _parallel_finish(state, frame)
+        return None
+    options: list[dict[str, Any]] = [
+        {"uid": uid, "key": state.cards[uid].key, "swap": "out"} for uid in mine
+    ]
+    options.append({"done": True})
+    return _ask(
+        state,
+        "parallel_out",
+        seat=frame.seat,
+        frame_id=frame.id,
+        prompt=f"Parallel Action: swap out one of {frame.id}'s actions?",
+        options=options,
+        pick_min=0,
+        pick_max=len(mine),
+    )
+
+
+def _choice_parallel_out(
+    state: GameState, frame: FrameState, choice: Mapping, ctx: Mapping
+) -> None:
+    if choice.get("done"):
+        _parallel_finish(state, frame)
+        return
+    out = str(choice.get("uid"))
+    options = [
+        {"uid": uid, "key": state.cards[uid].key, "swap": "in"}
+        for uid in frame.hand
+    ]
+    if not options:
+        _parallel_finish(state, frame)
+        return
+    state.pending = _ask(
+        state,
+        "parallel_in",
+        seat=frame.seat,
+        frame_id=frame.id,
+        prompt=(
+            f"Parallel Action: play what instead of "
+            f"{state.catalogue[state.cards[out].key].name}?"
+        ),
+        options=options,
+        ctx={"out": out},
+    )
+
+
+def _choice_parallel_in(
+    state: GameState, frame: FrameState, choice: Mapping, ctx: Mapping
+) -> None:
+    out = str(ctx.get("out"))
+    incoming = str(choice.get("uid"))
+    if out in state.cards and incoming in state.cards:
+        state.note(
+            f"{frame.id} swaps {state.cards[out].key} for {state.cards[incoming].key}"
+        )
+        discard_card(state, out)
+        move_card(state, incoming, "committed")
+        inst = state.cards[incoming]
+        inst.face_down = True
+        inst.resolved = False
+        inst.init_index = 0
+    nxt = _parallel_step(state, frame)
+    if nxt is not None:
+        state.pending = nxt
+
+
+def _parallel_finish(state: GameState, frame: FrameState) -> None:
+    """The swap is over: the rest of the extra hand goes, and so does the card.
+
+    The hand was drawn for this one look; nothing on the card says it is kept,
+    and a Wunderkid holding seven spare cards into the next planning phase
+    would be playing a different game.
+    """
+    record = fx.slot(state, "parallel").pop(frame.id, None)
+    for uid in list(frame.hand):
+        move_card(state, uid, "discard")
+    frame.turn_flags.pop("parallel_now", None)
+    if record and str(record.get("card")) in state.cards:
+        discard_card(state, str(record["card"]))
+    state.note(f"{frame.id} settles on its actions")
+
+
+def _parallel_fire(state: GameState, frame: FrameState) -> bool:
+    """Draw the second hand and start asking. True if a decision parked."""
+    drawn = draw(state, frame, frame.draw_count)
+    state.note(f"Parallel Action: {frame.id} draws {len(drawn)} more cards")
+    decision = _parallel_step(state, frame)
+    if decision is None:
+        return False
+    state.pending = decision
+    return True
+
+
+def _effect_showboating(state: GameState, frame: FrameState, uid: str):
+    """"For the rest of this turn, any frame that is able to must attack this
+    frame and this frame's blocks are not discarded."
+
+    Both halves are asked for rather than pushed: `forced_target` filters the
+    attacker's option list and `blocks_are_kept` answers `keywords.block_is_kept`.
+    """
+    state.note(
+        f"{frame.id} showboats: everything that can reach it must swing at it, "
+        f"and its blocks are not discarded"
+    )
     return None
 
 
@@ -957,6 +1445,70 @@ def _choice_gravity_well(
     _place_well(state, frame, Pos(int(choice["x"]), int(choice["y"])))
 
 
+def _effect_system_override(state: GameState, frame: FrameState, uid: str):
+    """"You choose which tile target frame moves to on their next action."
+
+    No range is printed, so there is none. The hold is spent on the next
+    movement decision that frame is offered -- an action with no movement in
+    it has no tile to choose, so it is not what the card is talking about.
+    """
+    targets = fx.frames_within(state, frame, 10 ** 6, side="any")
+    if not targets:
+        return None
+    if len(targets) == 1:
+        _override(state, frame, targets[0])
+        return None
+    return _ask(
+        state,
+        "system_override",
+        seat=frame.seat,
+        frame_id=frame.id,
+        prompt="System Override: whose next move do you take?",
+        options=_frame_options(targets),
+        pick_kind="frame",
+    )
+
+
+def _override(state: GameState, frame: FrameState, target: FrameState) -> None:
+    fx.slot(state, "override")[target.id] = frame.seat
+    state.note(f"{frame.id} takes control of {target.id}'s next move")
+
+
+def _choice_system_override(
+    state: GameState, frame: FrameState, choice: Mapping, ctx: Mapping
+) -> None:
+    target = state.frames.get(str(choice.get("frame")))
+    if target is not None:
+        _override(state, frame, target)
+
+
+def move_chooser(state: GameState, frame: FrameState) -> Team:
+    """Which seat answers this frame's movement decision. Normally its own.
+
+    Spends the hold: System Override is "their next action", once.
+    """
+    seat = fx.slot(state, "override").pop(frame.id, None)
+    if seat is None:
+        return frame.seat
+    state.note(f"{frame.id} is under System Override: the other side moves it")
+    return int(seat)
+
+
+def _effect_sensory_overload(state: GameState, frame: FrameState, uid: str):
+    """"Target frame gets 2 Dazed 3 Stunned and their ranged attacks this turn
+    have a range of 2."
+
+    Like System Override this prints no range of its own, so it has none.
+    """
+    return _target_effect_step(state, frame, uid, reach=10 ** 6)
+
+
+def _range_cap(state: GameState, target: FrameState, cap: int) -> None:
+    have = int(target.turn_flags.get("range_cap", 0))
+    target.turn_flags["range_cap"] = cap if have <= 0 else min(have, cap)
+    state.note(f"{target.id}'s ranged attacks reach only {cap} this turn")
+
+
 # --------------------------------------------------------------------------
 # Pilot cards -- Specialist
 # --------------------------------------------------------------------------
@@ -1063,6 +1615,212 @@ def _effect_practiced_technique(state: GameState, frame: FrameState, uid: str):
         f"attack from the same weapon"
     )
     return None
+
+
+def _effect_rebound(state: GameState, frame: FrameState, uid: str):
+    """"Create a Rebound token within 5. If this frame can see the token, its
+    treated as if it can see every enemy within 4 of that token."
+
+    A mirror for shooting round corners. It belongs to the frame that put it
+    down rather than to the seat -- "this frame" -- so a second Specialist does
+    not get to borrow it.
+    """
+    reach = _reach_from_text(state.card(uid).text, 5)
+    tiles = fx.free_tiles(state, frame.pos, reach)
+    if not tiles:
+        return None
+    return _ask(
+        state,
+        "rebound",
+        seat=frame.seat,
+        frame_id=frame.id,
+        prompt=f"Rebound: where does the mirror go (within {reach})?",
+        options=[{"x": p.x, "y": p.y} for p in tiles],
+        pick_kind="place",
+    )
+
+
+def _choice_rebound(
+    state: GameState, frame: FrameState, choice: Mapping, ctx: Mapping
+) -> None:
+    pos = Pos(int(choice["x"]), int(choice["y"]))
+    token = fx.spawn_token(state, fx.REBOUND, pos, owner=frame.seat)
+    fx.slot(state, "rebound")[token.id] = frame.id
+    state.note(f"{frame.id} sets a rebound at ({pos.x},{pos.y})")
+
+
+def rebound_sight(
+    state: GameState, attacker: FrameState, target_pos: Pos
+) -> bool:
+    """True when one of this frame's rebounds sees what the frame cannot.
+
+    Asked only after ordinary line of sight has failed, so the mirror never
+    takes anything away -- it only adds the enemies standing within 4 of a
+    rebound the frame can see itself.
+    """
+    if attacker.pos is None or state.board is None:
+        return False
+    if not fx.card_active(state, attacker, REBOUND):
+        return False
+    owners = fx.slot(state, "rebound")
+    for token in fx.tokens_of_kind(state, fx.REBOUND):
+        if owners.get(token.id) != attacker.id:
+            continue
+        gap = fx.distance(state, token.pos, target_pos)
+        if gap is None or gap > REBOUND_RADIUS:
+            continue
+        if state.board.has_line_of_sight(
+            attacker.pos, token.pos, occupied=state.occupied(exclude=attacker.id)
+        ):
+            return True
+    return False
+
+
+def _effect_cage_fight(state: GameState, frame: FrameState, uid: str):
+    """"Choose an enemy frame within 2. Create a 5x5 box of impassible terrain
+    that surrounds this frame and that frame."
+
+    The box is not chosen: both fighters have to end up inside the 3x3 the
+    walls enclose, and with them at most two apart the centre is their
+    midpoint. So the only question the card asks is who is being locked in
+    with -- the walls follow.
+    """
+    reach = _reach_from_text(state.card(uid).text, 2)
+    victims = fx.frames_within(state, frame, reach, side="enemy")
+    if not victims:
+        state.note(f"{frame.id} finds nobody to lock in with")
+        return None
+    if len(victims) == 1:
+        _raise_cage(state, frame, victims[0])
+        return None
+    return _ask(
+        state,
+        "cage_fight",
+        seat=frame.seat,
+        frame_id=frame.id,
+        prompt=f"Cage Fight: who is locked in (within {reach})?",
+        options=_frame_options(victims),
+        pick_kind="frame",
+    )
+
+
+def _choice_cage_fight(
+    state: GameState, frame: FrameState, choice: Mapping, ctx: Mapping
+) -> None:
+    target = state.frames.get(str(choice.get("frame")))
+    if target is not None:
+        _raise_cage(state, frame, target)
+
+
+def _cage_walls(state: GameState, centre: Pos) -> list[Pos]:
+    """The ring of the 5x5 box: everything exactly `CAGE_RADIUS` from centre."""
+    out: list[Pos] = []
+    if state.board is None:
+        return out
+    for dy in range(-CAGE_RADIUS, CAGE_RADIUS + 1):
+        for dx in range(-CAGE_RADIUS, CAGE_RADIUS + 1):
+            if max(abs(dx), abs(dy)) != CAGE_RADIUS:
+                continue
+            pos = Pos(centre.x + dx, centre.y + dy)
+            if state.board.in_bounds(pos):
+                out.append(pos)
+    return out
+
+
+def _push_out(state: GameState, centre: Pos, pos: Pos) -> Optional[Pos]:
+    """The nearest free tile outside the box, for whatever the wall lands on."""
+    if state.board is None:
+        return None
+    taken = set(state.occupied()) | {
+        t.pos for t in state.tokens.values() if t.alive and t.pos is not None
+    }
+    best: Optional[Pos] = None
+    best_key = (10 ** 6, 0, 0)
+    for y in range(state.board.height):
+        for x in range(state.board.width):
+            candidate = Pos(x, y)
+            if state.board.distance(centre, candidate) <= CAGE_RADIUS:
+                continue
+            tile = state.board.tile(candidate)
+            if tile.impassable or tile.obstacle or candidate in taken:
+                continue
+            key = (state.board.distance(pos, candidate), y, x)
+            if key < best_key:
+                best, best_key = candidate, key
+    return best
+
+
+def _raise_cage(state: GameState, frame: FrameState, target: FrameState) -> None:
+    if frame.pos is None or target.pos is None or state.board is None:
+        return
+    centre = Pos((frame.pos.x + target.pos.x) // 2, (frame.pos.y + target.pos.y) // 2)
+    walls: list[str] = []
+    for pos in _cage_walls(state, centre):
+        # "Units in tiles that this places are pushed outside" -- and so is
+        # anything else standing there, since the wall goes up regardless.
+        standing = state.frame_at(pos)
+        if standing is not None:
+            spot = _push_out(state, centre, pos)
+            if spot is not None:
+                _move_frame(state, standing, spot)
+            else:
+                continue                       # nowhere to put it: no wall here
+        for token in state.tokens.values():
+            if token.alive and token.pos == pos:
+                spot = _push_out(state, centre, pos)
+                if spot is None:
+                    break
+                token.pos = spot
+        if state.frame_at(pos) is not None:
+            continue
+        if any(t.alive and t.pos == pos for t in state.tokens.values()):
+            continue
+        walls.append(fx.spawn_token(state, fx.CAGE, pos, owner=frame.seat).id)
+    fx.slot(state, "cages")[frame.id] = {
+        "centre": [centre.x, centre.y],
+        "fighters": [frame.id, target.id],
+        "walls": walls,
+    }
+    state.note(
+        f"{frame.id} cages {target.id}: a 5x5 box around "
+        f"({centre.x},{centre.y})"
+    )
+
+
+def _in_cage(state: GameState, record: Mapping, frame_id: str) -> bool:
+    frame = state.frames.get(frame_id)
+    if frame is None or not frame.alive or frame.pos is None:
+        return False
+    centre = Pos(int(record["centre"][0]), int(record["centre"][1]))
+    gap = fx.distance(state, centre, frame.pos)
+    return gap is not None and gap < CAGE_RADIUS
+
+
+def sync_cages(state: GameState) -> None:
+    """"Remove this cage when this frame or the target dies or leaves the cage."
+
+    Checked between beats rather than hooked to death and movement, for the
+    same reason `sync_images` is: there are half a dozen ways off a tile and
+    only one of them is a move step.
+    """
+    cages = fx.slot(state, "cages")
+    for owner_id in list(cages):
+        record = cages[owner_id]
+        if all(_in_cage(state, record, fid) for fid in record["fighters"]):
+            continue
+        for token_id in record.get("walls", []):
+            token = state.tokens.get(str(token_id))
+            if token is not None:
+                token.alive = False
+                token.pos = None
+        cages.pop(owner_id, None)
+        state.note("the cage comes down")
+        owner = state.frames.get(owner_id)
+        if owner is not None:
+            for uid in list(owner.aside) + list(owner.committed):
+                if state.cards[uid].key == CAGE_FIGHT:
+                    discard_card(state, uid)
+                    break
 
 
 # --------------------------------------------------------------------------
@@ -1405,31 +2163,43 @@ EFFECT_STEPS: Mapping[str, EffectFn] = {
     INTIMIDATE: _effect_intimidate,
     NET_STRENGTH: _effect_net_strength,
     LOCKDOWN: _effect_target_status,
+    BIND: _effect_bind,
+    SUPLEX: _effect_suplex,
     # Mystic
     TELEPORT: _effect_teleport,
     UTTER_DARKNESS: _effect_utter_darkness,
     ENCODE: _effect_encode,
     EPHEMERAL: _effect_ephemeral_images,
+    PSYCHIC_STORM: _effect_psychic_storm,
+    DOOM: _effect_doom,
     # Tactician
     BROADCAST: _effect_allies_status,
     FOG_OF_WAR: _effect_fog_of_war,
     SET_THE_TRAP: _effect_set_the_trap,
     OUTFOX: _effect_target_status,
+    DISPLACE: _effect_displace,
+    ENNERVATE: _effect_allies_status,
     # Wunderkid
     HYPER: _effect_hyper,
     NET_SPEED: _effect_self_status,
     PORTAL: _effect_portal,
     ACE_REFLEXES: _effect_ace_reflexes,
+    PARALLEL_ACTION: _effect_parallel_action,
+    SHOWBOATING: _effect_showboating,
     # Engineer
     REPAIRS: _effect_battlefield_repairs,
     BARRICADE: _effect_barricade,
     GRAVITY_WELL: _effect_gravity_well,
     PRECISION_TUNING: _effect_self_status,
+    SYSTEM_OVERRIDE: _effect_system_override,
+    SENSORY_OVERLOAD: _effect_sensory_overload,
     # Specialist
     COMBO_STRIKE: _effect_combo_strike,
     SNIPERS_AIM: _effect_snipers_aim,
     MASTER_DUELIST: _effect_master_duelist,
     PRACTICED: _effect_practiced_technique,
+    REBOUND: _effect_rebound,
+    CAGE_FIGHT: _effect_cage_fight,
     # Drone cards are not listed here one by one -- see `_effect_handler`.
 }
 
@@ -1456,6 +2226,14 @@ EFFECT_CHOICES: Mapping[str, Callable[[GameState, FrameState, Mapping], None]] =
 CHOICE_HANDLERS: Mapping[str, ChoiceFn] = {
     "intimidate": _choice_intimidate,
     "target_status": _choice_target_status,
+    "bind": _choice_bind,
+    "psychic_storm": _choice_psychic_storm,
+    "doom": _choice_doom,
+    "parallel_out": _choice_parallel_out,
+    "parallel_in": _choice_parallel_in,
+    "system_override": _choice_system_override,
+    "rebound": _choice_rebound,
+    "cage_fight": _choice_cage_fight,
     "encode": _choice_encode,
     "shove_frame": _choice_shove_frame,
     "shove_to": _choice_shove_to,
@@ -1587,13 +2365,58 @@ def block_chooser(
 def after_attacked(
     state: GameState, defender: FrameState, attacker: Optional[FrameState]
 ) -> None:
-    """Ace Reflexes: "whenever this frame is attacked this turn, move 2"."""
+    """What being attacked sets off: Ace Reflexes, and Parallel Action."""
     if not defender.alive:
         return
+    if _parallel_armed(state, defender):
+        # "...or is attacked". An attack cannot stop half way to ask a
+        # question, so this only marks it; `followup_decision` draws the hand
+        # once the attack has finished.
+        defender.turn_flags["parallel_now"] = True
     if not fx.card_active(state, defender, ACE_REFLEXES, later_turns=False):
         return
     owed = int(defender.turn_flags.get("reflex_moves", 0))
     defender.turn_flags["reflex_moves"] = min(4, owed + 1)
+
+
+def taunting(state: GameState, attacker: FrameState) -> list[str]:
+    """Frames the attacker must swing at if it can: Showboating, this turn."""
+    return [
+        f.id for f in fx.any_frame_with(
+            state, SHOWBOATING, later_turns=False
+        )
+        if f.seat != attacker.seat and f.alive
+    ]
+
+
+def forced_targets(
+    state: GameState,
+    attacker: FrameState,
+    options: Sequence[Mapping[str, Any]],
+) -> list[dict[str, Any]]:
+    """Cut an attack's target list down to what a taunt leaves it.
+
+    "Any frame that is able to must attack this frame": if the showboater is
+    in the list at all, it is the only thing in it -- tokens included, since
+    shooting a reactor instead would be exactly the dodge the card forbids.
+    """
+    wanted = set(taunting(state, attacker))
+    if not wanted:
+        return [dict(o) for o in options]
+    forced = [dict(o) for o in options
+              if o.get("kind") == "frame" and str(o.get("id")) in wanted]
+    return forced or [dict(o) for o in options]
+
+
+def blocks_are_kept(state: GameState, defender: FrameState) -> bool:
+    """Showboating: "this frame's blocks are not discarded"."""
+    return fx.card_active(state, defender, SHOWBOATING, later_turns=False)
+
+
+def range_cap(state: GameState, attacker: FrameState) -> Optional[int]:
+    """The most a jammed frame's ranged attacks can reach (Sensory Overload)."""
+    cap = int(attacker.turn_flags.get("range_cap", 0))
+    return cap if cap > 0 else None
 
 
 # --------------------------------------------------------------------------
@@ -1661,6 +2484,11 @@ def adjust_move_options(
     """Re-cost and extend a movement offer for the effects on the board."""
     if frame.pos is None or state.board is None:
         return [dict(o) for o in options]
+    if is_bound(state, frame):
+        # Bind: "as long as that frame is adjacent it cannot move". Staying
+        # put is still an answer, so the tile it is on is what it is offered.
+        state.note(f"{frame.id} is held and cannot move")
+        return [{"x": frame.pos.x, "y": frame.pos.y, "cost": 0}]
     costs: dict[Pos, int] = {}
     for option in options:
         pos = Pos(int(option["x"]), int(option["y"]))
@@ -1728,6 +2556,17 @@ def after_card_resolved(state: GameState, frame: FrameState, uid: str) -> None:
     state.note(f"{inst.key} resolves again (Relentless Assault)")
 
 
+def end_of_turn(state: GameState) -> None:
+    """Card effects that collect at the end of every turn.
+
+    Called from `resolve.cleanup_phase` beside the terrain hazards and before
+    the objectives are counted, for the same reason: a frame the storm kills
+    is not also holding the ground it died on.
+    """
+    _storm_step(state)
+    _doom_step(state)
+
+
 # --------------------------------------------------------------------------
 # Follow-ups: things that happen between cards
 # --------------------------------------------------------------------------
@@ -1764,13 +2603,39 @@ def followup_decision(state: GameState) -> bool:
         return False
     _refresh_revealed(state)
     _retire_dead_drones(state)
+    if _parallel_step_due(state):
+        return True
     if _reflex_step(state):
         return True
     top = _highest_initiative(state)
-    if _teleport_step(state, top):
-        return True
     if _drone_step(state, top):
         return True
+    return False
+
+
+# -- Parallel Action -------------------------------------------------------
+
+
+def _parallel_step_due(state: GameState) -> bool:
+    """Fire Parallel Action if its frame is about to act, or has been hit."""
+    from . import resolve as _resolve
+
+    armed = fx.slot(state, "parallel")
+    if not armed:
+        return False
+    for frame_id in list(armed):
+        frame = state.frames.get(frame_id)
+        if frame is None or not frame.alive:
+            armed.pop(frame_id, None)
+            continue
+        if frame.turn_flags.get("parallel_now") and _parallel_armed(state, frame):
+            return _parallel_fire(state, frame)
+    nxt = _resolve.next_actor(state)
+    if nxt is None:
+        return False
+    actor, _uid = nxt
+    if _parallel_armed(state, actor):
+        return _parallel_fire(state, actor)
     return False
 
 
@@ -1815,35 +2680,6 @@ def _choice_reposition(
     state: GameState, frame: FrameState, choice: Mapping, ctx: Mapping
 ) -> None:
     _move_frame(state, frame, Pos(int(choice["x"]), int(choice["y"])))
-
-
-# -- Teleport --------------------------------------------------------------
-
-
-def _teleport_step(state: GameState, top: Optional[int]) -> bool:
-    for frame in fx.any_frame_with(state, TELEPORT, this_turn=False):
-        if frame.turn_flags.get("teleported"):
-            continue
-        if top is not None and top > 4:
-            continue
-        frame.turn_flags["teleported"] = True
-        options = [
-            {"x": p.x, "y": p.y}
-            for p in fx.free_tiles(state, frame.pos, 10 ** 6, include_origin=True)
-        ]
-        if not options:
-            continue
-        state.pending = _ask(
-            state,
-            "reposition",
-            seat=frame.seat,
-            frame_id=frame.id,
-            prompt=f"Teleport: reposition {frame.id} anywhere on the map",
-            options=options,
-            pick_kind="move",
-        )
-        return True
-    return False
 
 
 # -- Drones ----------------------------------------------------------------

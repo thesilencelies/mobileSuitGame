@@ -2,7 +2,7 @@ Name,Faction,Group,Initiative,Movement,Text,Persistence,CardImg,BackgroundLayer,
 Relentless Assault,,Bruiser,7,-2,All other actions this frame takes this turn resolve twice at -2mv\\\fullcommitted,0,Bruiser_1.png,proxy_background.png,,,1,GoodBoy
 Intimidate,,Bruiser,8,0,All enemies within 5 must consume one block\\\fullcommitted,0,Bruiser_1.png,proxy_background.png,,,1,GoodBoy
 Net Strength,,Bruiser,5,-2,"All attacks you make this turn and next gain guard break and gain ""On Hit: target gets \fulldazed""",1,Bruiser_1.png,proxy_background.png,,,1,GoodBoy
-Lockdown,,Bruiser,5,-1,Target frame within 3 gets 3 \fullslowed and 3 \\fullstunned\\\fullcommitted,0,Bruiser_1.png,proxy_background.png,,,1,GoodBoy
+Lockdown,,Bruiser,5,-1,Target frame within 3 gets 3 \fullslowed and 3 \fullstunned\\\fullcommitted,0,Bruiser_1.png,proxy_background.png,,,1,GoodBoy
 Bind,,Bruiser,3,1,Target an adjacent frame: as long as that frame is adjacent it cannot move,\infty,Bruiser_1.png,proxy_background.png,,,1,GoodBoy
 Suplex,,Bruiser,4,-1,Move Target frame within 3 to a position within 3 the other side of this frame. That target gets 2 \stunned and 2 \dazed,0,Bruiser_1.png,proxy_background.png,,,1,GoodBoy
 Ephemeral Images,,Mystic,1,-1,"Replace this frame with 3 tokens, one of which is secretly marked to be this frame. All tokens move as this frame and the fakes are removed if attacked.",\infty,Mystic_1.png,proxy_background.png,,,1,GoodBoy
@@ -16,12 +16,12 @@ Fog of war,,Tactician,3,0,Next turn: Allied frames within 7 of this frame cannot
 Set the trap,,Tactician,3,0,Move an allied frame within 5 2 space. All enemies within 3 of them get \fullrevealed,0,Tactician.png,proxy_background.png,,,1,GoodBoy
 Outfox,,Tactician,4,-1,Target frame within 7 gets 3 \fullrevealed and 2 \fulldazed,0,Tactician.png,proxy_background.png,,,1,GoodBoy
 Displace,,Tactician,1,-2,Move another target frame within 8 to a new position within 8,0,Tactician.png,proxy_background.png,,,1,GoodBoy
-Ennervate,,Tactician,8,0,Allied frames within 8 get 3 \fullstimmed \committed,0,Tactician.png,proxy_background.png,,,1,GoodBoy
+Ennervate,,Tactician,8,0,Allied frames within 8 get 3 \fullstimmed \\\committed,0,Tactician.png,proxy_background.png,,,1,GoodBoy
 Hyper,,Wunderkid,2,-4,Next turn: play 1 extra action,1,Wunderkid_1.png,proxy_background.png,,,1,GoodBoy
 Net Speed,,Wunderkid,7,0,This frame gets 3 \fullstimmed and 3 \fullboosted\\\fullcommitted,0,Wunderkid_1.png,proxy_background.png,,,1,GoodBoy
 Portal,,Wunderkid,3,-1,Create two portals within 7. Those tiles are connected.,0,Wunderkid_1.png,proxy_background.png,,,1,GoodBoy
 Ace Reflexes,,Wunderkid,8,1,"Whenever this frame is attacked this turn, move 2 after the attack",0,Wunderkid_1.png,proxy_background.png,,,1,GoodBoy
-Parallel Action,,Wunderkid,3,-1,"The next time this frame would take an action or is attacked, draw another hand and swap any face down actions you like with cards from that hand.",1,Wunderkid_1.png,proxy_background.png,,,1,GoodBoy
+Parallel Action,,Wunderkid,3,-1,"Next turn: The next time this frame would take an action or is attacked, draw another hand and swap any face down actions you like with cards from that hand.",1,Wunderkid_1.png,proxy_background.png,,,1,GoodBoy
 Showboating,,Wunderkid,7,0,"For the rest of this turn, any frame that is able to must attack this frame and this frame's blocks are not discarded.",0,Wunderkid_1.png,proxy_background.png,,,1,GoodBoy
 Battlefield Repairs,,Engineer,4,-2,Repair 3 damage from an allied frame within 3,0,Engineer_1.png,proxy_background.png,,,1,GoodBoy
 Barricade,,Engineer,4,-3,Put up to 3 barricade tokens on unoccupied locations within 3: those locations becomes impassible,0,Engineer_1.png,proxy_background.png,,,1,GoodBoy
@@ -34,4 +34,4 @@ Snipers aim,,Specialist,7,-3,"Ranged attacks this turn can ignore obstacles, get
 Master duelist,,Specialist,3,-2,For the next 3 turns: Enemies targeted by this frame's melee attacks get \revealed and you choose which card blocks,3,Specialist_1.png,proxy_background.png,,,1,GoodBoy
 Practiced Technique,,Specialist,5,-1,\fulllucid \\ Next turn: attacks deal 1 extra damage for each other attack played from the same weapon,1,Specialist_1.png,proxy_background.png,,,1,GoodBoy
 Rebound,,Specialist,3,-2,"Create a Rebound token within 5. If this frame can see the token, its treated as if it can see every enemy within 4 of that token ",1,Specialist_1.png,proxy_background.png,,,1,GoodBoy
-Cage Fight,,Specialist,3,-2,Choose an enemy frame within 2. Create a 5x5 box of impassible terrain that surrounds this frame and that frame. Units in tiles that this places are pushed outside. Remove this cage when this frame or the target dies or leaves the cage.,\infty,Specialist_1.png,proxy_background.png,,,1,GoodBoy
+Cage Fight,,Specialist,3,-2,"Surround this frame and an enemy within 2 with a 5x5 box of impassible terrain, pushing units aside. This box is removed if either frame leaves it or is destroyed.",\infty,Specialist_1.png,proxy_background.png,,,1,GoodBoy

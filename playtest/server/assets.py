@@ -98,6 +98,7 @@ TOKEN_FILES: tuple[str, ...] = (
     "Tower1", "Tower2", "Tower3", "Tower4",
     "Shiny", "Fugitive", "Barricade", "GravityWell",
     "Portal", "Illusion", "Real", "Image",
+    "Cage", "Rebound", "Storm",
 )
 
 #: Tokens whose art is not a Tabletop Simulator piece. A summoned drone is a

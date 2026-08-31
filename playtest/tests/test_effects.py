@@ -235,6 +235,7 @@ def test_lockdown_slows_a_chosen_frame_within_three():
     assert offered[0] == enemy.id, "enemies are offered first"
     assert answer(state, decision) is None
     assert enemy.statuses["slowed"] == 3
+    assert enemy.statuses["stunned"] == 3
     assert far.statuses["slowed"] == 0
     assert ally.statuses["slowed"] == 0, "only the chosen frame"
 
@@ -247,6 +248,53 @@ def test_lockdown_actually_costs_the_target_movement():
     play(state, pilot, effects.LOCKDOWN)
     assert enemy.statuses["slowed"] == 3
     assert enemy.base_movement < before
+
+
+def test_bind_holds_an_adjacent_frame_still():
+    state, bruiser, victim = duel()
+    _uid, decision = play(state, bruiser, effects.BIND)
+    assert decision is None, "only one frame is adjacent"
+    assert effects.is_bound(state, victim)
+
+    options = effects.adjust_move_options(
+        state, victim, 4,
+        [{"x": 5, "y": 5, "cost": 2}, {"x": 3, "y": 2, "cost": 1}],
+    )
+    assert options == [{"x": victim.pos.x, "y": victim.pos.y, "cost": 0}]
+
+
+def test_a_bind_lets_go_when_the_bruiser_is_no_longer_next_to_it():
+    from playtest.engine.state import destroy_frame
+
+    state, bruiser, victim = duel()
+    uid, _ = play(state, bruiser, effects.BIND)
+    carry_over(state, uid)                       # persistence is infinite
+    assert effects.is_bound(state, victim), "the hold survives the turn"
+
+    victim.pos = Pos(7, 7)
+    assert not effects.is_bound(state, victim), "out of reach"
+    victim.pos = Pos(3, 2)
+    assert effects.is_bound(state, victim)
+    destroy_frame(state, bruiser)
+    assert not effects.is_bound(state, victim), "a dead frame holds nothing"
+
+
+def test_suplex_throws_a_frame_past_the_thrower_and_rattles_it():
+    state = make_state()
+    bruiser = add_frame(state, 0, "Kamikiri", Pos(5, 5))
+    victim = add_frame(state, 1, "Hector MkI", Pos(7, 5))
+
+    _uid, where = play(state, bruiser, effects.SUPLEX)
+    assert where is not None and where.pick_kind == "place"
+    tiles = {Pos(o["x"], o["y"]) for o in where.options}
+    assert Pos(3, 5) in tiles, "the far side of the thrower"
+    assert Pos(6, 5) not in tiles, "not back the way it came"
+    assert all(state.board.distance(bruiser.pos, t) <= 3 for t in tiles)
+
+    assert answer(state, where, {"x": 3, "y": 5}) is None
+    assert victim.pos == Pos(3, 5)
+    assert victim.statuses["stunned"] == 2
+    assert victim.statuses["dazed"] == 2
 
 
 # --------------------------------------------------------------------------
@@ -375,21 +423,17 @@ def test_the_images_go_when_the_frame_does():
     ]
 
 
-def test_teleport_repositions_the_frame_next_turn_at_initiative_four():
+def test_teleport_repositions_the_frame_the_moment_it_resolves():
+    """The card used to read "next turn ... at initiative 4"; it no longer does.
+
+    So it is an ordinary effect step now, and nothing is owed afterwards.
+    """
     state, frame, _ = duel()
-    uid, _ = play(state, frame, effects.TELEPORT)
-    assert effects.followup_decision(state) is False, "not on the turn it is played"
-
-    carry_over(state, uid)
-    faster = give(state, frame, "Bruiser_Intimidate")          # initiative 8
-    assert effects.followup_decision(state) is False, "waits for initiative 4"
-
-    state.cards[faster].init_index = 1                         # it has now acted
-    assert effects.followup_decision(state) is True
-    decision = state.pending
+    _uid, decision = play(state, frame, effects.TELEPORT)
+    assert decision is not None, "the jump happens now"
     assert answer(state, decision, {"x": 8, "y": 8}) is None
     assert frame.pos == Pos(8, 8), "anywhere on the map"
-    assert effects.followup_decision(state) is False, "once only"
+    assert effects.followup_decision(state) is False, "nothing is owed later"
 
 
 def test_utter_darkness_makes_everything_within_five_untargetable_next_turn():
@@ -430,6 +474,57 @@ def test_encode_the_future_lets_the_chosen_ally_commit_from_its_deck():
 
     carry_over(state)
     assert effects.commit_pool(state, ally) == [hand], "one turn only"
+
+
+def test_psychic_storm_hurts_everything_standing_in_it_every_turn():
+    state = make_state(width=20, height=20)
+    mystic = add_frame(state, 0, "Hannael", Pos(2, 2))
+    caught = add_frame(state, 1, "Hector MkI", Pos(5, 3))
+    friendly = add_frame(state, 0, "Adam", Pos(4, 4))
+    clear = add_frame(state, 1, "Fenrir", Pos(15, 15))
+
+    _uid, decision = play(state, mystic, effects.PSYCHIC_STORM)
+    assert decision is not None and decision.pick_kind == "place"
+    assert answer(state, decision, {"x": 5, "y": 5}) is None
+
+    effects.end_of_turn(state)
+    assert caught.damage["High"] == 1
+    assert friendly.damage["High"] == 1, "a storm does not pick sides"
+    assert clear.damage["High"] == 0
+
+    effects.end_of_turn(state)
+    assert caught.damage["High"] == 2, "at the end of *each* turn"
+
+
+def test_dooms_target_takes_it_next_turn_unless_it_runs():
+    state = make_state()
+    mystic = add_frame(state, 0, "Hannael", Pos(2, 2))
+    marked = add_frame(state, 1, "Hector MkI", Pos(4, 2))
+
+    _uid, decision = play(state, mystic, effects.DOOM)
+    assert decision is None, "only one frame is in range"
+    assert marked.statuses["dazed"] == 1
+
+    effects.end_of_turn(state)
+    assert marked.damage["High"] == 0, "it lands at the end of *next* turn"
+
+    state.turn += 1
+    effects.end_of_turn(state)
+    assert marked.damage["High"] == effects.DOOM_DAMAGE
+
+
+def test_a_doomed_frame_that_moves_far_enough_shakes_it_off():
+    state = make_state()
+    mystic = add_frame(state, 0, "Hannael", Pos(2, 2))
+    marked = add_frame(state, 1, "Hector MkI", Pos(4, 2))
+    play(state, mystic, effects.DOOM)
+
+    state.turn += 1
+    marked.turn_flags["moved_distance"] = effects.DOOM_ESCAPE + 1
+    effects.end_of_turn(state)
+    assert marked.damage["High"] == 0
+    effects.end_of_turn(state)
+    assert marked.damage["High"] == 0, "and it does not come back round"
 
 
 # --------------------------------------------------------------------------
@@ -535,6 +630,40 @@ def test_outfox_reveals_and_dazes_a_frame_within_seven():
     assert enemy.draw_count < before, "dazed means fewer cards"
     assert state.cards[hidden].face_down is False
     assert far.statuses["dazed"] == 0
+
+
+def test_displace_puts_a_frame_anywhere_within_eight_of_the_tactician():
+    state = make_state(width=20, height=20)
+    tac = add_frame(state, 0, "Hector MkI", Pos(10, 10))
+    enemy = add_frame(state, 1, "Fenrir", Pos(12, 10))
+    state.board.set_tile(Pos(11, 10), impassable=True)   # a wall between them
+
+    _uid, who = play(state, tac, effects.DISPLACE)
+    assert who is None or who.kind == "effect_choice"
+    where = who if who is not None and "x" in who.options[0] else answer(
+        state, who, {"frame": enemy.id, "name": enemy.spec.name})
+    assert where.pick_kind == "place", "it is put down, not walked"
+    tiles = {Pos(o["x"], o["y"]) for o in where.options}
+    assert Pos(4, 10) in tiles, "eight from the Tactician, wall or no wall"
+    assert Pos(1, 1) not in tiles, "and no further"
+
+    assert answer(state, where, {"x": 4, "y": 10}) is None
+    assert enemy.pos == Pos(4, 10)
+
+
+def test_ennervate_stims_every_ally_within_eight():
+    state = make_state(width=20, height=20)
+    tac = add_frame(state, 0, "Hector MkI", Pos(2, 2))
+    ally = add_frame(state, 0, "Adam", Pos(6, 5))
+    far = add_frame(state, 0, "Kuwagata", Pos(19, 19))
+    enemy = add_frame(state, 1, "Fenrir", Pos(3, 3))
+
+    _uid, decision = play(state, tac, effects.ENNERVATE)
+    assert decision is None
+    assert tac.statuses["stimmed"] == 3, "including the frame that played it"
+    assert ally.statuses["stimmed"] == 3
+    assert far.statuses["stimmed"] == 0
+    assert enemy.statuses["stimmed"] == 0
 
 
 # --------------------------------------------------------------------------
@@ -656,6 +785,100 @@ def test_ace_reflexes_does_nothing_for_a_frame_that_did_not_play_it():
     assert not defender.turn_flags.get("reflex_moves")
 
 
+def test_parallel_action_redraws_and_swaps_the_next_action():
+    state, kid, _foe = duel()
+    spare = give(state, kid, "Halberd_Crush", location="deck")
+    for other in ("Sword_Lunge", "Sword_Feint", "Axe_Chop"):
+        give(state, kid, other, location="deck")
+
+    card, decision = play(state, kid, effects.PARALLEL_ACTION)
+    assert decision is None, "it arms; it does not ask yet"
+
+    carry_over(state, card)                        # "Next turn:"
+    keep = give(state, kid, "Spear_Thrust")
+    swap = give(state, kid, "Spear_Jab")
+    for uid in (keep, swap):
+        state.cards[uid].face_down = True
+
+    kid.turn_flags["parallel_now"] = True          # as if it had been attacked
+    assert effects.followup_decision(state) is True
+    out = state.pending
+    state.pending = None
+    assert {o.get("uid") for o in out.options} >= {keep, swap}
+    assert any(o.get("done") for o in out.options), "swapping is optional"
+
+    into = answer(state, out, {"uid": swap, "key": "Spear_Jab", "swap": "out"})
+    assert spare in {o["uid"] for o in into.options}, "the fresh hand"
+    nxt = answer(state, into, {"uid": spare, "key": "Halberd_Crush", "swap": "in"})
+
+    assert state.cards[swap].location == "discard"
+    assert spare in kid.committed and state.cards[spare].location == "committed"
+    assert state.cards[spare].face_down is True
+
+    assert answer(state, nxt, {"done": True}) is None
+    assert kid.hand == [], "the rest of the extra hand goes"
+    assert state.cards[card].location == "discard", "and so does the card"
+
+
+def test_parallel_action_waits_for_next_turn_so_it_cannot_be_burnt():
+    """"Next turn:" -- otherwise the enemy takes it off you by swinging once.
+
+    Played, then attacked on the same turn, the redraw would fire with nothing
+    left worth changing, and the card would be spent for nothing.
+    """
+    state, kid, foe = duel()
+    give(state, kid, "Spear_Thrust")
+    give(state, kid, "Halberd_Crush", location="deck")
+    card, _ = play(state, kid, effects.PARALLEL_ACTION)
+    state.phase = "action"
+
+    effects.after_attacked(state, kid, foe)
+    assert not kid.turn_flags.get("parallel_now"), "not on the turn it resolved"
+    assert effects.followup_decision(state) is False
+
+    carry_over(state, card)
+    state.phase = "action"
+    assert effects.followup_decision(state) is True, "its own action is next"
+    assert state.pending.frame_id == kid.id
+
+
+def test_parallel_action_expires_with_the_card():
+    state, kid, foe = duel()
+    give(state, kid, "Spear_Thrust")
+    give(state, kid, "Halberd_Crush", location="deck")
+    card, _ = play(state, kid, effects.PARALLEL_ACTION)
+    carry_over(state, card)
+    from playtest.engine.state import discard_card
+
+    discard_card(state, card)                      # as cleanup does when it runs out
+    state.phase = "action"
+    effects.after_attacked(state, kid, foe)
+    assert effects.followup_decision(state) is False
+
+
+def test_showboating_forces_the_enemy_to_swing_at_it_and_keeps_its_blocks():
+    state = make_state()
+    kid = add_frame(state, 0, "Kuwagata", Pos(4, 4))
+    mate = add_frame(state, 0, "Adam", Pos(5, 5))
+    foe = add_frame(state, 1, "Hector MkI", Pos(5, 4))
+    card = CATALOGUE["Spear_Thrust"]
+
+    before = {o["id"] for o in combat.legal_targets(state, foe, card)}
+    assert {kid.id, mate.id} <= before
+
+    play(state, kid, effects.SHOWBOATING)
+    after = combat.legal_targets(state, foe, card)
+    assert [o["id"] for o in after] == [kid.id], "it must be attacked"
+
+    block = give(state, kid, "Spear_Thrust")
+    attack = combat.declare_attack(
+        state, foe, give(state, foe, "Spear_Thrust"),
+        target_kind="frame", target_id=kid.id,
+    )
+    combat.apply_block(state, kid, attack, block, ["Mid"])
+    assert state.cards[block].location == "committed", "the block is kept"
+
+
 # --------------------------------------------------------------------------
 # Engineer
 # --------------------------------------------------------------------------
@@ -739,6 +962,33 @@ def test_precision_tuning_boosts_this_frame():
     play(state, frame, effects.PRECISION_TUNING)
     assert frame.statuses["boosted"] == 4
     assert frame.base_movement > before
+
+
+def test_system_override_hands_the_next_move_to_the_other_seat():
+    state = make_state()
+    eng = add_frame(state, 0, "Percival MkIV", Pos(2, 2))
+    enemy = add_frame(state, 1, "Hector MkI", Pos(8, 8))
+
+    _uid, decision = play(state, eng, effects.SYSTEM_OVERRIDE)
+    assert decision is None, "there is only one other frame, at any range"
+    assert effects.move_chooser(state, enemy) == eng.seat
+    assert effects.move_chooser(state, enemy) == enemy.seat, "once only"
+
+
+def test_sensory_overload_dazes_stuns_and_shortens_the_targets_range():
+    state = make_state()
+    eng = add_frame(state, 0, "Percival MkIV", Pos(2, 2))
+    enemy = add_frame(state, 1, "J7R-Salaryman", Pos(8, 8))
+    card = CATALOGUE["Railgun_Snipe"]                       # range 12
+    assert combat.effective_range(state, enemy, card, "High") > 4
+
+    _uid, decision = play(state, eng, effects.SENSORY_OVERLOAD)
+    assert decision is None
+    assert enemy.statuses["dazed"] == 2
+    assert enemy.statuses["stunned"] == 3
+    assert combat.effective_range(state, enemy, card, "High") == 2, (
+        "a cap, not a modifier -- the frame's +4 cannot buy it back"
+    )
 
 
 # --------------------------------------------------------------------------
@@ -848,6 +1098,70 @@ def test_practiced_technique_stacks_damage_across_one_weapon_next_turn():
     assert effects.attack_damage_bonus(state, attacker, card, defender.id) == ({}, 2), (
         "another weapon adds nothing"
     )
+
+
+def test_rebound_lends_the_frame_sight_of_what_it_cannot_see():
+    state = make_state()
+    spec = add_frame(state, 0, "J7R-Salaryman", Pos(2, 2))
+    enemy = add_frame(state, 1, "Hector MkI", Pos(8, 2))
+
+    _uid, decision = play(state, spec, effects.REBOUND)
+    assert decision is not None and decision.pick_kind == "place"
+    assert answer(state, decision, {"x": 6, "y": 4}) is None
+
+    # The frame can see its own mirror but nothing beyond it.
+    seen = {Pos(6, 4)}
+    state.board.has_line_of_sight = (
+        lambda a, b, **kw: b in seen
+    )
+    card = CATALOGUE["Railgun_Snipe"]
+    assert combat.can_target(state, spec, card, enemy.pos, enemy), (
+        "four from the mirror, so the mirror sees it"
+    )
+    enemy.pos = Pos(8, 9)
+    assert not combat.can_target(state, spec, card, enemy.pos, enemy)
+
+
+def test_a_rebound_belongs_to_the_frame_that_put_it_down():
+    state = make_state()
+    spec = add_frame(state, 0, "J7R-Salaryman", Pos(2, 2))
+    mate = add_frame(state, 0, "Adam", Pos(3, 2))
+    _uid, decision = play(state, spec, effects.REBOUND)
+    answer(state, decision, {"x": 6, "y": 4})
+    assert effects.rebound_sight(state, spec, Pos(7, 5))
+    assert not effects.rebound_sight(state, mate, Pos(7, 5))
+
+
+def test_cage_fight_walls_both_fighters_in_and_pushes_bystanders_out():
+    state = make_state()
+    spec = add_frame(state, 0, "Kamikiri", Pos(5, 5))
+    foe = add_frame(state, 1, "Hector MkI", Pos(6, 5))
+    bystander = add_frame(state, 0, "Adam", Pos(3, 5))       # on the wall line
+
+    _uid, decision = play(state, spec, effects.CAGE_FIGHT)
+    assert decision is None, "only one enemy is within 2"
+
+    walls = {t.pos for t in state.tokens.values()
+             if t.kind == fx.CAGE and t.alive}
+    assert Pos(3, 5) in walls or bystander.pos != Pos(3, 5)
+    assert bystander.pos not in walls, "it was pushed outside"
+    assert state.board.distance(Pos(5, 5), bystander.pos) > 2
+    assert spec.pos in {Pos(5, 5)} and foe.pos == Pos(6, 5), "the fighters stay"
+    assert all(state.board.distance(Pos(5, 5), p) == 2 for p in walls)
+    assert Pos(5, 5) in state.occupied() and next(iter(walls)) in state.occupied()
+
+
+def test_the_cage_comes_down_when_a_fighter_leaves_it():
+    state = make_state()
+    spec = add_frame(state, 0, "Kamikiri", Pos(5, 5))
+    foe = add_frame(state, 1, "Hector MkI", Pos(6, 5))
+    uid, _ = play(state, spec, effects.CAGE_FIGHT)
+    assert any(t.kind == fx.CAGE and t.alive for t in state.tokens.values())
+
+    foe.pos = Pos(9, 9)                    # teleported, knocked back, whatever
+    effects.sync_cages(state)
+    assert not any(t.kind == fx.CAGE and t.alive for t in state.tokens.values())
+    assert state.cards[uid].location == "discard", "the card goes with it"
 
 
 # --------------------------------------------------------------------------

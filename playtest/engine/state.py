@@ -422,7 +422,8 @@ class GameState:
         # effect, which is the price of the concealment being airtight.
         out |= {
             t.pos for t in self.tokens.values()
-            if t.alive and t.pos is not None and t.kind in ("barricade", "image")
+            if t.alive and t.pos is not None
+            and t.kind in ("barricade", "image", "cage")
         }
         return frozenset(p for p in out if p is not None)
 
@@ -482,6 +483,26 @@ def reshuffle(state: GameState, frame: FrameState) -> None:
     for uid in frame.deck:
         state.cards[uid].location = "deck"
     state.note(f"{frame.id} reshuffles its discard pile")
+
+
+def record_movement(
+    state: GameState, frame: FrameState, old: Optional[Pos], new: Optional[Pos]
+) -> None:
+    """Add this displacement to how far the frame has moved this turn.
+
+    Only one card asks (Mystic_Doom: "if they have not moved more than 3
+    spaces"), and it asks about the whole turn rather than about one action --
+    so the count lives on `turn_flags`, where the planning phase clears it, and
+    every path that puts a frame somewhere else adds to it. That includes being
+    shoved or knocked back: the card is trying to make a frame *leave* a spot,
+    and it does not much matter who did the pushing.
+    """
+    if old is None or new is None or old == new or state.board is None:
+        return
+    frame.turn_flags["moved_distance"] = (
+        int(frame.turn_flags.get("moved_distance", 0))
+        + state.board.distance(old, new)
+    )
 
 
 def draw(state: GameState, frame: FrameState, count: int) -> list[str]:

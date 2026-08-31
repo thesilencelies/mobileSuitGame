@@ -48,6 +48,14 @@ def effective_range(
     value = printed + kw.range_bonus(state, attacker, card)
     if defender is not None:
         value -= kw.range_penalty_against(state, defender)
+    from . import effects
+
+    # Sensory Overload: "their ranged attacks this turn have a range of 2".
+    # A cap, not a modifier -- it applies after the bonuses, so Snipers aim
+    # cannot buy its way back out of a jammed sensor suite.
+    cap = effects.range_cap(state, attacker)
+    if cap is not None:
+        value = min(value, cap)
     return max(0, value)
 
 
@@ -174,7 +182,7 @@ def _line_of_sight(
     # to the board: obstacles stop blocking sight, nothing else changes.
     unobstructed = kw.is_flying(attacker) or effects.ignores_obstacles(state, attacker)
     try:
-        return state.board.has_line_of_sight(
+        seen = state.board.has_line_of_sight(
             attacker.pos,
             target_pos,
             occupied=occupied,
@@ -182,12 +190,15 @@ def _line_of_sight(
             flying_target=bool(defender is not None and kw.is_flying(defender)),
         )
     except TypeError:
-        return state.board.has_line_of_sight(
+        seen = state.board.has_line_of_sight(
             attacker.pos,
             target_pos,
             occupied=occupied,
             flying_attacker=unobstructed,
         )
+    # Rebound only ever adds: a mirror the frame can see lends it sight of
+    # everything within 4 of the mirror.
+    return seen or effects.rebound_sight(state, attacker, target_pos)
 
 
 def can_target(
@@ -245,7 +256,8 @@ def legal_targets(
                 {"kind": "token", "id": token.id, "zones": dict(zones),
                  "name": token.kind}
             )
-    return options
+    # Showboating: "any frame that is able to must attack this frame".
+    return effects.forced_targets(state, attacker, options)
 
 
 def _splash_targets(
