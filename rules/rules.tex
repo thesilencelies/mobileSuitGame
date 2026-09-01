@@ -449,6 +449,7 @@ The frame can move up to their base movement plus the movement modifier on the c
 \subsubsection{Movement penalties}
 It takes 1 movement to move up per elevation difference, and you cannot stop halfway up. It costs no additional movement to move down any number of elevations. 
 Obstacles and impassible terrain cannot be moved through.
+Tiles occupied by friendly frames can be passed through, but tiles occupied by enemy frames cannot, and a movement cannot end on an occupied tile.
 
 \subsection{Effect}
 After movement is done, any effect on the card is applied. Effects are applied in printed order.
@@ -648,17 +649,12 @@ A blocking card covers \emph{every} attacked zone it has a block in --- one card
   \end{tikzpicture}}
   \caption{The same attack and the same defending cards, with and without \guardbreak.
   Card 1 blocks High and Mid; card 2 blocks High only. \emph{Top:} under \guardbreak\ card 1
-  covers both of the zones it blocks by itself --- it is still discarded only once --- and the
-  unblocked Low mark deals its damage. \emph{Bottom:} without \guardbreak\ the High block alone
-  cancels the entire attack.}
+  covers both of the zones it blocks by itself and the
+  unblocked Low deals its damage. \emph{Bottom:} without \guardbreak\ the High block alone cancels the entire attack.}
 \end{figure}
 
 Blocking stays compulsory while any remaining card blocks any zone that is still unblocked,
-and the defender chooses which card to spend each time --- so the order matters.
-Against a \guardbreak\ attack on all three zones, a defender holding one card that blocks all
-three and another that blocks only Low spends a single card by blocking with the wide one
-first, but two cards if they spend the Low block first, since High and Mid are then still open
-and must still be blocked.
+and the defender chooses which card to spend each time.
 
 \subsubsection{Melee between elevations}
 If the attack is a melee attack and the defender is at a different elevation to the attacker, the attacks are moved up one bracket per difference in elevation.
@@ -687,7 +683,6 @@ Low &
 \end{tabular}
 For example a \emph{Kuwagata} ( Armor 4 4 4) that has taken 3 damage high, 3 damage mid and 1 low draws 6 cards a turn and it's actions resolve
 at -1 initiative. If it took one more damage high or mid, or 3 more damage low it would be destroyed. 
-
 
 
 \section{Cleanup}
@@ -823,14 +818,23 @@ If a token has a specified health stat, then it can be attacked by an opposing t
 Tokens never block, and they only have one health stat, so all damage from all zones affects its health the same.
 If it takes damage past its health stat, it is destroyed. Unless a card says otherwise, tokens cannot be repaired.
 
-Some tokens can be carried: in that case, if a frame enters the tile the token is in, that frame picks up the token.
-If a frame holding a token takes damage, they drop the token to the tile nearest the source of damage.
+Some tokens can be carried: in that case, if a frame is in the same tile the tile the token is in, that frame picks up the token.
+If a frame holding a token takes damage, they drop the token to the tile nearest the source of damage (so a melee hit transfers ownership).
 
 Tokens that can move are moved by the team that created them.
+
+Tokens that move and Frames are collectively called units.
+
+A tile that has a unit on it is occupied and another unit cannot end its move on that tile.
 
 \subsection{Drones}
 Some attacks summon drones. A drone is a token that will take the action on the card that summoned it every turn
 (including the turn that it is summoned), except that it moves with its own movement value (the one next to its health bar).
+
+During the turn that the drone is summoned, the frame that summoned it does not attack, but the drone does. 
+
+Any blocks marked on the card that summoned the drone only apply before the card resolves: after it resolves they no longer block anything
+
 The drone has a health stat indicated on the card that summoned it, which should stay in play until the drone is destroyed.
 The drone, like other tokens, cannot block.
 
