@@ -489,16 +489,11 @@ def _shove_tiles(
                 if (p.x - origin.x) * back[0] + (p.y - origin.y) * back[1] <= 0
             ]
         return [{"x": p.x, "y": p.y} for p in tiles if p != target.pos]
-    reachable = state.board.reachable(
-        target.pos,
-        steps,
-        occupied=state.occupied(exclude=target.id),
-        flying="flying" in target.spec.keywords,
-    )
     return [
-        {"x": pos.x, "y": pos.y, "cost": reachable[pos]}
-        for pos in sorted(reachable, key=lambda p: (p.y, p.x))
-        if pos != target.pos
+        option for option in state.walk_options(
+            target, steps, flying="flying" in target.spec.keywords
+        )
+        if Pos(option["x"], option["y"]) != target.pos
     ]
 
 
@@ -1201,18 +1196,32 @@ def _parallel_armed(state: GameState, frame: FrameState) -> bool:
 
 
 def _swappable(state: GameState, frame: FrameState) -> list[str]:
-    """The face-down actions still in front of the frame."""
+    """The actions still in front of the frame and still to resolve.
+
+    The card says "face down actions", which is how the rules name an action
+    that has not resolved yet -- so that is what this reads it as, rather than
+    literally "currently face down". A frame under `Revealed` has its whole
+    plan turned face up, and switching off a different card as a side effect
+    of that would be a rule nobody printed.
+    """
     return [
         uid for uid in frame.committed
         if state.cards[uid].location == "committed"
         and not state.cards[uid].resolved
-        and state.cards[uid].face_down
     ]
 
 
 def _parallel_step(state: GameState, frame: FrameState) -> Optional[PendingDecision]:
-    """Ask which face-down action to swap out, or to stop."""
-    mine = _swappable(state, frame)
+    """Ask which face-down action to swap out, or to stop.
+
+    A card that has been looked at and kept is not offered again. Without
+    that the exchange has no end: "swap out this one" -> "actually keep it"
+    -> "swap out this one" for as long as anyone likes. Each round now settles
+    exactly one action, so the run is as long as the frame has cards.
+    """
+    record = fx.slot(state, "parallel").get(frame.id) or {}
+    settled = set(record.get("settled") or ())
+    mine = [uid for uid in _swappable(state, frame) if uid not in settled]
     fresh = [uid for uid in frame.hand]
     if not mine or not fresh:
         _parallel_finish(state, frame)
@@ -1247,6 +1256,10 @@ def _choice_parallel_out(
     if not options:
         _parallel_finish(state, frame)
         return
+    # The card being swapped out is offered back. Naming it is not committing
+    # to losing it: without this the only way out of a mis-tap is to spend the
+    # swap on a card you did not want.
+    options.append({"uid": out, "key": state.cards[out].key, "swap": "keep"})
     state.pending = _ask(
         state,
         "parallel_in",
@@ -1266,6 +1279,13 @@ def _choice_parallel_in(
 ) -> None:
     out = str(ctx.get("out"))
     incoming = str(choice.get("uid"))
+    if incoming == out:
+        state.note(f"{frame.id} keeps {state.cards[out].key}")
+        _settle(state, frame, out)
+        nxt = _parallel_step(state, frame)
+        if nxt is not None:
+            state.pending = nxt
+        return
     if out in state.cards and incoming in state.cards:
         state.note(
             f"{frame.id} swaps {state.cards[out].key} for {state.cards[incoming].key}"
@@ -1279,6 +1299,13 @@ def _choice_parallel_in(
     nxt = _parallel_step(state, frame)
     if nxt is not None:
         state.pending = nxt
+
+
+def _settle(state: GameState, frame: FrameState, uid: str) -> None:
+    """This action has had its look and is staying: do not offer it again."""
+    record = fx.slot(state, "parallel").get(frame.id)
+    if record is not None:
+        record.setdefault("settled", []).append(uid)
 
 
 def _parallel_finish(state: GameState, frame: FrameState) -> None:
@@ -2503,15 +2530,14 @@ def adjust_move_options(
             if entered is None or entered + 1 > budget:
                 continue
             if exit_ not in costs or costs[exit_] > entered + 1:
-                if state.frame_at(exit_) is None:
-                    costs[exit_] = entered + 1
+                costs[exit_] = entered + 1
             left = budget - entered - 1
             if left <= 0:
                 continue
             onward = state.board.reachable(
                 exit_,
                 left,
-                occupied=state.occupied(exclude=frame.id),
+                occupied=state.move_blockers(frame),
                 flying="flying" in frame.spec.keywords,
             )
             for pos, cost in onward.items():
@@ -2519,9 +2545,13 @@ def adjust_move_options(
                 if total <= budget and total < costs.get(pos, 10 ** 6):
                     costs[pos] = total
 
+    # Coming out of a portal is still ending a move, so it lands under the
+    # same rule as walking there: through a unit, never onto one.
+    taken = state.unit_tiles(exclude=frame.id)
     return [
         {"x": pos.x, "y": pos.y, "cost": cost}
         for pos, cost in sorted(costs.items(), key=lambda kv: (kv[0].y, kv[0].x))
+        if pos == frame.pos or pos not in taken
     ]
 
 
@@ -2628,15 +2658,26 @@ def _parallel_step_due(state: GameState) -> bool:
         if frame is None or not frame.alive:
             armed.pop(frame_id, None)
             continue
-        if frame.turn_flags.get("parallel_now") and _parallel_armed(state, frame):
+        if frame.turn_flags.get("parallel_now") and _parallel_ready(state, frame):
             return _parallel_fire(state, frame)
-    nxt = _resolve.next_actor(state)
+    nxt = _resolve.peek_actor(state)          # looking must not advance the tie
     if nxt is None:
         return False
     actor, _uid = nxt
-    if _parallel_armed(state, actor):
+    if _parallel_ready(state, actor):
         return _parallel_fire(state, actor)
     return False
+
+
+def _parallel_ready(state: GameState, frame: FrameState) -> bool:
+    """Armed, in date, and with something left to change.
+
+    A frame whose last face-down action was just spent blocking has nothing to
+    swap, and drawing a hand to stare at would burn the card for nothing --
+    which is the whole thing the "Next turn:" delay is there to prevent. So it
+    stays armed and waits for a trigger it can actually use.
+    """
+    return _parallel_armed(state, frame) and bool(_swappable(state, frame))
 
 
 # -- Ace Reflexes ----------------------------------------------------------
@@ -2651,16 +2692,7 @@ def _reflex_step(state: GameState) -> bool:
             continue
         from . import keywords as kw
 
-        reach = state.board.reachable(
-            frame.pos,
-            2,
-            occupied=state.occupied(exclude=frame.id),
-            flying=kw.is_flying(frame),
-        )
-        options = [
-            {"x": p.x, "y": p.y, "cost": reach[p]}
-            for p in sorted(reach, key=lambda p: (p.y, p.x))
-        ]
+        options = state.walk_options(frame, 2, flying=kw.is_flying(frame))
         if len(options) <= 1:
             continue
         state.pending = _ask(
@@ -2747,13 +2779,10 @@ def _drone_move(state: GameState, token_id: str, record: Mapping) -> bool:
     budget = max(0, card.drone_movement)
     if budget <= 0:
         return False
-    reach = state.board.reachable(
-        token.pos, budget, occupied=state.occupied() - {token.pos}
-    )
-    options = [
-        {"x": p.x, "y": p.y}
-        for p in sorted(reach, key=lambda p: (p.y, p.x))
-    ]
+    # A drone is a unit, so it walks by the same rule a frame does: through
+    # its own side, never onto anything that is already standing somewhere.
+    # The cost matters to the client, which labels the tiles it offers.
+    options = state.walk_options(token, budget)
     if len(options) <= 1:
         return False
     state.pending = _ask(
@@ -2829,11 +2858,16 @@ def _drone_zones_at(
 def _drone_options(
     state: GameState, token_id: str, card: Card, summoner: FrameState
 ) -> list[dict]:
-    """What this drone may shoot: enemy frames, or an enemy's images.
+    """What this drone may shoot: enemy frames, their images, or an objective.
 
     A frame hiding behind Ephemeral Images is not a target -- but its images
     are, for a drone exactly as for a frame. Without this the card would be a
     total answer to drones, which is not what it says.
+
+    Tokens can attack objectives: a drone shoots a reactor or the Tower the
+    same way a frame does. Attackable tokens are offered by the same rule
+    `combat.legal_targets` uses -- anything with hit points that is not the
+    drone's own side's.
     """
     options: list[dict] = []
     for other in state.frames.values():
@@ -2852,6 +2886,15 @@ def _drone_options(
         if is_untargetable(state, summoner, card, other):
             continue
         options.append({"frame": other.id, "name": other.id})
+    for target in state.tokens.values():
+        if target.id == token_id or not target.attackable:
+            continue
+        if target.kind == IMAGE:
+            continue                    # already offered, via its own frame
+        if target.owner is not None and target.owner == summoner.seat:
+            continue
+        if _drone_zones_at(state, token_id, card, target.pos):
+            options.append({"token": target.id, "name": target.kind})
     return options
 
 
@@ -2895,6 +2938,8 @@ def _drone_fire(
     image_id = choice.get("token")
     if image_id:
         image = state.tokens.get(str(image_id))
+        if image is not None and image.kind != IMAGE:
+            return _drone_strike_token(state, token_id, record, image)
         found = image_owner(state, image) if image is not None else None
         if found is None:
             return False
@@ -2909,6 +2954,29 @@ def _drone_fire(
         reveal_images(state, frame, why="a drone found it")
         return _drone_declare(state, token_id, record, frame.id)
     return _drone_declare(state, token_id, record, str(choice.get("frame")))
+
+
+def _drone_strike_token(
+    state: GameState, token_id: str, record: Mapping, target: TokenState
+) -> bool:
+    """A drone shooting an objective -- a reactor, the Tower, a gang.
+
+    Built as an ordinary attack and run through `_drone_resolve` like any
+    other, so damage reduction and destruction are the same code that handles
+    a frame shooting the same thing. Tokens never block, so nothing parks.
+    """
+    card = state.catalogue[str(record["key"])]
+    zones = _drone_zones_at(state, token_id, card, target.pos)
+    if not zones:
+        return False
+    attack = AttackInProgress(
+        attacker_id=str(record["frame"]),
+        uid=str(record["uid"]),
+        via=drone_name(state, token_id),
+    )
+    attack.targets.append(AttackTarget("token", target.id, dict(zones)))
+    state.note(f"{drone_name(state, token_id)} attacks the {target.kind}")
+    return _drone_resolve(state, token_id, attack)
 
 
 def _drone_declare(

@@ -502,8 +502,13 @@ def _threat_overlay(
     board = state.board
     flying = "flying" in frame.spec.keywords
     occupied = state.occupied(exclude=frame.id)
-    reach = board.reachable(
-        frame.pos, frame.base_movement, occupied=occupied, flying=flying)
+    # Where it could go is the engine's own answer, so the overlay and the
+    # move decision agree about standing on a drone. Sight is a different
+    # question and uses `occupied`, which is what stops a line.
+    reach = {
+        Pos(int(o["x"]), int(o["y"])): int(o["cost"])
+        for o in state.walk_options(frame, frame.base_movement, flying=flying)
+    }
     eye = at or frame.pos
     los: list[list[int]] = []
     for y in range(board.height):

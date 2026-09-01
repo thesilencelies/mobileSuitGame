@@ -322,3 +322,64 @@ def test_occupied_includes_frames_and_barricades_only():
     state.tokens["t"] = TokenState(id="t", kind="shiny", pos=Pos(5, 5))
     state.tokens["b"] = TokenState(id="b", kind="barricade", pos=Pos(6, 6))
     assert state.occupied() == frozenset({Pos(1, 1), Pos(6, 6)})
+
+
+# --------------------------------------------------------------------------
+# Who may stand where (rules.tex Movement penalties, Tokens)
+# --------------------------------------------------------------------------
+
+
+def _spot(options, pos):
+    return any(o["x"] == pos.x and o["y"] == pos.y for o in options)
+
+
+def test_a_move_may_cross_a_friendly_frame_but_not_stop_on_it():
+    state = make_state()
+    mover = add_frame(state, 0, "Kuwagata", Pos(1, 5))
+    mate = add_frame(state, 0, "Adam", Pos(2, 5))
+
+    options = state.walk_options(mover, 4)
+    assert not _spot(options, mate.pos), "cannot end on a friend"
+    assert _spot(options, Pos(4, 5)), "but the route runs straight through it"
+    beyond = next(o for o in options if (o["x"], o["y"]) == (4, 5))
+    assert beyond["cost"] == 3, "passing through costs nothing extra"
+
+
+def test_a_move_may_not_cross_an_enemy_frame():
+    state = make_state()
+    mover = add_frame(state, 0, "Kuwagata", Pos(1, 5))
+    add_frame(state, 1, "Adam", Pos(2, 5))
+    # Fence the corridor in so the only way past is through the enemy.
+    for y in (4, 6):
+        for x in range(1, 5):
+            state.board.set_tile(Pos(x, y), impassable=True)
+
+    options = state.walk_options(mover, 4)
+    assert not _spot(options, Pos(3, 5)), "an enemy frame is a wall"
+    assert not _spot(options, Pos(2, 5))
+
+
+def test_no_unit_may_end_its_move_on_another_unit():
+    """"Tokens that move and Frames are collectively called units."""
+    state = make_state()
+    mover = add_frame(state, 0, "Kuwagata", Pos(1, 1))
+    state.tokens["d"] = TokenState(id="d", kind="drone", pos=Pos(2, 1), hp=1, max_hp=1)
+    state.tokens["g"] = TokenState(id="g", kind="gang", pos=Pos(3, 1),
+                                   hp=1, max_hp=1, movement=1)
+    state.tokens["s"] = TokenState(id="s", kind="shiny", pos=Pos(4, 1),
+                                   carriable=True)
+
+    options = state.walk_options(mover, 4)
+    assert not _spot(options, Pos(2, 1)), "not on a drone"
+    assert not _spot(options, Pos(3, 1)), "not on a gang"
+    assert _spot(options, Pos(4, 1)), "the Shiny Thing is luggage, not a unit"
+    assert _spot(options, mover.pos), "staying put is always on the list"
+
+
+def test_a_drone_does_not_break_a_line_of_sight():
+    state = make_state()
+    add_frame(state, 0, "Kuwagata", Pos(1, 1))
+    state.tokens["d"] = TokenState(id="d", kind="drone", pos=Pos(2, 1), hp=1, max_hp=1)
+    assert state.occupied() == frozenset({Pos(1, 1)}), (
+        "tokens do not adjust line of sight -- only frames raise a tile"
+    )

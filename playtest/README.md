@@ -514,6 +514,32 @@ two: the Plan screen builds that many slots, the sheet enables **Commit** over
 that range, and the AI commits the ceiling. A client that assumed two made the
 card's whole effect unspendable.
 
+### Who may stand where
+
+Two rules that read as one and are not, so the engine keeps them apart
+(`GameState`):
+
+* **What may not be crossed** (`move_blockers`) — enemy frames, and the tokens
+  that are solid terrain: a barricade, a cage wall, an Ephemeral Image. A
+  *friendly* frame may be walked through and costs nothing extra.
+* **What may not be stopped on** (`unit_tiles`) — every unit. "Tokens that move
+  and Frames are collectively called units. A tile that has a unit on it is
+  occupied and another unit cannot end its move on that tile" (rules.tex
+  Tokens), so a drone or a Riverside gang blocks a landing but not a route,
+  and the Shiny Thing blocks neither — you have to be able to stand on a
+  carried token, since standing on it is how it is picked up.
+
+`walk_options` is the one place the two meet, and every movement offer in the
+engine goes through it: the move step, a shove, a reflex step, a drone's turn,
+an objective token's turn, and the threat overlay the client draws. Staying put
+is always in the list — it is a legal answer, and the only one a bound frame
+has.
+
+`occupied()` is neither of those: it is what stops a *line of sight*, which is
+frames (a frame "counts as one elevation higher") plus the solid tokens.
+Drones and gangs do not adjust line of sight, so they are not in it, and
+shooting over one is fine.
+
 ### Card text, and adding a card
 
 Every pilot and drone card's printed text is implemented, and each one is
@@ -526,6 +552,14 @@ printed text:
   decision each;
 * `_reach_from_text` — "Summon one Gun Tower **within 3**" → placed up to three
   tiles away, rather than beside the frame.
+
+A drone acts on the turn it is summoned, and on that turn the frame does not
+swing (`delegates_attack`). Two more things follow the card rather than the
+drone: its printed blocks stop blocking the moment the card resolves — the card
+stays on the table for the drone's health bar, not as a shield — and a drone
+may shoot an objective token, which it does through the ordinary attack
+pipeline so damage reduction and destruction are the same code a frame's shot
+uses.
 
 So a new drone in `Drone actions.csv` works with no engine change at all. The
 same two helpers now drive Barricade's count and Gravity Well's placement
@@ -575,8 +609,13 @@ engine had to make, not something the card says:
   the same reason Hyper and Fog of war are, and asked the same way (the card is
   only in the `aside` pile from the turn after it resolved), because otherwise
   the opponent takes the card off you by swinging once — a redraw with nothing
-  left to change is no card at all. The extra hand is discarded when the
-  swapping stops; nothing on the card says it is kept.
+  left to change is no card at all. For the same reason it does not fire when
+  there is nothing left to swap; it stays armed for a trigger it can use. Its
+  "face down actions" are read as the actions still to resolve, so a frame
+  under `Revealed` — whose whole plan is face up — can still use it. The extra
+  hand is discarded when the swapping stops; nothing on the card says it is
+  kept. Each action is settled once per run (swapped, or looked at and kept),
+  which is what stops "drop it / actually keep it" going round for ever.
 * **Cage Fight** does not ask where the box goes. Both fighters have to end up
   inside the 3x3 the walls enclose and they are at most two apart, so the
   centre is their midpoint and the only question is who is locked in. The walls

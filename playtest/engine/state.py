@@ -128,6 +128,18 @@ class TokenState:
     def attackable(self) -> bool:
         return self.alive and self.max_hp > 0 and self.pos is not None
 
+    @property
+    def is_unit(self) -> bool:
+        """True for a token that is a *unit* rather than scenery.
+
+        "Tokens that move and Frames are collectively called units"
+        (rules.tex Tokens) -- so a drone, a Riverside gang, a Car Park
+        refugee. A building an objective put down and anything a frame can
+        pick up and carry are not units: a frame may end its move on the
+        Shiny Thing (and had better, since that is how it gets picked up).
+        """
+        return self.alive and (self.kind == "drone" or self.movement > 0)
+
 
 @dataclass
 class ObjectiveState:
@@ -409,7 +421,18 @@ class GameState:
         return None
 
     def occupied(self, *, exclude: Optional[str] = None) -> frozenset[Pos]:
-        """Tiles blocked by frames -- what `BoardProtocol` wants for movement."""
+        """Tiles that stop a line of sight, and the conservative movement set.
+
+        Every frame -- "a tile with a frame on it counts as one elevation
+        higher when checking line of sight" (rules.tex Line of sight) -- plus
+        the tokens that are solid terrain. Tokens do *not* otherwise adjust
+        line of sight, so a drone or a gang is not in here: shooting over one
+        is fine.
+
+        For movement use `walk_options`, which knows the two halves the rules
+        distinguish: what may not be *crossed* (`move_blockers`) and what may
+        not be *stopped on* (`unit_tiles`).
+        """
         out = {
             f.pos for f in self.frames.values()
             if f.alive and f.pos is not None and f.id != exclude
@@ -426,6 +449,69 @@ class GameState:
             and t.kind in ("barricade", "image", "cage")
         }
         return frozenset(p for p in out if p is not None)
+
+    def _side_of(self, mover: Any) -> Optional[Team]:
+        """Which seat a frame or token belongs to. Seat 0 is falsy -- be exact."""
+        seat = getattr(mover, "seat", None)
+        return seat if seat is not None else getattr(mover, "owner", None)
+
+    def move_blockers(self, mover: Any) -> frozenset[Pos]:
+        """Tiles `mover` may not move *through*.
+
+        "Tiles occupied by friendly frames can be passed through, but tiles
+        occupied by enemy frames cannot" (rules.tex Movement penalties). Solid
+        tokens -- a barricade, a cage wall, an Ephemeral Image -- stop
+        everyone, friend included: the image has to behave exactly like the
+        frame it might be, or walking through one would give it away.
+        """
+        side = self._side_of(mover)
+        mine = {
+            f.pos for f in self.frames.values()
+            if f.alive and f.pos is not None and side is not None and f.seat == side
+        }
+        return frozenset(
+            self.occupied(exclude=getattr(mover, "id", None)) - mine
+        )
+
+    def unit_tiles(self, *, exclude: Optional[str] = None) -> frozenset[Pos]:
+        """Tiles no unit may *end* a move on.
+
+        "Tokens that move and Frames are collectively called units. A tile that
+        has a unit on it is occupied and another unit cannot end its move on
+        that tile" (rules.tex Tokens).
+        """
+        out = {
+            f.pos for f in self.frames.values()
+            if f.alive and f.pos is not None and f.id != exclude
+        }
+        out |= {
+            t.pos for t in self.tokens.values()
+            if t.is_unit and t.pos is not None and t.id != exclude
+        }
+        return frozenset(p for p in out if p is not None)
+
+    def walk_options(
+        self, mover: Any, budget: int, *, flying: bool = False
+    ) -> list[dict[str, Any]]:
+        """Where `mover` may walk, and what each tile costs.
+
+        The one place the two halves of the occupancy rule meet: a route may
+        run through a friendly frame or over a drone, but it may not *stop* on
+        either. Staying put is always offered -- it is a legal answer to a
+        movement decision and the only one a pinned frame has.
+        """
+        pos = getattr(mover, "pos", None)
+        if self.board is None or pos is None:
+            return []
+        reach = self.board.reachable(
+            pos, budget, occupied=self.move_blockers(mover), flying=flying
+        )
+        taken = self.unit_tiles(exclude=getattr(mover, "id", None))
+        return [
+            {"x": spot.x, "y": spot.y, "cost": cost}
+            for spot, cost in sorted(reach.items(), key=lambda kv: (kv[0].y, kv[0].x))
+            if spot == pos or spot not in taken
+        ]
 
     def elevation(self, pos: Optional[Pos]) -> int:
         if pos is None or self.board is None:

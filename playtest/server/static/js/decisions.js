@@ -719,6 +719,22 @@ function effectChoice(host, ctx, pending) {
  *  commit the set with one button -- the engine still takes them one at a
  *  time, which `commitPlacements` walks through.
  */
+/** The frame's hand, as thumbnails, for a decision that is about it. */
+function handStrip(host, ctx, pending, note) {
+  const frame = (ctx.view.frames || []).find((f) => f.id === pending.frameId);
+  const hand = (frame && frame.hand) || [];
+  if (!hand.length) return;
+  const strip = document.createElement('div');
+  strip.className = 'hand-strip';
+  for (const card of hand) {
+    const thumb = C.thumb(card.key, { width: 200 });
+    thumb.addEventListener('click', () => C.showCard(card.key));
+    strip.appendChild(thumb);
+  }
+  host.appendChild(strip);
+  if (note) hint(host, note);
+}
+
 /** Kuwagata's keep-or-redraw, told apart by its option shape. */
 function isMulligan(pending) {
   const options = (pending && pending.options) || [];
@@ -741,17 +757,8 @@ function mulligan(host, ctx, pending) {
       : 'No hand to look at',
     'info');
 
-  if (hand.length) {
-    const strip = document.createElement('div');
-    strip.className = 'hand-strip';
-    for (const card of hand) {
-      const thumb = C.thumb(card.key, { width: 200 });
-      thumb.addEventListener('click', () => C.showCard(card.key));
-      strip.appendChild(thumb);
-    }
-    host.appendChild(strip);
-    hint(host, 'Tap a card to read it. A mulligan is once per game.');
-  }
+  handStrip(host, ctx, pending,
+    'Tap a card to read it. A mulligan is once per game.');
 
   const el = list(host);
   optionRow(el, {
@@ -775,8 +782,16 @@ function mulligan(host, ctx, pending) {
  *  c17" is not a question anybody can answer.
  */
 function effectCards(host, ctx, pending) {
-  const el = list(host);
   const swapping = pending.options.some((o) => o.swap);
+  // "Which of my actions do I drop" is unanswerable without seeing what is on
+  // offer, so Parallel Action's fresh hand comes to the sheet the way the
+  // mulligan's does: thumbnails, tappable to read, above the choice.
+  if (pending.options.some((o) => o.swap === 'out')) {
+    handStrip(host, ctx, pending,
+      'Drawn for the swap — tap to read. Choose an action to drop, '
+      + 'or keep what is already down.');
+  }
+  const el = list(host);
   for (const option of pending.options) {
     if (option.done || option.skip) continue;
     const info = C.card(option.key);
@@ -790,7 +805,8 @@ function effectCards(host, ctx, pending) {
       thumbKey: option.key,
       main: C.displayName(option.key),
       sub: bits.join(' · '),
-      go: option.swap === 'out' ? 'drop' : (swapping ? 'play' : 'add'),
+      go: { out: 'drop', keep: 'keep' }[option.swap]
+        || (swapping ? 'play' : 'add'),
       onTap: () => ctx.send('effect_choice', { ...option }),
     });
   }

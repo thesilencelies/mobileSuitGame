@@ -308,6 +308,9 @@ class TokenView:
     #: The side that created it -- which is the side that cannot shoot it, and
     #: the side that moves it if it moves.
     owner: Optional[int] = None
+    #: A token that moves under its own power is a *unit*: nothing may end a
+    #: move on its tile (rules.tex Tokens).
+    moves: bool = False
     #: The frame an image or a drone belongs to, when the view says.
     frame: Optional[str] = None
     #: Set only on our own images: the one the frame is actually standing on.
@@ -361,6 +364,7 @@ class Snapshot:
                 alive=bool(t.get("alive", True)),
                 carrier=(str(t["carrier"]) if t.get("carrier") else None),
                 owner=(None if t.get("owner") is None else int(t["owner"])),
+                moves=bool(t.get("moves")),
                 frame=(str(t["frame"]) if t.get("frame") else None),
                 real=bool(t.get("real")),
             )
@@ -443,13 +447,23 @@ class Snapshot:
         ]
 
     def occupied(self, exclude: Optional[str] = None) -> frozenset[Pos]:
+        """Tiles a search must not walk onto.
+
+        Coarser than the engine's split of "cannot be crossed" from "cannot be
+        stopped on" (`GameState.move_blockers` / `unit_tiles`): the search
+        prices *destinations*, and every tile in here is one it may not end
+        on, so treating them all as walls costs it only the routes that thread
+        between two of its own frames. The engine is the authority on what is
+        legal -- this only decides where to look.
+        """
         out = {
             f.pos for f in self.frames.values()
             if f.alive and f.pos is not None and f.id != exclude
         }
         out |= {
             t.pos for t in self.tokens
-            if t.alive and t.pos is not None and t.kind == "barricade"
+            if t.alive and t.pos is not None
+            and (t.kind in ("barricade", "cage", "image") or t.moves)
         }
         return frozenset(p for p in out if p is not None)
 

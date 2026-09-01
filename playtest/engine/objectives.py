@@ -537,12 +537,9 @@ def token_decision(
         if top is not None and top > token.initiative:
             continue
         token.moved_turn = state.turn
-        reach = state.board.reachable(
-            token.pos, token.movement, occupied=state.occupied() - {token.pos}
-        )
         options = [
-            {"token": token.id, "x": p.x, "y": p.y}
-            for p in sorted(reach, key=lambda p: (p.y, p.x))
+            dict(option, token=token.id)
+            for option in state.walk_options(token, token.movement)
         ]
         if len(options) <= 1:
             continue
@@ -579,25 +576,40 @@ def token_label(token: TokenState) -> str:
     }.get(token.kind, f"the {token.kind}")
 
 
-def on_move(state: GameState, frame: FrameState, old_pos: Optional[Pos]) -> None:
-    """Pick up / drag carried tokens after a frame moves.
+def claim_token(state: GameState, token: TokenState) -> bool:
+    """Whoever is standing on a loose token has it.
 
-    "If a frame enters the tile the token is in, that frame picks up the
-    token" (rules.tex:826) -- one rule for every carried token. The fugitive
-    is the only one that names who may carry it ("can be held by allies"), and
-    that is on the token as `holders`, not special-cased here.
+    "If a frame is in the same tile the token is in, that frame picks up the
+    token" (rules.tex Tokens) -- a state of the board, not a trigger on
+    entering it, which is why this is asked both when a frame arrives and when
+    a token is dropped. Dropping is the case that matters: a melee hit knocks
+    the relic into the tile the attacker is standing in, and "so a melee hit
+    transfers ownership" is the rulebook's own note on it.
+
+    The fugitive is the only token that names who may carry it ("can be held
+    by allies"), and that is on the token as `holders`.
     """
+    if not token.alive or token.carrier is not None or not token.carriable:
+        return False
+    if token.pos is None:
+        return False
+    frame = state.frame_at(token.pos)
+    if frame is None or not frame.alive:
+        return False
+    if token.holders is not None and token.holders != frame.seat:
+        return False
+    token.carrier = frame.id
+    state.note(f"{frame.id} picks up {token_label(token)}")
+    return True
+
+
+def on_move(state: GameState, frame: FrameState, old_pos: Optional[Pos]) -> None:
+    """Pick up / drag carried tokens after a frame moves."""
     if frame.pos is None or state.board is None:
         return
-    for token in state.tokens.values():
-        if not token.alive or token.carrier is not None or not token.carriable:
-            continue
-        if token.pos != frame.pos:
-            continue
-        if token.holders is not None and token.holders != frame.seat:
-            continue
-        token.carrier = frame.id
-        state.note(f"{frame.id} picks up {token_label(token)}")
+    for token in list(state.tokens.values()):
+        if token.pos == frame.pos:
+            claim_token(state, token)
     for token in _carried_tokens(state, frame.id):
         token.pos = frame.pos
     latch_objectives(state)
@@ -607,10 +619,17 @@ def on_damage(
     state: GameState, defender: FrameState, attacker: Optional[FrameState]
 ) -> None:
     """A damaged frame drops whatever it is carrying, toward the damage."""
+    dropped = False
     for token in _carried_tokens(state, defender.id):
         token.carrier = None
         token.pos = _drop_tile(state, defender, attacker)
         state.note(f"{defender.id} drops {token_label(token)}")
+        # It may land at somebody's feet -- usually the attacker's, since a
+        # melee hit comes from an adjacent tile.
+        claim_token(state, token)
+        dropped = True
+    if dropped:
+        latch_objectives(state)
 
 
 def _drop_tile(

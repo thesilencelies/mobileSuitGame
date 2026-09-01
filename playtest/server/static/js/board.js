@@ -769,7 +769,10 @@ export class BoardView {
         ctx.strokeStyle = 'rgba(78,201,138,0.75)';
         ctx.lineWidth = 1.4 / s;
         ctx.strokeRect(x + 1 / s, y + 1 / s, 1 - 2 / s, 1 - 2 / s);
-        if (s > 30) {
+        // `null` means the decision did not say what the tile costs, so no
+        // number is drawn. It must not fall back to 0: "stay" on every tile
+        // is worse than no label at all.
+        if (s > 30 && cost !== null && cost !== undefined) {
           ctx.fillStyle = 'rgba(220,255,235,0.85)';
           ctx.font = `700 ${0.3}px system-ui, sans-serif`;
           ctx.textAlign = 'center'; ctx.textBaseline = 'middle';

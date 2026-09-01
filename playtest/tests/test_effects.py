@@ -842,6 +842,93 @@ def test_parallel_action_waits_for_next_turn_so_it_cannot_be_burnt():
     assert state.pending.frame_id == kid.id
 
 
+def test_being_attacked_sets_off_the_swap():
+    """"...or is attacked" -- through the real attack pipeline, not a flag set
+    by hand, because that is the path a playtester actually takes."""
+    state, kid, foe = duel()
+    card, _ = play(state, kid, effects.PARALLEL_ACTION)
+    carry_over(state, card)
+    state.phase = "action"
+    give(state, kid, "Spear_Thrust")           # spent blocking, compulsorily
+    give(state, kid, "Axe_Chop")               # and this one is left to swap
+    give(state, kid, "Halberd_Crush", location="deck")
+    give(state, kid, "Sword_Lunge", location="deck")
+
+    run_attack(state, foe, give(state, foe, "Spear_Thrust"), kid)
+    assert kid.turn_flags.get("parallel_now"), "being hit arms it"
+    assert effects.followup_decision(state) is True
+    assert state.pending.frame_id == kid.id
+    assert any(o.get("swap") == "out" for o in state.pending.options)
+
+
+def test_a_swap_can_be_taken_back():
+    state, kid, _foe = duel()
+    card, _ = play(state, kid, effects.PARALLEL_ACTION)
+    carry_over(state, card)
+    mine = give(state, kid, "Spear_Thrust")
+    state.cards[mine].face_down = True
+    spare = give(state, kid, "Halberd_Crush", location="deck")
+
+    kid.turn_flags["parallel_now"] = True
+    assert effects.followup_decision(state) is True
+    out, state.pending = state.pending, None
+    into = answer(state, out, {"uid": mine, "key": "Spear_Thrust", "swap": "out"})
+    assert any(o.get("swap") == "keep" for o in into.options), (
+        "the card being dropped is offered back"
+    )
+    assert answer(state, into, {"uid": mine, "key": "Spear_Thrust",
+                                "swap": "keep"}) is None
+    assert state.cards[mine].location == "committed", "kept, not discarded"
+    assert state.cards[spare].location == "discard", "the extra hand still goes"
+
+
+def test_a_swapped_in_card_resolves_at_its_own_initiative():
+    """Swap in something faster and it is what happens next.
+
+    The swap runs from `followup_decision`, which the driver calls *before* it
+    picks the next card, so the new action joins the queue in time to be that
+    card rather than waiting a beat.
+    """
+    from playtest.engine import resolve as R
+
+    state, kid, foe = duel()
+    card, _ = play(state, kid, effects.PARALLEL_ACTION)
+    carry_over(state, card)
+    slow = give(state, kid, "Halberd_Crush")             # initiative 3
+    state.cards[slow].face_down = True
+    give(state, foe, "Sword_Slice")                      # initiative 5
+    fast = give(state, kid, "Bruiser_Intimidate", location="deck")   # initiative 8
+    state.phase = "action"
+
+    assert R.next_actor(state)[0].id == foe.id, "the enemy is faster to begin with"
+
+    kid.turn_flags["parallel_now"] = True
+    assert effects.followup_decision(state) is True
+    out, state.pending = state.pending, None
+    into = answer(state, out, {"uid": slow, "key": "Halberd_Crush", "swap": "out"})
+    nxt = answer(state, into,
+                 {"uid": fast, "key": "Bruiser_Intimidate", "swap": "in"})
+    if nxt is not None:
+        answer(state, nxt, {"done": True})
+
+    actor = R.next_actor(state)
+    assert actor is not None and actor[1] == fast, "the faster card goes next"
+
+
+def test_looking_at_the_queue_does_not_advance_the_tie_alternation():
+    """`peek_actor` must put back what `next_actors` moves on."""
+    from playtest.engine import resolve as R
+
+    state, mine, theirs = duel()
+    give(state, mine, "Spear_Thrust")
+    give(state, theirs, "Spear_Thrust")
+    state.phase = "action"
+    R.next_actors(state)
+    before = (state.tie_value, state.tie_index)
+    R.peek_actor(state)
+    assert (state.tie_value, state.tie_index) == before
+
+
 def test_parallel_action_expires_with_the_card():
     state, kid, foe = duel()
     give(state, kid, "Spear_Thrust")
@@ -1241,6 +1328,66 @@ def test_a_drones_attack_can_be_blocked_but_the_drone_itself_never_blocks():
         "the drone's attack goes through the ordinary block rules, frame "
         "abilities included -- Hector keeps its first block of the turn"
     )
+
+
+def test_a_drone_shoots_an_objective():
+    """"Tokens can attack objectives" -- a reactor is a target like any other."""
+    from playtest.engine.state import TokenState
+
+    state = make_state()
+    frame = add_frame(state, 0, "Kuwagata", Pos(2, 2))
+    add_frame(state, 1, "Hector MkI", Pos(9, 9))          # far away, no frames near
+    reactor = TokenState(id="r", kind="reactor", pos=Pos(3, 2), hp=2, max_hp=2,
+                         owner=1, objective="Power Reactors")
+    state.tokens[reactor.id] = reactor
+
+    summon(state, frame, "Swarm_Swarm", Pos(2, 3))
+    token_id = next(t.id for t in state.tokens.values() if t.kind == fx.DRONE)
+    record = fx.slot(state, "drones")[token_id]
+    record["acted"] = 0
+    state.tokens[token_id].pos = Pos(3, 3)                 # adjacent to the reactor
+
+    options = effects._drone_options(
+        state, token_id, CATALOGUE["Swarm_Swarm"], frame)
+    assert any(o.get("token") == reactor.id for o in options), options
+    effects._drone_fire(state, token_id, record, {"token": reactor.id})
+    assert reactor.hp < 2, "the drone shot it"
+
+
+def test_a_drone_will_not_shoot_its_own_sides_objective():
+    from playtest.engine.state import TokenState
+
+    state = make_state()
+    frame = add_frame(state, 0, "Kuwagata", Pos(2, 2))
+    add_frame(state, 1, "Hector MkI", Pos(9, 9))
+    mine = TokenState(id="r", kind="reactor", pos=Pos(3, 2), hp=2, max_hp=2,
+                      owner=0, objective="Power Reactors")
+    state.tokens[mine.id] = mine
+    summon(state, frame, "Swarm_Swarm", Pos(3, 3))
+    token_id = next(t.id for t in state.tokens.values() if t.kind == fx.DRONE)
+    options = effects._drone_options(
+        state, token_id, CATALOGUE["Swarm_Swarm"], frame)
+    assert not any(o.get("token") == mine.id for o in options)
+
+
+def test_a_drone_card_stops_blocking_once_it_has_resolved():
+    """"Any blocks marked on the card that summoned the drone only apply
+    before the card resolves" (rules.tex Drones)."""
+    state = make_state()
+    frame = add_frame(state, 0, "Kuwagata", Pos(2, 2))
+    foe = add_frame(state, 1, "Hector MkI", Pos(3, 2))
+    uid = give(state, frame, "Swarm_Swarm")
+    assert CATALOGUE["Swarm_Swarm"].block_zones, "the card does print a block"
+
+    attack = combat.declare_attack(
+        state, foe, give(state, foe, "Spear_Thrust"),
+        target_kind="frame", target_id=frame.id)
+    zones = list(attack.current.pending_zones)
+    assert uid in combat.block_options(state, frame, attack, zones), (
+        "before it resolves it blocks"
+    )
+    state.cards[uid].resolved = True
+    assert uid not in combat.block_options(state, frame, attack, zones)
 
 
 def test_a_drone_can_be_attacked_and_dies_with_its_frame():

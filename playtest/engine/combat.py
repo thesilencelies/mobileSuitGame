@@ -417,6 +417,8 @@ def block_options(
     attack_card = state.card(attack.uid)
     close_quarters = kw.is_close_quarters(attack_card)
     out: list[str] = []
+    from . import effects
+
     for uid in remaining_cards(state, defender):
         if uid in used:
             continue
@@ -424,6 +426,12 @@ def block_options(
         if close_quarters and inst.resolved:
             continue           # cannot be blocked by an already-resolved card
         card = state.card(uid)
+        if inst.resolved and effects.delegates_attack(card):
+            # "Any blocks marked on the card that summoned the drone only
+            # apply before the card resolves: after it resolves they no longer
+            # block anything" (rules.tex Drones). The card stays on the table
+            # for the drone's health bar, not as a shield.
+            continue
         if any(card.blocks.get(z, 0) > 0 for z in zones):
             out.append(uid)
     return out

@@ -617,6 +617,21 @@ def next_actor(state: GameState) -> Optional[tuple[FrameState, str]]:
     return candidates[0] if candidates else None
 
 
+def peek_actor(state: GameState) -> Optional[tuple[FrameState, str]]:
+    """Who *would* act next, without advancing the tie alternation.
+
+    `next_actors` moves `tie_index` on as a side effect -- that is how "in the
+    event of a tie the cards are resolved alternately" stays honest across
+    calls -- so anything that merely wants to *look* has to put it back, or a
+    seat gets two cards in a row while the other waits.
+    """
+    value, index = state.tie_value, state.tie_index
+    try:
+        return next_actor(state)
+    finally:
+        state.tie_value, state.tie_index = value, index
+
+
 def _actor_decision(
     state: GameState, actors: Sequence[tuple[FrameState, str]]
 ) -> PendingDecision:
@@ -765,16 +780,7 @@ def _movement_decision(state: GameState, frame: FrameState, card: Card) -> bool:
     budget = kw.movement_budget(state, frame, card)
     if budget <= 0 or frame.pos is None or state.board is None:
         return False
-    reach = state.board.reachable(
-        frame.pos,
-        budget,
-        occupied=state.occupied(exclude=frame.id),
-        flying=kw.is_flying(frame),
-    )
-    options = [
-        {"x": pos.x, "y": pos.y, "cost": cost}
-        for pos, cost in sorted(reach.items(), key=lambda kv: (kv[0].y, kv[0].x))
-    ]
+    options = state.walk_options(frame, budget, flying=kw.is_flying(frame))
     options = effects.adjust_move_options(state, frame, budget, options)
     if not options:
         return False

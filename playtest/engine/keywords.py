@@ -198,7 +198,9 @@ def apply_knockback(
     dy = (target.pos.y > source.pos.y) - (target.pos.y < source.pos.y)
     if dx == 0 and dy == 0:
         return
-    occupied = state.occupied(exclude=target.id)
+    # A knockback ends wherever it stops, so it is stopped by anything a move
+    # could not end on -- a unit as well as a wall.
+    occupied = state.move_blockers(target) | state.unit_tiles(exclude=target.id)
     pos = target.pos
     flying = is_flying(target)
     for _ in range(steps):

@@ -208,6 +208,11 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width:
 .view[data-active] { display: block; }
 #view-plan, #view-order, #view-log, #view-field { overflow-y: auto;
   -webkit-overflow-scrolling: touch; padding-bottom: calc(var(--sheet-h) + 12px); }
+/* Goals scrolls too -- it is ten objective cards on a phone. Its own padding
+   already clears the sheet (`.goals`), so it is not in the rule above. Every
+   view but the board is in one of these two lists: a view that scrolls
+   nowhere reads as an empty tab. */
+#view-goals { overflow-y: auto; -webkit-overflow-scrolling: touch; }
 
 /* board */
 #view-board { background: #0a0d12; }

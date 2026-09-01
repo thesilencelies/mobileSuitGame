@@ -220,6 +220,39 @@ def test_damage_drops_the_shiny_thing_toward_the_damage_source():
     assert token.pos == Pos(4, 5), "the adjacent tile nearest the source"
 
 
+def test_a_melee_hit_knocks_the_token_into_the_attackers_own_tile():
+    """"so a melee hit transfers ownership" -- the rulebook's own note.
+
+    The drop lands in the tile nearest the damage, which for a melee attack is
+    the tile the attacker is standing in, and whoever is standing on a loose
+    token has it.
+    """
+    state = make_state()
+    obj = setup_objective(state, "Shiny Thing", owner=0, spawns=[Pos(5, 5)])
+    token = O.tokens_of(state, obj)[0]
+    carrier = add_frame(state, 1, "Kuwagata", Pos(5, 5))
+    attacker = add_frame(state, 0, "Kuwagata", Pos(4, 5))
+    O.on_move(state, carrier, Pos(5, 5))
+    assert token.carrier == carrier.id
+
+    deal_damage(state, carrier, "Mid", 1, source=attacker)
+    assert token.pos == attacker.pos
+    assert token.carrier == attacker.id, "it lands at the attacker's feet"
+
+
+def test_a_token_dropped_at_nobodys_feet_stays_loose():
+    state = make_state()
+    obj = setup_objective(state, "Shiny Thing", owner=0, spawns=[Pos(5, 5)])
+    token = O.tokens_of(state, obj)[0]
+    carrier = add_frame(state, 1, "Kuwagata", Pos(5, 5))
+    sniper = add_frame(state, 0, "Kuwagata", Pos(1, 5))
+    O.on_move(state, carrier, Pos(5, 5))
+
+    deal_damage(state, carrier, "Mid", 1, source=sniper)
+    assert token.pos == Pos(4, 5)
+    assert token.carrier is None
+
+
 def test_the_team_holding_the_shiny_thing_at_the_end_scores_it():
     state = make_state()
     obj = setup_objective(state, "Shiny Thing", owner=0, spawns=[Pos(5, 5)])

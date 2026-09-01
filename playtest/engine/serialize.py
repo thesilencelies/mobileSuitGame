@@ -218,6 +218,9 @@ def _token_json(state: GameState, token, seat: Team) -> dict[str, Any]:
         "maxHp": token.max_hp,
         "alive": token.alive,
         "carrier": token.carrier,
+        # "Tokens that move and Frames are collectively called units"
+        # (rules.tex Tokens) -- and nothing may end its move on a unit.
+        "moves": token.is_unit,
         # Which objective it belongs to, so the client can say "2 of 4
         # reactors destroyed" beside the card that asked for them.
         "objective": token.objective or None,

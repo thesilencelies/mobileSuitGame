@@ -1623,7 +1623,11 @@ async function refreshOverlays() {
     const picked = new Set(app.placeSelection.map((p) => `${p.x},${p.y}`));
     for (const o of effectTileOptions(pending)) {
       const key = `${o.x},${o.y}`;
-      if (!placing) overlays.reach.set(key, Number(o.cost) || 0);
+      if (!placing) {
+        // A decision that does not price its tiles gets no numbers on them.
+        const cost = Number(o.cost);
+        overlays.reach.set(key, Number.isFinite(cost) ? cost : null);
+      }
       else if (!picked.has(key)) overlays.place.add(key);
     }
     overlays.picked = placing ? app.placeSelection.slice() : [];
