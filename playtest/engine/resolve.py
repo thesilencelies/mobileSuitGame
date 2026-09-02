@@ -1260,7 +1260,8 @@ def _handle_choose_block(
     block_card = state.card(uid)
     combat.apply_block(state, defender, res.attack, uid, zones)
     attacker = state.frames.get(res.attack.attacker_id)
-    effects.on_block(state, defender, block_card, attacker)
+    effects.on_block(state, defender, block_card, attacker,
+                     via_token=res.attack.via_token)
 
 
 def _handle_deploy(state: GameState, pending: PendingDecision, cmd: Command) -> None:

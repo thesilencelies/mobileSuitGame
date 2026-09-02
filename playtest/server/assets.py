@@ -98,16 +98,31 @@ TOKEN_FILES: tuple[str, ...] = (
     "Tower1", "Tower2", "Tower3", "Tower4",
     "Shiny", "Fugitive", "Barricade", "GravityWell",
     "Portal", "Illusion", "Real", "Image",
-    "Cage", "Rebound", "Storm",
+    "Cage", "Rebound", "Storm", "Gangs", "Refugees",
 )
 
-#: Tokens whose art is not a Tabletop Simulator piece. A summoned drone is a
-#: game piece on this board but has never needed one for TTS, so it borrows the
-#: card's own artwork -- trimmed out of its transparent canvas the same way a
-#: standee is, so it stands on its tile rather than filling it edge to edge.
-TOKEN_EXTRA_SOURCES: Mapping[str, tuple[str, ...]] = {
-    "Swarm": ("pictures/Swarm.png",),
-}
+#: A summoned drone is a game piece on this board but has never needed one for
+#: TTS, so it borrows its own card's artwork -- trimmed out of its transparent
+#: canvas the way a standee is, so it stands on its tile rather than filling it
+#: edge to edge. Read off the cards rather than listed here: the drone that
+#: comes out of a Gun Tower is a gun tower, not a swarm, and a new drone group
+#: in `Drone actions.csv` needs no change on either side of this.
+def drone_token_sources() -> dict[str, Path]:
+    """Token stem -> artwork, one per drone *group*.
+
+    The stem is `slug(group)`, which is what `api.js` builds from the card key
+    the view puts on a drone token -- keep the two in step.
+    """
+    from ..engine.cards import load_cards
+
+    out: dict[str, Path] = {}
+    for card in load_cards().values():
+        if card.card_type != "drone" or not card.image:
+            continue
+        art = FRAME_SOURCE / card.image
+        if art.is_file():
+            out.setdefault(slug(card.group), art)
+    return out
 
 # --------------------------------------------------------------------------
 # Terrain geometry (mirrors terrain_cards.py:create_terrain_card)
@@ -341,14 +356,7 @@ def build_tokens(
     jobs: list[tuple[str, Path, bool]] = [
         (stem, source / f"{stem}.png", False) for stem in TOKEN_FILES
     ]
-    for stem, candidates in TOKEN_EXTRA_SOURCES.items():
-        for relative in candidates:
-            art = REPO_ROOT / relative
-            if art.is_file():
-                jobs.append((stem, art, True))
-                break
-        else:
-            failed.append(stem)
+    jobs += [(stem, art, True) for stem, art in sorted(drone_token_sources().items())]
     for stem, art, trim in jobs:
         if not art.is_file():
             failed.append(stem)

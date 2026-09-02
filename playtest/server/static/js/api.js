@@ -24,7 +24,7 @@
 //   setAiParams(gameId, params)     -> view
 //   cardImageUrl(key, width)        -> a URL the client can put in an <img>
 //   terrainImageUrl(cardName)       -> the terrain card's playable grid
-//   tokenImageUrl(kind, hp)         -> the piece art for a token at that hp
+//   tokenImageUrl(kind, hp, card)   -> the piece art for a token at that hp
 //   frameImageUrl(frameName)        -> the frame's standee, cut out of its art
 //
 // Nothing here may reference an external host: the app has to work with no
@@ -112,8 +112,18 @@ export function terrainImageUrl(cardName) {
 // The numbered token art *is* the damage state: `Tower4` is untouched and
 // `Tower1` is one hit from destroyed, and each Power Reactor has two states.
 // `hp` picks the file; anything without states ignores it.
-export function tokenImageUrl(kind, hp) {
-  const stem = TOKEN_ART[String(kind || '').toLowerCase()];
+//
+// A drone has no art of its own: it is whatever its card summoned, so the
+// stem comes from the card's *group* -- a Gun Tower is a gun tower and not a
+// swarm. `card` is the drone's card key, which the view puts on the token;
+// `assets.drone_token_sources()` writes the files under the same slug.
+export function tokenImageUrl(kind, hp, card = '') {
+  const key = String(kind || '').toLowerCase();
+  if (key === 'drone') {
+    const group = String(card || '').split('_')[0];
+    return group ? `/static/tokens/${slug(group)}.png` : null;
+  }
+  const stem = TOKEN_ART[key];
   if (!stem) return null;
   if (typeof stem === 'string') return `/static/tokens/${stem}.png`;
   const step = Math.max(1, Math.min(stem.states, Number(hp) || 1));
@@ -152,10 +162,11 @@ const TOKEN_ART = {
   illusion: 'Illusion',
   real: 'Real',
   image: 'Image',
-  drone: 'Swarm',
   cage: 'Cage',
   rebound: 'Rebound',
   storm: 'Storm',
+  gang: 'Gangs',
+  refugee: 'Refugees',
 };
 
 function slug(name) {

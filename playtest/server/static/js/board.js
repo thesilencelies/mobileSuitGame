@@ -753,12 +753,29 @@ export class BoardView {
       }
     }
     if (this.options.los && los && los.size) {
-      ctx.fillStyle = 'rgba(255,110,90,0.13)';
+      ctx.fillStyle = 'rgba(255,110,90,0.15)';
       for (const key of los) {
         const [x, y] = key.split(',').map(Number);
         if (x < x0 || x > x1 || y < y0 || y > y1) continue;
         ctx.fillRect(x, y, 1, 1);
       }
+      // The *edge* of what can be seen, not a border on every tile: a wash
+      // this pale over half the map has no readable shape, and a grid of
+      // outlines inside it has too much. So only the sides where a seen tile
+      // meets an unseen one are drawn, which is the silhouette of the cone.
+      ctx.beginPath();
+      for (const key of los) {
+        const [x, y] = key.split(',').map(Number);
+        if (x < x0 - 1 || x > x1 + 1 || y < y0 - 1 || y > y1 + 1) continue;
+        if (!los.has(`${x},${y - 1}`)) { ctx.moveTo(x, y); ctx.lineTo(x + 1, y); }
+        if (!los.has(`${x},${y + 1}`)) { ctx.moveTo(x, y + 1); ctx.lineTo(x + 1, y + 1); }
+        if (!los.has(`${x - 1},${y}`)) { ctx.moveTo(x, y); ctx.lineTo(x, y + 1); }
+        if (!los.has(`${x + 1},${y}`)) { ctx.moveTo(x + 1, y); ctx.lineTo(x + 1, y + 1); }
+      }
+      ctx.strokeStyle = 'rgba(255,96,72,0.85)';
+      ctx.lineWidth = 2.2 / s;
+      ctx.lineJoin = 'round';
+      ctx.stroke();
     }
     if (reach && reach.size) {
       for (const [key, cost] of reach) {
@@ -879,7 +896,7 @@ export class BoardView {
         kind = token.real ? 'real' : 'illusion';
       }
       const art = this.options.art
-        ? this._image(tokenImageUrl(kind, token.hp)) : null;
+        ? this._image(tokenImageUrl(kind, token.hp, token.card)) : null;
       if (art && art.complete && art.naturalWidth) {
         ctx.drawImage(art, x + 0.04, y + 0.04, 0.92, 0.92);
         if (token.carrier) {

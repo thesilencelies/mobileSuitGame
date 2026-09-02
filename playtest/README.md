@@ -554,7 +554,14 @@ printed text:
   tiles away, rather than beside the frame.
 
 A drone acts on the turn it is summoned, and on that turn the frame does not
-swing (`delegates_attack`). Two more things follow the card rather than the
+swing (`delegates_attack`). What a drone does is the *drone's*, which the
+attack carries as `via_token` beside the summoner's `attacker_id`: the frame
+whose card it is takes the kill, but everything the defender does back is done
+to the drone. A Chain catching a gun tower's shot dazes the gun tower — which,
+being a token, has no status counters to take, so the debuff fizzles — rather
+than reaching across the board for the frame that built it, and a Parry hits
+the drone for one. A carried token knocked loose drops toward the drone that
+fired, not toward its owner. Two more things follow the card rather than the
 drone: its printed blocks stop blocking the moment the card resolves — the card
 stays on the table for the drone's health bar, not as a shield — and a drone
 may shoot an objective token, which it does through the ordinary attack
@@ -574,6 +581,17 @@ Pilot cards are not like this — each one's text is its own — so an unlisted
 pilot card is deferred on purpose and
 `test_all_pilot_and_drone_text_is_implemented_or_flagged` says so.
 
+#### "Other actions"
+
+Accelerate ("other actions this turn get +3 mv") and Relentless Assault ("all
+other actions this frame takes this turn resolve twice at -2mv") both modify
+movement for actions *other than themselves* — and both are actions with a
+movement step of their own, which the controller may order after the effect
+step. So the modifier is banked when the effect resolves and only joins
+`turn_flags["movement_bonus"]` once the granting card has finished
+(`after_card_resolved`). That is the one moment "other" is unambiguous: what
+has already moved is not charged, and everything still to come gets it.
+
 #### Readings the cards did not settle themselves
 
 Some pilot text leaves a real question open. Each of these is a decision the
@@ -587,6 +605,14 @@ engine had to make, not something the card says:
   end of the next turn, and *any* displacement counts — its own movement, a
   shove, a knockback. The card wants the frame to leave; who did the pushing is
   not the point. `state.record_movement` is the one place that counts.
+* **Extraction** (the Fugitive) takes its token off the board when the
+  defenders score it — it has reached the point, so there is nothing left to
+  shoot, carry or take back. `ON_LATCH` is the hook; every other objective
+  leaves its pieces where they are, because a destroyed reactor is still
+  rubble in the way. Only on the *defender's* score: when the attackers take
+  it at the end of the game the fugitive is still sitting wherever it was
+  stopped, and the client tells the two apart from that (`settled` for the
+  owner, with no token left) rather than calling an extraction a destruction.
 * **Bind** is stored against the Bruiser, not its victim: "as long as that
   frame is adjacent" is the grappler's job to maintain, so the hold lifts by
   itself when the Bruiser dies, is moved off, or the card leaves play.
@@ -793,8 +819,13 @@ python -m playtest.server.assets --what frames
   (2.06 cm tiles from (0.1, 0.2), art placed 6.35 cm wide at (3.25, 4.45)) and
   scales that to 240×320. The crop coming out 3:4 to within a pixel is the
   check that the geometry is right — `test_terrain_crop_is_the_playable_grid`.
-* **`static/tokens/`** — 14 pieces from `tts_assets/`, 0.03 MB, 96 px PNG8 with
-  their transparency intact.
+* **`static/tokens/`** — the pieces from `tts_assets/`, 96 px PNG8 with their
+  transparency intact, plus one per **drone group**. A drone has no piece of
+  its own: it is whatever its card summoned, so `drone_token_sources()` reads
+  the artwork off the drone cards themselves and writes it under
+  `slug(group)` — which is what `api.js` builds from the card key the view
+  puts on a drone token. A Gun Tower is drawn as a gun tower, and a new drone
+  group in `Drone actions.csv` needs no change on either side of that.
 * **`static/frames/`** — the **standees**: 12 frames, 0.05 MB. `Frames.csv`
   points each frame at its artwork in `pictures/foreground/`; the builder
   `-trim`s the mech out of its transparent canvas and scales it to 128 px, so

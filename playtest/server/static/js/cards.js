@@ -44,6 +44,34 @@ export function setRoster(frames) {
 }
 
 /** What to print for a frame. The id already *is* its full name. */
+/** What a token is called on screen -- shared by the board, the decision
+ *  sheet and the tile read-out, because a thing has one name.
+ *
+ *  Images and drones belong to a frame and are named after it; everything
+ *  else is named after its kind, spelled out where the engine's word for it
+ *  is not the player's ("gravitywell").
+ */
+const TOKEN_WORDS = {
+  shiny: 'shiny thing', gravitywell: 'gravity well', reactor: 'power reactor',
+  rebound: 'rebound mirror', storm: 'psychic storm', cage: 'cage wall',
+};
+
+export function tokenWord(kind) {
+  return TOKEN_WORDS[String(kind || '')] || String(kind || 'token');
+}
+
+export function tokenLabel(token) {
+  if (!token) return 'it';
+  if (token.kind === 'image') {
+    return token.frame
+      ? `one of ${frameLabel(token.frame)}'s images` : 'an image';
+  }
+  if (token.kind === 'drone') {
+    return token.frame ? `${frameLabel(token.frame)}'s drone` : 'the drone';
+  }
+  return `the ${tokenWord(token.kind)}`;
+}
+
 export function frameLabel(frameId, fallback = '') {
   return ROSTER.has(frameId) ? ROSTER.get(frameId).id : (frameId || fallback);
 }

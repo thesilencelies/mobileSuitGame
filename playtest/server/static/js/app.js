@@ -1441,27 +1441,7 @@ function onTapFrame(frame) {
 
 // The engine's token `kind` is a bare slug. Only the ones that do not read as
 // English on their own need a word here.
-const TOKEN_WORDS = {
-  shiny: 'shiny thing', gravitywell: 'gravity well', reactor: 'power reactor',
-  rebound: 'rebound mirror', storm: 'psychic storm', cage: 'cage wall',
-};
-
-function tokenWord(kind) {
-  return TOKEN_WORDS[kind] || kind;
-}
-
-/** What a token is called on screen. Images and drones belong to a frame. */
-function tokenLabel(token) {
-  if (!token) return 'it';
-  if (token.kind === 'image') {
-    return token.frame
-      ? `one of ${C.frameLabel(token.frame)}'s images` : 'an image';
-  }
-  if (token.kind === 'drone') {
-    return token.frame ? `${C.frameLabel(token.frame)}'s drone` : 'the drone';
-  }
-  return `the ${tokenWord(token.kind)}`;
-}
+const { tokenWord, tokenLabel } = C;
 
 function attackDetail(option) {
   const zones = Object.entries(option.zones || {}).map(([z, n]) => `${z} ${n}`);
@@ -2084,7 +2064,7 @@ function renderObjectives() {
     if (tokens.length) {
       const line = document.createElement('p');
       line.className = 'goal-tokens';
-      line.textContent = objectiveTokenText(tokens);
+      line.textContent = objectiveTokenText(tokens, obj);
       box.appendChild(line);
     }
 
@@ -2123,17 +2103,25 @@ function objectiveStatusText(obj) {
  *  A set reads as a count ("2 of 4 reactors left"); a single token reads as
  *  its own state, because "1 of 1 tower left" says nothing a player wanted.
  */
-function objectiveTokenText(tokens) {
+function objectiveTokenText(tokens, obj = {}) {
   const alive = tokens.filter((t) => t.alive !== false);
   const kind = tokenWord(tokens[0].kind);
   const held = alive.find((t) => t.carrier);
   const parts = [];
+  // A token that is gone because its own side scored was not destroyed --
+  // it got out. Only extraction settles an objective *for the side that
+  // brought it* and takes the token off the board, so the two cannot be
+  // confused with a reactor being blown up.
+  const away = obj.settled && obj.scorer === obj.owner && !alive.length;
   if (tokens.length === 1) {
     const one = tokens[0];
-    if (one.alive === false) parts.push(`the ${kind} is destroyed`);
+    if (away) parts.push(`the ${kind} got away`);
+    else if (one.alive === false) parts.push(`the ${kind} is destroyed`);
     else if (!one.pos) parts.push(`the ${kind} is not on the board yet`);
     else if (one.maxHp > 1) parts.push(`the ${kind} is on ${one.hp} of ${one.maxHp} hit points`);
     else parts.push(`the ${kind} is on the board`);
+  } else if (away) {
+    parts.push(`all ${tokens.length} ${kind}s got away`);
   } else {
     parts.push(`${alive.length} of ${tokens.length} ${kind}s left`);
     if (alive.length && !alive.some((t) => t.pos)) parts.push('not on the board yet');

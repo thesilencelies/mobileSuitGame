@@ -291,6 +291,10 @@ class AttackInProgress:
     #: What the log should call the thing swinging, when it is not the frame
     #: itself -- a drone attacks with its summoner's card but is not it.
     via: str = ""
+    #: The token actually making the attack, when one is. `attacker_id` stays
+    #: the summoner -- it is whose card this is, and who scores the kill --
+    #: but anything the defender does *back* is done to this.
+    via_token: str = ""
 
     @property
     def current(self) -> Optional[AttackTarget]:
@@ -689,6 +693,7 @@ def deal_damage(
     amount: int,
     *,
     source: Optional[FrameState] = None,
+    source_pos: Optional[Pos] = None,
     absorb: bool = True,
 ) -> int:
     """Apply damage to one zone. Returns the damage actually taken.
@@ -699,6 +704,11 @@ def deal_damage(
     `absorb=False` skips the shield check, for callers that have already
     resolved the shield once for a whole multi-zone attack. Use
     `deal_attack_damage` rather than passing this by hand.
+
+    `source` is *whose* damage it is -- it takes the kill. `source_pos` is
+    where it came *from*, which is not always the same tile: a drone's shot
+    belongs to the frame that summoned it but is fired from the drone. A
+    carried token drops toward `source_pos`.
     """
     if amount <= 0 or not frame.alive:
         return 0
@@ -711,7 +721,11 @@ def deal_damage(
     # "Frames [...] drop it on damage" -- any damage, from any source.
     from . import objectives as _objectives
 
-    _objectives.on_damage(state, frame, source)
+    _objectives.on_damage(
+        state, frame, source,
+        source_pos=source_pos if source_pos is not None
+        else (source.pos if source is not None else None),
+    )
     check_destruction(state, frame, killer=source)
     return amount
 
@@ -722,6 +736,7 @@ def deal_attack_damage(
     zones: Mapping[str, int],
     *,
     source: Optional[FrameState] = None,
+    source_pos: Optional[Pos] = None,
 ) -> int:
     """Apply one attack's damage across every zone it landed in.
 
@@ -744,7 +759,8 @@ def deal_attack_damage(
         amount = zones.get(zone, 0)
         if amount > 0:
             dealt += deal_damage(
-                state, frame, zone, amount, source=source, absorb=False
+                state, frame, zone, amount,
+                source=source, source_pos=source_pos, absorb=False,
             )
     return dealt
 

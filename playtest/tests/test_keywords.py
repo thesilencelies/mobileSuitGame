@@ -439,13 +439,27 @@ def test_implemented_card_text_is_marked_handled():
 
 
 def test_accelerate_gives_later_actions_extra_movement():
+    """"*Other* actions this turn get +3 mv" -- so not Accelerate's own move.
+
+    Which matters because the controller orders a card's steps, and putting
+    the effect step first would otherwise hand Accelerate its own bonus.
+    """
     from playtest.engine import effects
 
     state = make_state()
     frame = add_frame(state, 0, "Kuwagata", Pos(1, 1))
     uid = give(state, frame, "Booster_Accelerate")
     before = kw.movement_budget(state, frame, CATALOGUE["Spear_Thrust"])
+    accelerate = CATALOGUE["Booster_Accelerate"]
+    own = kw.movement_budget(state, frame, accelerate)
+
     effects.resolve_effect(state, frame, uid)
+    assert kw.movement_budget(state, frame, accelerate) == own, (
+        "its own movement step is untouched, whichever order the steps run in"
+    )
+    assert kw.movement_budget(state, frame, CATALOGUE["Spear_Thrust"]) == before
+
+    effects.after_card_resolved(state, frame, uid)     # the card finishes
     assert kw.movement_budget(state, frame, CATALOGUE["Spear_Thrust"]) == before + 3
 
 

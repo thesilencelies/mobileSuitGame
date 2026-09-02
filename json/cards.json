@@ -1355,7 +1355,7 @@
   {
     "name": "Tactician Tactical broadcast",
     "description": "Lucid: while lucid a frame gets +2 cards",
-    "gm_notes": "4init\n-1mv\nBlk:1H\nAllied frames within 8 get 2 Lucid (+2 cards)",
+    "gm_notes": "4init\n-1mv\nBlk:1H\nAllied frames within 5 get 2 Lucid (+2 cards)",
     "tags":
     {
       "1": "Card",
@@ -1394,7 +1394,7 @@
   {
     "name": "Tactician Outfox",
     "description": "Revealed: while revealed a frame's chosen actions are turned face up\nDazed: while dazed a frame gets -2 cards",
-    "gm_notes": "4init\n-1mv\nBlk:1H\nTarget frame within 7 gets 3 Revealed (chosen actions are turned face up) and 2 Dazed (-2 card)",
+    "gm_notes": "4init\n-1mv\nBlk:1H\nTarget frame within 5 gets 3 Revealed (chosen actions are turned face up) and 2 Dazed (-2 card)",
     "tags":
     {
       "1": "Card",
@@ -1407,7 +1407,7 @@
   {
     "name": "Tactician Displace",
     "description": "",
-    "gm_notes": "1init\n-2mv\nBlk:1H\nMove another target frame within 8 to a new position within 8",
+    "gm_notes": "1init\n-2mv\nBlk:1H\nMove another target frame within 5 to a new position within 8",
     "tags":
     {
       "1": "Card",
@@ -1420,7 +1420,7 @@
   {
     "name": "Tactician Ennervate",
     "description": "Stimmed: while stimmed a frame gets +2 init\nCommitted: this attack is discarded after it resolves",
-    "gm_notes": "8init\n0mv\nBlk:1H\nAllied frames within 8 get 3 Stimmed (+2 init)\nCommitted",
+    "gm_notes": "8init\n0mv\nBlk:1H\nAllied frames within 5 get 3 Stimmed (+2 init)\nCommitted",
     "tags":
     {
       "1": "Card",
@@ -1563,7 +1563,7 @@
   {
     "name": "Engineer System Override",
     "description": "",
-    "gm_notes": "4init\n-1mv\nBlk:1H\npersist:1 turn\nYou choose which tile target frame moves to on their next action",
+    "gm_notes": "4init\n-1mv\nBlk:1H\npersist:1 turn\nYou choose which tile target frame within 4 moves to on their next action",
     "tags":
     {
       "1": "Card",
@@ -1576,7 +1576,7 @@
   {
     "name": "Engineer Sensory Overload",
     "description": "Dazed: while dazed a frame gets -2 cards\nStunned: while stunned a frame gets -2 init",
-    "gm_notes": "3init\n-1mv\nBlk:1H\nTarget frame gets 2 Dazed (-2 card) 3 Stunned (-2 init) and their ranged attacks this turn have a range of 2",
+    "gm_notes": "5init\n-1mv\nBlk:1H\nTarget frame within 6 gets 2 Dazed (-2 card) 3 Stunned (-2 init) and their ranged attacks this turn have a range of 2",
     "tags":
     {
       "1": "Card",

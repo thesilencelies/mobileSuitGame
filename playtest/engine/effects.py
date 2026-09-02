@@ -113,6 +113,21 @@ def _reach_from_text(text: str, default: int) -> int:
     return int(match.group(1)) if match else default
 
 
+def _reaches_from_text(text: str, *defaults: int) -> tuple[int, ...]:
+    """Every "within N" the card prints, in order, padded with `defaults`.
+
+    Two cards name two different distances in one sentence -- Displace picks a
+    frame "within 5" and puts it down "within 8", Set the trap moves an ally
+    "within 5" and reveals enemies "within 3" -- so reading only the first is
+    reading half the card.
+    """
+    found = [int(n) for n in _WITHIN_RE.findall(text or "")]
+    return tuple(
+        found[i] if i < len(found) else default
+        for i, default in enumerate(defaults)
+    )
+
+
 def _count_from_text(text: str, default: int) -> int:
     """How many the card makes: "Summon two attack dogs" -> 2."""
     match = _COUNT_RE.search(text or "")
@@ -415,11 +430,26 @@ def _effect_accelerate(state: GameState, frame: FrameState, uid: str):
     card = state.card(uid)
     match = _MV_BONUS_RE.search(card.text)
     bonus = int(match.group(1)) if match else 0
-    frame.turn_flags["movement_bonus"] = (
-        int(frame.turn_flags.get("movement_bonus", 0)) + bonus
-    )
+    _owe_movement(state, frame, bonus)
     state.note(f"{frame.id}'s other actions this turn get +{bonus} movement")
     return None
+
+
+def _owe_movement(state: GameState, frame: FrameState, bonus: int) -> None:
+    """Bank a movement modifier for the frame's *other* actions.
+
+    "Other actions this turn get +3 mv" (Accelerate), "all other actions this
+    frame takes this turn resolve twice at -2mv" (Relentless Assault). Both
+    say *other*, and the card saying so is itself an action with a movement
+    step -- which the controller may order after the effect step. So the
+    modifier is banked here and only joins `movement_bonus` when the card that
+    granted it has finished (`after_card_resolved`), which is the one moment
+    "other" is unambiguous.
+    """
+    if bonus:
+        frame.turn_flags["movement_owed"] = (
+            int(frame.turn_flags.get("movement_owed", 0)) + bonus
+        )
 
 
 def _effect_call_of_nature(state: GameState, frame: FrameState, uid: str):
@@ -636,9 +666,7 @@ def _effect_relentless(state: GameState, frame: FrameState, uid: str):
     ordinary queue at its own initiative rather than resolving back to back.
     """
     frame.turn_flags["repeat_actions"] = True
-    frame.turn_flags["movement_bonus"] = (
-        int(frame.turn_flags.get("movement_bonus", 0)) - 2
-    )
+    _owe_movement(state, frame, -2)
     state.note(
         f"{frame.id} presses the attack: its other actions this turn "
         f"resolve twice, at -2 movement"
@@ -836,9 +864,9 @@ def _effect_suplex(state: GameState, frame: FrameState, uid: str):
     this frame and only the far side of it counts -- see `_shove_tiles`.
     """
     card = state.card(uid)
-    reach = _reach_from_text(card.text, 3)
+    reach, steps = _reaches_from_text(card.text, 3, 3)
     return _shove_step(
-        state, frame, label=card.name, reach=reach, steps=reach,
+        state, frame, label=card.name, reach=reach, steps=steps,
         side="any", after="suplex", place=True, away=True,
     )
 
@@ -1061,17 +1089,17 @@ def _effect_set_the_trap(state: GameState, frame: FrameState, uid: str):
 
 
 def _effect_displace(state: GameState, frame: FrameState, uid: str):
-    """"Move another target frame within 8 to a new position within 8."
+    """"Move another target frame within 5 to a new position within 8."
 
-    Both eights are measured from the Tactician: it picks something within
-    eight of itself and puts it down anywhere within eight of itself. Unlike
-    Set the trap the frame does not walk there -- it is displaced, so walls and
-    its own movement have nothing to say about where it ends up.
+    Two different distances, both measured from the Tactician: how far it can
+    reach to grab something, and how far it can throw it. Unlike Set the trap
+    the frame does not walk there -- it is displaced, so walls and its own
+    movement have nothing to say about where it ends up.
     """
     card = state.card(uid)
-    reach = _reach_from_text(card.text, 8)
+    reach, steps = _reaches_from_text(card.text, 5, 8)
     return _shove_step(
-        state, frame, label=card.name, reach=reach, steps=reach,
+        state, frame, label=card.name, reach=reach, steps=steps,
         side="any", after="", place=True,
     )
 
@@ -1473,13 +1501,16 @@ def _choice_gravity_well(
 
 
 def _effect_system_override(state: GameState, frame: FrameState, uid: str):
-    """"You choose which tile target frame moves to on their next action."
+    """"You choose which tile target frame within 4 moves to on their next
+    action."
 
-    No range is printed, so there is none. The hold is spent on the next
-    movement decision that frame is offered -- an action with no movement in
-    it has no tile to choose, so it is not what the card is talking about.
+    The hold is spent on the next movement decision that frame is offered --
+    an action with no movement in it has no tile to choose, so it is not what
+    the card is talking about. The range is checked when the card resolves;
+    the frame may be anywhere by the time it moves.
     """
-    targets = fx.frames_within(state, frame, 10 ** 6, side="any")
+    reach = _reach_from_text(state.card(uid).text, 4)
+    targets = fx.frames_within(state, frame, reach, side="any")
     if not targets:
         return None
     if len(targets) == 1:
@@ -1522,12 +1553,9 @@ def move_chooser(state: GameState, frame: FrameState) -> Team:
 
 
 def _effect_sensory_overload(state: GameState, frame: FrameState, uid: str):
-    """"Target frame gets 2 Dazed 3 Stunned and their ranged attacks this turn
-    have a range of 2."
-
-    Like System Override this prints no range of its own, so it has none.
-    """
-    return _target_effect_step(state, frame, uid, reach=10 ** 6)
+    """"Target frame within 6 gets 2 Dazed 3 Stunned and their ranged attacks
+    this turn have a range of 2"."""
+    return _target_effect_step(state, frame, uid)
 
 
 def _range_cap(state: GameState, target: FrameState, cap: int) -> None:
@@ -2570,7 +2598,16 @@ def after_move(
 
 
 def after_card_resolved(state: GameState, frame: FrameState, uid: str) -> None:
-    """Relentless Assault: wind an action back so it resolves a second time."""
+    """What a finished card sets off for the ones after it."""
+    owed = int(frame.turn_flags.pop("movement_owed", 0))
+    if owed:
+        # "Other actions": the card that granted this has now finished, so
+        # everything still to come is an other action and nothing that has
+        # already moved is charged for it.
+        frame.turn_flags["movement_bonus"] = (
+            int(frame.turn_flags.get("movement_bonus", 0)) + owed
+        )
+    # Relentless Assault: wind an action back so it resolves a second time.
     if not frame.turn_flags.get("repeat_actions"):
         return
     inst = state.cards.get(uid)
@@ -2973,6 +3010,7 @@ def _drone_strike_token(
         attacker_id=str(record["frame"]),
         uid=str(record["uid"]),
         via=drone_name(state, token_id),
+        via_token=token_id,
     )
     attack.targets.append(AttackTarget("token", target.id, dict(zones)))
     state.note(f"{drone_name(state, token_id)} attacks the {target.kind}")
@@ -2996,6 +3034,7 @@ def _drone_declare(
         guard_break="guardbreak" in card.keywords,
         feint="feint" in card.keywords,
         via=drone_name(state, token_id),
+        via_token=token_id,
     )
     target = AttackTarget("frame", target_id, dict(zones))
     target.pending_zones = [z for z in ZONES if z in zones]
@@ -3051,7 +3090,8 @@ def _choice_drone_block(
     zones = [str(z) for z in ctx.get("zones", [])]
     block_card = state.card(uid)
     combat.apply_block(state, frame, attack, uid, zones)
-    on_block(state, frame, block_card, state.frames.get(attack.attacker_id))
+    on_block(state, frame, block_card, state.frames.get(attack.attacker_id),
+             via_token=attack.via_token)
     _drone_resolve(state, token_id, attack)
 
 
@@ -3087,13 +3127,32 @@ def on_block(
     defender: FrameState,
     block_card: Card,
     attacker: Optional[FrameState],
+    *,
+    via_token: str = "",
 ) -> None:
-    """`On Block:` -- fires when this card is spent blocking."""
+    """`On Block:` -- fires when this card is spent blocking.
+
+    Whatever the rider does, it does to *the thing that swung*. When a drone
+    made the attack that is the drone, not the frame that summoned it: a Chain
+    catching a Gun Tower's shot dazes the gun tower, and dazing a machine on
+    the far side of the board because its owner's card is the one being
+    resolved is not what the card says. A token carries no statuses
+    (rules.tex: "they only have one health stat"), so a debuff simply fizzles
+    against one; damage lands on it.
+    """
     match = _ON_BLOCK_RE.search(block_card.text or "")
-    if not match or attacker is None:
+    if not match:
+        return
+    token = state.tokens.get(via_token) if via_token else None
+    if token is None and attacker is None:
         return
     body = match.group(1)
+    what = drone_name(state, token.id) if token is not None else ""
     for kind, count in _parse_statuses(body):
+        if token is not None:
+            state.note(f"{what} has no {kind} counter to take -- it is a token")
+            continue
+        assert attacker is not None
         apply_status(state, attacker, kind, count)
     # "On Block: deals mid <dtype>" -- Parry hits back for one Mid.
     hit = re.search(r"deals\s+(high|mid|low)", body, re.I)
@@ -3101,7 +3160,11 @@ def on_block(
         from .state import deal_damage
 
         zone = hit.group(1).capitalize()
-        zone = {"High": "High", "Mid": "Mid", "Low": "Low"}[zone]
+        if token is not None:
+            damage_token(state, token, 1)
+            state.note(f"{block_card.key} strikes {what} back for 1")
+            return
+        assert attacker is not None
         deal_damage(state, attacker, zone, 1, source=defender)
         state.note(f"{block_card.key} strikes back for 1 {zone}")
 

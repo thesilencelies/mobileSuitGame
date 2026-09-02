@@ -1344,6 +1344,13 @@ def test_terrain_and_token_art_ships_with_the_app() -> None:
     for stem in ("Tower1", "Tower2", "Tower3", "Tower4",
                  "PowerPlant1", "PowerPlant2", "Shiny", "Fugitive"):
         assert stem in tokens, f"missing token art {stem}"
+    # A drone is drawn as whatever its card summoned, one piece per drone
+    # group -- a Gun Tower is a gun tower and not a swarm. The stems here are
+    # the ones `api.js` builds from the card key on the token.
+    drones = set(assets.drone_token_sources())
+    assert "Gun_Tower" in drones and "Swarm" in drones, drones
+    missing_drones = sorted(drones - tokens)
+    assert not missing_drones, f"no bundled drone art for {missing_drones}"
 
 
 def test_bundled_board_art_is_served_and_is_small(client: Client) -> None:

@@ -148,7 +148,10 @@ def test_relentless_assault_sends_other_actions_back_round_the_queue():
     before = frame.base_movement
     uid, decision = play(state, frame, effects.RELENTLESS)
     assert decision is None
-    assert frame.base_movement == max(0, before - 2), "-2mv on this turn's actions"
+    assert frame.base_movement == before, "not its own movement step"
+
+    effects.after_card_resolved(state, frame, uid)     # the card finishes
+    assert frame.base_movement == max(0, before - 2), "-2mv on the other actions"
 
     other = give(state, frame, "Spear_Thrust")
     state.cards[other].init_index = 1                 # as _finish_card leaves it
@@ -532,10 +535,10 @@ def test_a_doomed_frame_that_moves_far_enough_shakes_it_off():
 # --------------------------------------------------------------------------
 
 
-def test_tactical_broadcast_makes_allies_within_eight_lucid():
+def test_tactical_broadcast_makes_allies_in_range_lucid():
     state = make_state(width=20, height=20)
     tac = add_frame(state, 0, "Hector MkI", Pos(2, 2))
-    ally = add_frame(state, 0, "Percival MkIV", Pos(9, 2))
+    ally = add_frame(state, 0, "Percival MkIV", Pos(7, 2))   # five away
     far = add_frame(state, 0, "Adam", Pos(19, 19))
     enemy = add_frame(state, 1, "Fenrir", Pos(3, 3))
 
@@ -614,10 +617,10 @@ def test_a_shove_asks_who_before_it_asks_where():
     assert near.pos == Pos(4, 4), "the frame that was not chosen did not move"
 
 
-def test_outfox_reveals_and_dazes_a_frame_within_seven():
+def test_outfox_reveals_and_dazes_a_frame_in_range():
     state = make_state(width=20, height=20)
     tac = add_frame(state, 0, "Hector MkI", Pos(2, 2))
-    enemy = add_frame(state, 1, "Fenrir", Pos(8, 2))
+    enemy = add_frame(state, 1, "Fenrir", Pos(7, 2))         # five away
     far = add_frame(state, 1, "Adam", Pos(19, 19))
     hidden = give(state, enemy, "Spear_Thrust")
 
@@ -632,26 +635,32 @@ def test_outfox_reveals_and_dazes_a_frame_within_seven():
     assert far.statuses["dazed"] == 0
 
 
-def test_displace_puts_a_frame_anywhere_within_eight_of_the_tactician():
+def test_displace_reaches_five_and_throws_eight():
+    """The two distances on the card are different and both are read."""
     state = make_state(width=20, height=20)
     tac = add_frame(state, 0, "Hector MkI", Pos(10, 10))
     enemy = add_frame(state, 1, "Fenrir", Pos(12, 10))
+    near = add_frame(state, 1, "Kuwagata", Pos(10, 14))       # four away
+    out_of_reach = add_frame(state, 1, "Adam", Pos(17, 10))   # seven away
     state.board.set_tile(Pos(11, 10), impassable=True)   # a wall between them
 
     _uid, who = play(state, tac, effects.DISPLACE)
-    assert who is None or who.kind == "effect_choice"
-    where = who if who is not None and "x" in who.options[0] else answer(
-        state, who, {"frame": enemy.id, "name": enemy.spec.name})
+    assert who is not None and who.pick_kind == "frame"
+    assert {o["frame"] for o in who.options} == {enemy.id, near.id}, (
+        "it can only grab what is within five"
+    )
+    where = answer(state, who, {"frame": enemy.id, "name": enemy.spec.name})
     assert where.pick_kind == "place", "it is put down, not walked"
     tiles = {Pos(o["x"], o["y"]) for o in where.options}
-    assert Pos(4, 10) in tiles, "eight from the Tactician, wall or no wall"
-    assert Pos(1, 1) not in tiles, "and no further"
+    assert Pos(2, 10) in tiles, "eight from the Tactician, wall or no wall"
+    assert Pos(1, 10) not in tiles, "and no further"
+    assert out_of_reach.pos not in tiles, "nor onto another frame"
 
-    assert answer(state, where, {"x": 4, "y": 10}) is None
-    assert enemy.pos == Pos(4, 10)
+    assert answer(state, where, {"x": 2, "y": 10}) is None
+    assert enemy.pos == Pos(2, 10)
 
 
-def test_ennervate_stims_every_ally_within_eight():
+def test_ennervate_stims_every_ally_in_range():
     state = make_state(width=20, height=20)
     tac = add_frame(state, 0, "Hector MkI", Pos(2, 2))
     ally = add_frame(state, 0, "Adam", Pos(6, 5))
@@ -1054,10 +1063,11 @@ def test_precision_tuning_boosts_this_frame():
 def test_system_override_hands_the_next_move_to_the_other_seat():
     state = make_state()
     eng = add_frame(state, 0, "Percival MkIV", Pos(2, 2))
-    enemy = add_frame(state, 1, "Hector MkI", Pos(8, 8))
+    enemy = add_frame(state, 1, "Hector MkI", Pos(6, 2))      # four away
+    add_frame(state, 1, "Fenrir", Pos(9, 9))                  # out of range
 
     _uid, decision = play(state, eng, effects.SYSTEM_OVERRIDE)
-    assert decision is None, "there is only one other frame, at any range"
+    assert decision is None, "only one frame is within four"
     assert effects.move_chooser(state, enemy) == eng.seat
     assert effects.move_chooser(state, enemy) == enemy.seat, "once only"
 
@@ -1065,7 +1075,7 @@ def test_system_override_hands_the_next_move_to_the_other_seat():
 def test_sensory_overload_dazes_stuns_and_shortens_the_targets_range():
     state = make_state()
     eng = add_frame(state, 0, "Percival MkIV", Pos(2, 2))
-    enemy = add_frame(state, 1, "J7R-Salaryman", Pos(8, 8))
+    enemy = add_frame(state, 1, "J7R-Salaryman", Pos(8, 2))   # six away
     card = CATALOGUE["Railgun_Snipe"]                       # range 12
     assert combat.effective_range(state, enemy, card, "High") > 4
 
@@ -1327,6 +1337,78 @@ def test_a_drones_attack_can_be_blocked_but_the_drone_itself_never_blocks():
     assert enemy.turn_flags.get("hector_block_used"), (
         "the drone's attack goes through the ordinary block rules, frame "
         "abilities included -- Hector keeps its first block of the turn"
+    )
+
+
+def test_catching_a_drones_attack_does_not_daze_the_frame_that_sent_it():
+    """"On Block: attacker gets Dazed" -- and the attacker is the drone.
+
+    Dazing a machine on the far side of the board because its owner's card is
+    the one being resolved is not what the card says. A token carries no
+    statuses, so the debuff simply fizzles.
+    """
+    state, frame, enemy = duel(gap=4)
+    summon(state, frame, "Swarm_Swarm")
+    drone = next(t for t in state.tokens.values() if t.kind == fx.DRONE)
+    drone.pos = Pos(4, 2)
+    catch = give(state, enemy, "Chain_Catch")              # blocks High/Mid
+    state.cards[catch].init_index = 1
+
+    assert effects.followup_decision(state) is True
+    beside = Pos(enemy.pos.x - 1, enemy.pos.y)
+    block = answer(state, state.pending, {"x": beside.x, "y": beside.y})
+    assert answer(state, block, {"uid": catch}) is None
+    assert frame.statuses["dazed"] == 0, "the summoner is not the attacker"
+
+
+def test_a_parry_against_a_drone_hits_the_drone():
+    """The other On Block rider deals damage back, and it lands on the drone."""
+    state, frame, enemy = duel(gap=4)
+    summon(state, frame, "Swarm_Swarm")
+    drone = next(t for t in state.tokens.values() if t.kind == fx.DRONE)
+    drone.pos = Pos(4, 2)
+    before = drone.hp
+    parry = give(state, enemy, "Sword_Parry")
+    state.cards[parry].init_index = 1
+
+    assert effects.followup_decision(state) is True
+    beside = Pos(enemy.pos.x - 1, enemy.pos.y)
+    block = answer(state, state.pending, {"x": beside.x, "y": beside.y})
+    assert answer(state, block, {"uid": parry}) is None
+    assert sum(frame.damage.values()) == 0, "not the summoner"
+    assert drone.hp == before - 1, "the drone takes it"
+
+
+def test_a_token_shot_out_of_a_carrier_drops_toward_the_drone():
+    """The damage is the summoner's -- it takes the kill -- but it comes from
+    the drone, and a carried token drops toward the muzzle."""
+    from playtest.engine import objectives as O
+    from playtest.engine.state import TokenState
+
+    state = make_state(width=20, height=20)
+    state.phase = "action"
+    frame = add_frame(state, 0, "Kamikiri", Pos(2, 10))
+    enemy = add_frame(state, 1, "Hector MkI", Pos(10, 10))
+    summon(state, frame, "Gun Tower_Gun Tower 1", Pos(3, 10))
+    drone = next(t for t in state.tokens.values() if t.kind == fx.DRONE)
+    drone.pos = Pos(15, 10)                         # the far side of the enemy
+    shiny = TokenState(id="s", kind="shiny", pos=enemy.pos, carriable=True,
+                       objective="Shiny Thing", carrier=enemy.id)
+    state.tokens[shiny.id] = shiny
+    state.objectives.append(
+        O.ObjectiveState(name="Shiny Thing", owner=1, defend=1, attack=1))
+
+    record = fx.slot(state, "drones")[drone.id]
+    record["acted"] = 0
+    # The gun tower cannot move and has one target, so its whole turn runs
+    # without a decision -- `followup_decision` parks nothing and says so.
+    assert effects.followup_decision(state) is False
+    while state.pending is not None:
+        answer(state, state.pending)
+    assert enemy.damage["High"] or enemy.damage["Mid"] or enemy.damage["Low"]
+    assert shiny.carrier is None, "the hit knocked it loose"
+    assert shiny.pos.x > enemy.pos.x, (
+        "toward the drone that fired, not the frame that owns it"
     )
 
 

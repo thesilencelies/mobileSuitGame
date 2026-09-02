@@ -23,7 +23,7 @@ moves, and is dropped toward the damage source when its carrier is hit.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable, Mapping, Optional, Sequence
+from typing import Any, Callable, Mapping, Optional, Sequence
 
 from .state import (
     FrameState,
@@ -355,6 +355,39 @@ def latch_objectives(state: GameState) -> None:
         if seat is not None:
             objective.latched = seat
             state.note(f"{objective.name} is scored by {team_name(seat)}")
+            after = ON_LATCH.get(objective.name)
+            if after is not None:
+                after(state, objective, seat)
+
+
+def _extracted(state: GameState, obj: ObjectiveState, seat: Team) -> None:
+    """The fugitive is off the board once it is out.
+
+    "Extraction: ... Defenders score if it reaches the objective point" -- it
+    has reached it, so it is gone: nothing left to shoot, to carry or to take
+    back. Only on the defender's score; when the attackers take it at the end
+    of the game the token is still sitting wherever it was stopped.
+    """
+    if seat != obj.owner:
+        return
+    for token in tokens_of(state, obj):
+        if not token.alive:
+            continue
+        carrier = state.frames.get(token.carrier or "")
+        token.alive = False
+        token.pos = None
+        token.carrier = None
+        state.note(
+            f"{token_label(token)} is extracted"
+            + (f" by {carrier.id}" if carrier else "")
+        )
+
+
+#: What happens to an objective's pieces the moment it latches. Most leave
+#: them on the table -- a destroyed reactor is still rubble in the way.
+ON_LATCH: Mapping[str, Any] = {
+    "Fugitive": _extracted,
+}
 
 
 # --------------------------------------------------------------------------
@@ -616,13 +649,24 @@ def on_move(state: GameState, frame: FrameState, old_pos: Optional[Pos]) -> None
 
 
 def on_damage(
-    state: GameState, defender: FrameState, attacker: Optional[FrameState]
+    state: GameState,
+    defender: FrameState,
+    attacker: Optional[FrameState],
+    *,
+    source_pos: Optional[Pos] = None,
 ) -> None:
-    """A damaged frame drops whatever it is carrying, toward the damage."""
+    """A damaged frame drops whatever it is carrying, toward the damage.
+
+    `source_pos` is where the damage came from, which is not always the
+    attacker's own tile: a drone's shot belongs to the frame that summoned it
+    but is fired from the drone, and the token drops toward the muzzle.
+    """
+    if source_pos is None and attacker is not None:
+        source_pos = attacker.pos
     dropped = False
     for token in _carried_tokens(state, defender.id):
         token.carrier = None
-        token.pos = _drop_tile(state, defender, attacker)
+        token.pos = _drop_tile(state, defender, source_pos)
         state.note(f"{defender.id} drops {token_label(token)}")
         # It may land at somebody's feet -- usually the attacker's, since a
         # melee hit comes from an adjacent tile.
@@ -633,7 +677,7 @@ def on_damage(
 
 
 def _drop_tile(
-    state: GameState, defender: FrameState, attacker: Optional[FrameState]
+    state: GameState, defender: FrameState, source: Optional[Pos]
 ) -> Optional[Pos]:
     """The adjacent tile nearest the damage source."""
     if defender.pos is None or state.board is None:
@@ -644,9 +688,8 @@ def _drop_tile(
     ]
     if not candidates:
         return defender.pos
-    if attacker is None or attacker.pos is None:
+    if source is None:
         return sorted(candidates)[0]
-    source = attacker.pos
 
     def nearness(pos: Pos) -> tuple[int, int]:
         # The game measures range as Chebyshev, but that leaves ties around a

@@ -719,6 +719,11 @@ function effectChoice(host, ctx, pending) {
  *  commit the set with one button -- the engine still takes them one at a
  *  time, which `commitPlacements` walks through.
  */
+function capitalise(text) {
+  const s = String(text || '');
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
 /** The frame's hand, as thumbnails, for a decision that is about it. */
 function handStrip(host, ctx, pending, note) {
   const frame = (ctx.view.frames || []).find((f) => f.id === pending.frameId);
@@ -926,11 +931,23 @@ function effectTargets(host, ctx, pending) {
   const el = list(host);
   for (const option of pending.options) {
     if (option.token) {
-      const owner = imageOwner(ctx, option.token);
+      // Not every token option is an Ephemeral Image any more -- a drone may
+      // shoot an objective, and calling the Tower an illusion is a lie about
+      // what the tap does.
+      const token = (ctx.view.tokens || []).find((t) => t.id === option.token);
+      const image = !token || token.kind === 'image';
+      const hp = token && token.maxHp
+        ? `${token.hp}/${token.maxHp} hit points` : '';
       optionRow(el, {
-        main: owner ? `One of ${C.frameLabel(owner)}'s images` : 'An image',
-        sub: 'Only one of them is the frame; the rest vanish when struck',
-        go: 'guess',
+        main: image
+          ? (imageOwner(ctx, option.token)
+            ? `One of ${C.frameLabel(imageOwner(ctx, option.token))}'s images`
+            : 'An image')
+          : capitalise(C.tokenLabel(token)),
+        sub: image
+          ? 'Only one of them is the frame; the rest vanish when struck'
+          : hp,
+        go: image ? 'guess' : 'attack',
         onTap: () => ctx.send('effect_choice', { token: option.token }),
       });
       continue;

@@ -523,8 +523,14 @@ def finish_target(state: GameState, attack: AttackInProgress) -> None:
     defender = state.frames.get(target.id)
     if defender is None:
         return
-    # One shield counter absorbs the whole attack, every zone of it.
-    deal_attack_damage(state, defender, landed, source=attacker)
+    # One shield counter absorbs the whole attack, every zone of it. The
+    # damage is the attacker's -- it takes the kill -- but it comes from
+    # wherever the swing did, which for a drone is the drone.
+    swinging = state.tokens.get(attack.via_token) if attack.via_token else None
+    deal_attack_damage(
+        state, defender, landed, source=attacker,
+        source_pos=swinging.pos if swinging is not None else attacker.pos,
+    )
     if landed:
         state.note(
             f"{attack.via or attacker.id} hits {defender.id} with {card.key} "

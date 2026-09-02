@@ -399,9 +399,48 @@ def test_the_fugitive_latches_for_the_defender_at_the_objective_point():
     O.on_move(state, escort, Pos(8, 9))
     escort.pos = Pos(9, 9)
     O.on_move(state, escort, Pos(8, 8))
-    assert token.pos == Pos(9, 9)
     assert obj.latched == 0
     assert objective_score(state, obj) == (0, obj.defend)
+    # Extraction: it reached the point, so it is off the board -- nothing left
+    # to shoot, to carry, or to take back.
+    assert not token.alive and token.pos is None and token.carrier is None
+    assert token.id not in {t.id for t in O.tokens_of(state, obj) if t.alive}
+
+
+def test_the_view_says_enough_to_tell_extraction_from_destruction():
+    """The client draws "got away" rather than "destroyed" off these three
+    facts, and nothing else on the board produces the combination: only an
+    extraction settles an objective *for the side that brought it* and takes
+    its token off the board."""
+    from playtest.engine.serialize import view_for
+
+    state = make_state()
+    obj = setup_objective(state, "Fugitive", owner=0, tiles=[Pos(9, 9)])
+    drop_token(state, obj, Pos(8, 8))
+    escort = add_frame(state, 0, "Kuwagata", Pos(8, 8))
+    O.on_move(state, escort, Pos(8, 9))
+    escort.pos = Pos(9, 9)
+    O.on_move(state, escort, Pos(8, 8))
+
+    view = view_for(state, 0)
+    entry = next(o for o in view["board"]["objectives"]
+                 if o["name"] == "Fugitive")
+    assert entry["settled"] is True
+    assert entry["scorer"] == entry["owner"] == 0
+    assert not [t for t in view["tokens"]
+                if t["objective"] == "Fugitive" and t["alive"]]
+
+
+def test_a_fugitive_the_attacker_stops_stays_on_the_board():
+    """The other way it scores is the clock running out, and then it is still
+    sitting wherever it was stopped."""
+    state = make_state()
+    obj = setup_objective(state, "Fugitive", owner=0, tiles=[Pos(9, 9)])
+    token = drop_token(state, obj, Pos(4, 4))
+    finish(state)
+    O.latch_objectives(state)
+    assert objective_score(state, obj)[0] == 1, "the attackers score"
+    assert token.alive and token.pos == Pos(4, 4)
 
 
 def test_a_fugitive_that_never_arrives_scores_for_the_attacker():
