@@ -721,32 +721,99 @@ def _farm_charge(state: GameState, objective: ObjectiveState) -> None:
             charge[frame.seat] = charge.get(frame.seat, 0) + 1
 
 
+def _ritual_frames(
+    state: GameState, objective: ObjectiveState, seat: Team
+) -> list[FrameState]:
+    """That seat's frames standing on the platforms, in a stable order."""
+    return sorted(
+        (
+            f for f in state.frames.values()
+            if f.seat == seat and f.alive and f.pos is not None
+            and f.pos in objective.tiles
+        ),
+        key=lambda f: f.id,
+    )
+
+
 def _lake_ritual(state: GameState, objective: ObjectiveState) -> None:
     """"The first team to end a turn with a frame on both platforms".
 
     The relic is off the board until then. If both sides complete the ritual
     on the same turn nobody takes it -- there is no "first", and handing it to
     a seat by index would decide a two-point objective on seating order.
+
+    Which frame ends up holding it is the winner's call ("held by one of those
+    frames"), and it matters: the relic is dropped when its carrier is
+    damaged, so the choice is which machine you are willing to have shot. So
+    this only records the win; `cleanup_decision` asks the question.
     """
     tokens = tokens_of(state, objective)
     if not tokens or any(t.pos is not None or t.carrier for t in tokens):
         return
-    winners: dict[Team, FrameState] = {}
-    for seat in state.seats:
-        standing = [
-            f for f in state.frames.values()
-            if f.seat == seat and f.alive and f.pos is not None
-            and f.pos in objective.tiles
-        ]
-        if len({f.pos for f in standing}) >= len(set(objective.tiles)) >= 2:
-            winners[seat] = sorted(standing, key=lambda f: f.id)[0]
+    if objective.memo.get("ritual") is not None:
+        return
+    winners = [
+        seat for seat in state.seats
+        if len({f.pos for f in _ritual_frames(state, objective, seat)})
+        >= len(set(objective.tiles)) >= 2
+    ]
     if len(winners) != 1:
         return
-    seat, frame = next(iter(winners.items()))
+    objective.memo["ritual"] = winners[0]
+    state.note(f"{team_name(winners[0])} completes the ritual")
+
+
+def _give_relic(
+    state: GameState, objective: ObjectiveState, frame: FrameState
+) -> None:
+    tokens = tokens_of(state, objective)
+    if not tokens:
+        return
     relic = tokens[0]
     relic.pos = frame.pos
     relic.carrier = frame.id
-    state.note(f"{frame.id} completes the ritual and takes the relic")
+    objective.memo["ritual"] = None
+    state.note(f"{frame.id} takes the relic")
+
+
+def cleanup_decision(state: GameState) -> Optional[PendingDecision]:
+    """A choice the end of the turn owes somebody, or `None`.
+
+    Cleanup normally runs straight through, but the Lake Ritual hands out a
+    token and the card says which frame holds it is the winner's choice. Asked
+    from the driver rather than from inside `cleanup_phase` so the turn does
+    not roll over with the question unanswered -- and so it still gets asked
+    when the ritual is completed on the last turn of the game.
+    """
+    for objective in state.objectives:
+        seat = objective.memo.get("ritual")
+        if seat is None:
+            continue
+        options = _ritual_frames(state, objective, int(seat))
+        if not options:
+            objective.memo["ritual"] = None      # they are all dead now
+            continue
+        if len(options) == 1:
+            _give_relic(state, objective, options[0])
+            continue
+        return PendingDecision(
+            kind="choose_frame",
+            seat=int(seat),
+            prompt="The Lake Ritual: which frame carries the relic?",
+            options=[{"frame": f.id, "name": f.spec.name} for f in options],
+            pick_kind="frame",
+        )
+    return None
+
+
+def take_relic(state: GameState, frame: FrameState) -> None:
+    """Answer to `cleanup_decision`: this frame holds the relic."""
+    for objective in state.objectives:
+        if objective.memo.get("ritual") is None:
+            continue
+        if frame in _ritual_frames(state, objective, int(objective.memo["ritual"])):
+            _give_relic(state, objective, frame)
+            return
 
 
 def _bomb_arrival(state: GameState, objective: ObjectiveState) -> None:

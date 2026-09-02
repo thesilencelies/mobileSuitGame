@@ -193,6 +193,8 @@ export class BoardView {
     this.onTapFrame = () => {};
     this._dirty = true;
     this._pointers = new Map();
+    this._insetAt = 0;               // when the board panels were last measured
+    this._insetCache = { top: 0, right: 0, bottom: 0, left: 0 };
     this._pinch = null;
     this._lastTap = 0;
     this._t0 = performance.now();
@@ -330,14 +332,64 @@ export class BoardView {
 
   tacticalZoom() { return Math.max(this.fitScale * 1.6, 52); }
 
+  /** How far the panels floating over the board cover it, per side, in CSS px.
+   *
+   *  The legend and the tools sit in the top corners, the tile read-out and
+   *  the acting card along the bottom. They are siblings of the canvas rather
+   *  than something drawn on it, so they are measured rather than listed --
+   *  add a panel and the pan margin below takes account of it by itself.
+   *  Only a panel actually touching an edge counts against that edge.
+   */
+  _insets() {
+    // Measured at most a few times a second: this runs from `_clamp`, which
+    // runs on every frame of a drag, and reading a rect forces layout.
+    // Panels do not move while a finger is down.
+    const now = performance.now();
+    if (this._insetAt && now - this._insetAt < 250) return this._insetCache;
+    const host = this.canvas.parentElement;
+    const c = this.canvas.getBoundingClientRect();
+    const out = { top: 0, right: 0, bottom: 0, left: 0 };
+    this._insetAt = now;
+    this._insetCache = out;
+    if (!host) return out;
+    const edge = 16;
+    for (const el of host.children) {
+      if (el === this.canvas || el.hidden || !el.offsetParent) continue;
+      const r = el.getBoundingClientRect();
+      if (!r.width || !r.height) continue;
+      if (r.left - c.left <= edge) out.left = Math.max(out.left, r.right - c.left);
+      if (c.right - r.right <= edge) out.right = Math.max(out.right, c.right - r.left);
+      if (r.top - c.top <= edge) out.top = Math.max(out.top, r.bottom - c.top);
+      if (c.bottom - r.bottom <= edge) {
+        out.bottom = Math.max(out.bottom, c.bottom - r.top);
+      }
+    }
+    // However much they cover, never let the board be dragged more than this
+    // far off: the point is to see a corner tile, not to lose the board.
+    const cap = { x: c.width * 0.45, y: c.height * 0.45 };
+    this._insetCache = {
+      top: Math.min(out.top, cap.y), bottom: Math.min(out.bottom, cap.y),
+      left: Math.min(out.left, cap.x), right: Math.min(out.right, cap.x),
+    };
+    return this._insetCache;
+  }
+
   _clamp() {
     const { w, h } = this.cssSize;
     const halfW = w / (2 * this.cam.scale);
     const halfH = h / (2 * this.cam.scale);
     const padX = Math.max(0, halfW - this.w / 2);
     const padY = Math.max(0, halfH - this.h / 2);
-    this.cam.x = Math.min(this.w - halfW + padX, Math.max(halfW - padX, this.cam.x));
-    this.cam.y = Math.min(this.h - halfH + padY, Math.max(halfH - padY, this.cam.y));
+    // The board normally stops when its edge reaches the edge of the view.
+    // That leaves the outermost tiles permanently under the panels floating
+    // over the board, where they cannot be read or tapped -- so the stop is
+    // pushed out by exactly what those panels cover, and no further.
+    const over = this._insets();
+    const s = this.cam.scale;
+    this.cam.x = Math.min(this.w - halfW + padX + over.right / s,
+                          Math.max(halfW - padX - over.left / s, this.cam.x));
+    this.cam.y = Math.min(this.h - halfH + padY + over.bottom / s,
+                          Math.max(halfH - padY - over.top / s, this.cam.y));
   }
 
   toBoard(sx, sy) {

@@ -218,6 +218,46 @@ def _cleanup_state():
     return state, frame
 
 
+def test_the_turn_does_not_roll_over_with_a_cleanup_question_unanswered():
+    """The Lake Ritual hands out a token at the end of a turn and the card
+    lets the winner say which frame holds it.
+
+    Cleanup normally runs straight through, so the driver has to be able to
+    park in the middle of it -- otherwise the question would either be skipped
+    or asked in the next turn's planning phase, and on the last turn of the
+    game there is no next turn to ask in.
+    """
+    from playtest.engine import objectives as O
+    from playtest.engine.state import ObjectiveState, TokenState
+    from playtest.engine.types import Command
+
+    state, frame = _cleanup_state()
+    mate = add_frame(state, 0, "Adam", Pos(6, 3), frame_id="Blue Adam 2")
+    frame.pos = Pos(3, 3)
+    obj = ObjectiveState(name="Lake Crosses", owner=0, defend=2, attack=2,
+                         tiles=[Pos(3, 3), Pos(6, 3)])
+    state.objectives.append(obj)
+    state.tokens["r"] = TokenState(id="r", kind="relic", pos=None,
+                                   carriable=True, objective="Lake Crosses")
+    obj.token_ids = ("r",)
+    turn = state.turn
+
+    R.advance(state)
+    assert state.phase == "cleanup", "parked in the middle of cleanup"
+    assert state.turn == turn, "and the turn has not rolled over"
+    pending = state.pending
+    assert pending is not None and pending.kind == "choose_frame"
+    assert {o["frame"] for o in pending.options} == {frame.id, mate.id}
+
+    R.handle_command(state, Command("choose_frame", 0, {"frame": mate.id,
+                                                        "name": mate.spec.name}))
+    R.advance(state)
+    assert state.tokens["r"].carrier == mate.id
+    assert state.turn == turn + 1 and state.phase == "planning", (
+        "and then the turn rolls on as usual"
+    )
+
+
 def test_cleanup_discards_cards_without_persistence():
     state, frame = _cleanup_state()
     uid = give(state, frame, "Basic_Punch", resolved=True)

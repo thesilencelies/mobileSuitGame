@@ -211,7 +211,13 @@ with its own camera rather than a table the browser scrolls:
 * **One finger pans, two fingers pinch.** **Double-tap** toggles between FIT and
   a tactical zoom centred on the tile you tapped, at which a tile is a
   comfortable finger-width — so a tile is always big enough to hit when you
-  actually have to tap one.
+  actually have to tap one. Panning stops when the board's edge reaches the
+  view's, *plus* however much the panels floating over the board cover
+  (`_insets` measures them off the DOM rather than listing them, so a new
+  panel is accounted for by itself, capped at 45% of the view so the board
+  cannot be lost). Without that slack the outermost tiles sit permanently
+  under the tool column or the acting-card panel, where they can be neither
+  read nor tapped.
 * A **minimap** appears bottom-right whenever you are zoomed past FIT, showing
   the viewport rectangle, the terrain and every frame, so you cannot get lost.
 * **◎** centres on whichever frame is acting; **FIT** always gets you back.
@@ -605,6 +611,15 @@ engine had to make, not something the card says:
   end of the next turn, and *any* displacement counts — its own movement, a
   shove, a knockback. The card wants the frame to leave; who did the pushing is
   not the point. `state.record_movement` is the one place that counts.
+* **The Lake Ritual** hands the relic to a frame of the winner's choosing
+  ("held by one of those frames"), and the choice matters — the relic is
+  dropped the moment its carrier is damaged, so it is a question of which
+  machine you are willing to have shot. It is asked at the end of the turn the
+  ritual completes, which means cleanup has to be able to park on a decision:
+  `_finish_cleanup` rolls the turn over only once `cleanup_decision` has
+  nothing left to ask, and the phase stays `"cleanup"` until then. Asking in
+  the next turn's planning phase instead would have skipped it entirely when
+  the ritual is completed on the last turn of the game.
 * **Extraction** (the Fugitive) takes its token off the board when the
   defenders score it — it has reached the point, so there is nothing left to
   shoot, carry or take back. `ON_LATCH` is the hook; every other objective

@@ -552,10 +552,21 @@ class Agent:
     ) -> Command:
         """One of your own frames, for what an objective needs one for.
 
-        Only Dome Campus asks today: who runs the bomb in. That wants the
-        frame that can actually get there -- fewest turns of walking, and a
-        tie broken toward the one that can take a hit on the way.
+        Two ask. **Dome Campus**, at setup: who runs the bomb in, which wants
+        the frame that can actually get there -- fewest turns of walking, tie
+        broken toward the one that can take a hit on the way. **The Lake
+        Ritual**, at the end of a turn: who carries the relic, which wants the
+        opposite kind of frame -- it is dropped the moment its carrier is
+        damaged, so it goes to whichever of them is hardest to hurt.
         """
+        if str(snap.phase) == "cleanup":
+            return Command("choose_frame", self.seat, dict(max(
+                options,
+                key=lambda o: (
+                    sum(f.health.values()) if (f := snap.frame(
+                        str(o.get("frame")))) is not None else -1.0
+                ),
+            )))
         obj = next((o for o in snap.objectives if o.name == "Dome Campus"), None)
         tiles = tuple(obj.tiles) if obj is not None else ()
 

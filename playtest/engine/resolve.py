@@ -943,8 +943,24 @@ def _terrain_hazards(state: GameState) -> None:
 
 
 def _cleanup(state: GameState) -> None:
-    """Cleanup, then roll the turn over into the next planning phase."""
+    """Cleanup, and then -- unless it asked something -- roll the turn over.
+
+    The end of a turn can owe the player a question (the Lake Ritual hands out
+    a token and the card lets the winner say which frame holds it). The phase
+    stays `"cleanup"` while that is outstanding and the driver comes back
+    here, so the turn does not roll forward with it unanswered, and it is
+    still asked when the ritual is completed on the last turn of the game.
+    """
     cleanup_phase(state)
+    _finish_cleanup(state)
+
+
+def _finish_cleanup(state: GameState) -> None:
+    """Ask anything cleanup owes; when there is nothing left, roll the turn."""
+    decision = objectivelib.cleanup_decision(state)
+    if decision is not None:
+        state.pending = decision
+        return
     state.turn += 1
     if state.turn > TURNS_PER_GAME:
         state.phase = "finished"
@@ -983,6 +999,9 @@ def advance(state: GameState) -> GameState:
             if _objective_setup_decision(state):
                 break
             _finish_setup(state)
+        elif state.phase == "cleanup":
+            # Parked mid-cleanup on a question the end of the turn owed.
+            _finish_cleanup(state)
         elif state.phase == "planning":
             if _planning_decision(state):
                 break
@@ -1149,11 +1168,19 @@ def _handle_place_objective(
 def _handle_choose_frame(
     state: GameState, pending: PendingDecision, cmd: Command
 ) -> None:
-    """One frame, picked for something an objective needs a frame for."""
+    """One frame, picked for something an objective needs a frame for.
+
+    Two objectives ask: Dome Campus for who carries the bomb, at setup, and
+    the Lake Ritual for who ends up holding the relic, at the end of a turn.
+    The phase tells them apart -- the bomb is only ever chosen during setup.
+    """
     payload = dict(cmd.payload)
     _require(_offered(pending, payload), "that frame was not offered")
     frame = state.frames[str(payload["frame"])]
     _require(frame.seat == cmd.seat, "that frame belongs to the other seat")
+    if state.phase == "cleanup":
+        objectivelib.take_relic(state, frame)
+        return
     objective = objectivelib.objective_named(state, "Dome Campus")
     _require(objective is not None, "nothing is waiting on a frame")
     assert objective is not None

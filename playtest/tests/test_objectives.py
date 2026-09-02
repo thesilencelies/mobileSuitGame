@@ -770,14 +770,55 @@ def test_the_relic_starts_off_the_board_and_needs_both_platforms():
 
     one = add_frame(state, 0, "Kuwagata", Pos(3, 3))
     O.end_of_turn(state)
-    assert relic.carrier is None, "one platform is half a ritual"
+    assert O.cleanup_decision(state) is None, "one platform is half a ritual"
+    assert relic.carrier is None
 
     other = add_frame(state, 0, "Adam", Pos(6, 3))
     O.end_of_turn(state)
-    assert relic.carrier in (one.id, other.id), "one of the two on the platforms"
-    assert relic.pos == state.frames[relic.carrier].pos
+    decision = O.cleanup_decision(state)
+    assert decision is not None and decision.seat == 0, (
+        "'held by one of those frames' -- the winner says which"
+    )
+    assert {o["frame"] for o in decision.options} == {one.id, other.id}
+    assert relic.carrier is None, "not until they have said"
+
+    O.take_relic(state, other)
+    assert relic.carrier == other.id
+    assert relic.pos == other.pos
+    assert O.cleanup_decision(state) is None, "asked once"
     finish(state)
     assert objective_score(state, obj) == (0, obj.defend)
+
+
+def test_the_ritual_hands_the_relic_over_with_no_question_when_there_is_one_frame():
+    """A frame on each platform is the ritual; one frame on both is not, so a
+    single candidate only happens when the second has since been destroyed."""
+    from playtest.engine.state import destroy_frame
+
+    state = make_state()
+    obj = lake(state)
+    relic = O.tokens_of(state, obj)[0]
+    one = add_frame(state, 0, "Kuwagata", Pos(3, 3))
+    other = add_frame(state, 0, "Adam", Pos(6, 3))
+    O.end_of_turn(state)
+    destroy_frame(state, other)
+    assert O.cleanup_decision(state) is None, "nothing left to choose between"
+    assert relic.carrier == one.id
+
+
+def test_the_relic_is_dropped_if_the_whole_ritual_party_dies():
+    from playtest.engine.state import destroy_frame
+
+    state = make_state()
+    obj = lake(state)
+    relic = O.tokens_of(state, obj)[0]
+    for name, spot in (("Kuwagata", Pos(3, 3)), ("Adam", Pos(6, 3))):
+        add_frame(state, 0, name, spot)
+    O.end_of_turn(state)
+    for frame in list(state.frames.values()):
+        destroy_frame(state, frame)
+    assert O.cleanup_decision(state) is None
+    assert relic.carrier is None and relic.pos is None
 
 
 def test_both_teams_completing_the_ritual_at_once_gives_it_to_neither():
@@ -789,6 +830,7 @@ def test_both_teams_completing_the_ritual_at_once_gives_it_to_neither():
     add_frame(state, 1, "Fenrir", Pos(3, 3))
     add_frame(state, 1, "Elemiah", Pos(6, 3))
     O.end_of_turn(state)
+    assert O.cleanup_decision(state) is None
     assert relic.carrier is None, "there is no first, so nobody takes it"
 
 
