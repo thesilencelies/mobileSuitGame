@@ -102,6 +102,123 @@ def duel(seed: int = 0, gap: int = 1):
 
 
 # --------------------------------------------------------------------------
+# Boosters
+# --------------------------------------------------------------------------
+
+
+def test_jump_makes_a_climb_cost_what_flat_ground_costs():
+    """"All movement this turn ignores elevation penalties" -- Jump."""
+    state = make_state()
+    frame = add_frame(state, 0, "Kuwagata", Pos(1, 1))
+    for x in range(2, 6):
+        state.board.set_tile(Pos(x, 1), elevation=2)
+    budget = kw.movement_budget(state, frame, CATALOGUE[effects.JUMP])
+
+    def cost_to(pos, **kw_):
+        for option in state.walk_options(frame, budget, **kw_):
+            if (option["x"], option["y"]) == (pos.x, pos.y):
+                return option["cost"]
+        return None
+
+    cliff = Pos(3, 1)
+    assert cost_to(cliff) == 4, "one step up two levels, then one along"
+    play(state, frame, effects.JUMP)
+    assert effects.ignores_elevation(state, frame)
+    assert cost_to(cliff, climb_free=True) == 2, "the climb is free, the steps are not"
+
+
+def test_jump_does_not_let_the_frame_cross_an_obstacle():
+    """Only half of Flying: the surcharge goes, the licence does not."""
+    state = make_state()
+    frame = add_frame(state, 0, "Kuwagata", Pos(1, 1))
+    for y in range(state.board.height):          # a wall clean across the map
+        state.board.set_tile(Pos(2, y), obstacle=True)
+    play(state, frame, effects.JUMP)
+    reached = {
+        (o["x"], o["y"])
+        for o in state.walk_options(frame, 6, climb_free=True)
+    }
+    assert not any(x >= 2 for x, _ in reached), "the wall still stops it"
+
+
+def test_jump_is_in_force_for_its_own_movement():
+    state = make_state()
+    frame = add_frame(state, 0, "Kuwagata", Pos(1, 1))
+    card = CATALOGUE[effects.JUMP]
+    orders = effects.step_orders(card, ["movement", "effect"])
+    assert orders == [["effect", "movement"]], (
+        '"all movement this turn" has to include the move the card came with'
+    )
+
+
+def test_boomerang_returns_the_frame_to_where_the_action_started():
+    state = make_state()
+    frame = add_frame(state, 0, "Kuwagata", Pos(2, 2))
+    play(state, frame, effects.BOOMERANG)
+    assert fx.slot(state, "boomerang")[frame.id]["turn"] == state.turn + 1
+
+    frame.pos = Pos(7, 7)                       # it spent the turn elsewhere
+    effects.start_of_turn(state)
+    assert frame.pos == Pos(7, 7), "not until the turn it named"
+
+    state.turn += 1
+    effects.start_of_turn(state)
+    assert frame.pos == Pos(2, 2)
+    assert not fx.slot(state, "boomerang"), "and only once"
+
+
+def test_boomerang_notes_the_spot_before_the_card_moves_the_frame():
+    card = CATALOGUE[effects.BOOMERANG]
+    assert effects.step_orders(card, ["movement", "effect"]) == [
+        ["effect", "movement"]
+    ], "the anchor is where the action started, not where its movement ended"
+
+
+def test_boomerang_lands_beside_the_anchor_when_someone_is_standing_on_it():
+    state = make_state()
+    frame = add_frame(state, 0, "Kuwagata", Pos(2, 2))
+    play(state, frame, effects.BOOMERANG)
+    add_frame(state, 1, "Adam", Pos(2, 2))      # parked on the spot
+    frame.pos = Pos(7, 7)
+    state.turn += 1
+    effects.start_of_turn(state)
+    assert frame.pos != Pos(7, 7), "it still comes back"
+    assert state.board.distance(frame.pos, Pos(2, 2)) == 1
+
+
+def test_explosive_exit_must_swing_before_it_leaves():
+    """"Must attack before moving" -- read off the text, not the card key."""
+    card = CATALOGUE[effects.EXPLOSIVE_EXIT]
+    assert "must attack before moving" in card.text.lower()
+    assert effects.step_orders(card, ["movement", "attack"]) == [
+        ["attack", "movement"]
+    ]
+    # And the constraint is only as wide as it says: nothing is fixed about
+    # where an effect step would go.
+    assert ["attack", "effect", "movement"] in effects.step_orders(
+        card, ["movement", "effect", "attack"]
+    )
+
+
+def test_a_card_that_says_nothing_about_order_still_offers_every_order():
+    card = CATALOGUE["Booster_Full speed ahead"]
+    assert len(effects.step_orders(card, ["movement", "effect", "attack"])) == 6
+
+
+def test_explosive_exit_catches_everything_next_to_it():
+    """Knockback and the splash both come from the printed keywords."""
+    card = CATALOGUE[effects.EXPLOSIVE_EXIT]
+    assert card.knockback == 1
+    state, mine, theirs = duel()
+    beside = add_frame(state, 1, "Hector MkI", Pos(2, 3))
+    uid = give(state, mine, effects.EXPLOSIVE_EXIT)
+    attack = combat.declare_attack(
+        state, mine, uid, target_kind="frame", target_id=theirs.id
+    )
+    assert {t.id for t in attack.targets} == {theirs.id, beside.id}
+
+
+# --------------------------------------------------------------------------
 # Registry integrity
 # --------------------------------------------------------------------------
 

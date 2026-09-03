@@ -1147,7 +1147,7 @@
   {
     "name": "Booster Full speed ahead",
     "description": "",
-    "gm_notes": "9init\n+5mv",
+    "gm_notes": "9init\n+4mv",
     "tags":
     {
       "1": "Card",
@@ -1160,7 +1160,7 @@
   {
     "name": "Booster Quick Step",
     "description": "",
-    "gm_notes": "8,3init\n+1mv\nBlk:1L\nActs twice if not comsumed",
+    "gm_notes": "8,3init\n0mv\nBlk:1L\nActs twice if not comsumed",
     "tags":
     {
       "1": "Card",
@@ -1172,8 +1172,8 @@
   "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Booster_Shoulder%20barge.png":
   {
     "name": "Booster Shoulder barge",
-    "description": "",
-    "gm_notes": "6init\n+3mv\natk:1M impact\nBlk:1M",
+    "description": "Knockback X: move the target frame X steps in any direction away from the source (it cannot move up elevation)",
+    "gm_notes": "6init\n+2mv\natk:1M impact\nBlk:1M\nKnockback 1 (Move the target frame 1 steps in any direction away from the source)",
     "tags":
     {
       "1": "Card",
@@ -1186,7 +1186,59 @@
   {
     "name": "Booster Accelerate",
     "description": "",
-    "gm_notes": "9init\n+1mv\nOther actions this turn get +3 mv",
+    "gm_notes": "9init\n0mv\nBlk:1L\nOther actions this turn get +2 mv",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Booster",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Booster_Jump.png":
+  {
+    "name": "Booster Jump",
+    "description": "",
+    "gm_notes": "9init\n+2mv\nAll movement this turn ignores elevation penalties",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Booster",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Booster_Evasive%20Maneuvers.png":
+  {
+    "name": "Booster Evasive Maneuvers",
+    "description": "",
+    "gm_notes": "8init\n+2mv\nBlk:1M,1L",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Booster",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Booster_Boomerang.png":
+  {
+    "name": "Booster Boomerang",
+    "description": "",
+    "gm_notes": "7init\n+1mv\nBlk:1L\npersist:1 turn\nAt the start of next turn: return this frame to the position they started this action at",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Booster",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Booster_Explosive%20Exit.png":
+  {
+    "name": "Booster Explosive Exit",
+    "description": "Knockback X: move the target frame X steps in any direction away from the source (it cannot move up elevation)",
+    "gm_notes": "7init\n+2mv\natk:1L impact\nBlk:1L\nKnockback 1 (Move the target frame 1 steps in any direction away from the source)\nHits all adjacent enemies. Must attack before moving.",
     "tags":
     {
       "1": "Card",

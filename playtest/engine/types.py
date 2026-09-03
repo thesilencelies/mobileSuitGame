@@ -139,12 +139,14 @@ class BoardProtocol(Protocol):
         *,
         occupied: frozenset[Pos] = frozenset(),
         flying: bool = False,
+        climb_free: bool = False,
     ) -> Mapping[Pos, int]:
         """Tiles reachable within `budget` steps, mapped to their cost.
 
         Climbing costs 1 extra per elevation and cannot stop part-way; descending
         is free. Obstacles, impassable tiles and occupied tiles cannot be entered.
-        `flying` ignores obstacles and elevation costs (rules.tex:968).
+        `flying` ignores obstacles and elevation costs (rules.tex:968);
+        `climb_free` ignores only the elevation costs (`Booster_Jump`).
         """
 
     def path(

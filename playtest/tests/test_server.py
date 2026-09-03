@@ -987,26 +987,32 @@ def test_resolving_matches_the_frame_the_engine_is_asking_about(client: Client) 
     rather than `pending.frameId`: during a compulsory block the frame on the
     clock is the one being hit, not the one acting.
     """
-    game_id, view = start(client, seed=7)
-    rng = random.Random(17)
     matched = blocks = 0
-    for _ in range(400):
-        pending = view.get("pending") or {}
-        res = view.get("resolving")
-        if res and pending.get("frameId"):
-            if pending["kind"] in OWN_DECISIONS:
-                assert res["frameId"] == pending["frameId"]
-                matched += 1
-            elif pending["kind"] == "choose_block":
-                assert res["frameId"] != pending["frameId"]
-                assert res["attack"]["targetId"] == pending["frameId"]
-                blocks += 1
-        if view["over"] or not view.get("pending"):
+    # Several games: whether a compulsory block comes up at all is a property
+    # of how the cards happen to fall, and a card pool that changes should not
+    # be able to turn this into a red test without breaking anything.
+    for seed in range(1, 12):
+        game_id, view = start(client, seed=seed)
+        rng = random.Random(seed + 10)
+        for _ in range(400):
+            pending = view.get("pending") or {}
+            res = view.get("resolving")
+            if res and pending.get("frameId"):
+                if pending["kind"] in OWN_DECISIONS:
+                    assert res["frameId"] == pending["frameId"]
+                    matched += 1
+                elif pending["kind"] == "choose_block":
+                    assert res["frameId"] != pending["frameId"]
+                    assert res["attack"]["targetId"] == pending["frameId"]
+                    blocks += 1
+            if view["over"] or not view.get("pending"):
+                break
+            kind, payload = auto_payload(view["pending"], rng)
+            view = send(client, game_id, kind, payload)
+        if matched and blocks:
             break
-        kind, payload = auto_payload(view["pending"], rng)
-        view = send(client, game_id, kind, payload)
     assert matched, "never saw a decision belonging to the acting frame"
-    assert blocks, "never saw a compulsory block"
+    assert blocks, "never saw a compulsory block in 11 games"
 
 
 def test_defence_readout_counts_blocks_per_zone(client: Client) -> None:

@@ -29,6 +29,7 @@ it in.
 
 from __future__ import annotations
 
+import itertools
 import re
 from dataclasses import dataclass
 from typing import Any, Callable, Mapping, Optional, Sequence
@@ -97,6 +98,7 @@ _HANDLED_PHRASES = (
     re.compile(r"(also )?hits all adjacent enemies", re.I),
     re.compile(r"also hits any enemies adjacent to the target", re.I),
     re.compile(r"hits all targets in range", re.I),
+    re.compile(r"must (attack|move) before (attack|mov)\w*", re.I),
     re.compile(r"acts twice[^\\]*", re.I),
     re.compile(r"can only be used by[^\\]*", re.I),
 )
@@ -141,6 +143,11 @@ def _count_from_text(text: str, default: int) -> int:
 # --------------------------------------------------------------------------
 # Card keys
 # --------------------------------------------------------------------------
+
+ACCELERATE = "Booster_Accelerate"
+JUMP = "Booster_Jump"
+BOOMERANG = "Booster_Boomerang"
+EXPLOSIVE_EXIT = "Booster_Explosive Exit"
 
 RELENTLESS = "Bruiser_Relentless Assault"
 INTIMIDATE = "Bruiser_Intimidate"
@@ -214,6 +221,10 @@ CAGE_RADIUS = 2
 #: Sensory Overload: what a jammed frame's ranged attacks can still reach.
 OVERLOAD_RANGE_CAP = 2
 
+#: Boomerang: how far from the anchor to look for somewhere to stand when
+#: something has parked on the tile the frame was snapping back to.
+BOOMERANG_SEARCH = 3
+
 #: Cards whose attack is made by a summoned token, not by the frame that
 #: played them (rules.tex "Drones": the drone takes the action on the card).
 _DELEGATED_ATTACK = frozenset({"drone"})
@@ -284,6 +295,48 @@ def deferred_effects(catalogue: Mapping[str, Card]) -> dict[str, DeferredEffect]
         for key, card in catalogue.items()
         if effect_kind(card) == "deferred"
     }
+
+
+#: "Must attack before moving" (Explosive Exit), read generically so a card
+#: printing the mirror constraint needs no engine change. `move` maps to the
+#: `movement` step; anything else is named as the step is.
+_STEP_ORDER_RE = re.compile(r"must (attack|move) before (attack|mov)\w*", re.I)
+_STEP_NAMES = {"attack": "attack", "move": "movement", "mov": "movement"}
+
+#: Cards whose effect step has to be in force before the frame moves, which
+#: the card implies rather than prints. Jump changes what a step up costs and
+#: says "all movement this turn"; Boomerang has to note where the action
+#: started before the action carries the frame away from it.
+_EFFECT_BEFORE_MOVE = frozenset({JUMP, BOOMERANG})
+
+
+def step_orders(card: Card, steps: Sequence[str]) -> list[list[str]]:
+    """Every order of a card's resolution steps that the card allows.
+
+    The controller normally picks the order (rules.tex: an action's movement,
+    effect and attack may be taken in any order). A card that says otherwise
+    narrows the list, and when only one order survives there is nothing left
+    to ask.
+    """
+    rules: list[tuple[str, str]] = []
+    for first, second in _STEP_ORDER_RE.findall(card.text or ""):
+        before = _STEP_NAMES.get(first.lower())
+        after = _STEP_NAMES.get(second.lower())
+        if before and after and before != after:
+            rules.append((before, after))
+    if card.key in _EFFECT_BEFORE_MOVE:
+        rules.append(("effect", "movement"))
+
+    allowed = []
+    for perm in itertools.permutations(steps):
+        order = list(perm)
+        if all(
+            before not in order or after not in order
+            or order.index(before) < order.index(after)
+            for before, after in rules
+        ):
+            allowed.append(order)
+    return allowed
 
 
 def has_effect_step(
@@ -434,6 +487,104 @@ def _effect_accelerate(state: GameState, frame: FrameState, uid: str):
     _owe_movement(state, frame, bonus)
     state.note(f"{frame.id}'s other actions this turn get +{bonus} movement")
     return None
+
+
+def _effect_jump(state: GameState, frame: FrameState, uid: str):
+    """"All movement this turn ignores elevation penalties" -- Jump.
+
+    Its own movement included, which is why `step_orders` puts the effect step
+    of this card before its movement step: a boost that skipped the move it
+    came with would be reading "all movement this turn" as "some of it".
+    """
+    frame.turn_flags["climb_free"] = True
+    state.note(f"{frame.id} boosts: its movement this turn ignores elevation")
+    return None
+
+
+def _effect_boomerang(state: GameState, frame: FrameState, uid: str):
+    """"At the start of next turn: return this frame to the position they
+    started this action at".
+
+    The position is noted here rather than when the return fires, and
+    `step_orders` runs this step first, so "where the action started" is
+    genuinely where the frame stood before the card moved it.
+    """
+    if frame.pos is None:
+        return None
+    fx.slot(state, "boomerang")[frame.id] = {
+        "turn": state.turn + 1, "x": frame.pos.x, "y": frame.pos.y
+    }
+    state.note(
+        f"{frame.id} anchors at ({frame.pos.x},{frame.pos.y}) "
+        f"and snaps back to it at the start of next turn"
+    )
+    return None
+
+
+def _boomerang_step(state: GameState) -> None:
+    """Start of turn: pull back everything anchored for this turn."""
+    anchored = fx.slot(state, "boomerang")
+    for frame_id in [
+        k for k, rec in anchored.items() if int(rec.get("turn", 0)) == state.turn
+    ]:
+        record = anchored.pop(frame_id)
+        frame = state.frames.get(frame_id)
+        if frame is None or not frame.alive or frame.pos is None:
+            continue
+        home = Pos(int(record["x"]), int(record["y"]))
+        dest = _landing_tile(state, frame, home)
+        if dest is None or dest == frame.pos:
+            continue
+        state.note(f"{frame.id} snaps back to ({dest.x},{dest.y})")
+        record_movement(state, frame, frame.pos, dest)
+        frame.pos = dest
+
+
+def _landing_tile(
+    state: GameState, frame: FrameState, home: Pos
+) -> Optional[Pos]:
+    """`home` if the frame can stand there, else the nearest tile it can.
+
+    Nothing says what happens when someone is parked on the spot you were
+    going to snap back to. Taking the nearest free tile keeps the card doing
+    what it says -- putting the frame back where it came from -- without
+    either deleting the effect or stacking two frames on a tile.
+    """
+    board = state.board
+    if board is None:
+        return None
+    taken = state.unit_tiles(exclude=frame.id)
+    flying = "flying" in frame.spec.keywords
+
+    def usable(pos: Pos) -> bool:
+        if not board.in_bounds(pos) or pos in taken:
+            return False
+        tile = board.tile(pos)
+        return not tile.impassable and (flying or not tile.obstacle)
+
+    if usable(home):
+        return home
+    for radius in range(1, BOOMERANG_SEARCH + 1):
+        ring = [
+            Pos(home.x + dx, home.y + dy)
+            for dx in range(-radius, radius + 1)
+            for dy in range(-radius, radius + 1)
+            if max(abs(dx), abs(dy)) == radius
+        ]
+        spots = [p for p in ring if usable(p)]
+        if spots:
+            return min(spots, key=lambda p: (board.distance(p, home), p.y, p.x))
+    return None
+
+
+def ignores_elevation(state: GameState, frame: FrameState) -> bool:
+    """Jump: "All movement this turn ignores elevation penalties"."""
+    return bool(frame.turn_flags.get("climb_free"))
+
+
+def start_of_turn(state: GameState) -> None:
+    """Effects that fire as a turn begins, after the turn flags are cleared."""
+    _boomerang_step(state)
 
 
 def _owe_movement(state: GameState, frame: FrameState, bonus: int) -> None:
@@ -2213,7 +2364,9 @@ EFFECT_STEPS: Mapping[str, EffectFn] = {
     "Frame_Bio-regen": _effect_repair,
     "Frame_Shield": _effect_shield,
     "Frame_Call of Nature": _effect_call_of_nature,
-    "Booster_Accelerate": _effect_accelerate,
+    ACCELERATE: _effect_accelerate,
+    JUMP: _effect_jump,
+    BOOMERANG: _effect_boomerang,
     # Bruiser
     RELENTLESS: _effect_relentless,
     INTIMIDATE: _effect_intimidate,

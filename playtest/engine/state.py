@@ -495,7 +495,12 @@ class GameState:
         return frozenset(p for p in out if p is not None)
 
     def walk_options(
-        self, mover: Any, budget: int, *, flying: bool = False
+        self,
+        mover: Any,
+        budget: int,
+        *,
+        flying: bool = False,
+        climb_free: bool = False,
     ) -> list[dict[str, Any]]:
         """Where `mover` may walk, and what each tile costs.
 
@@ -503,13 +508,25 @@ class GameState:
         run through a friendly frame or over a drone, but it may not *stop* on
         either. Staying put is always offered -- it is a legal answer to a
         movement decision and the only one a pinned frame has.
+
+        `climb_free` drops the elevation surcharge (`Booster_Jump`). Like
+        `flying_target` in the line-of-sight call, it is an addition to the
+        frozen `BoardProtocol`, so a board that has not got it is asked the
+        old question rather than failing.
         """
         pos = getattr(mover, "pos", None)
         if self.board is None or pos is None:
             return []
-        reach = self.board.reachable(
-            pos, budget, occupied=self.move_blockers(mover), flying=flying
-        )
+        blockers = self.move_blockers(mover)
+        try:
+            reach = self.board.reachable(
+                pos, budget, occupied=blockers, flying=flying,
+                climb_free=climb_free,
+            )
+        except TypeError:
+            reach = self.board.reachable(
+                pos, budget, occupied=blockers, flying=flying
+            )
         taken = self.unit_tiles(exclude=getattr(mover, "id", None))
         return [
             {"x": spot.x, "y": spot.y, "cost": cost}

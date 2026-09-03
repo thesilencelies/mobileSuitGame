@@ -156,7 +156,8 @@ class FlatBoard:
     def distance(self, a: Pos, b: Pos) -> int:
         return max(abs(a.x - b.x), abs(a.y - b.y))
 
-    def reachable(self, start, budget, *, occupied=frozenset(), flying=False):
+    def reachable(self, start, budget, *, occupied=frozenset(), flying=False,
+                  climb_free=False):
         seen = {start: 0}
         frontier = [start]
         while frontier:
@@ -170,7 +171,7 @@ class FlatBoard:
                 if not flying and self.tile(nxt).obstacle:
                     continue
                 step = cost + 1
-                if not flying:
+                if not flying and not climb_free:
                     climb = self.tile(nxt).elevation - self.tile(pos).elevation
                     if climb > 0:
                         step += climb
@@ -179,8 +180,10 @@ class FlatBoard:
                     frontier.append(nxt)
         return seen
 
-    def path(self, start, goal, budget, *, occupied=frozenset(), flying=False):
-        reach = self.reachable(start, budget, occupied=occupied, flying=flying)
+    def path(self, start, goal, budget, *, occupied=frozenset(), flying=False,
+             climb_free=False):
+        reach = self.reachable(start, budget, occupied=occupied, flying=flying,
+                               climb_free=climb_free)
         return [start, goal] if goal in reach else None
 
     def has_line_of_sight(self, attacker, target, *, occupied=frozenset(),
@@ -471,6 +474,9 @@ def _begin_planning(state: GameState) -> None:
         state.note(f"{frame.id} draws {len(drawn)}")
     state.queue = [f.id for f in state.frames.values() if f.alive]
     state.note(f"--- turn {state.turn}: planning ---")
+    # After the turn flags are cleared and under this turn's heading, so a
+    # frame snapping back reads as something that happened this turn.
+    effects.start_of_turn(state)
 
 
 def _planning_decision(state: GameState) -> bool:
@@ -686,22 +692,28 @@ def _begin_resolution(state: GameState, frame: FrameState, uid: str) -> None:
             steps.append("effect")
         if card.is_attack and not effects.delegates_attack(card):
             steps.append("attack")
+    # The controller picks the order, out of the orders the card allows --
+    # "Must attack before moving" (Explosive Exit) and the two boosters whose
+    # effect has to be in force before they move. With one order left there is
+    # nothing to ask, so the card just takes it.
+    orders = effects.step_orders(card, steps)
     state.resolution = Resolution(
-        frame_id=frame.id, uid=uid, steps=steps, spent_reloading=spent_reloading
+        frame_id=frame.id,
+        uid=uid,
+        steps=list(orders[0]) if orders else steps,
+        spent_reloading=spent_reloading,
     )
     state.note(
         f"{frame.id} resolves {card.key} "
         f"(initiative {kw.effective_initiative(state, frame, card, inst.init_index)})"
     )
     _beat(state, "card")
-    if len(steps) > 1:
+    if len(orders) > 1:
         state.pending = PendingDecision(
             kind="resolve_order",
             seat=frame.seat,
             prompt=f"Order of resolution for {card.key}",
-            options=[
-                {"order": list(perm)} for perm in itertools.permutations(steps)
-            ],
+            options=[{"order": list(order)} for order in orders],
             frame_id=frame.id,
         )
 
@@ -780,7 +792,11 @@ def _movement_decision(state: GameState, frame: FrameState, card: Card) -> bool:
     budget = kw.movement_budget(state, frame, card)
     if budget <= 0 or frame.pos is None or state.board is None:
         return False
-    options = state.walk_options(frame, budget, flying=kw.is_flying(frame))
+    options = state.walk_options(
+        frame, budget,
+        flying=kw.is_flying(frame),
+        climb_free=effects.ignores_elevation(state, frame),
+    )
     options = effects.adjust_move_options(state, frame, budget, options)
     if not options:
         return False
@@ -1231,6 +1247,11 @@ def _handle_resolve_order(
     order = [str(s) for s in cmd.payload.get("order", [])]
     _require(
         sorted(order) == sorted(res.steps), "order must be a permutation of the steps"
+    )
+    card = state.catalogue[state.cards[res.uid].key]
+    _require(
+        order in effects.step_orders(card, res.steps),
+        f"{card.name} does not allow that order",
     )
     res.steps = order
 
