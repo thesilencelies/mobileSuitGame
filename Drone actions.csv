@@ -1,7 +1,7 @@
 Name,Faction,Group,Initiative,Movement,Drone_Health,Drone_MV,HighBlock,MidBlock,LowBlock,HighDType,MidDType,LowDType,HighAttack,HighRange,MidAttack,MidRange,LowAttack,LowRange,Text,Persistence,CardImg,BackgroundLayer,ForegroundImg,Flavor,PrintID,Artist
-Swarm,Ouwa,Swarm,3,-2,3,3,0,1,0,cut,cut,cut,0,0,1,0,0,0,Summon one Swarm \dronetext,\infty,Swarm.png,backgrounds/Swarm_bg.png,,,1,Stephen Lilico
-Crawl,Ouwa,Swarm,3,-2,3,3,0,1,0,cut,cut,cut,0,0,0,0,1,0,Summon one Swarm \dronetext,\infty,Swarm.png,backgrounds/Swarm_bg.png,,,1,Stephen Lilico
+Swarm,Ouwa,Swarm,3,-2,3,3,0,1,0,pierce,pierce,pierce,0,0,1,0,0,0,Summon one Swarm \dronetext,\infty,Swarm.png,backgrounds/Swarm_bg.png,,,1,Stephen Lilico
+Crawl,Ouwa,Swarm,3,-2,3,3,0,1,0,pierce,pierce,pierce,0,0,0,0,1,0,Summon one Swarm \dronetext,\infty,Swarm.png,backgrounds/Swarm_bg.png,,,1,Stephen Lilico
 Gun Tower 1,Guild,Gun Tower,2,-2,2,0,0,0,1,projectile,projectile,projectile,1,8,0,0,0,0,Summon one Gun Tower within 3 \dronetext,\infty,Gun Tower.png,backgrounds/Gun_Tower_bg.png,,,1,Stephen Lilico
 Gun Tower 2,Guild,Gun Tower,2,-2,2,0,0,0,1,projectile,projectile,projectile,0,0,1,8,0,0,Summon one Gun Tower within 3 \dronetext,\infty,Gun Tower.png,backgrounds/Gun_Tower_bg.png,,,1,Stephen Lilico
-Rex and Rover,Aegis,Attack Dog,5,-3,1,4,0,0,1,energy,energy,energy,0,0,0,0,1,0,Summon two attack dogs \dronetext,\infty,Attack Dog.png,backgrounds/Attack_Dog_bg.png,,,1,Stephen Lilico
-Max and Ceaser,Aegis,Attack Dog,5,-3,1,4,0,0,1,energy,energy,energy,0,0,1,0,0,0,Summon two attack dogs \dronetext,\infty,Attack Dog.png,backgrounds/Attack_Dog_bg.png,,,1,Stephen Lilico
+Rex and Rover,Aegis,Attack Dog,3,-3,1,4,0,0,1,cut,cut,cut,0,0,0,0,1,0,Summon two attack dogs \dronetext,\infty,Attack Dog.png,backgrounds/Attack_Dog_bg.png,,,1,Stephen Lilico
+Max and Ceaser,Aegis,Attack Dog,3,-3,1,4,0,0,1,cut,cut,cut,0,0,1,0,0,0,Summon two attack dogs \dronetext,\infty,Attack Dog.png,backgrounds/Attack_Dog_bg.png,,,1,Stephen Lilico
