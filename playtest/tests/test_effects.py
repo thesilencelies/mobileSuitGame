@@ -773,8 +773,10 @@ def test_a_move_no_longer_creates_portals_by_itself():
 def test_ace_reflexes_moves_the_frame_after_it_is_attacked():
     state, attacker, defender = duel()
     uid, _ = play(state, defender, effects.ACE_REFLEXES)
-    crush = give(state, attacker, "Halberd_Crush")       # Low: nothing blocks it
-    run_attack(state, attacker, crush, defender)
+    # Ace Reflexes itself blocks High, so the swing has to come in somewhere
+    # else or the attack it is meant to react to never lands.
+    kick = give(state, attacker, "Basic_Kick")           # Low: nothing blocks it
+    run_attack(state, attacker, kick, defender)
 
     assert defender.damage["Low"] > 0, "the attack still lands"
     assert defender.turn_flags["reflex_moves"] == 1
@@ -1112,7 +1114,10 @@ def test_combo_strike_adds_a_second_attack_from_the_same_weapon():
     assert state.cards[spare].location == "discard"
 
     bonus, spread = effects.attack_damage_bonus(state, attacker, card, defender.id)
-    assert bonus == {"Low": 3}, "Halberd_Crush's attack is added, in its own zone"
+    combo = CATALOGUE["Halberd_Crush"]
+    assert bonus == {z: n for z, n in combo.attacks.items() if n}, (
+        "Halberd_Crush's attack is added, in its own zone"
+    )
     assert spread == 0, "a combo names its zones; it is not a flat +N"
     assert effects.attack_damage_bonus(state, attacker, card, defender.id) == ({}, 0), (
         "and only once"

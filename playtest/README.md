@@ -600,7 +600,7 @@ has already moved is not charged, and everything still to come gets it.
 
 #### Readings the cards did not settle themselves
 
-Some pilot text leaves a real question open. Each of these is a decision the
+Some card text leaves a real question open. Each of these is a decision the
 engine had to make, not something the card says:
 
 * **Psychic Storm** hits "every unit within 5" — read as everything that acts
@@ -657,6 +657,28 @@ engine had to make, not something the card says:
   hand is discarded when the swapping stops; nothing on the card says it is
   kept. Each action is settled once per run (swapped, or looked at and kept),
   which is what stops "drop it / actually keep it" going round for ever.
+* **Splash text** — "Hits all adjacent enemies", "Also hits any enemies
+  adjacent to the target", "Hits all targets in range" — catches enemy *and*
+  neutral tokens, not only frames: an enemy is anything the attack could have
+  been aimed at, so a barricade or a gun tower beside you is swept up like a
+  mech, and only the attacker's own tokens are spared. `combat.hostile_targets`
+  is the one list all three read, and `legal_targets` is that same list with
+  range and line of sight applied — which is what `Chain_Tangle` wants, since
+  "hits all targets in range" is read as "the card does not choose" and hits
+  everything the attack could have been declared against. None of the three
+  consults Showboating: that card says who an attack may be *declared* on, and
+  once declared the card does what it prints. Each target still gets its own
+  block decision, and an Ephemeral Image caught by splash resolves the same way
+  as one that was aimed at — hitting the real one is an attack on the frame.
+
+  When the text names a shape, that shape *replaces* the weapon's reach rather
+  than being filtered by it (`attack_zones_against(..., reach=False)`). The far
+  side of `Kinetic Hammer_Slam`'s target is two tiles from a melee attacker, so
+  re-checking the range would delete exactly the enemies the card was printed
+  to catch. Elevation shift still applies to each of them: reach is what the
+  splash overrides, and elevation is about the ground. "Hits all targets in
+  range" is the exception that keeps the check, because there the range *is*
+  the shape — a target at 3 is only hit by the zones that reach 3.
 * **Cage Fight** does not ask where the box goes. Both fighters have to end up
   inside the 3x3 the walls enclose and they are at most two apart, so the
   centre is their midpoint and the only question is who is locked in. The walls

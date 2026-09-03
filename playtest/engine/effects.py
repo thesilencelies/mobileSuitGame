@@ -96,6 +96,7 @@ _KEYWORD_WORDS = (
 _HANDLED_PHRASES = (
     re.compile(r"(also )?hits all adjacent enemies", re.I),
     re.compile(r"also hits any enemies adjacent to the target", re.I),
+    re.compile(r"hits all targets in range", re.I),
     re.compile(r"acts twice[^\\]*", re.I),
     re.compile(r"can only be used by[^\\]*", re.I),
 )
