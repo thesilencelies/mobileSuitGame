@@ -136,7 +136,9 @@ class Board:
 
     # -- movement ----------------------------------------------------------
 
-    def step_cost(self, frm: Pos, to: Pos, *, flying: bool = False) -> Optional[int]:
+    def step_cost(
+        self, frm: Pos, to: Pos, *, flying: bool = False, climb_free: bool = False
+    ) -> Optional[int]:
         """Cost of one 8-way step, or ``None`` if the step is illegal.
 
         Movement is counted in steps (rules.tex:280). A step costs 1, plus 1 per
@@ -156,13 +158,18 @@ class Board:
         obstacles or move between floors" (rules.tex:967), so they pay a flat 1
         per step and may cross -- and stop on -- obstacle tiles. Impassable
         terrain still stops everyone.
+
+        ``climb_free`` is the *other half* of flying on its own: the climb is
+        free but obstacles still block, which is what "ignores elevation
+        penalties" (`Booster_Jump`) buys. A frame that is both keeps flying's
+        wider licence.
         """
         dest = self.tile(to)
         if dest.impassable:
             return None
         if dest.obstacle and not flying:
             return None
-        if flying:
+        if flying or climb_free:
             return 1
         climb = dest.elevation - self.tile(frm).elevation
         return 1 + climb if climb > 0 else 1
@@ -174,6 +181,7 @@ class Board:
         occupied: frozenset[Pos],
         flying: bool,
         goal: Optional[Pos] = None,
+        climb_free: bool = False,
     ) -> tuple[dict[Pos, int], dict[Pos, Pos]]:
         blocked = frozenset(occupied) - {start}
         dist: dict[Pos, int] = {start: 0}
@@ -190,7 +198,7 @@ class Board:
             for nxt in self.neighbours(pos):
                 if nxt in blocked:
                     continue
-                step = self.step_cost(pos, nxt, flying=flying)
+                step = self.step_cost(pos, nxt, flying=flying, climb_free=climb_free)
                 if step is None:
                     continue
                 new = cost + step
@@ -207,15 +215,18 @@ class Board:
         *,
         occupied: frozenset[Pos] = frozenset(),
         flying: bool = False,
+        climb_free: bool = False,
     ) -> Mapping[Pos, int]:
         """Tiles reachable within ``budget`` steps, mapped to their cost.
 
         Includes ``start`` at cost 0 (a frame may always stay put). ``start`` is
         removed from ``occupied`` so callers can pass every frame position.
         Frames block movement, so occupied tiles can be neither entered nor
-        crossed.
+        crossed. ``climb_free`` drops the elevation surcharge -- see
+        `step_cost`.
         """
-        dist, _ = self._dijkstra(start, budget, occupied, flying)
+        dist, _ = self._dijkstra(start, budget, occupied, flying,
+                                 climb_free=climb_free)
         return dist
 
     def path(
@@ -226,11 +237,13 @@ class Board:
         *,
         occupied: frozenset[Pos] = frozenset(),
         flying: bool = False,
+        climb_free: bool = False,
     ) -> Optional[Sequence[Pos]]:
         """A cheapest legal path from ``start`` to ``goal`` inclusive, or None."""
         if start == goal:
             return (start,)
-        dist, prev = self._dijkstra(start, budget, occupied, flying, goal=goal)
+        dist, prev = self._dijkstra(start, budget, occupied, flying, goal=goal,
+                                    climb_free=climb_free)
         if goal not in dist:
             return None
         out = [goal]

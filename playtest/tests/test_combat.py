@@ -305,9 +305,10 @@ def test_guard_break_zones_without_a_block_still_land():
 
 def test_one_card_blocks_every_guard_break_zone_it_covers():
     """"The same card can block multiple zones if it has them"
-    (rules.tex:956). `Cannon_Airburst` breaks guard on High 2 / Mid 2 / Low 1;
-    a single High+Mid card covers two of them by itself."""
+    (rules.tex:956). `Cannon_Airburst` breaks guard in all three zones; a
+    single High+Mid card covers two of them by itself."""
     state, atk, dfn = _gunner_duel()
+    airburst = CATALOGUE["Cannon_Airburst"]
     blocker_card = CATALOGUE["Greatsword_Rising Cut"]    # blocks High 1, Mid 1
     assert blocker_card.block_zones == {"High", "Mid"}
     assert not blocker_card.super_block_zones
@@ -317,7 +318,9 @@ def test_one_card_blocks_every_guard_break_zone_it_covers():
     run_attack(state, atk, uid, dfn)
 
     assert dfn.damage["High"] == 0 and dfn.damage["Mid"] == 0
-    assert dfn.damage["Low"] == 1, "only the uncovered zone gets through"
+    assert dfn.damage["Low"] == airburst.attacks["Low"], (
+        "only the uncovered zone gets through"
+    )
     assert state.cards[blocker].location == "discard"
 
 
@@ -344,7 +347,7 @@ def test_a_super_block_covers_several_guard_break_zones_and_is_still_kept():
     run_attack(state, atk, uid, dfn)
 
     assert dfn.damage["High"] == 0 and dfn.damage["Mid"] == 0
-    assert dfn.damage["Low"] == 1
+    assert dfn.damage["Low"] == CATALOGUE["Cannon_Airburst"].attacks["Low"]
     assert state.cards[blocker].location == "committed", "a super block is kept"
 
 
@@ -461,14 +464,173 @@ def test_splash_text_hits_every_adjacent_enemy():
     assert {t.id for t in attack.targets} == {dfn.id, other.id}
 
 
+def test_adjacent_splash_does_not_care_what_the_attack_was_declared_at():
+    """"Hits all adjacent enemies" measures from the attacker.
+
+    So shooting the barricade in front of you still catches the frame beside
+    you: what the swing was declared at never enters into it.
+    """
+    from playtest.engine.state import TokenState
+
+    state, atk, _dfn = _duel(b=Pos(9, 9))               # attacker at (1,1)
+    beside = add_frame(state, 1, "Kuwagata", Pos(1, 2))
+    state.tokens["t0"] = TokenState(
+        id="t0", kind="tower", pos=Pos(2, 1), hp=4, max_hp=4, owner=1
+    )
+    uid = give(state, atk, "Greatsword_Grand Sweep")
+    attack = combat.declare_attack(
+        state, atk, uid, target_kind="token", target_id="t0"
+    )
+    assert [(t.kind, t.id) for t in attack.targets] == [
+        ("token", "t0"), ("frame", beside.id)
+    ]
+
+
+def test_splash_reaches_past_the_weapon_when_it_names_its_own_shape():
+    """`Kinetic Hammer_Slam`: "Also hits any enemies adjacent to the target".
+
+    The target is what the melee weapon could reach; the card then says the
+    swing carries on into whatever is beside it. Measuring the weapon's own
+    reach again would delete exactly the enemies the card was printed to
+    catch -- the far side of the target is two tiles from the attacker.
+    """
+    from playtest.engine.state import TokenState
+
+    slam = CATALOGUE["Kinetic Hammer_Slam"]
+    assert not slam.is_ranged, "the whole point is that it reaches past melee"
+
+    state, atk, dfn = _duel()                           # (1,1) hits (2,1)
+    behind = add_frame(state, 1, "Kuwagata", Pos(3, 1))  # 2 from atk, 1 from dfn
+    state.tokens["beside"] = TokenState(
+        id="beside", kind="tower", pos=Pos(3, 2), hp=4, max_hp=4, owner=1
+    )
+    state.tokens["beyond"] = TokenState(
+        id="beyond", kind="tower", pos=Pos(5, 1), hp=4, max_hp=4, owner=1
+    )
+    uid = give(state, atk, "Kinetic Hammer_Slam")
+    attack = combat.declare_attack(
+        state, atk, uid, target_kind="frame", target_id=dfn.id
+    )
+    assert {(t.kind, t.id) for t in attack.targets} == {
+        ("frame", dfn.id), ("frame", behind.id), ("token", "beside")
+    }, "everything beside the target, and nothing two tiles from it"
+    for target in attack.targets:
+        assert target.zones == {"Low": slam.attacks["Low"]}
+
+
+def test_splash_past_the_weapon_is_still_shifted_by_elevation():
+    """Reach is what the splash overrides -- the ground still counts."""
+    state, atk, dfn = _duel()
+    behind = add_frame(state, 1, "Kuwagata", Pos(3, 1))
+    state.board.set_tile(behind.pos, elevation=1)
+    state.board.set_tile(atk.pos, elevation=2)          # attacker 1 higher
+
+    uid = give(state, atk, "Kinetic Hammer_Slam")       # Low 2
+    attack = combat.declare_attack(
+        state, atk, uid, target_kind="frame", target_id=dfn.id
+    )
+    caught = next(t for t in attack.targets if t.id == behind.id)
+    assert caught.zones == {"Mid": 2}, "Low shifted up one toward High"
+
+
+def test_adjacent_splash_catches_tokens_as_well_as_frames():
+    """An enemy is anything the attack could have been aimed at.
+
+    A barricade or a gun tower standing beside you is as much in the way of a
+    wide swing as a mech is, so "adjacent enemies" is read as every adjacent
+    thing this attacker may target -- the neutral pieces included, since they
+    can be attacked too. Only the attacker's own tokens are spared.
+    """
+    from playtest.engine.state import TokenState
+
+    state, atk, dfn = _duel()                           # attacker at (1,1)
+    state.tokens["theirs"] = TokenState(
+        id="theirs", kind="barricade", pos=Pos(2, 2), hp=2, max_hp=2, owner=1
+    )
+    state.tokens["neutral"] = TokenState(
+        id="neutral", kind="tower", pos=Pos(1, 2), hp=4, max_hp=4, owner=None
+    )
+    state.tokens["mine"] = TokenState(
+        id="mine", kind="barricade", pos=Pos(0, 1), hp=2, max_hp=2, owner=0
+    )
+    state.tokens["far"] = TokenState(
+        id="far", kind="tower", pos=Pos(6, 6), hp=4, max_hp=4, owner=1
+    )
+    uid = give(state, atk, "Greatsword_Grand Sweep")
+    attack = combat.declare_attack(
+        state, atk, uid, target_kind="frame", target_id=dfn.id
+    )
+    assert {(t.kind, t.id) for t in attack.targets} == {
+        ("frame", dfn.id), ("token", "theirs"), ("token", "neutral")
+    }
+
+
+def test_adjacent_splash_damages_the_tokens_it_catches():
+    from playtest.engine.state import TokenState
+
+    state, atk, dfn = _duel()
+    sweep = CATALOGUE["Greatsword_Grand Sweep"]
+    state.tokens["t0"] = TokenState(
+        id="t0", kind="tower", pos=Pos(2, 2), hp=4, max_hp=4, owner=1
+    )
+    run_attack(state, atk, give(state, atk, "Greatsword_Grand Sweep"), dfn)
+    assert state.tokens["t0"].hp == 4 - sum(sweep.attacks.values())
+
+
+def test_hits_all_targets_in_range_catches_everything_it_could_have_declared():
+    """`Chain_Tangle` prints "Hits all targets in range".
+
+    Not a radius of its own: the card does not choose, so it hits everything
+    the attack could have been declared against -- tokens as much as frames,
+    the same enemies the adjacent sweeps catch.
+    """
+    from playtest.engine.state import TokenState
+
+    tangle = CATALOGUE["Chain_Tangle"]
+    assert tangle.ranges["Low"] == 3 and tangle.is_ranged
+
+    state, atk, dfn = _duel(a=Pos(1, 1), b=Pos(4, 1))    # three apart
+    near = add_frame(state, 1, "Kuwagata", Pos(1, 4))    # also three
+    far = add_frame(state, 1, "Kuwagata", Pos(9, 9))     # out of range
+    state.tokens["t0"] = TokenState(
+        id="t0", kind="tower", pos=Pos(3, 3), hp=4, max_hp=4, owner=1
+    )
+
+    uid = give(state, atk, "Chain_Tangle")
+    attack = combat.declare_attack(
+        state, atk, uid, target_kind="frame", target_id=dfn.id
+    )
+    assert {t.id for t in attack.targets} == {dfn.id, near.id, "t0"}
+    assert far.id not in {t.id for t in attack.targets}
+    assert attack.targets[0].id == dfn.id, "the declared target is still first"
+
+
+def test_hits_all_targets_in_range_does_not_double_up_on_the_declared_target():
+    """Whichever of them was named, the card hits each of them once."""
+    from playtest.engine.state import TokenState
+
+    state, atk, dfn = _duel(a=Pos(1, 1), b=Pos(4, 1))
+    state.tokens["t0"] = TokenState(
+        id="t0", kind="tower", pos=Pos(3, 3), hp=4, max_hp=4, owner=1
+    )
+    uid = give(state, atk, "Chain_Tangle")
+    attack = combat.declare_attack(
+        state, atk, uid, target_kind="token", target_id="t0"
+    )
+    ids = [t.id for t in attack.targets]
+    assert ids[0] == "t0", "the declared target is still first"
+    assert sorted(ids) == sorted({dfn.id, "t0"})
+
+
 def test_each_splash_target_gets_its_own_block_decision():
     state, atk, dfn = _duel()
     other = add_frame(state, 1, "Kuwagata", Pos(1, 2))
-    uid = give(state, atk, "Great Axe_Whirl")            # Mid 2, Low 1
-    give(state, dfn, "Basic_Punch")                      # dfn blocks, other does not
+    whirl = CATALOGUE["Great Axe_Whirl"]                 # Low only
+    uid = give(state, atk, "Great Axe_Whirl")
+    give(state, dfn, "Basic_Kick")                       # dfn blocks Low, other cannot
     run_attack(state, atk, uid, dfn)
-    assert dfn.damage["Mid"] == 0
-    assert other.damage["Mid"] == 2
+    assert dfn.damage["Low"] == 0
+    assert other.damage["Low"] == whirl.attacks["Low"]
 
 
 def test_tokens_are_attackable_and_never_block():
@@ -519,7 +681,9 @@ def test_a_second_shield_counter_survives_a_three_zone_attack():
     assert dfn.damage == {"High": 0, "Mid": 0, "Low": 0}
 
     run_attack(state, atk, give(state, atk, "Cannon_Airburst"), dfn)
-    assert dfn.damage == {"High": 2, "Mid": 2, "Low": 1}, "no counters left"
+    assert dfn.damage == dict(CATALOGUE["Cannon_Airburst"].attacks), (
+        "no counters left"
+    )
 
 
 def test_an_ordinary_multi_zone_attack_also_costs_only_one_counter():

@@ -47,6 +47,10 @@ Run: `python plotCardStatistics.py [--no-basics] [--no-boosters] [--melee] [--ra
 Reports how many times each defined card appears across all action decks; flags missing or orphaned entries.
 Run: `python check_deck_coverage.py [--by-group]`
 
+### weapon_dominance.py
+Finds cards that are strictly better than other cards for the same printed effect, and prints each weapon group's profile (zone coverage, range span, initiative/movement spread, attack and block per card) so a per-card gap can be read against how similar the two groups otherwise are. Three sections: `within` (same group, same effect, different initiative/movement), `cross` (a card from another group dominating on attack/block/range/initiative/movement — clustered, so a card beaten by several others is one entry rather than several), `profiles`. Zone placement is never treated as a difference (attack/block values compare as sorted shapes). Only cards printing identical text and persistence are compared — text is whitespace-normalised first, since a stray double space used to hide real duplicates. Damage type is printed on every pair but never gates a comparison. Backs the `weapon-balance` skill in `.claude/skills/`.
+Run: `python weapon_dominance.py [--cross|--within|--profiles] [--group NAME] [--csv "Drone actions.csv"] [--markdown]`
+
 ### weapon_fingerprint_report.py
 Generates a scrollable HTML report (`build/weapon_fingerprint.html`), one row per weapon Group: average attack/block by zone, which ability/status keywords appear in that group's card text, and the Initiative/Movement spread across its cards.
 Run: `python weapon_fingerprint_report.py [--output build/weapon_fingerprint.html] [--open]`

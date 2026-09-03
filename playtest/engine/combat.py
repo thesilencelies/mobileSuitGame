@@ -130,14 +130,26 @@ def attack_zones_against(
     *,
     extra: Optional[Mapping[str, int]] = None,
     spread: int = 0,
+    reach: bool = True,
 ) -> dict[str, int]:
     """The zones and damage an attack lands with against this target.
 
     `extra` is per-zone and may open a zone the card does not print; `spread`
     is a flat "+N damage" from card text with no zone named, which the rules
     put on every zone the attack already applies to.
+
+    `reach=False` drops the range check and lands every zone the card prints.
+    Splash text needs it: "hits all enemies adjacent to the target" says who
+    is caught, and the far side of the target is two tiles from a melee
+    attacker -- measuring the weapon's own reach again would delete most of
+    what the card just said it hits. Everything else still applies, elevation
+    shift included, because that is about the ground and not the range.
     """
-    zones = zones_in_range(state, attacker, card, target_pos, defender)
+    zones = (
+        zones_in_range(state, attacker, card, target_pos, defender)
+        if reach
+        else {z: d for z, d in card.attacks.items() if d > 0}
+    )
     if extra and zones:
         # Bonus marks only exist if the attack reaches at all. These *can*
         # open a zone the card does not print -- Kamikiri's extra cut Mid.
@@ -221,79 +233,200 @@ def can_target(
     return distance == 1
 
 
-def legal_targets(
+def hostile_targets(
     state: GameState, attacker: FrameState, card: Card
-) -> list[dict[str, object]]:
-    """Every frame/token this card could attack right now, with its zones."""
+) -> list[tuple[str, str, Pos]]:
+    """Everything this attacker is allowed to swing at, as (kind, id, pos).
+
+    Range and line of sight are deliberately *not* applied: this is the list
+    of things that count as an enemy, and each caller measures its own reach
+    over it. `legal_targets` adds `can_target` and the per-zone range on top;
+    splash text measures adjacency to its own origin instead.
+
+    An enemy is any frame on another side and any attackable token that is not
+    the attacker's own -- so the neutral pieces (the Tower, the reactors, a
+    Shiny Thing) count, since they are things an attack may be aimed at.
+    """
     from . import effects
 
-    options: list[dict[str, object]] = []
+    found: list[tuple[str, str, Pos]] = []
     if not card.is_attack or attacker.pos is None:
-        return options
+        return found
     for other in state.frames.values():
         if not other.alive or other.seat == attacker.seat or other.pos is None:
             continue
         if effects.is_untargetable(state, attacker, card, other):
             continue
-        if not can_target(state, attacker, card, other.pos, other):
-            continue
-        zones = attack_zones_against(state, attacker, card, other.pos, other)
-        if zones:
-            options.append(
-                {"kind": "frame", "id": other.id, "zones": dict(zones),
-                 "name": other.spec.name}
-            )
+        found.append(("frame", other.id, other.pos))
     for token in state.tokens.values():
         if not token.attackable or token.pos is None:
             continue
         if token.owner is not None and token.owner == attacker.seat:
             continue
-        if not can_target(state, attacker, card, token.pos):
-            continue
-        zones = zones_in_range(state, attacker, card, token.pos)
+        found.append(("token", token.id, token.pos))
+    return found
+
+
+def legal_targets(
+    state: GameState, attacker: FrameState, card: Card, *, forced: bool = True
+) -> list[dict[str, object]]:
+    """Every frame/token this card could attack right now, with its zones.
+
+    `forced=False` skips the Showboating narrowing: that card says who an
+    attack may be *declared* on, which is not a question splash text asks.
+    """
+    from . import effects
+
+    options: list[dict[str, object]] = []
+    for kind, target_id, pos in hostile_targets(state, attacker, card):
+        if kind == "frame":
+            other = state.frames[target_id]
+            if not can_target(state, attacker, card, pos, other):
+                continue
+            zones = attack_zones_against(state, attacker, card, pos, other)
+            name = other.spec.name
+        else:
+            if not can_target(state, attacker, card, pos):
+                continue
+            zones = zones_in_range(state, attacker, card, pos)
+            name = state.tokens[target_id].kind
         if zones:
             options.append(
-                {"kind": "token", "id": token.id, "zones": dict(zones),
-                 "name": token.kind}
+                {"kind": kind, "id": target_id, "zones": dict(zones), "name": name}
             )
     # Showboating: "any frame that is able to must attack this frame".
-    return effects.forced_targets(state, attacker, options)
+    return effects.forced_targets(state, attacker, options) if forced else options
+
+
+def _target_pos(state: GameState, kind: str, target_id: str) -> Optional[Pos]:
+    """Where the declared target is standing, frame or token."""
+    if kind == "frame":
+        frame = state.frames.get(target_id)
+        return frame.pos if frame is not None else None
+    token = state.tokens.get(target_id)
+    return token.pos if token is not None else None
 
 
 def _splash_targets(
-    state: GameState, attacker: FrameState, card: Card, primary: FrameState
-) -> list[FrameState]:
-    """Extra frames caught by the card's splash text."""
+    state: GameState,
+    attacker: FrameState,
+    card: Card,
+    primary_kind: str,
+    primary_id: str,
+) -> tuple[list[tuple[str, str]], bool]:
+    """Extra targets caught by the card's splash text: (kind, id) list, reach.
+
+    Three phrasings, differing only in the shape they sweep. All three catch
+    the same *kind* of thing -- everything `hostile_targets` calls an enemy,
+    tokens as well as frames, since a barricade or a gun tower standing beside
+    you is as much in the way of a wide swing as a mech is:
+
+    * "Hits all adjacent enemies" -- everything next to the *attacker*, which
+      is why it does not matter what the attack was declared at;
+    * "Also hits any enemies adjacent to the target" -- everything next to
+      wherever the swing landed, whether or not the attacker could have
+      reached it on its own;
+    * "Hits all targets in range" (Chain_Tangle) -- no shape of its own. The
+      card simply does not choose: it hits everything this attack could have
+      been declared against.
+
+    The second return value says whether the weapon's own range still applies
+    to what was caught. For the two sweeps that name a shape it does not: the
+    shape *is* the reach, and re-checking the range would take back most of
+    what the card just said it hits. For "all targets in range" it does, since
+    there the range is the shape -- a target at 3 is only hit by the zones
+    that reach 3.
+
+    Splash is not a choice, so none of them consults `forced_targets`:
+    Showboating says who you may *declare* an attack on, and once declared the
+    card does what it prints.
+    """
     text = card.text.lower()
     if state.board is None:
-        return []
-    if "hits all adjacent enemies" in text:
-        origin = attacker.pos
-    elif "adjacent to the target" in text:
-        origin = primary.pos
-    else:
-        return []
-    if origin is None:
-        return []
-    from . import effects
+        return [], True
 
-    caught: list[FrameState] = []
-    for other in state.frames.values():
-        if (
-            other.alive
-            and other.seat != attacker.seat
-            and other.id != primary.id
-            and other.pos is not None
-            and state.board.distance(origin, other.pos) == 1
-            and not effects.is_untargetable(state, attacker, card, other)
-        ):
-            caught.append(other)
-    return caught
+    if "hits all targets in range" in text:
+        caught = [
+            (str(option["kind"]), str(option["id"]))
+            for option in legal_targets(state, attacker, card, forced=False)
+        ]
+        reach = True
+    else:
+        if "hits all adjacent enemies" in text:
+            origin = attacker.pos
+        elif "adjacent to the target" in text:
+            origin = _target_pos(state, primary_kind, primary_id)
+        else:
+            return [], True
+        if origin is None:
+            return [], True
+        caught = [
+            (kind, target_id)
+            for kind, target_id, pos in hostile_targets(state, attacker, card)
+            if state.board.distance(origin, pos) == 1
+        ]
+        reach = False
+    return [t for t in caught if t != (primary_kind, primary_id)], reach
 
 
 # --------------------------------------------------------------------------
 # Declaring an attack
 # --------------------------------------------------------------------------
+
+
+def _declare_one(
+    state: GameState,
+    attacker: FrameState,
+    card: Card,
+    kind: str,
+    target_id: str,
+    *,
+    extra: Mapping[str, int],
+    spread: int,
+    reach: bool = True,
+) -> Optional[AttackTarget]:
+    """One target's zones, with the Ephemeral Images swap already applied.
+
+    Both the declared target and anything splash catches come through here, so
+    an image is resolved the same way whichever of the two it was: hitting the
+    real one was always an attack on the frame, and finding that out is the
+    point of the card. `reach` is passed straight down -- see
+    `attack_zones_against`.
+    """
+    from . import effects
+
+    if kind == "frame":
+        defender = state.frames.get(target_id)
+        if defender is None or defender.pos is None:
+            return None
+        zones = attack_zones_against(
+            state, attacker, card, defender.pos, defender,
+            extra=extra, spread=spread, reach=reach,
+        )
+        return AttackTarget("frame", target_id, zones)
+
+    token = state.tokens.get(target_id)
+    if token is None or token.pos is None:
+        return None
+    image = effects.image_owner(state, token)
+    if image is not None and image[1]:
+        # The real one. This was always an attack on the frame -- and hitting
+        # it is exactly how the trick gets found out.
+        defender = image[0]
+        effects.reveal_images(state, defender, why=f"{attacker.id} found it")
+        if defender.pos is None:
+            return None
+        zones = attack_zones_against(
+            state, attacker, card, defender.pos, defender,
+            extra=extra, spread=spread, reach=reach,
+        )
+        return AttackTarget("frame", defender.id, zones)
+    # No defender, so no elevation shift -- but a token is still shot with
+    # whatever the card text is adding this turn.
+    zones = attack_zones_against(
+        state, attacker, card, token.pos, extra=extra, spread=spread, reach=reach
+    )
+    return AttackTarget("token", target_id, zones)
 
 
 def declare_attack(
@@ -325,38 +458,33 @@ def declare_attack(
     for zone, bonus in extra_from_text.items():
         extra[zone] = extra.get(zone, 0) + bonus
 
-    if target_kind == "frame":
-        defender = state.frames[target_id]
-        zones = attack_zones_against(
-            state, attacker, card, defender.pos, defender, extra=extra, spread=spread
+    primary = _declare_one(
+        state, attacker, card, target_kind, target_id, extra=extra, spread=spread
+    )
+    if primary is not None:
+        attack.targets.append(primary)
+
+    # Splash goes after the primary, and reads the primary *after* the image
+    # swap: a card that catches everything around "the target" has to mean the
+    # frame the attack turned out to be against, not the image it was declared
+    # at. A splash target with no zones left is simply out of reach in the ones
+    # this card attacks, so it is dropped rather than added empty.
+    if primary is not None:
+        seen = {(primary.kind, primary.id)}
+        splashed, reach = _splash_targets(
+            state, attacker, card, primary.kind, primary.id
         )
-        attack.targets.append(AttackTarget("frame", target_id, zones))
-        for other in _splash_targets(state, attacker, card, defender):
-            splash_zones = attack_zones_against(
-                state, attacker, card, other.pos, other, extra=extra, spread=spread
+        for kind, other_id in splashed:
+            caught = _declare_one(
+                state, attacker, card, kind, other_id,
+                extra=extra, spread=spread, reach=reach,
             )
-            if splash_zones:
-                attack.targets.append(AttackTarget("frame", other.id, splash_zones))
-    else:
-        token = state.tokens[target_id]
-        image = effects.image_owner(state, token)
-        if image is not None and image[1]:
-            # The real one. This was always an attack on the frame -- and
-            # hitting it is exactly how the trick gets found out.
-            defender = image[0]
-            effects.reveal_images(state, defender, why=f"{attacker.id} found it")
-            zones = attack_zones_against(
-                state, attacker, card, defender.pos, defender,
-                extra=extra, spread=spread,
-            )
-            attack.targets.append(AttackTarget("frame", defender.id, zones))
-        else:
-            # No defender, so no elevation shift -- but a token is still shot
-            # with whatever the card text is adding this turn.
-            zones = attack_zones_against(
-                state, attacker, card, token.pos, extra=extra, spread=spread
-            )
-            attack.targets.append(AttackTarget("token", target_id, zones))
+            if caught is None or not caught.zones:
+                continue
+            if (caught.kind, caught.id) in seen:
+                continue          # an image that resolved to a frame already hit
+            seen.add((caught.kind, caught.id))
+            attack.targets.append(caught)
 
     for target in attack.targets:
         # Zones still open to a block. A normal block clears the lot in one

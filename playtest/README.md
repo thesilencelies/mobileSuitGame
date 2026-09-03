@@ -600,7 +600,7 @@ has already moved is not charged, and everything still to come gets it.
 
 #### Readings the cards did not settle themselves
 
-Some pilot text leaves a real question open. Each of these is a decision the
+Some card text leaves a real question open. Each of these is a decision the
 engine had to make, not something the card says:
 
 * **Psychic Storm** hits "every unit within 5" — read as everything that acts
@@ -657,6 +657,56 @@ engine had to make, not something the card says:
   hand is discarded when the swapping stops; nothing on the card says it is
   kept. Each action is settled once per run (swapped, or looked at and kept),
   which is what stops "drop it / actually keep it" going round for ever.
+* **The order of a card's steps** is the controller's to pick, so it is asked
+  as `resolve_order` over the permutations of the steps the card has — but a
+  card can narrow the list, and when one order is left there is nothing to ask
+  and the card simply takes it. `effects.step_orders` is the one place that
+  decides. `Booster_Explosive Exit` prints its constraint ("Must attack before
+  moving"), and it is read off the text rather than the card key so the mirror
+  of it needs no engine change. The other two are the engine's reading of
+  cards whose effect has to be in force before the frame moves:
+  `Booster_Jump`, because "all movement this turn" has to include the move the
+  card came with, and `Booster_Boomerang`, because "the position they started
+  this action at" has to be noted before the action carries the frame off it.
+* **Jump** is half of Flying and not the other half. "Ignores elevation
+  penalties" makes a climb cost what flat ground costs
+  (`step_cost(..., climb_free=True)`), but obstacles still stop it — Flying is
+  the keyword that says otherwise, and a booster is not one. Like
+  `flying_target` on the line-of-sight call, `climb_free` is an addition to the
+  frozen `BoardProtocol`, so a board that has not got it is asked the old
+  question instead of failing.
+* **Boomerang** returns the frame at the start of the next turn, from
+  `effects.start_of_turn` — the hook `_begin_planning` calls once the turn
+  flags are cleared, so the anchor has to live in the `fx` bag rather than in
+  `turn_flags`. Nothing says what happens when somebody has parked on the tile
+  it was snapping back to; it takes the nearest tile it can stand on within
+  `BOOMERANG_SEARCH`, which keeps the card doing what it says without either
+  deleting the effect or stacking two frames on one tile. The return is
+  displacement like a knockback — it is recorded (so Doom counts it) but it
+  claims nothing on the tile it lands on, which is how knockback already
+  behaves.
+* **Splash text** — "Hits all adjacent enemies", "Also hits any enemies
+  adjacent to the target", "Hits all targets in range" — catches enemy *and*
+  neutral tokens, not only frames: an enemy is anything the attack could have
+  been aimed at, so a barricade or a gun tower beside you is swept up like a
+  mech, and only the attacker's own tokens are spared. `combat.hostile_targets`
+  is the one list all three read, and `legal_targets` is that same list with
+  range and line of sight applied — which is what `Chain_Tangle` wants, since
+  "hits all targets in range" is read as "the card does not choose" and hits
+  everything the attack could have been declared against. None of the three
+  consults Showboating: that card says who an attack may be *declared* on, and
+  once declared the card does what it prints. Each target still gets its own
+  block decision, and an Ephemeral Image caught by splash resolves the same way
+  as one that was aimed at — hitting the real one is an attack on the frame.
+
+  When the text names a shape, that shape *replaces* the weapon's reach rather
+  than being filtered by it (`attack_zones_against(..., reach=False)`). The far
+  side of `Kinetic Hammer_Slam`'s target is two tiles from a melee attacker, so
+  re-checking the range would delete exactly the enemies the card was printed
+  to catch. Elevation shift still applies to each of them: reach is what the
+  splash overrides, and elevation is about the ground. "Hits all targets in
+  range" is the exception that keeps the check, because there the range *is*
+  the shape — a target at 3 is only hit by the zones that reach 3.
 * **Cage Fight** does not ask where the box goes. Both fighters have to end up
   inside the 3x3 the walls enclose and they are at most two apart, so the
   centre is their midpoint and the only question is who is locked in. The walls
@@ -749,7 +799,7 @@ a handle on a card that is in the AI's hand now.
 |---|---|
 | `commit_actions` | `{"uids": ["c17", "c22"]}` |
 | `choose_actor` | `{"uid": "c17"}` — which of your tied cards resolves next |
-| `resolve_order` | `{"order": ["movement", "attack"]}` |
+| `resolve_order` | `{"order": ["movement", "attack"]}` — only offered when the card allows more than one order (see `effects.step_orders`) |
 | `move` | `{"x": 7, "y": 12}` |
 | `attack_target` | `{"kind": "frame", "id": "b1"}` |
 | `choose_block` | `{"uid": "c04"}` |

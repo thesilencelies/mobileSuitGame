@@ -198,7 +198,7 @@
   {
     "name": "Stun Baton Strike",
     "description": "On Hit: the text after the colon only applies if the attack hits (that is, is not blocked)\nStunned: while stunned a frame gets -2 init",
-    "gm_notes": "5init\n-1mv\natk:1L energy\nBlk:1H\nOn Hit: target gets 2 Stunned (-2 init)",
+    "gm_notes": "6init\n0mv\natk:1L energy\nBlk:1H\nOn Hit: target gets 2 Stunned (-2 init)",
     "tags":
     {
       "1": "Card",
@@ -328,7 +328,7 @@
   {
     "name": "Cannon Airburst",
     "description": "Guard Break: this attack consumes one block per zone; zones that are not blocked still deal damage\nReload: this card persists until this frame next resolves an attack from this weapon; that card deals no damage and triggers no abilities, then both are discarded",
-    "gm_notes": "2init\n-2mv\natk:2H@12,2M@12,1L@8 projectile\nBlk:1M\npersist:permanent\nGuard Break (This attack consumes one block per zone)\nReload (This frames next action from this weapon has no effect or attack.)",
+    "gm_notes": "2init\n-2mv\natk:1H@12,1M@12,2L@8 projectile\nBlk:1M\npersist:permanent\nGuard Break (This attack consumes one block per zone)\nReload (This frames next action from this weapon has no effect or attack.)",
     "tags":
     {
       "1": "Card",
@@ -367,7 +367,7 @@
   {
     "name": "Halberd Crush",
     "description": "",
-    "gm_notes": "4init\n-2mv\natk:3L impact\nBlk:1M",
+    "gm_notes": "4init\n-2mv\natk:3H impact\nBlk:1M",
     "tags":
     {
       "1": "Card",
@@ -380,7 +380,7 @@
   {
     "name": "Halberd Eviscerate",
     "description": "",
-    "gm_notes": "4init\n-2mv\natk:3M cut\nBlk:1H",
+    "gm_notes": "4init\n-2mv\natk:2H,2L cut\nBlk:1H",
     "tags":
     {
       "1": "Card",
@@ -406,7 +406,7 @@
   {
     "name": "Halberd Sweep",
     "description": "On Hit: the text after the colon only applies if the attack hits (that is, is not blocked)\nSlowed: while slowed a frame gets -2 mv",
-    "gm_notes": "5init\n0mv\natk:1L cut\nBlk:1H\nOn Hit: target gets 2 Slowed (-2 mv)",
+    "gm_notes": "7init\n0mv\natk:1L cut\nBlk:1H\nOn Hit: target gets 2 Slowed (-2 mv)",
     "tags":
     {
       "1": "Card",
@@ -445,7 +445,7 @@
   {
     "name": "Chainsaw Grind",
     "description": "",
-    "gm_notes": "5init\n-2mv\natk:1H,1M cut\nBlk:1M",
+    "gm_notes": "5init\n0mv\natk:1H,1M cut\nBlk:1M",
     "tags":
     {
       "1": "Card",
@@ -471,7 +471,7 @@
   {
     "name": "Chain Whip",
     "description": "On Hit: the text after the colon only applies if the attack hits (that is, is not blocked)\nSlowed: while slowed a frame gets -2 mv",
-    "gm_notes": "6init\n0mv\natk:1M@3 impact\nBlk:1M\nOn Hit: target gets 2 Slowed (-2 mv)",
+    "gm_notes": "6init\n-1mv\natk:1M@3 impact\nBlk:1M\nOn Hit: target gets 2 Slowed (-2 mv)",
     "tags":
     {
       "1": "Card",
@@ -483,8 +483,8 @@
   "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Chain_Tangle.png":
   {
     "name": "Chain Tangle",
-    "description": "On Hit: the text after the colon only applies if the attack hits (that is, is not blocked)\nSlowed: while slowed a frame gets -2 mv",
-    "gm_notes": "6init\n-1mv\natk:1L@3 impact\nBlk:1M\nOn Hit: target gets 2 Slowed (-2 mv)",
+    "description": "",
+    "gm_notes": "6init\n0mv\natk:1L@3 impact\nBlk:1M\nHits all targets in range",
     "tags":
     {
       "1": "Card",
@@ -627,7 +627,7 @@
   {
     "name": "Greatsword Parry",
     "description": "On Block: the text after the colon only applies if this card blocks an attack\nSuper block: a block value above 1; a zone blocked by a super block is not discarded, the card stays on the field revealed",
-    "gm_notes": "3init\n-1mv\nBlk:1M,2L\nOn Block: deals mid cut",
+    "gm_notes": "3init\n0mv\nBlk:1M,2L\nOn Block: deals mid cut",
     "tags":
     {
       "1": "Card",
@@ -731,7 +731,7 @@
   {
     "name": "Plasma Rifle Single Shot",
     "description": "",
-    "gm_notes": "5init\n-2mv\natk:2M@9 energy\nBlk:1M",
+    "gm_notes": "3init\n-2mv\natk:2M@9 energy\nBlk:1M",
     "tags":
     {
       "1": "Card",
@@ -757,7 +757,7 @@
   {
     "name": "Plasma Rifle Vent",
     "description": "Feint: if this attack is not blocked it deals no damage (blocks are compulsory)",
-    "gm_notes": "6init\n1mv\natk:1H,1M energy\nBlk:1M\nFeint (This attack deals no damage)",
+    "gm_notes": "7init\n1mv\natk:1H,1M energy\nBlk:1M\nFeint (This attack deals no damage)",
     "tags":
     {
       "1": "Card",
@@ -796,7 +796,7 @@
   {
     "name": "Railgun Snipe",
     "description": "Knockback X: move the target frame X steps in any direction away from the source (it cannot move up elevation)",
-    "gm_notes": "1init\n-3mv\natk:2H@12,2M@12 projectile\nBlk:1M\nKnockback 2 (Move the target frame 2 steps in any direction away from the source)",
+    "gm_notes": "1init\n-3mv\natk:2H@16,2M@12 projectile\nBlk:1M\nKnockback 2 (Move the target frame 2 steps in any direction away from the source)",
     "tags":
     {
       "1": "Card",
@@ -822,7 +822,7 @@
   {
     "name": "Sniper Rifle Headshot",
     "description": "",
-    "gm_notes": "3init\n-3mv\natk:2H@16 projectile\nBlk:1M\nDeals + 2 projectile if the target didnt move",
+    "gm_notes": "2init\n-3mv\natk:2H@16 projectile\nBlk:1M\nDeals + 2 projectile if the target didnt move",
     "tags":
     {
       "1": "Card",
@@ -835,7 +835,7 @@
   {
     "name": "Sniper Rifle Calibrated Hit",
     "description": "",
-    "gm_notes": "3init\n-3mv\natk:2L@16 projectile\nBlk:1M\nDeals + 2 projectile if the target didnt move",
+    "gm_notes": "2init\n-3mv\natk:2L@16 projectile\nBlk:1M\nDeals + 2 projectile if the target didnt move",
     "tags":
     {
       "1": "Card",
@@ -848,7 +848,7 @@
   {
     "name": "Sniper Rifle Heartpiercer",
     "description": "",
-    "gm_notes": "3init\n-3mv\natk:2M@16 projectile\nBlk:1M\nDeals + 2 projectile if the target didnt move",
+    "gm_notes": "2init\n-3mv\natk:2M@16 projectile\nBlk:1M\nDeals + 2 projectile if the target didnt move",
     "tags":
     {
       "1": "Card",
@@ -861,7 +861,7 @@
   {
     "name": "Sniper Rifle Patience's Reward",
     "description": "",
-    "gm_notes": "2init\n-3mv\natk:2M@16 projectile\nBlk:1M\nDeals + 2 projectile if the target didnt move",
+    "gm_notes": "2init\n-3mv\natk:1H@16,1M@16 projectile\nBlk:1M\nDeals + 2 projectile if the target didnt move",
     "tags":
     {
       "1": "Card",
@@ -925,8 +925,8 @@
   "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Great%20Axe_Cleave.png":
   {
     "name": "Great Axe Cleave",
-    "description": "",
-    "gm_notes": "3init\n-2mv\natk:3M,2L cut\nBlk:1L",
+    "description": "Guard Break: this attack consumes one block per zone; zones that are not blocked still deal damage",
+    "gm_notes": "3init\n-3mv\natk:3M,2L cut\nBlk:1L\nGuard Break (This attack consumes one block per zone)",
     "tags":
     {
       "1": "Card",
@@ -939,7 +939,7 @@
   {
     "name": "Great Axe Split",
     "description": "Guard Break: this attack consumes one block per zone; zones that are not blocked still deal damage",
-    "gm_notes": "2init\n-2mv\natk:2M,2L cut\nBlk:1M\nGuard Break (This attack consumes one block per zone)",
+    "gm_notes": "3init\n-2mv\natk:2M,2L cut\nBlk:1M\nGuard Break (This attack consumes one block per zone)",
     "tags":
     {
       "1": "Card",
@@ -952,7 +952,7 @@
   {
     "name": "Great Axe Whirl",
     "description": "",
-    "gm_notes": "4init\n-2mv\natk:2M,1L cut\nBlk:1M\nHits all adjacent enemies",
+    "gm_notes": "4init\n-2mv\natk:2L cut\nBlk:1M\nHits all adjacent enemies",
     "tags":
     {
       "1": "Card",
@@ -964,8 +964,8 @@
   "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Great%20Axe_Eviscerate.png":
   {
     "name": "Great Axe Eviscerate",
-    "description": "",
-    "gm_notes": "3init\n-3mv\natk:2M,3L cut\nBlk:1L",
+    "description": "Close Quarters: this attack cannot be blocked by attacks that have already resolved",
+    "gm_notes": "3init\n-3mv\natk:2M,2L cut\nBlk:1L\nClose Quarters (Cannot be blocked by higher initiative attacks)",
     "tags":
     {
       "1": "Card",
@@ -978,7 +978,7 @@
   {
     "name": "Mace Crush",
     "description": "",
-    "gm_notes": "4init\n-3mv\natk:3H impact\nBlk:1L",
+    "gm_notes": "3init\n-2mv\natk:3H impact\nBlk:1L",
     "tags":
     {
       "1": "Card",
@@ -1004,7 +1004,7 @@
   {
     "name": "Mace Break",
     "description": "",
-    "gm_notes": "6init\n0mv\natk:1H,1M impact\nBlk:1L",
+    "gm_notes": "6init\n-1mv\natk:1H,1M impact\nBlk:1L",
     "tags":
     {
       "1": "Card",
@@ -1017,7 +1017,7 @@
   {
     "name": "Mace Batter",
     "description": "Guard Break: this attack consumes one block per zone; zones that are not blocked still deal damage",
-    "gm_notes": "6init\n-1mv\natk:2H,2M impact\nBlk:1L\nGuard Break (This attack consumes one block per zone)",
+    "gm_notes": "3init\n-2mv\natk:2H,2M impact\nBlk:1L\nGuard Break (This attack consumes one block per zone)",
     "tags":
     {
       "1": "Card",
@@ -1147,7 +1147,7 @@
   {
     "name": "Booster Full speed ahead",
     "description": "",
-    "gm_notes": "9init\n+5mv",
+    "gm_notes": "9init\n+4mv",
     "tags":
     {
       "1": "Card",
@@ -1160,7 +1160,7 @@
   {
     "name": "Booster Quick Step",
     "description": "",
-    "gm_notes": "8,3init\n+1mv\nBlk:1L\nActs twice if not comsumed",
+    "gm_notes": "8,3init\n0mv\nBlk:1L\nActs twice if not comsumed",
     "tags":
     {
       "1": "Card",
@@ -1172,8 +1172,8 @@
   "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Booster_Shoulder%20barge.png":
   {
     "name": "Booster Shoulder barge",
-    "description": "",
-    "gm_notes": "6init\n+3mv\natk:1M impact\nBlk:1M",
+    "description": "Knockback X: move the target frame X steps in any direction away from the source (it cannot move up elevation)",
+    "gm_notes": "6init\n+2mv\natk:1M impact\nBlk:1M\nKnockback 1 (Move the target frame 1 steps in any direction away from the source)",
     "tags":
     {
       "1": "Card",
@@ -1186,7 +1186,59 @@
   {
     "name": "Booster Accelerate",
     "description": "",
-    "gm_notes": "9init\n+1mv\nOther actions this turn get +3 mv",
+    "gm_notes": "9init\n0mv\nBlk:1L\nOther actions this turn get +2 mv",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Booster",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Booster_Jump.png":
+  {
+    "name": "Booster Jump",
+    "description": "",
+    "gm_notes": "9init\n+2mv\nAll movement this turn ignores elevation penalties",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Booster",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Booster_Evasive%20Maneuvers.png":
+  {
+    "name": "Booster Evasive Maneuvers",
+    "description": "",
+    "gm_notes": "8init\n+2mv\nBlk:1M,1L",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Booster",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Booster_Boomerang.png":
+  {
+    "name": "Booster Boomerang",
+    "description": "",
+    "gm_notes": "7init\n+1mv\nBlk:1L\npersist:1 turn\nAt the start of next turn: return this frame to the position they started this action at",
+    "tags":
+    {
+      "1": "Card",
+      "2": "Action",
+      "3": "Booster",
+      "4": "Factionless"
+    }
+  },
+  "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Booster_Explosive%20Exit.png":
+  {
+    "name": "Booster Explosive Exit",
+    "description": "Knockback X: move the target frame X steps in any direction away from the source (it cannot move up elevation)",
+    "gm_notes": "7init\n+2mv\natk:1L impact\nBlk:1L\nKnockback 1 (Move the target frame 1 steps in any direction away from the source)\nHits all adjacent enemies. Must attack before moving.",
     "tags":
     {
       "1": "Card",
@@ -1667,7 +1719,7 @@
   {
     "name": "Swarm",
     "description": "Drone: a token that takes this card's action every turn, using the movement and health printed beside it, until it is destroyed",
-    "gm_notes": "3init\n-2mv\natk:1M cut\nBlk:1M\ndrone:3hp 3mv\nfaction:Ouwa\npersist:permanent\nSummon one Swarm (A unit that attacks once each turn with this card, with its own movement and health.)",
+    "gm_notes": "3init\n-2mv\natk:1M pierce\nBlk:1M\ndrone:3hp 3mv\nfaction:Ouwa\npersist:permanent\nSummon one Swarm (A unit that attacks once each turn with this card, with its own movement and health.)",
     "tags":
     {
       "1": "Card",
@@ -1680,7 +1732,7 @@
   {
     "name": "Swarm Crawl",
     "description": "Drone: a token that takes this card's action every turn, using the movement and health printed beside it, until it is destroyed",
-    "gm_notes": "3init\n-2mv\natk:1L cut\nBlk:1M\ndrone:3hp 3mv\nfaction:Ouwa\npersist:permanent\nSummon one Swarm (A unit that attacks once each turn with this card, with its own movement and health.)",
+    "gm_notes": "3init\n-2mv\natk:1L pierce\nBlk:1M\ndrone:3hp 3mv\nfaction:Ouwa\npersist:permanent\nSummon one Swarm (A unit that attacks once each turn with this card, with its own movement and health.)",
     "tags":
     {
       "1": "Card",
@@ -1719,7 +1771,7 @@
   {
     "name": "Attack Dog Rex and Rover",
     "description": "Drone: a token that takes this card's action every turn, using the movement and health printed beside it, until it is destroyed",
-    "gm_notes": "5init\n-3mv\natk:1L energy\nBlk:1L\ndrone:1hp 4mv\nfaction:Aegis\npersist:permanent\nSummon two attack dogs (A unit that attacks once each turn with this card, with its own movement and health.)",
+    "gm_notes": "3init\n-3mv\natk:1L cut\nBlk:1L\ndrone:1hp 4mv\nfaction:Aegis\npersist:permanent\nSummon two attack dogs (A unit that attacks once each turn with this card, with its own movement and health.)",
     "tags":
     {
       "1": "Card",
@@ -1732,7 +1784,7 @@
   {
     "name": "Attack Dog Max and Ceaser",
     "description": "Drone: a token that takes this card's action every turn, using the movement and health printed beside it, until it is destroyed",
-    "gm_notes": "5init\n-3mv\natk:1M energy\nBlk:1L\ndrone:1hp 4mv\nfaction:Aegis\npersist:permanent\nSummon two attack dogs (A unit that attacks once each turn with this card, with its own movement and health.)",
+    "gm_notes": "3init\n-3mv\natk:1M cut\nBlk:1L\ndrone:1hp 4mv\nfaction:Aegis\npersist:permanent\nSummon two attack dogs (A unit that attacks once each turn with this card, with its own movement and health.)",
     "tags":
     {
       "1": "Card",

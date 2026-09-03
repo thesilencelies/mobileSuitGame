@@ -6,6 +6,7 @@ import pytest
 
 from playtest.engine import cards as cardlib
 from playtest.engine.cards import (
+    _to_int,
     parse_initiative,
     parse_keywords,
     parse_knockback,
@@ -31,7 +32,13 @@ def test_initiative_is_a_tuple_and_quick_step_has_two_values():
 
 
 def test_movement_parses_explicit_plus_and_blank_columns():
-    assert CATALOGUE["Booster_Full speed ahead"].movement == 5
+    assert _to_int("+4") == 4
+    assert _to_int("-4") == -4
+    assert _to_int("0") == 0
+    assert _to_int("") == 0
+    # And the same shapes as they actually appear in the CSVs, so a column
+    # that stops being written with a sign is still read correctly.
+    assert CATALOGUE["Booster_Full speed ahead"].movement > 0
     assert CATALOGUE["Chainsaw_Rip"].movement == -4
     assert CATALOGUE["Spear_Thrust"].movement == 0
 
