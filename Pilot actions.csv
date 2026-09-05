@@ -5,10 +5,10 @@ Net Strength,,Bruiser,5,-2,"All attacks you make this turn and next gain guard b
 Lockdown,,Bruiser,5,-1,Target frame within 3 gets 3 \fullslowed and 3 \fullstunned\\\fullcommitted,0,Bruiser_1.png,proxy_background.png,,,1,GoodBoy
 Bind,,Bruiser,3,1,Target an adjacent frame: as long as that frame is adjacent it cannot move,\infty,Bruiser_1.png,proxy_background.png,,,1,GoodBoy
 Suplex,,Bruiser,4,-1,Move Target frame within 3 to a position within 3 the other side of this frame. That target gets 2 \stunned and 2 \dazed,0,Bruiser_1.png,proxy_background.png,,,1,GoodBoy
-Ephemeral Images,,Mystic,1,-1,"Replace this frame with 3 tokens, one of which is secretly marked to be this frame. All tokens move as this frame and the fakes are removed if attacked.",\infty,Mystic_1.png,proxy_background.png,,,1,GoodBoy
+Ephemeral Images,,Mystic,1,-1,"Replace this frame with 3 tokens, one of which is secretly marked to be this frame. These tokens use this frame's actions and the fakes are removed if attacked or if they would deal damage.",\infty,Mystic_1.png,proxy_background.png,,,1,GoodBoy
 Teleport,,Mystic,1,-4,Reposition this frame anywhere on the map,0,Mystic_1.png,proxy_background.png,,,1,GoodBoy
 Utter darkness,,Mystic,1,-4,Next turn: While any frame is within 5 of this frame it cannot be attacked,1,Mystic_1.png,proxy_background.png,,,1,GoodBoy
-Encode the future,,Mystic,1,-3,Next turn: one allied frame \emph{(includes this)} chooses cards from their deck,1,Mystic_1.png,proxy_background.png,,,1,GoodBoy
+Encode the future,,Mystic,1,-3,Next turn: allied frames choose cards from their deck,1,Mystic_1.png,proxy_background.png,,,1,GoodBoy
 Psychic Storm,,Mystic,1,-2,"Create storm token within 5. At the end of each turn, every unit within 5 of that storm token takes \smallenergy high",0,Mystic_1.png,proxy_background.png,,,1,GoodBoy
 Doom,,Mystic,1,-2,"Target a frame within 5: they get \fulldazed and at the end of next turn, if they have not moved more than 3 spaces they take \smallenergyx{3} high",1,Mystic_1.png,proxy_background.png,,,1,GoodBoy
 Tactical broadcast,,Tactician,4,-1,Allied frames within 5 get 2 \fulllucid,0,Tactician.png,proxy_background.png,,,1,GoodBoy
@@ -26,12 +26,12 @@ Showboating,,Wunderkid,7,0,"For the rest of this turn, any frame that is able to
 Battlefield Repairs,,Engineer,4,-2,Repair 3 damage from an allied frame within 3,0,Engineer_1.png,proxy_background.png,,,1,GoodBoy
 Barricade,,Engineer,4,-3,Put up to 3 barricade tokens on unoccupied locations within 3: those locations becomes impassible,0,Engineer_1.png,proxy_background.png,,,1,GoodBoy
 Gravity Well,,Engineer,3,-2,Create a gravity well within 5. Its an obstacle that adds an extra 1 movement penalty to any step away from it within 5,0,Engineer_1.png,proxy_background.png,,,1,GoodBoy
-Precision Tuning,,Engineer,4,-3,This frame gets 4 \fullboosted,0,Engineer_1.png,proxy_background.png,,,1,GoodBoy
+Precision Tuning,,Engineer,4,-3,This frame gets 4 \fullboosted and 2 \fulllucid,0,Engineer_1.png,proxy_background.png,,,1,GoodBoy
 System Override,,Engineer,4,-1,You choose which tile target frame within 4 moves to on their next action,1,Engineer_1.png,proxy_background.png,,,1,GoodBoy
 Sensory Overload,,Engineer,5,-1,Target frame within 6 gets 2 \fulldazed 3 \fullstunned and their ranged attacks this turn have a range of 2,0,Engineer_1.png,proxy_background.png,,,1,GoodBoy
-Combo strike,,Specialist,8,-2,"When resolving the next attack from this frame, reveal the top 4 cards of its deck and choose up to 1 attack from the same weapon: add it's attacks to the attack\\\fullcommitted",0,Specialist_1.png,proxy_background.png,,,1,GoodBoy
-Snipers aim,,Specialist,7,-3,"Ranged attacks this turn can ignore obstacles, get + 4 range and deal 1 extra damage\\\fullcommitted",0,Specialist_1.png,proxy_background.png,,,1,GoodBoy
+Combo strike,,Specialist,8,-2,"Until the end of next turn: When resolving attacks from this frame, reveal the top 4 cards of its deck and choose up to 1 attack from the same weapon: add it's attacks to the attack\\\fullcommitted",1,Specialist_1.png,proxy_background.png,,,1,GoodBoy
+Snipers aim,,Specialist,7,-3,"Until the end of next turn: Ranged attacks ignore obstacles, get + 4 range and deal 1 extra damage\\\fullcommitted",1,Specialist_1.png,proxy_background.png,,,1,GoodBoy
 Master duelist,,Specialist,3,-2,For the next 3 turns: Enemies targeted by this frame's melee attacks get \revealed and you choose which card blocks,3,Specialist_1.png,proxy_background.png,,,1,GoodBoy
-Practiced Technique,,Specialist,5,-1,\fulllucid \\ Next turn: attacks deal 1 extra damage for each other attack played from the same weapon,1,Specialist_1.png,proxy_background.png,,,1,GoodBoy
+Practiced Technique,,Specialist,5,-1,This frame gets 1 \fulllucid and 1 \fullstimmed \\ Next turn: attacks deal 1 extra damage for each other completed attack from the same weapon,1,Specialist_1.png,proxy_background.png,,,1,GoodBoy
 Rebound,,Specialist,3,-2,"Create a Rebound token within 5. If this frame can see the token, its treated as if it can see every enemy within 4 of that token ",1,Specialist_1.png,proxy_background.png,,,1,GoodBoy
 Cage Fight,,Specialist,3,-2,"Surround this frame and an enemy within 2 with a 5x5 box of impassible terrain, pushing units aside. This box is removed if either frame leaves it or is destroyed.",\infty,Specialist_1.png,proxy_background.png,,,1,GoodBoy

@@ -353,6 +353,13 @@ class PendingDecision:
     #: colours them apart, so the engine says which rather than leaving it to
     #: be guessed from the option shape.
     pick_kind: str = ""
+    #: Anything else the decision wants to show that is *not* an answer to it.
+    #: A movement decision puts the tiles just out of reach in here, priced, so
+    #: the client can say why they are not offered: without that, a climb the
+    #: frame cannot afford is an unexplained refusal, and the player is left to
+    #: guess at the rule. Never an option -- `_handle_move` validates against
+    #: `options` alone.
+    context: Mapping[str, object] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)

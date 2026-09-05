@@ -986,3 +986,36 @@ def test_a_token_that_cannot_move_is_never_asked_about():
     assert O.tokens_of(state, obj)[0].movement == 0
     assert O.mobile_tokens(state) == []
     assert O.token_decision(state, None) is None
+
+
+def test_the_solar_farm_says_what_each_side_has_banked():
+    """A count nobody can read off the board goes in the log and the view."""
+    from playtest.engine import objectives as O
+    from playtest.engine.serialize import view_for
+
+    state = make_state(width=12, height=12)
+    obj = O.ObjectiveState(
+        name="Solar Farm", owner=0, defend=2, attack=2,
+        tiles=[Pos(4, 4), Pos(5, 4)],
+    )
+    state.objectives.append(obj)
+    mine = add_frame(state, 0, "Kamikiri", Pos(4, 4))
+    add_frame(state, 0, "Hector MkI", Pos(5, 4))
+    theirs = add_frame(state, 1, "Fenrir", Pos(9, 9))
+
+    O.end_of_turn(state)
+    assert O.tally(state, obj) == ("charge", {0: 2, 1: 0})
+    assert any("banks 2 charge" in e["text"] for e in state.log), (
+        "the banking has to be in the log: it cannot be read off the board"
+    )
+
+    # A side that walks away keeps what it banked; the other side starts adding.
+    for frame in state.frames.values():
+        frame.pos = Pos(0, 0) if frame.seat == 0 else Pos(5, 4)
+    O.end_of_turn(state)
+    assert O.tally(state, obj) == ("charge", {0: 2, 1: 1})
+
+    seen = next(o for o in view_for(state, 0)["board"]["objectives"]
+                if o["name"] == "Solar Farm")
+    assert seen["tallyLabel"] == "charge"
+    assert seen["tally"] == {"0": 2, "1": 1}

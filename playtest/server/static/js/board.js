@@ -149,6 +149,14 @@ const TOKEN_STYLE = {
   storm: { css: '#c58cff', mark: 'W' },
 };
 
+//: The ring a token throws around itself, by kind. The radius and the words
+//: come from the engine (`token.aura`); only the colour is the client's.
+const AURA_CSS = {
+  gravitywell: 'rgba(198,132,255,',
+  storm: 'rgba(197,140,255,',
+  rebound: 'rgba(127,212,255,',
+};
+
 const STATUS_PIPS = {
   stunned: { mark: 'I', css: '#ff5d5d' },
   stimmed: { mark: 'I', css: '#4ec98a' },
@@ -278,8 +286,9 @@ export class BoardView {
 
   setOverlays(overlays) {
     this.overlays = {
-      reach: new Map(), los: new Set(), targets: new Set(), blocked: new Set(),
-      deploy: new Set(), place: new Set(), picked: [], confirm: null, ...overlays,
+      reach: new Map(), beyond: new Map(), los: new Set(), targets: new Set(),
+      blocked: new Set(), deploy: new Set(), place: new Set(), picked: [],
+      confirm: null, ...overlays,
     };
     this._dirty = true;
   }
@@ -623,6 +632,7 @@ export class BoardView {
         this._drawTileBorder(ctx, x, y, t, elev, s);
         if (t.obstacle) this._dashedOutline(ctx, x, y);
         this._drawTileGlyphs(ctx, x, y, t, elev, s);
+        this._drawElevationLevel(ctx, x, y, elev, s);
 
         if (this.options.coords && s > 34) {
           ctx.fillStyle = 'rgba(200,215,235,0.35)';
@@ -739,6 +749,32 @@ export class BoardView {
     ctx.restore();
   }
 
+  /** The elevation as a number, bottom-left.
+   *
+   *  The printed card says it with a stack of cubes, and this draws that too
+   *  -- but at a phone's zoom one cube and two are a dozen pixels apart, and
+   *  reading e2 as e3 is reading the movement cost wrong by a whole point. The
+   *  bottom-left corner is the one free corner: the ordinal badge is top-left,
+   *  the status pips are top-right and the code glyphs are bottom-right.
+   */
+  _drawElevationLevel(ctx, x, y, elev, s) {
+    if (elev <= 0 || s < 26) return;
+    ctx.save();
+    ctx.fillStyle = 'rgba(9,13,19,0.82)';
+    this._roundRect(ctx, x + 0.05, y + 1 - 0.28, 0.26, 0.23, 0.05);
+    ctx.fill();
+    ctx.strokeStyle = ELEV_CSS[Math.min(3, elev)];
+    ctx.lineWidth = 1.4 / s;
+    this._roundRect(ctx, x + 0.05, y + 1 - 0.28, 0.26, 0.23, 0.05);
+    ctx.stroke();
+    ctx.fillStyle = '#dbe6ff';
+    ctx.font = `800 ${0.17}px system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`\u25B2${elev}`, x + 0.18, y + 1 - 0.165);
+    ctx.restore();
+  }
+
   /** The glyphs the card stamps in the tile's bottom-right corner.
    *
    *  More than one code on a tile means more than one glyph, and the card lays
@@ -790,8 +826,51 @@ export class BoardView {
     ctx.stroke();
   }
 
+  /** The area a token affects, as a wash and the silhouette of its edge.
+   *
+   *  A gravity well re-prices every step away from it for five tiles and puts
+   *  nothing on the board to say so, which is how a perfectly correct refusal
+   *  comes to look like an engine bug. The radius is the engine's
+   *  (`token.aura.radius`) -- the client draws a ring, it does not know the
+   *  rule.
+   */
+  _drawAuras(ctx, x0, y0, x1, y1, s) {
+    for (const token of this.view.tokens || []) {
+      if (!token.pos || token.alive === false || !token.aura) continue;
+      const css = AURA_CSS[token.kind];
+      if (!css) continue;
+      const r = Number(token.aura.radius) || 0;
+      if (r <= 0) continue;
+      const inside = (x, y) => Math.max(Math.abs(x - token.pos.x),
+                                        Math.abs(y - token.pos.y)) <= r;
+      const lo = { x: token.pos.x - r, y: token.pos.y - r };
+      const hi = { x: token.pos.x + r, y: token.pos.y + r };
+      ctx.fillStyle = `${css}0.07)`;
+      ctx.fillRect(lo.x, lo.y, hi.x - lo.x + 1, hi.y - lo.y + 1);
+      // Only the boundary, the way the sight cone is drawn: an outline on
+      // every tile of a 11x11 block is a grid, not a shape.
+      ctx.beginPath();
+      for (let y = Math.max(y0, lo.y); y <= Math.min(y1, hi.y); y++) {
+        for (let x = Math.max(x0, lo.x); x <= Math.min(x1, hi.x); x++) {
+          if (!inside(x, y)) continue;
+          if (!inside(x, y - 1)) { ctx.moveTo(x, y); ctx.lineTo(x + 1, y); }
+          if (!inside(x, y + 1)) { ctx.moveTo(x, y + 1); ctx.lineTo(x + 1, y + 1); }
+          if (!inside(x - 1, y)) { ctx.moveTo(x, y); ctx.lineTo(x, y + 1); }
+          if (!inside(x + 1, y)) { ctx.moveTo(x + 1, y); ctx.lineTo(x + 1, y + 1); }
+        }
+      }
+      ctx.strokeStyle = `${css}0.75)`;
+      ctx.lineWidth = 2 / s;
+      ctx.lineJoin = 'round';
+      ctx.setLineDash([0.22, 0.14]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+
   _drawOverlays(ctx, x0, y0, x1, y1, s) {
-    const { reach, los, targets, deploy, place, picked, confirm } = this.overlays;
+    this._drawAuras(ctx, x0, y0, x1, y1, s);
+    const { reach, beyond, los, targets, deploy, place, picked, confirm } = this.overlays;
     if (deploy && deploy.size) {
       const pulse = 0.5 + 0.5 * Math.sin((performance.now() - this._t0) / 420);
       for (const key of deploy) {
@@ -828,6 +907,27 @@ export class BoardView {
       ctx.lineWidth = 2.2 / s;
       ctx.lineJoin = 'round';
       ctx.stroke();
+    }
+    // Priced but not offered: what the tile would have cost. Grey, and drawn
+    // before the legal ones so a tile that is both never reads as reachable.
+    if (beyond && beyond.size) {
+      for (const [key, cost] of beyond) {
+        const [x, y] = key.split(',').map(Number);
+        if (x < x0 || x > x1 || y < y0 || y > y1) continue;
+        ctx.fillStyle = 'rgba(150,165,185,0.18)';
+        ctx.fillRect(x, y, 1, 1);
+        ctx.strokeStyle = 'rgba(170,185,205,0.45)';
+        ctx.lineWidth = 1.2 / s;
+        ctx.setLineDash([0.12, 0.09]);
+        ctx.strokeRect(x + 1 / s, y + 1 / s, 1 - 2 / s, 1 - 2 / s);
+        ctx.setLineDash([]);
+        if (s > 30 && cost !== null && cost !== undefined) {
+          ctx.fillStyle = 'rgba(214,226,240,0.62)';
+          ctx.font = `700 ${0.3}px system-ui, sans-serif`;
+          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillText(String(cost), x + 0.5, y + 0.72);
+        }
+      }
     }
     if (reach && reach.size) {
       for (const [key, cost] of reach) {

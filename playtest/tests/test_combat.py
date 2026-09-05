@@ -131,12 +131,18 @@ def test_ranged_attacks_may_not_target_an_adjacent_frame():
 
 
 def test_only_zones_actually_in_range_count_on_a_multi_range_attack():
-    """`Stun Bow_Rapid fire` is High at range 6 and Mid at range 10."""
+    """`Stun Bow_Rapid fire` reaches further at Mid than at High.
+
+    The two distances are read off the card: they are balance numbers and have
+    moved before, and what is being tested is that the shorter zone drops out
+    on its own rather than the attack landing whole or not at all.
+    """
     card = CATALOGUE["Stun Bow_Rapid fire"]
-    assert card.ranges["High"] == 6 and card.ranges["Mid"] == 10
-    state, atk, dfn = _duel(a=Pos(0, 0), b=Pos(8, 0))
+    high, mid = card.ranges["High"], card.ranges["Mid"]
+    assert 1 < high < mid, "the card has to have two different reaches"
+    state, atk, dfn = _duel(a=Pos(0, 0), b=Pos(mid - 1, 0))
     assert zones_in_range(state, atk, card, dfn.pos, dfn) == {"Mid": 1}
-    dfn.pos = Pos(5, 0)
+    dfn.pos = Pos(high - 1, 0)
     assert zones_in_range(state, atk, card, dfn.pos, dfn) == {"High": 1, "Mid": 1}
 
 

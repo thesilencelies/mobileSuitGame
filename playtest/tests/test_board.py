@@ -399,3 +399,179 @@ def test_segment_crossing_uses_the_open_cell():
     assert not _segment_crosses_cell(0.5, 0.5, 1.5, 1.5, 1, 0)
     # ...but the diagonal of the cell is
     assert _segment_crosses_cell(0.5, 0.5, 2.5, 2.5, 1, 1)
+
+
+# --------------------------------------------------------------------------
+# What movement costs, and what a refusal says
+# --------------------------------------------------------------------------
+
+
+def test_a_frame_on_a_tile_changes_nothing_about_what_movement_costs():
+    """The +1 for a frame is a *line of sight* rule and only that.
+
+    Reported the other way round from a screenshot -- movement looked as though
+    it were charging for the frames standing about. It is not, and this pins it:
+    the same walk costs the same with and without a frame in the middle of it.
+    """
+    from dataclasses import replace as _replace
+
+    from playtest.engine.types import Tile
+
+    W = H = 6
+    tiles = [Tile(Pos(x, y)) for y in range(H) for x in range(W)]
+    for x, y in ((3, 1), (3, 2), (3, 3)):
+        tiles[y * W + x] = _replace(tiles[y * W + x], elevation=1)
+    board = Board(W, H, tiles)
+
+    bare = board.reachable(Pos(1, 2), 4)
+    # A frame in the way is passed as `occupied`, which is what stops a *route*
+    # -- it never changes the price of a step.
+    with_frame = board.reachable(Pos(1, 2), 4, occupied=frozenset({Pos(0, 0)}))
+    assert {p: c for p, c in bare.items() if p != Pos(0, 0)} == {
+        p: c for p, c in with_frame.items() if p != Pos(0, 0)
+    }
+    assert board.step_cost(Pos(2, 2), Pos(3, 2)) == 2, "1 step + 1 level climbed"
+    assert board.step_cost(Pos(3, 2), Pos(2, 2)) == 1, "coming down is free"
+
+
+def test_a_movement_decision_prices_the_climbs_it_will_not_offer():
+    """A tile refused for terrain says what it would have cost.
+
+    Without this the player sees a gap in the green and has to infer the rule
+    from an absence -- which is exactly how "the engine is charging me for
+    something" gets believed. Tiles that are merely too far away are left out:
+    they explain themselves.
+    """
+    from dataclasses import replace as _replace
+
+    from playtest.engine import resolve as R
+    from playtest.engine.state import Resolution
+    from playtest.engine.types import Tile
+
+    from ._helpers import add_frame, give, make_state
+
+    W = H = 6
+    tiles = [Tile(Pos(x, y)) for y in range(H) for x in range(W)]
+    for y in (2, 3, 4):
+        tiles[y * W + 1] = _replace(tiles[y * W + 1], elevation=2)
+    state = make_state()
+    state.board = Board(W, H, tiles)
+    frame = add_frame(state, 0, "Kuwagata", Pos(2, 3))
+    uid = give(state, frame, "Railgun_Hypervelocity Shot")
+    card = state.catalogue["Railgun_Hypervelocity Shot"]
+    state.resolution = Resolution(frame_id=frame.id, uid=uid, steps=["movement"])
+
+    assert R._movement_decision(state, frame, card)
+    pending = state.pending
+    budget = pending.context["budget"]
+    offered = {(o["x"], o["y"]) for o in pending.options}
+    priced = {(o["x"], o["y"]): o["cost"] for o in pending.context["outOfReach"]}
+
+    assert (1, 3) not in offered, "1 step + 2 levels is 3, and the budget is 2"
+    assert priced[(1, 3)] == 3 > budget
+    assert all(spot not in offered for spot in priced), "context is never an answer"
+    assert not any(
+        state.board.tile(Pos(*spot)).elevation == 0 for spot in priced
+    ), "a tile that is only too far away explains itself and is left out"
+
+
+def test_a_route_may_run_through_a_friendly_frame_but_not_stop_on_it():
+    """"Tiles occupied by friendly frames can be passed through, but tiles
+    occupied by enemy frames cannot, and a movement cannot end on an occupied
+    tile" (rules.tex:452).
+
+    The grid is a playtest report's, and the tile it turns on is the one behind
+    the ally: with 2 movement it is only reachable *through* the ally, so if the
+    pass-through is not working it is the one tile that disappears.
+    """
+    from dataclasses import replace as _replace
+
+    from playtest.engine.types import Tile
+
+    from ._helpers import add_frame, make_state
+
+    elevations = [[0, 0, 0, 0],
+                  [2, 1, 0, 1],
+                  [2, 1, 0, 1],
+                  [2, 1, 0, 1]]
+    W = H = 4
+    tiles = [Tile(Pos(x, y)) for y in range(H) for x in range(W)]
+    for y in range(H):
+        for x in range(W):
+            tiles[y * W + x] = _replace(
+                tiles[y * W + x], elevation=elevations[y][x])
+    state = make_state()
+    state.board = Board(W, H, tiles)
+    actor = add_frame(state, 0, "VX4-Nautilus", Pos(1, 2))
+    ally = add_frame(state, 0, "VX4-Nautilus", Pos(1, 1))
+
+    costs = {(o["x"], o["y"]): o["cost"] for o in state.walk_options(actor, 2)}
+    assert (1, 1) not in costs, "a move may not end on the ally"
+    assert costs[(0, 0)] == 2, (
+        "one step through the ally and one diagonal step off it"
+    )
+    assert costs[(1, 0)] == 2 and costs[(2, 0)] == 2
+    # Climbing is 1 per level (rules.tex:450), so the elevation-2 column beside
+    # an elevation-1 frame is 2 to enter -- reachable, exactly.
+    assert costs[(0, 1)] == costs[(0, 2)] == costs[(0, 3)] == 2
+    # The elevation-1 column on the far side is not: 1 to cross the flat tile
+    # and 2 to climb.
+    assert (3, 1) not in costs and (3, 2) not in costs and (3, 3) not in costs
+
+    # Same board, but the frame in the way is an enemy: the tile behind it is
+    # the one that goes.
+    ally.seat = 1
+    blocked = {(o["x"], o["y"]) for o in state.walk_options(actor, 2)}
+    assert (0, 0) not in blocked, "an enemy frame cannot be passed through"
+
+
+def test_the_gravity_well_is_why_a_step_can_cost_more_than_the_terrain():
+    """The reported case, end to end: the well is what refuses the move.
+
+    A frame on elevation 1 beside an elevation-2 column can step onto it for 2
+    -- until a well to the east makes every westward step cost one more, at
+    which point the whole column is out of reach with 2 movement and nothing
+    about the terrain has changed.
+    """
+    from dataclasses import replace
+
+    from playtest.engine import effects_state as fx
+    from playtest.engine import resolve as R
+    from playtest.engine.board import Board
+    from playtest.engine.state import Resolution
+    from playtest.engine.types import Pos, Tile
+
+    from ._helpers import add_frame, give, make_state
+
+    W, H = 7, 4
+    tiles = [Tile(Pos(x, y)) for y in range(H) for x in range(W)]
+    for y in range(1, 4):
+        tiles[y * W + 0] = replace(tiles[y * W + 0], elevation=2)
+        tiles[y * W + 1] = replace(tiles[y * W + 1], elevation=1)
+    state = make_state()
+    state.board = Board(W, H, tiles)
+    actor = add_frame(state, 0, "VX4-Nautilus", Pos(1, 2))
+    card = state.catalogue["Railgun_Hypervelocity Shot"]
+
+    def offer():
+        state.pending = None
+        state.resolution = Resolution(
+            frame_id=actor.id, uid=give(state, actor,
+                                        "Railgun_Hypervelocity Shot"),
+            steps=["movement"])
+        assert R._movement_decision(state, actor, card)
+        pending = state.pending
+        return (
+            {(o["x"], o["y"]): o["cost"] for o in pending.options},
+            {(o["x"], o["y"]): o["cost"]
+             for o in pending.context.get("outOfReach", [])},
+        )
+
+    reachable, _priced = offer()
+    assert reachable[(0, 2)] == 2, "one step and one level of climb"
+
+    fx.spawn_token(state, fx.GRAVITY_WELL, Pos(5, 2), owner=1)
+    reachable, priced = offer()
+    assert (0, 2) not in reachable, "stepping away from the well costs one more"
+    assert priced[(0, 2)] == 3
+    assert reachable[(2, 2)] == 1, "and stepping toward it does not"

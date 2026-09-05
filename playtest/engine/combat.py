@@ -59,34 +59,61 @@ def effective_range(
     return max(0, value)
 
 
+def attack_origins(state: GameState, attacker: FrameState) -> list[Pos]:
+    """The tiles this attacker measures range and sight from.
+
+    Its own tile, normally. Behind Ephemeral Images it is every image that is
+    still standing -- "these tokens use this frame's actions" -- so a zone
+    lands if *any* image is placed to land it. See `effects_state.origins`.
+    """
+    from . import effects_state as fx
+
+    return fx.origins(state, attacker)
+
+
 def zones_in_range(
     state: GameState,
     attacker: FrameState,
     card: Card,
     target_pos: Pos,
     defender: Optional[FrameState] = None,
+    *,
+    origin: Optional[Pos] = None,
 ) -> dict[str, int]:
     """Zone -> damage for the zones actually in range (rules.tex:414).
 
     Melee zones (range 0) need an adjacent target; ranged zones need the
     target within range and *not* adjacent.
+
+    Each zone is measured from whichever of the attacker's origins reaches it,
+    which for all but Ephemeral Images is the one tile it is standing on.
+    `origin` pins the question to a single tile instead -- what one image on
+    its own could have done.
     """
-    if attacker.pos is None or state.board is None:
+    if state.board is None:
         return {}
-    distance = state.board.distance(attacker.pos, target_pos)
+    spots = [origin] if origin is not None else attack_origins(state, attacker)
+    if not spots:
+        return {}
     out: dict[str, int] = {}
     for zone in ZONES:
         damage = card.attacks[zone]
         if damage <= 0:
             continue
         printed = card.ranges[zone]
-        if printed <= 0:
-            if distance == 1:
+        reach = (
+            0 if printed <= 0
+            else effective_range(state, attacker, card, zone, defender)
+        )
+        for spot in spots:
+            distance = state.board.distance(spot, target_pos)
+            if printed <= 0:
+                if distance == 1:
+                    out[zone] = damage
+                    break
+            elif 1 < distance <= reach:
                 out[zone] = damage
-        else:
-            reach = effective_range(state, attacker, card, zone, defender)
-            if 1 < distance <= reach:
-                out[zone] = damage
+                break
     return out
 
 
@@ -177,6 +204,7 @@ def _line_of_sight(
     attacker: FrameState,
     target_pos: Pos,
     defender: Optional[FrameState],
+    origin: Optional[Pos] = None,
 ) -> bool:
     """LoS through `BoardProtocol`, passing Flying on both ends.
 
@@ -193,9 +221,13 @@ def _line_of_sight(
     # "Ignore obstacles" (Snipers aim) is exactly what `flying_attacker` means
     # to the board: obstacles stop blocking sight, nothing else changes.
     unobstructed = kw.is_flying(attacker) or effects.ignores_obstacles(state, attacker)
+    # The line starts at the image that is doing the looking; `occupied` keeps
+    # the others in, because an image blocks sight exactly as the frame would.
+    source = origin if origin is not None else attacker.pos
+    occupied = occupied - {source}
     try:
         seen = state.board.has_line_of_sight(
-            attacker.pos,
+            source,
             target_pos,
             occupied=occupied,
             flying_attacker=unobstructed,
@@ -203,7 +235,7 @@ def _line_of_sight(
         )
     except TypeError:
         seen = state.board.has_line_of_sight(
-            attacker.pos,
+            source,
             target_pos,
             occupied=occupied,
             flying_attacker=unobstructed,
@@ -219,18 +251,27 @@ def can_target(
     card: Card,
     target_pos: Pos,
     defender: Optional[FrameState] = None,
+    *,
+    origin: Optional[Pos] = None,
 ) -> bool:
-    """Adjacency, LoS and the Fenrir restriction."""
-    if attacker.pos is None or state.board is None:
+    """Adjacency, LoS and the Fenrir restriction, from any origin the attacker
+    may count from (`origin` pins it to one)."""
+    if state.board is None:
         return False
-    distance = state.board.distance(attacker.pos, target_pos)
-    if card.is_ranged:
-        if not kw.can_use_ranged(attacker):
-            return False
+    spots = [origin] if origin is not None else attack_origins(state, attacker)
+    if card.is_ranged and not kw.can_use_ranged(attacker):
+        return False
+    for spot in spots:
+        distance = state.board.distance(spot, target_pos)
+        if not card.is_ranged:
+            if distance == 1:
+                return True
+            continue
         if distance <= 1:
-            return False           # ranged attacks may not target adjacent
-        return _line_of_sight(state, attacker, target_pos, defender)
-    return distance == 1
+            continue               # ranged attacks may not target adjacent
+        if _line_of_sight(state, attacker, target_pos, defender, origin=spot):
+            return True
+    return False
 
 
 def hostile_targets(
@@ -646,6 +687,7 @@ def finish_target(state: GameState, attack: AttackInProgress) -> None:
                 if token.kind == "drone" else f"the {token.kind}"
             )
             state.note(f"{attack.via or attacker.id} hits {what} for {total}")
+            _effects.images_dealt_damage(state, attacker, card, token.pos)
         return
 
     defender = state.frames.get(target.id)
@@ -671,6 +713,9 @@ def finish_target(state: GameState, attack: AttackInProgress) -> None:
 
     if landed:
         effects.on_hit(state, attacker, card, defender)
+        # "the fakes are removed ... if they would deal damage" -- measured
+        # before a knockback moves the target out from under them.
+        effects.images_dealt_damage(state, attacker, card, defender.pos, defender)
         steps = kw.knockback_amount(state, attacker, card)
         if steps:
             kw.apply_knockback(state, attacker, defender, steps)

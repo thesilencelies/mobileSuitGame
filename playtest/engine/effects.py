@@ -301,6 +301,11 @@ def deferred_effects(catalogue: Mapping[str, Card]) -> dict[str, DeferredEffect]
 #: printing the mirror constraint needs no engine change. `move` maps to the
 #: `movement` step; anything else is named as the step is.
 _STEP_ORDER_RE = re.compile(r"must (attack|move) before (attack|mov)\w*", re.I)
+
+#: "get + 4 range" / "deal 1 extra damage" -- Snipers aim's two numbers, read
+#: off the card so a balance pass in `Pilot actions.csv` needs no engine change.
+_EXTRA_RANGE_RE = re.compile(r"\+\s*(\d+)\s*range", re.I)
+_EXTRA_DAMAGE_RE = re.compile(r"deals?\s+(\d+)\s+extra\s+damage", re.I)
 _STEP_NAMES = {"attack": "attack", "move": "movement", "mov": "movement"}
 
 #: Cards whose effect step has to be in force before the frame moves, which
@@ -413,8 +418,42 @@ def _ask(
     )
 
 
-def _frame_options(frames: Sequence[FrameState]) -> list[dict[str, Any]]:
-    return [{"frame": f.id, "name": f.spec.name} for f in frames]
+def _frame_options(
+    state: GameState, frames: Sequence[FrameState]
+) -> list[dict[str, Any]]:
+    """The frames a card may pick, as options -- images and all.
+
+    "Each image should be treated as a frame in itself for interactions and
+    targeting", so a frame behind Ephemeral Images is not offered as itself:
+    each of its images is an option of its own, indistinguishable from the
+    others. Whatever the card does then lands on the frame (`_target_frame`),
+    which is what makes a debuff aimed at a decoy still stick.
+
+    Offered the same way to both sides. The owner knows which of the three it
+    is standing on and the enemy does not, but that is a fact about the view,
+    not about what may be aimed at.
+    """
+    out: list[dict[str, Any]] = []
+    for other in frames:
+        images = image_tokens(state, other)
+        if not images:
+            out.append({"frame": other.id, "name": other.spec.name})
+            continue
+        for token_id in images:
+            token = state.tokens.get(token_id)
+            if token is not None and token.alive and token.pos is not None:
+                out.append({"token": token_id, "name": "an image"})
+    return out
+
+
+def _target_frame(state: GameState, choice: Mapping) -> Optional[FrameState]:
+    """The frame an option picked -- directly, or through one of its images."""
+    token_id = choice.get("token")
+    if token_id:
+        token = state.tokens.get(str(token_id))
+        found = image_owner(state, token) if token is not None else None
+        return found[0] if found is not None else None
+    return state.frames.get(str(choice.get("frame")))
 
 
 # --------------------------------------------------------------------------
@@ -641,6 +680,7 @@ def _shove_tiles(
     *,
     origin: Optional[Pos] = None,
     away_from: Optional[Pos] = None,
+    at: Optional[Pos] = None,
 ) -> list[dict[str, Any]]:
     """Where a moved frame can end up, with the steps it costs to get there.
 
@@ -656,7 +696,8 @@ def _shove_tiles(
     `away_from` keeps only the tiles on the far side of `origin` from it: the
     "other side of this frame" a Suplex throws its target to.
     """
-    if state.board is None or target.pos is None:
+    here = at if at is not None else target.pos
+    if state.board is None or here is None:
         return []
     if origin is not None:
         tiles = fx.free_tiles(state, origin, steps)
@@ -670,13 +711,34 @@ def _shove_tiles(
                 p for p in tiles
                 if (p.x - origin.x) * back[0] + (p.y - origin.y) * back[1] <= 0
             ]
-        return [{"x": p.x, "y": p.y} for p in tiles if p != target.pos]
+        return [{"x": p.x, "y": p.y} for p in tiles if p != here]
+    walker = target if here == target.pos else _StandsAt(target, here)
     return [
         option for option in state.walk_options(
-            target, steps, flying="flying" in target.spec.keywords
+            walker, steps, flying="flying" in target.spec.keywords
         )
-        if Pos(option["x"], option["y"]) != target.pos
+        if Pos(option["x"], option["y"]) != here
     ]
+
+
+@dataclass
+class _StandsAt:
+    """A stand-in that walks a frame's legs from somewhere else.
+
+    An Ephemeral Image being shoved is not the frame, but it moves like it, so
+    `walk_options` is asked about the frame from the image's tile.
+    """
+
+    frame: FrameState
+    pos: Pos
+
+    @property
+    def id(self) -> str:
+        return self.frame.id
+
+    @property
+    def seat(self):
+        return self.frame.seat
 
 
 def _shove_step(
@@ -707,16 +769,24 @@ def _shove_step(
     victims = _shove_victims(state, frame, reach, steps, side=side, origin=origin)
     if not victims:
         return None
-    if len(victims) == 1:
-        return _shove_destination(state, frame, victims[0], label=label,
-                                  steps=steps, after=after, place=place, away=away)
+    # Counted in *options*, not victims: a frame behind Ephemeral Images is
+    # three of them, and which image is shoved decides what actually moves.
+    options = _frame_options(state, victims)
+    if len(options) == 1:
+        picked = _target_frame(state, options[0])
+        if picked is None:
+            return None
+        return _shove_destination(
+            state, frame, picked, label=label, steps=steps, after=after,
+            place=place, away=away, via=str(options[0].get("token", "")),
+        )
     return _ask(
         state,
         "shove_frame",
         seat=frame.seat,
         frame_id=frame.id,
         prompt=f"{label}: which frame within {reach}?",
-        options=_frame_options(victims),
+        options=options,
         ctx={"steps": steps, "label": label, "after": after,
              "place": place, "away": away},
         pick_kind="frame",
@@ -725,34 +795,57 @@ def _shove_step(
 
 def _shove_destination(
     state: GameState, frame: FrameState, target: FrameState, *,
-    label: str, steps: int, after: str, place: bool = False, away: bool = False,
+    label: str, steps: int, after: str, place: bool = False,
+    away: bool = False, via: str = "",
 ) -> Optional[PendingDecision]:
+    """Where the thing picked ends up.
+
+    `via` is the image that was picked, when the target was behind Ephemeral
+    Images. A fake is moved on its own -- "each image can be individually moved
+    using say Displace" -- and the real one takes the frame with it, so the
+    distances are measured from wherever that image is standing.
+    """
+    at = _image_pos(state, via) or target.pos
     tiles = _shove_tiles(
         state, target, steps,
         origin=frame.pos if place else None,
-        away_from=target.pos if (place and away) else None,
+        away_from=at if (place and away) else None,
+        at=at,
     )
     if not tiles:
         return None
+    what = "an image" if _is_fake(state, via) else target.id
     return _ask(
         state,
         "shove_to",
         seat=frame.seat,
         frame_id=frame.id,
         prompt=(
-            f"{label}: put {target.id} within {steps}" if place
-            else f"{label}: move {target.id} up to {steps}"
+            f"{label}: put {what} within {steps}" if place
+            else f"{label}: move {what} up to {steps}"
         ),
         options=tiles,
-        ctx={"target": target.id, "after": after},
+        ctx={"target": target.id, "after": after, "via": via},
         pick_kind="place" if place else "move",
     )
+
+
+def _image_pos(state: GameState, token_id: str) -> Optional[Pos]:
+    token = state.tokens.get(token_id) if token_id else None
+    return token.pos if token is not None and token.alive else None
+
+
+def _is_fake(state: GameState, token_id: str) -> bool:
+    """True when `token_id` is one of the decoys rather than the real image."""
+    token = state.tokens.get(token_id) if token_id else None
+    found = image_owner(state, token) if token is not None else None
+    return found is not None and not found[1]
 
 
 def _choice_shove_frame(
     state: GameState, frame: FrameState, choice: Mapping, ctx: Mapping
 ) -> None:
-    target = state.frames.get(str(choice.get("frame")))
+    target = _target_frame(state, choice)
     if target is None:
         return
     nxt = _shove_destination(
@@ -762,6 +855,9 @@ def _choice_shove_frame(
         after=str(ctx.get("after", "")),
         place=bool(ctx.get("place")),
         away=bool(ctx.get("away")),
+        # Which image was picked, if it was an image: that is the piece that
+        # moves, and where it is standing is what the throw is measured from.
+        via=str(choice.get("token", "")),
     )
     if nxt is not None:
         state.pending = nxt
@@ -773,7 +869,17 @@ def _choice_shove_to(
     target = state.frames.get(str(ctx.get("target")))
     if target is None:
         return
-    _move_frame(state, target, Pos(int(choice["x"]), int(choice["y"])))
+    dest = Pos(int(choice["x"]), int(choice["y"]))
+    via = str(ctx.get("via", ""))
+    if _is_fake(state, via):
+        # A decoy was shoved: the decoy moves and the frame does not. Nothing
+        # is given away -- the pieces are indistinguishable, so an enemy that
+        # shoves one learns only that it shoved one.
+        token = state.tokens[via]
+        token.pos = dest
+        state.note(f"an image of {target.id} is displaced")
+        return
+    _move_frame(state, target, dest)
     if ctx.get("after") == "reveal_nearby":
         for enemy in fx.frames_within(state, target, 3, side="enemy"):
             _apply_statuses(state, enemy, [("revealed", 1)])
@@ -924,7 +1030,7 @@ def _target_effect_step(
         seat=frame.seat,
         frame_id=frame.id,
         prompt=f"{card.name}: choose a frame{within}",
-        options=_frame_options(targets),
+        options=_frame_options(state, targets),
         ctx={"uid": uid},
         pick_kind="frame",
     )
@@ -942,7 +1048,7 @@ def _apply_target_effect(
 def _choice_target_status(
     state: GameState, frame: FrameState, choice: Mapping, ctx: Mapping
 ) -> None:
-    target = state.frames.get(str(choice.get("frame")))
+    target = _target_frame(state, choice)
     if target is None:
         return
     card = state.catalogue[state.cards[str(ctx["uid"])].key]
@@ -972,7 +1078,7 @@ def _effect_bind(state: GameState, frame: FrameState, uid: str):
         seat=frame.seat,
         frame_id=frame.id,
         prompt="Bind: which adjacent frame?",
-        options=_frame_options(victims),
+        options=_frame_options(state, victims),
         pick_kind="frame",
     )
 
@@ -985,7 +1091,7 @@ def _bind(state: GameState, frame: FrameState, target: FrameState) -> None:
 def _choice_bind(
     state: GameState, frame: FrameState, choice: Mapping, ctx: Mapping
 ) -> None:
-    target = state.frames.get(str(choice.get("frame")))
+    target = _target_frame(state, choice)
     if target is not None:
         _bind(state, frame, target)
 
@@ -1034,7 +1140,13 @@ def _effect_teleport(state: GameState, frame: FrameState, uid: str):
     It used to read "next turn ... at initiative 4", which made it a follow-up
     the driver had to offer between cards. It is now an ordinary effect step:
     the card resolves, the frame goes wherever it likes.
+
+    Behind Ephemeral Images every image goes -- they all use the frame's
+    actions -- so it is asked once per image, and the real one takes the frame
+    with it.
     """
+    if _images(state).get(frame.id):
+        return _teleport_images(state, frame)
     options = [
         {"x": p.x, "y": p.y}
         for p in fx.free_tiles(state, frame.pos, 10 ** 6, include_origin=True)
@@ -1052,6 +1164,66 @@ def _effect_teleport(state: GameState, frame: FrameState, uid: str):
     )
 
 
+def _teleport_images(state: GameState, frame: FrameState):
+    """Queue every image for its own destination, then ask the first."""
+    record = _images(state).get(frame.id)
+    if record is None:
+        return None
+    record["porting"] = list(record.get("tokens", ()))
+    return _next_image_teleport(state, frame)
+
+
+def _next_image_teleport(state: GameState, frame: FrameState):
+    """Ask the next image still owed a destination, or None when done."""
+    record = _images(state).get(frame.id)
+    while record is not None and record.get("porting"):
+        token_id = str(record["porting"][0])
+        token = state.tokens.get(token_id)
+        if token is None or not token.alive or token.pos is None:
+            record["porting"].pop(0)
+            continue
+        tiles = fx.free_tiles(state, token.pos, 10 ** 6)
+        if not tiles:
+            record["porting"].pop(0)
+            continue
+        return _ask(
+            state,
+            "image_teleport",
+            seat=frame.seat,
+            frame_id=frame.id,
+            # Anonymous, like the movement step: which image is being asked
+            # about is not something the question may say.
+            prompt=f"Teleport: reposition an image of {frame.id}",
+            options=[{"x": p.x, "y": p.y} for p in tiles],
+            ctx={"token": token_id},
+            pick_kind="place",
+        )
+    if record is not None:
+        record.pop("porting", None)
+    return None
+
+
+def _choice_image_teleport(
+    state: GameState, frame: FrameState, choice: Mapping, ctx: Mapping
+) -> None:
+    record = _images(state).get(frame.id)
+    token_id = str(ctx.get("token"))
+    if record is not None and record.get("porting"):
+        record["porting"] = [t for t in record["porting"] if t != token_id]
+    token = state.tokens.get(token_id)
+    dest = Pos(int(choice["x"]), int(choice["y"]))
+    if token is not None and token.alive:
+        if record is not None and token_id == record.get("real"):
+            # The frame is standing on this one, so it goes too; `sync_images`
+            # keeps the token on the frame's tile from here.
+            _move_frame(state, frame, dest)
+        token.pos = dest
+        state.note(f"an image of {frame.id} blinks somewhere else")
+    nxt = _next_image_teleport(state, frame)
+    if nxt is not None:
+        state.pending = nxt
+
+
 def _effect_utter_darkness(state: GameState, frame: FrameState, uid: str):
     state.note(
         f"{frame.id} calls down darkness: next turn nothing within "
@@ -1061,38 +1233,20 @@ def _effect_utter_darkness(state: GameState, frame: FrameState, uid: str):
 
 
 def _effect_encode(state: GameState, frame: FrameState, uid: str):
-    """"Next turn: one allied frame (includes this) chooses cards from their deck."
+    """"Next turn: allied frames choose cards from their deck."
 
-    Read as: next turn that frame picks its actions out of its whole deck
-    instead of only the hand it drew. The choice of *which* ally is made now.
+    Read as: next turn every frame on this side picks its actions out of its
+    whole deck instead of only the hand it drew. It used to name one ally and
+    ask which; the card now says all of them, so there is nothing to ask.
     """
-    allies = fx.frames_within(state, frame, 10 ** 6, side="ally", include_self=True)
-    if not allies:
-        return None
-    if len(allies) == 1:
-        _arm_encode(state, allies[0])
-        return None
-    return _ask(
-        state,
-        "encode",
-        seat=frame.seat,
-        frame_id=frame.id,
-        prompt="Encode the future: which ally chooses from its deck next turn?",
-        options=_frame_options(allies),
-    )
+    for ally in fx.frames_within(state, frame, 10 ** 6, side="ally", include_self=True):
+        _arm_encode(state, ally)
+    return None
 
 
 def _arm_encode(state: GameState, target: FrameState) -> None:
     fx.slot(state, "encode")[target.id] = state.turn + 1
     state.note(f"{target.id} will choose next turn's actions from its deck")
-
-
-def _choice_encode(
-    state: GameState, frame: FrameState, choice: Mapping, ctx: Mapping
-) -> None:
-    target = state.frames.get(str(choice.get("frame")))
-    if target is not None:
-        _arm_encode(state, target)
 
 
 def _effect_psychic_storm(state: GameState, frame: FrameState, uid: str):
@@ -1105,7 +1259,7 @@ def _effect_psychic_storm(state: GameState, frame: FrameState, uid: str):
     caster's frames would be a different card.
     """
     reach = _reach_from_text(state.card(uid).text, STORM_RADIUS)
-    tiles = fx.free_tiles(state, frame.pos, reach)
+    tiles = fx.free_tiles_from(state, frame, reach)
     if not tiles:
         return None
     return _ask(
@@ -1166,7 +1320,7 @@ def _effect_doom(state: GameState, frame: FrameState, uid: str):
         seat=frame.seat,
         frame_id=frame.id,
         prompt=f"Doom: which frame within {reach}?",
-        options=_frame_options(targets),
+        options=_frame_options(state, targets),
         pick_kind="frame",
     )
 
@@ -1183,7 +1337,7 @@ def _doom(state: GameState, target: FrameState, card: Card) -> None:
 def _choice_doom(
     state: GameState, frame: FrameState, choice: Mapping, ctx: Mapping
 ) -> None:
-    target = state.frames.get(str(choice.get("frame")))
+    target = _target_frame(state, choice)
     if target is not None:
         _doom(state, target, state.catalogue[DOOM])
 
@@ -1291,7 +1445,7 @@ def _portal_step(
     state: GameState, frame: FrameState, *, reach: int, first: Optional[Pos]
 ):
     """Ask for one end of the pair. `first` is the end already chosen."""
-    tiles = [p for p in fx.free_tiles(state, frame.pos, reach) if p != first]
+    tiles = [p for p in fx.free_tiles_from(state, frame, reach) if p != first]
     if not tiles:
         if first is not None:
             state.note(f"{frame.id} finds nowhere to anchor the far end")
@@ -1554,7 +1708,7 @@ def _effect_battlefield_repairs(state: GameState, frame: FrameState, uid: str):
         seat=frame.seat,
         frame_id=frame.id,
         prompt=f"Battlefield Repairs: repair {amount} from an ally within {reach}",
-        options=_frame_options(allies),
+        options=_frame_options(state, allies),
         ctx={"amount": amount},
     )
 
@@ -1562,7 +1716,7 @@ def _effect_battlefield_repairs(state: GameState, frame: FrameState, uid: str):
 def _choice_repairs(
     state: GameState, frame: FrameState, choice: Mapping, ctx: Mapping
 ) -> None:
-    target = state.frames.get(str(choice.get("frame")))
+    target = _target_frame(state, choice)
     if target is not None:
         repair(state, target, int(ctx.get("amount", 3)))
 
@@ -1572,7 +1726,7 @@ def _barricade_step(
 ) -> Optional[PendingDecision]:
     if left <= 0:
         return None
-    tiles = fx.free_tiles(state, frame.pos, reach)
+    tiles = fx.free_tiles_from(state, frame, reach)
     if not tiles:
         return None
     options: list[dict[str, Any]] = [{"x": p.x, "y": p.y} for p in tiles]
@@ -1624,7 +1778,7 @@ def _effect_gravity_well(state: GameState, frame: FrameState, uid: str):
     `_reach_from_text` takes the first, which is the placement one.
     """
     reach = _reach_from_text(state.card(uid).text, 1)
-    tiles = fx.free_tiles(state, frame.pos, reach)
+    tiles = fx.free_tiles_from(state, frame, reach)
     if not tiles:
         return None
     if len(tiles) == 1:
@@ -1674,7 +1828,7 @@ def _effect_system_override(state: GameState, frame: FrameState, uid: str):
         seat=frame.seat,
         frame_id=frame.id,
         prompt="System Override: whose next move do you take?",
-        options=_frame_options(targets),
+        options=_frame_options(state, targets),
         pick_kind="frame",
     )
 
@@ -1687,7 +1841,7 @@ def _override(state: GameState, frame: FrameState, target: FrameState) -> None:
 def _choice_system_override(
     state: GameState, frame: FrameState, choice: Mapping, ctx: Mapping
 ) -> None:
-    target = state.frames.get(str(choice.get("frame")))
+    target = _target_frame(state, choice)
     if target is not None:
         _override(state, frame, target)
 
@@ -1722,9 +1876,15 @@ def _range_cap(state: GameState, target: FrameState, cap: int) -> None:
 
 
 def _effect_combo_strike(state: GameState, frame: FrameState, uid: str):
-    """Arm the rider; the choice is made when the next attack resolves."""
-    fx.slot(state, "combo")[frame.id] = {"armed": True}
-    state.note(f"{frame.id} lines up a combo on its next attack")
+    """"Until the end of next turn: when resolving attacks from this frame..."
+
+    Nothing is armed. Like Snipers aim, the card in front of the frame *is*
+    the state -- `fx.card_active` covers the turn it resolved and, at
+    persistence 1, the turn after -- so it now rides *every* attack in that
+    window rather than only the next one. The `combo` slot is used for one
+    attack's chosen extra and is emptied as soon as that attack applies it.
+    """
+    state.note(f"{frame.id} lines up combos on its attacks this turn and next")
     return None
 
 
@@ -1735,7 +1895,7 @@ def _armed_rider(
     if (
         card.is_attack
         and not delegates_attack(card)
-        and fx.slot(state, "combo").get(frame.id, {}).get("armed")
+        and fx.card_active(state, frame, COMBO_STRIKE)
     ):
         return "combo"
     return None
@@ -1765,7 +1925,8 @@ def _combo_decision(
         return None
     card = state.card(uid)
     options = _combo_options(state, frame, card)
-    fx.slot(state, "combo")[frame.id] = {"armed": False}
+    # Nothing chosen for this attack yet: drop anything a previous one left.
+    fx.slot(state, "combo").pop(frame.id, None)
     if not options:
         state.note(f"Combo strike: no {card.group} attack in the top 4 cards")
         return None
@@ -1790,7 +1951,6 @@ def _choice_combo(
         return
     card = state.catalogue[state.cards[uid].key]
     fx.slot(state, "combo")[frame.id] = {
-        "armed": False,
         "extra": {z: card.attacks[z] for z in ZONES if card.attacks[z] > 0},
     }
     discard_card(state, uid)
@@ -1798,13 +1958,43 @@ def _choice_combo(
 
 
 def _effect_snipers_aim(state: GameState, frame: FrameState, uid: str):
-    frame.turn_flags["range_bonus"] = int(frame.turn_flags.get("range_bonus", 0)) + 4
-    frame.turn_flags["snipers_aim"] = True
+    """"Until the end of next turn: ranged attacks ignore obstacles, get +N
+    range and deal M extra damage."
+
+    Nothing is stored. The card itself is the state: it stays in front of the
+    frame this turn and, with persistence 1, in the `aside` pile the next, so
+    `fx.card_active` answers "is it still in force?" for both -- which is what
+    "until the end of next turn" means. The two numbers are read off the
+    printed text at the point of use (`snipers_range_bonus`, the damage bonus
+    in `attack_damage_bonus`), so a balance pass needs no engine change.
+    """
+    card = state.card(uid)
     state.note(
-        f"{frame.id} takes aim: ranged attacks this turn ignore obstacles, "
-        f"reach 4 further and deal 1 extra damage"
+        f"{frame.id} takes aim: ranged attacks this turn and next ignore "
+        f"obstacles, reach {_extra_range(card)} further and deal "
+        f"{_extra_damage(card)} extra damage"
     )
     return None
+
+
+def _extra_range(card: Optional[Card]) -> int:
+    match = _EXTRA_RANGE_RE.search((card.text if card else "") or "")
+    return int(match.group(1)) if match else 4
+
+
+def _extra_damage(card: Optional[Card]) -> int:
+    match = _EXTRA_DAMAGE_RE.search((card.text if card else "") or "")
+    return int(match.group(1)) if match else 1
+
+
+def snipers_range_bonus(state: GameState, frame: FrameState, card: Card) -> int:
+    """Extra range a still-in-play Snipers aim gives this frame's ranged attacks.
+
+    Asked for by `keywords.range_bonus`, which owns the sum of every source.
+    """
+    if not card.is_ranged or not fx.card_active(state, frame, SNIPERS_AIM):
+        return 0
+    return _extra_range(state.catalogue.get(SNIPERS_AIM))
 
 
 def _effect_master_duelist(state: GameState, frame: FrameState, uid: str):
@@ -1833,7 +2023,7 @@ def _effect_rebound(state: GameState, frame: FrameState, uid: str):
     not get to borrow it.
     """
     reach = _reach_from_text(state.card(uid).text, 5)
-    tiles = fx.free_tiles(state, frame.pos, reach)
+    tiles = fx.free_tiles_from(state, frame, reach)
     if not tiles:
         return None
     return _ask(
@@ -1906,7 +2096,7 @@ def _effect_cage_fight(state: GameState, frame: FrameState, uid: str):
         seat=frame.seat,
         frame_id=frame.id,
         prompt=f"Cage Fight: who is locked in (within {reach})?",
-        options=_frame_options(victims),
+        options=_frame_options(state, victims),
         pick_kind="frame",
     )
 
@@ -1914,7 +2104,7 @@ def _effect_cage_fight(state: GameState, frame: FrameState, uid: str):
 def _choice_cage_fight(
     state: GameState, frame: FrameState, choice: Mapping, ctx: Mapping
 ) -> None:
-    target = state.frames.get(str(choice.get("frame")))
+    target = _target_frame(state, choice)
     if target is not None:
         _raise_cage(state, frame, target)
 
@@ -2051,7 +2241,7 @@ def _placement_options(
     """
     return [
         {"x": pos.x, "y": pos.y, "reach": _drone_reach(card)}
-        for pos in fx.free_tiles(state, frame.pos, reach)
+        for pos in fx.free_tiles_from(state, frame, reach)
     ]
 
 
@@ -2146,7 +2336,8 @@ def _choice_summon_drone(
 # --------------------------------------------------------------------------
 #
 # "Replace this frame with 3 tokens, one of which is secretly marked to be this
-# frame. All tokens move as this frame and the fakes are removed if attacked."
+# frame. These tokens use this frame's actions and the fakes are removed if
+# attacked or if they would deal damage."
 #
 # The frame does not actually leave the board -- it stands on one of the three
 # tiles, and that tile carries the *real* image. What changes is what an enemy
@@ -2154,6 +2345,28 @@ def _choice_summon_drone(
 # and its three images are. Striking the real one is an ordinary attack on the
 # frame (which then has to block as usual, and is revealed by the hit);
 # striking a fake removes it and nothing else.
+#
+# "These tokens use this frame's actions" is read as: when the frame resolves a
+# card, all three images resolve it, at the same time and each from where it
+# stands. Three consequences, and they are the whole card:
+#
+# * **They move separately.** The card's movement step asks once for the frame
+#   (which carries the real image) and then once for each fake, each with the
+#   same budget. Nothing drags them along any more.
+# * **Anything the action counts may be counted from any of them**
+#   (`effects_state.origins`): range, line of sight and every "within N". A
+#   zone lands if any image is placed to land it.
+# * **A fake that would deal damage is removed.** All three swing; only one of
+#   them can actually hurt anything, so any fake whose own copy of the attack
+#   reached what was hit is given away and goes. Shooting is therefore how the
+#   trick ends -- unless the shot is blocked, in which case no damage was dealt
+#   and nobody learned anything.
+#
+# Forced movement is the exception to "separately": a knockback, a Teleport or
+# an Ace Reflexes step moves the frame alone, so `sync_images` still slides the
+# fakes by the same delta. Letting the real one walk off on its own would say
+# which it was, and the concealment has to survive things the player did not
+# choose.
 #
 # The concealment is structural rather than a matter of the client behaving
 # itself: `view_for` gives another seat no position for a cloaked frame and no
@@ -2171,6 +2384,7 @@ IMAGE_COUNT = 3
 #: queries there can leave a hidden frame out of every enemy option list.
 _images = fx.image_records
 is_cloaked = fx.is_cloaked
+image_positions = fx.image_positions
 
 
 def image_tokens(state: GameState, frame: FrameState) -> list[str]:
@@ -2285,39 +2499,166 @@ def strike_image(state: GameState, token: TokenState) -> bool:
     return True
 
 
-def _reposition_image(
-    state: GameState, token: TokenState, frame: FrameState, wanted: Optional[Pos]
+def _image_moves(state: GameState, frame: FrameState) -> bool:
+    """"These tokens use this frame's actions": every image walks, not just
+    the one the frame is standing on.
+
+    Called once the frame's own move is in, so the real image has already gone
+    with it. Each fake is then offered the same budget from its own tile. True
+    if a decision parked.
+    """
+    record = _images(state).get(frame.id)
+    if record is None:
+        return False
+    # The frame walked of its own accord, so `sync_images` must not now drag
+    # the fakes along behind it as well -- they get their own move below.
+    if frame.pos is not None:
+        record["at"] = [frame.pos.x, frame.pos.y]
+    from . import keywords as kw
+
+    res = state.resolution
+    card = state.catalogue.get(state.cards[res.uid].key) if res is not None else None
+    if card is None:
+        return False
+    budget = kw.movement_budget(state, frame, card)
+    if budget <= 0:
+        return False
+    record["walking"] = [
+        token_id for token_id in record.get("tokens", ())
+        if token_id != record.get("real")
+    ]
+    return _next_image_move(state, frame, budget)
+
+
+def _next_image_move(state: GameState, frame: FrameState, budget: int) -> bool:
+    """Ask the next fake still owed a move. True if a decision parked."""
+    from . import keywords as kw
+
+    record = _images(state).get(frame.id)
+    while record is not None and record.get("walking"):
+        token_id = str(record["walking"][0])
+        token = state.tokens.get(token_id)
+        if token is None or not token.alive or token.pos is None:
+            record["walking"].pop(0)
+            continue
+        options = state.walk_options(token, budget, flying=kw.is_flying(frame))
+        if len(options) <= 1:
+            record["walking"].pop(0)
+            continue
+        state.pending = _ask(
+            state,
+            "image_move",
+            seat=frame.seat,
+            frame_id=frame.id,
+            # Deliberately anonymous: naming which image is being moved would
+            # say nothing, but numbering them across a turn would.
+            prompt=f"Move an image of {frame.id} (up to {budget})",
+            options=options,
+            ctx={"token": token_id, "budget": budget},
+            pick_kind="move",
+        )
+        return True
+    if record is not None:
+        record.pop("walking", None)
+    return False
+
+
+def _choice_image_move(
+    state: GameState, frame: FrameState, choice: Mapping, ctx: Mapping
 ) -> None:
-    """Put a fake back beside the frame after it has moved."""
-    board = state.board
-    if board is None or frame.pos is None:
-        return
-    taken = state.occupied() | {
-        t.pos for t in state.tokens.values()
-        if t.alive and t.pos is not None and t.id != token.id
-    }
+    record = _images(state).get(frame.id)
+    token = state.tokens.get(str(ctx.get("token")))
+    if record is not None and record.get("walking"):
+        record["walking"] = [
+            t for t in record["walking"] if t != str(ctx.get("token"))
+        ]
+    if token is not None and token.alive:
+        token.pos = Pos(int(choice["x"]), int(choice["y"]))
+        state.note(f"an image of {frame.id} moves")
+    _next_image_move(state, frame, int(ctx.get("budget", 0)))
 
-    def usable(pos: Optional[Pos]) -> bool:
-        if pos is None or not board.in_bounds(pos):
-            return False
-        tile = board.tile(pos)
-        return not tile.impassable and not tile.obstacle and pos not in taken
 
-    if usable(wanted):
-        token.pos = wanted
+#: Tokens that reach past their own tile, and how far. The client draws the
+#: area so a player can see they are standing in it -- a gravity well silently
+#: re-pricing every step away from it is the whole reason this exists. The
+#: prose is the engine's, like a hazard tile's, because the rule is.
+TOKEN_AURAS: Mapping[str, tuple[int, str, str]] = {
+    fx.GRAVITY_WELL: (
+        GRAVITY_RADIUS,
+        "gravity well",
+        f"every step away from it costs {GRAVITY_PENALTY} extra movement",
+    ),
+    fx.STORM: (
+        STORM_RADIUS,
+        "psychic storm",
+        "every unit in it takes 1 energy High at the end of each turn",
+    ),
+    fx.REBOUND: (
+        REBOUND_RADIUS,
+        "rebound",
+        "its owner can see every enemy in it, if it can see the mirror",
+    ),
+}
+
+
+def token_aura(kind: str) -> Optional[tuple[int, str, str]]:
+    """`(radius, name, what it does)` for a token that reaches past its tile."""
+    return TOKEN_AURAS.get(kind)
+
+
+def images_dealt_damage(
+    state: GameState,
+    attacker: FrameState,
+    card: Card,
+    target_pos: Optional[Pos],
+    defender: Optional[FrameState] = None,
+) -> None:
+    """"the fakes are removed ... if they would deal damage".
+
+    All three images made this attack. Only one of them can actually hurt
+    anything, so every fake whose own copy of it reached what was hit is
+    revealed for what it is and removed. A fake that could not have reached is
+    left alone: it swung at nothing and gave nothing away.
+    """
+    from . import combat
+
+    record = _images(state).get(attacker.id)
+    if record is None or target_pos is None or not card.is_attack:
         return
-    free = [p for p in fx.free_tiles(state, frame.pos, 1) if p != token.pos]
-    if free:
-        token.pos = state.rng.choice(free)
+    for token_id in list(record.get("tokens", ())):
+        if token_id == record.get("real"):
+            continue
+        token = state.tokens.get(token_id)
+        if token is None or not token.alive or token.pos is None:
+            continue
+        would_hit = combat.zones_in_range(
+            state, attacker, card, target_pos, defender, origin=token.pos
+        ) and combat.can_target(
+            state, attacker, card, target_pos, defender, origin=token.pos
+        )
+        if would_hit:
+            token.alive = False
+            token.pos = None
+            record["tokens"] = [t for t in record["tokens"] if t != token_id]
+            state.note(
+                f"an image of {attacker.id} struck and dealt nothing -- "
+                f"it flickers out"
+            )
 
 
 def sync_images(state: GameState) -> None:
-    """"All tokens move as this frame" -- and the trick ends when it must.
+    """Keep the real image under the frame, and end the trick when it must.
 
     Called from the engine's advance loop rather than from each place a frame
     can move, because frames are moved by movement, knockback, Teleport, Ace
-    Reflexes and portals, and an image left behind by any one of those would
-    quietly give the frame away.
+    Reflexes and portals, and the tile the frame is standing on *is* the real
+    image's tile.
+
+    Nothing is dragged. Each image is its own piece: it moves on the card's
+    movement step, or because something moved it by name (a Displace aimed at
+    that image). Sliding the fakes after the frame would be the wrong shape now
+    that they can be individually targeted -- and it is not needed to keep the
+    frame hidden, because the pieces are indistinguishable whichever one moved.
     """
     records = _images(state)
     for frame_id in list(records):
@@ -2339,18 +2680,7 @@ def sync_images(state: GameState) -> None:
         if record["real"] not in live or len(live) < 2:
             reveal_images(state, frame, why="nothing left to hide behind")
             continue
-        at = record.get("at") or [frame.pos.x, frame.pos.y]
-        old = Pos(int(at[0]), int(at[1]))
-        if frame.pos != old:
-            dx, dy = frame.pos.x - old.x, frame.pos.y - old.y
-            for token_id in live:
-                if token_id == record["real"]:
-                    continue
-                token = state.tokens[token_id]
-                here = token.pos
-                wanted = Pos(here.x + dx, here.y + dy) if here else None
-                _reposition_image(state, token, frame, wanted)
-            record["at"] = [frame.pos.x, frame.pos.y]
+        record["at"] = [frame.pos.x, frame.pos.y]
         state.tokens[record["real"]].pos = frame.pos
 
 
@@ -2443,7 +2773,6 @@ CHOICE_HANDLERS: Mapping[str, ChoiceFn] = {
     "system_override": _choice_system_override,
     "rebound": _choice_rebound,
     "cage_fight": _choice_cage_fight,
-    "encode": _choice_encode,
     "shove_frame": _choice_shove_frame,
     "shove_to": _choice_shove_to,
     "repairs": _choice_repairs,
@@ -2499,8 +2828,8 @@ def grants_guard_break(state: GameState, attacker: FrameState) -> bool:
 
 
 def ignores_obstacles(state: GameState, attacker: FrameState) -> bool:
-    """Snipers aim: "ranged attacks this turn can ignore obstacles"."""
-    return bool(attacker.turn_flags.get("snipers_aim"))
+    """Snipers aim: "until the end of next turn: ranged attacks ignore obstacles"."""
+    return fx.card_active(state, attacker, SNIPERS_AIM)
 
 
 def is_untargetable(
@@ -2740,15 +3069,15 @@ def adjust_move_options(
 def after_move(
     state: GameState, frame: FrameState, old: Optional[Pos], new: Optional[Pos]
 ) -> None:
-    """Nothing keys off a completed move any more.
+    """The engine's one "a frame finished moving" seam.
 
-    Portal used to: it read "create a portal at the start and end of this
-    move", so the pair could only be known once the frame had walked. The card
-    now names its own two tiles and builds the pair in its effect step. The
-    hook stays because it is the engine's one "a frame finished moving" seam
-    and `resolve` calls it unconditionally.
+    Ephemeral Images keys off it: the frame has just taken the move its card
+    granted, and each of its fakes is owed the same one from its own tile.
+    Portal used to key off it too -- it read "create a portal at the start and
+    end of this move", so the pair could only be known once the frame had
+    walked -- but the card now names its own two tiles.
     """
-    return
+    _image_moves(state, frame)
 
 
 def after_card_resolved(state: GameState, frame: FrameState, uid: str) -> None:
@@ -3253,6 +3582,8 @@ CHOICE_HANDLERS = dict(CHOICE_HANDLERS)
 CHOICE_HANDLERS.update({
     "reposition": _choice_reposition,
     "drone_move": _choice_drone_move,
+    "image_move": _choice_image_move,
+    "image_teleport": _choice_image_teleport,
     "drone_target": _choice_drone_target,
     "drone_block": _choice_drone_block,
 })
@@ -3349,26 +3680,32 @@ def attack_damage_bonus(
             spread += int(match.group(1))
             state.note(f"{card.key}: target has not moved, +{match.group(1)} damage")
 
-    if card.is_ranged and attacker.turn_flags.get("snipers_aim"):
-        spread += 1
-        state.note("Snipers aim adds 1 damage")
+    if card.is_ranged and fx.card_active(state, attacker, SNIPERS_AIM):
+        extra = _extra_damage(state.catalogue.get(SNIPERS_AIM))
+        spread += extra
+        state.note(f"Snipers aim adds {extra} damage")
 
     if fx.card_active(state, attacker, PRACTICED, this_turn=False):
+        # "for each other *completed* attack from the same weapon": the ones
+        # that have already resolved. The card being resolved now is not one
+        # of them -- `resolved` is set in `_finish_card`, after this runs --
+        # so the count is already "other" and nothing is subtracted.
         same = sum(
             1 for uid in attacker.committed
-            if state.cards[uid].location == "committed"
+            if state.cards[uid].resolved
             and state.catalogue[state.cards[uid].key].group == card.group
             and state.catalogue[state.cards[uid].key].is_attack
         )
-        if same > 1:
-            spread += same - 1
-            state.note(f"Practiced Technique adds {same - 1} damage")
+        if same:
+            spread += same
+            state.note(f"Practiced Technique adds {same} damage")
 
     combo = fx.slot(state, "combo").get(attacker.id) or {}
     extra = combo.get("extra")
     if extra:
         for zone, amount in extra.items():
             add(zone, int(amount))
-        fx.slot(state, "combo")[attacker.id] = {"armed": False}
+        # One attack, one added card: the next attack asks again.
+        fx.slot(state, "combo").pop(attacker.id, None)
 
     return bonus, spread

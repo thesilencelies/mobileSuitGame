@@ -466,6 +466,41 @@ step by step*.
 * **Blocking is compulsory**, and each block option states whether the card is
   discarded (normal block) or kept (super block), and whether its own action is
   forfeit.
+* **A raised tile says how high it is, in a number.** The printed card says it
+  with a stack of cubes and the board draws that too, but at a phone's zoom one
+  cube and two are a dozen pixels apart — and misreading elevation 2 as 3 is
+  misreading the movement cost by a whole point, which is how a correct refusal
+  comes to look like a bug. So the level is also printed as `▲2` in the tile's
+  bottom-left corner (the one corner nothing else uses: the ordinal badge is
+  top-left, status pips top-right, the code glyphs bottom-right). Tapping a
+  tile has always given the same number in the read-out.
+* **A token that reaches past its own tile draws the ring it reaches.** A
+  gravity well re-prices movement for five tiles in every direction — every
+  step *away* from it inside that ring costs one extra — and it used to put
+  nothing on the board to say so, which is how a perfectly correct refusal came
+  to look like an engine bug (an elevation-1 frame beside an elevation-2 column
+  can climb it for 2, but not while standing in a well). Psychic Storm and
+  Rebound have the same shape. The radius and the wording come from the engine
+  (`effects.TOKEN_AURAS` → `token.aura` in the view); the client draws a dashed
+  silhouette, names it in the tile read-out, and names it in the movement
+  legend whenever the acting frame is standing in one.
+* **A movement refusal says what it would have cost.** Green tiles carry their
+  cost; the tiles the frame cannot afford *because of the terrain* are drawn
+  grey with theirs, and the legend names the budget. Climbing is 1 extra per
+  level, so stepping from the ground onto elevation 2 is 3 — and with 2
+  movement that tile used to be simply missing, which reads as the engine
+  refusing a step for no stated reason. The engine prices them
+  (`resolve._out_of_reach`, in `pending.context.outOfReach`, never in
+  `options`); the client only draws what it is given. Tiles that are merely too
+  far away are left out — they explain themselves.
+* **An objective that keeps a running count says what it is.** The Solar Farm
+  scores on charge banked over the whole game — a frame that stood there on
+  turn 1 and left is still worth a charge — and there is nothing on the board
+  to read it off. So each turn's banking goes in the log
+  (`Blue banks 2 charge at the Solar Farm (4 in all)`) and the standing total
+  rides in the view as `tally`/`tallyLabel`, which the Goals tab prints beside
+  the card. `objectives.TALLIES` is the seam; anything else that starts
+  counting in secret belongs in it.
 * The **initiative list shows printed values**. The engine also applies −1 for a
   High zone on its last hit and ∓2 for Stunned/Stimmed; those are not shown on
   the card.
@@ -707,6 +742,25 @@ engine had to make, not something the card says:
   splash overrides, and elevation is about the ground. "Hits all targets in
   range" is the exception that keeps the check, because there the range *is*
   the shape — a target at 3 is only hit by the zones that reach 3.
+* **"Until the end of next turn"** (Snipers aim, Combo strike) is not stored
+  anywhere. The card in front of the frame *is* the state: `fx.card_active`
+  covers the turn it resolved and, at persistence 1, the `aside` pile the turn
+  after, which is exactly the window the words name. So Combo strike now rides
+  *every* attack in that window rather than only the next one, and Snipers aim
+  survives the turn flags being cleared. Both cards' numbers — "+ 4 range", "1
+  extra damage" — are read off the printed text at the point of use, so a
+  balance pass needs no engine change.
+* **Practiced Technique** counts "each other **completed** attack from the same
+  weapon" as the ones that have already resolved. The card being resolved is
+  not one of them (`resolved` is set in `_finish_card`, after the damage bonus
+  runs), so nothing is subtracted — a card still face down in the row is not a
+  completed attack, which is what the word was added to say.
+* **Encode the future** names a side, not a frame ("allied frames choose cards
+  from their deck"), so it arms every frame on it and asks nothing. It used to
+  ask which ally.
+* **Flamekin's repair** is read off its own ability line in `Frames.csv`
+  (`keywords._END_REPAIR_RE`) rather than keyed to the frame's name, which is
+  how it went from 1 to 2 without an engine change.
 * **Cage Fight** does not ask where the box goes. Both fighters have to end up
   inside the 3x3 the walls enclose and they are at most two apart, so the
   centre is their midpoint and the only question is who is locked in. The walls
@@ -728,12 +782,43 @@ the three tiles — but while the images are up:
   what may be attacked.
 * attacking the real image is an ordinary attack on the frame, blocks and all,
   and finding it ends the trick. Attacking a fake removes it.
-* the images move with the frame wherever it is moved from — movement,
-  knockback, Teleport, Ace Reflexes, a portal — because `engine.effects
-  .sync_images` runs from the engine's advance loop rather than from each of
-  those places.
+* **each image resolves the frame's action, from where it stands.** "These
+  tokens use this frame's actions" is read as all three acting at once:
+  * the card's movement step asks once for the frame (which carries the real
+    image) and then once for each fake, each with the same budget, so the three
+    can spread out. `effects.after_move` drives that;
+  * anything the action counts may be counted from **any** image
+    (`effects_state.origins`): range, line of sight, every "within N". A zone
+    lands if any image is placed to land it;
+  * **a fake that would deal damage is removed.** All three swing and only one
+    can hurt anything, so every fake whose own copy of the attack reached what
+    was hit gives itself away. Shooting is therefore how the trick ends — but
+    only if the shot *lands*: a blocked attack deals no damage and reveals
+    nothing.
+* **each image is a frame in itself for interactions and targeting.** While the
+  images are up the frame is in no option list; each of its images is one, and
+  they are indistinguishable. Whatever the card does then lands on the *frame*
+  (`effects._frame_options` builds the options, `_target_frame` maps the answer
+  back), so a debuff aimed at a decoy still sticks — which is what stops
+  targeting an image being either a wasted card or a way to find the real one.
+* **an action that makes one thing still makes one thing.** Psychic Storm
+  creates one storm, and its "within 5" is measured from whichever image suits
+  (`effects_state.free_tiles_from`) — as is every other "put something down
+  within N". An action that *moves* the frame moves all of them: Teleport asks
+  a destination per image, the real one carrying the frame.
+* **an image can be moved on its own** by anything that names one. A Displace
+  aimed at an image shoves that image and leaves the rest; the throw is
+  measured from where that image is standing.
+* **nothing is dragged.** `sync_images` keeps the real image under the frame
+  and does nothing else — it runs from the engine's advance loop rather than
+  from each of the ways a frame can be shifted. The fakes used to slide after
+  the frame so that a lone move could not say which was real; that is not
+  needed, because the pieces are indistinguishable whichever one moved, and it
+  is the wrong shape now that each can be targeted by name.
 * an image blocks movement like the frame under it would, so an enemy cannot
   find the frame by noticing which of the three tiles it may not walk into.
+  That cuts both ways: an image also blocks *sight*, so the decoys can stand in
+  their own frame's firing line.
 
 The AI stands a hidden frame in the middle of its own images so it keeps
 weighing it as a threat, and prices an attack on an image at its share of a
@@ -800,7 +885,7 @@ a handle on a card that is in the AI's hand now.
 | `commit_actions` | `{"uids": ["c17", "c22"]}` |
 | `choose_actor` | `{"uid": "c17"}` — which of your tied cards resolves next |
 | `resolve_order` | `{"order": ["movement", "attack"]}` — only offered when the card allows more than one order (see `effects.step_orders`) |
-| `move` | `{"x": 7, "y": 12}` |
+| `move` | `{"x": 7, "y": 12}` — the decision's `context` carries the budget and the tiles it priced but will not offer (`outOfReach`); those are never legal answers |
 | `attack_target` | `{"kind": "frame", "id": "b1"}` |
 | `choose_block` | `{"uid": "c04"}` |
 | `effect_choice` | the option the engine offered, e.g. `{"mulligan": true}` |

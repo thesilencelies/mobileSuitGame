@@ -535,27 +535,35 @@ def test_stdlib_server_over_a_real_socket() -> None:
         assert status == 200 and content_type.startswith("text/html")
         assert b"board-canvas" in body
 
-        status, body, _ = _http(f"{base}/api/game", {
-            "seed": 5, "playerDecks": DECKS[:3], "aiDecks": DECKS[3:6]})
-        assert status == 200
-        payload = json.loads(body)
-        game_id, view = payload["gameId"], payload["view"]
-
-        # Play to the first resolved attack over the wire.
-        rng = random.Random(5)
-        for _ in range(200):
-            pending = view.get("pending")
-            if view["over"] or not pending:
+        # Play to the first resolved attack over the wire. Whether a random
+        # player lands one in a given game is a balance question and moves
+        # with the card CSVs, so this sweeps seeds rather than pinning one --
+        # what is under test is the socket, not the shooting.
+        game_id = ""
+        view = {}
+        landed = False
+        for seed in range(1, 12):
+            status, body, _ = _http(f"{base}/api/game", {
+                "seed": seed, "playerDecks": DECKS[:3], "aiDecks": DECKS[3:6]})
+            assert status == 200
+            payload = json.loads(body)
+            game_id, view = payload["gameId"], payload["view"]
+            rng = random.Random(seed)
+            for _ in range(400):
+                pending = view.get("pending")
+                if view["over"] or not pending:
+                    break
+                kind, cmd = auto_payload(pending, rng)
+                status, body, _ = _http(f"{base}/api/game/{game_id}/command",
+                                        {"kind": kind, "payload": cmd})
+                assert status == 200, body
+                view = json.loads(body)
+                if any("hits" in entry["text"] for entry in view["log"]):
+                    landed = True
+                    break
+            if landed:
                 break
-            kind, cmd = auto_payload(pending, rng)
-            status, body, _ = _http(f"{base}/api/game/{game_id}/command",
-                                    {"kind": kind, "payload": cmd})
-            assert status == 200, body
-            view = json.loads(body)
-            if any("hits" in entry["text"] for entry in view["log"]):
-                break
-        assert any("hits" in entry["text"] for entry in view["log"]), \
-            "no attack resolved over the socket"
+        assert landed, "no attack resolved over the socket in eleven games"
 
         # Errors keep their status codes through the socket layer too.
         status, body, _ = _http(f"{base}/api/game/{game_id}/command",
@@ -1846,3 +1854,32 @@ def test_our_own_side_still_knows_which_image_it_is_standing_on(
     real = [t for t in seen["tokens"] if t.get("real")]
     assert len(real) == 1
     assert real[0]["pos"] == shown["pos"]
+
+
+def test_an_area_token_carries_its_area_into_the_view() -> None:
+    """A gravity well re-prices movement for five tiles and says so.
+
+    It was silent: standing inside one made every step *away* from it cost an
+    extra point, with nothing on the board to explain a refused move. The
+    radius and the wording are the engine's -- the client only draws the ring.
+    """
+    from playtest.engine import effects
+    from playtest.engine import effects_state as fx
+    from playtest.engine.serialize import view_for
+    from playtest.engine.types import Pos
+
+    from ._helpers import add_frame, make_state
+
+    state = make_state()
+    add_frame(state, 0, "Kuwagata", Pos(2, 2))
+    fx.spawn_token(state, fx.GRAVITY_WELL, Pos(8, 8), owner=1)
+    fx.spawn_token(state, fx.BARRICADE, Pos(3, 3), owner=1)
+
+    tokens = {t["kind"]: t for t in view_for(state, 0)["tokens"]}
+    aura = tokens["gravitywell"]["aura"]
+    assert aura["radius"] == effects.GRAVITY_RADIUS
+    assert "movement" in aura["text"] and aura["name"] == "gravity well"
+    # Every kind the engine gives an area to has one in the view, and nothing
+    # else does -- a token with no aura must not grow a ring on the board.
+    for kind, token in tokens.items():
+        assert ("aura" in token) == (effects.token_aura(kind) is not None), kind

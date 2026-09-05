@@ -312,6 +312,31 @@ def _score_bomb(state: GameState, obj: ObjectiveState) -> Optional[Team]:
     return obj.owner if state.phase == "finished" else None
 
 
+#: Objectives that keep a running per-seat count, and what to call it. The
+#: count itself is `memo[key]`; `tally` turns it into something the view can
+#: carry, because a number the engine adds up in secret is not a game state a
+#: player can play against.
+TALLIES: Mapping[str, tuple[str, str]] = {
+    "Solar Farm": ("charge", "charge"),
+}
+
+
+def tally(
+    state: GameState, objective: ObjectiveState
+) -> Optional[tuple[str, dict[Team, int]]]:
+    """`(label, seat -> count)` for an objective that keeps a running score."""
+    found = TALLIES.get(objective.name)
+    if found is None:
+        return None
+    key, label = found
+    counts = objective.memo.get(key) or {}
+    # Every seat, including the ones on nothing: "you 3 - the enemy 0" is the
+    # read a player wants, and a missing key is not that.
+    return label, {
+        int(seat): int(counts.get(seat, 0) or 0) for seat in state.seats
+    }
+
+
 SCORERS: Mapping[str, Callable[[GameState, ObjectiveState], Optional[Team]]] = {
     "Power Reactors": _score_reactors,
     "The Tower": _score_tower,
@@ -714,11 +739,24 @@ def _egg_streaks(state: GameState, objective: ObjectiveState) -> None:
 
 
 def _farm_charge(state: GameState, objective: ObjectiveState) -> None:
-    """"For each frame that ends a turn on the farm, that team gets 1 charge"."""
+    """"For each frame that ends a turn on the farm, that team gets 1 charge".
+
+    Said out loud. The farm is scored on a running count nobody can read off
+    the board -- a frame that stood there on turn 1 and left is still worth a
+    charge -- so each turn's banking goes in the log, and `tally` puts the
+    standing total in the view.
+    """
     charge: dict[Team, int] = objective.memo.setdefault("charge", {})
+    banked: dict[Team, int] = {}
     for frame in state.frames.values():
         if frame.alive and frame.pos is not None and frame.pos in objective.tiles:
-            charge[frame.seat] = charge.get(frame.seat, 0) + 1
+            banked[frame.seat] = banked.get(frame.seat, 0) + 1
+    for seat in sorted(banked):
+        charge[seat] = charge.get(seat, 0) + banked[seat]
+        state.note(
+            f"{team_name(seat)} banks {banked[seat]} charge at the "
+            f"{objective.name} ({charge[seat]} in all)"
+        )
 
 
 def _ritual_frames(

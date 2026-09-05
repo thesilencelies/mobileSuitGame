@@ -1544,7 +1544,24 @@ function onTapTile(x, y) {
     <br>${C.escapeHtml(tile.card || 'open ground')}
     ${obj ? `<br>objective: <b>${C.escapeHtml(obj.name)}</b> — ${C.escapeHtml(obj.status)}` : ''}
     ${tile.hazard ? `<br><b class="hazard">${C.escapeHtml(tile.hazard)}</b>` : ''}
+    ${aurasOver(x, y).map((a) => `<br><b class="hazard">inside the ${
+      C.escapeHtml(a.name)}</b> — ${C.escapeHtml(a.text)}`).join('')}
     ${token ? `<br>${C.escapeHtml(tokenReadout(token))}` : ''}`;
+}
+
+/** What a tile is standing inside, in the engine's own words.
+ *
+ *  A gravity well or a storm reaches five tiles in every direction and the
+ *  token itself may be off the edge of the phone's view, so the tile has to be
+ *  able to say what is acting on it. The radius and the wording are the
+ *  engine's (`token.aura`); this only measures the square.
+ */
+function aurasOver(x, y) {
+  return (app.view.tokens || [])
+    .filter((t) => t.pos && t.alive !== false && t.aura
+      && Math.max(Math.abs(x - t.pos.x), Math.abs(y - t.pos.y))
+         <= Number(t.aura.radius || 0))
+    .map((t) => t.aura);
 }
 
 /** One line about a token under the finger. */
@@ -1578,13 +1595,20 @@ async function refreshOverlays() {
   const view = app.view;
   const pending = view.pending;
   const overlays = {
-    reach: new Map(), los: new Set(), targets: new Set(),
+    reach: new Map(), beyond: new Map(), los: new Set(), targets: new Set(),
     deploy: new Set(), place: new Set(), picked: [], confirm: confirmTile(),
   };
   const mine = pending && !pending.waiting && pending.seat === view.seat;
 
   if (mine && pending.kind === 'move') {
     for (const o of pending.options) overlays.reach.set(`${o.x},${o.y}`, o.cost);
+    // Tiles the engine priced but did not offer. Drawn so a climb the frame
+    // cannot afford says what it would have cost instead of simply not being
+    // there -- an elevation-2 tile is 3 to step into, which is a whole rule a
+    // player should not have to infer from an absence.
+    for (const o of ((pending.context || {}).outOfReach) || []) {
+      overlays.beyond.set(`${o.x},${o.y}`, o.cost);
+    }
   } else if (mine && pending.kind === 'deploy') {
     for (const o of deployOptions(pending)) overlays.deploy.add(`${o.x},${o.y}`);
   } else if (mine && pending.kind === 'attack_target') {
@@ -1692,6 +1716,22 @@ function renderLegend(overlays, pending) {
     bits.push(choosing
       ? 'green = legal destination · tap twice'
       : 'green = selected frame\'s reach (base movement)');
+  }
+  if (overlays.beyond && overlays.beyond.size) {
+    const budget = (pending && (pending.context || {}).budget);
+    bits.push(budget === undefined
+      ? 'grey = costs more than you have'
+      : `grey = costs more than the ${budget} you have`);
+  }
+  // Why a step might cost more than the terrain says. Named whenever the frame
+  // being asked about is standing inside a ring, not only when it bites.
+  if (pending && pending.kind === 'move') {
+    const acting = (app.view.frames || []).find((f) => f.id === pending.frameId);
+    if (acting && acting.pos) {
+      for (const aura of aurasOver(acting.pos.x, acting.pos.y)) {
+        bits.push(`in the ${aura.name} — ${aura.text}`);
+      }
+    }
   }
   if (overlays.place && overlays.place.size) {
     const many = pending && Number(pending.pickMax) > 1;
@@ -2068,6 +2108,16 @@ function renderObjectives() {
       box.appendChild(line);
     }
 
+    // A running count the objective keeps: the Solar Farm's charge. Nobody
+    // can read it off the board, so it goes beside the card that spends it.
+    const tally = objectiveTallyText(obj);
+    if (tally) {
+      const line = document.createElement('p');
+      line.className = 'goal-tokens';
+      line.textContent = tally;
+      box.appendChild(line);
+    }
+
     const spot = objectiveSpot(obj);
     if (spot) {
       const actions = document.createElement('div');
@@ -2096,6 +2146,17 @@ function objectiveStatusText(obj) {
   }
   return `As it stands: ${side(obj.scorer)} score${obj.scorer === view.seat ? '' : 's'
     } ${obj.value}`;
+}
+
+/** The objective's running count, from the reader's side. */
+function objectiveTallyText(obj) {
+  if (!obj.tally) return '';
+  const mine = Number(obj.tally[String(app.view.seat)] || 0);
+  const theirs = Object.entries(obj.tally)
+    .filter(([seat]) => Number(seat) !== app.view.seat)
+    .reduce((sum, [, n]) => sum + Number(n || 0), 0);
+  const label = obj.tallyLabel || 'progress';
+  return `${label}: you ${mine} · the enemy ${theirs}`;
 }
 
 /** How the objective's tokens are doing, in one line.

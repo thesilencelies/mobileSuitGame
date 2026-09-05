@@ -211,7 +211,7 @@
   {
     "name": "Assault Rifle Burst Fire",
     "description": "",
-    "gm_notes": "4init\n-2mv\natk:1M@9,1L@9 projectile\nBlk:1M",
+    "gm_notes": "4init\n-2mv\natk:1M@7,1L@7 projectile\nBlk:1M",
     "tags":
     {
       "1": "Card",
@@ -224,7 +224,7 @@
   {
     "name": "Assault Rifle Aimed Fire",
     "description": "",
-    "gm_notes": "3init\n-2mv\natk:2H@9 projectile\nBlk:1M",
+    "gm_notes": "3init\n-2mv\natk:2H@7 projectile\nBlk:1M",
     "tags":
     {
       "1": "Card",
@@ -263,7 +263,7 @@
   {
     "name": "Stun Bow Rapid fire",
     "description": "On Hit: the text after the colon only applies if the attack hits (that is, is not blocked)\nStunned: while stunned a frame gets -2 init\nGuard Break: this attack consumes one block per zone; zones that are not blocked still deal damage",
-    "gm_notes": "3init\n-3mv\natk:1H@6,1M@10 pierce\nBlk:1M\nOn Hit: target gets 2 Stunned (-2 init)\nGuard Break",
+    "gm_notes": "3init\n-3mv\natk:1H@6,1M@8 pierce\nBlk:1M\nOn Hit: target gets 2 Stunned (-2 init)\nGuard Break",
     "tags":
     {
       "1": "Card",
@@ -276,7 +276,7 @@
   {
     "name": "Stun Bow Arc shot",
     "description": "On Hit: the text after the colon only applies if the attack hits (that is, is not blocked)\nStunned: while stunned a frame gets -2 init",
-    "gm_notes": "3init\n-2mv\natk:2H@10 pierce\nBlk:1M\nOn Hit: target gets 2 Stunned (-2 init)",
+    "gm_notes": "3init\n-2mv\natk:2H@8 pierce\nBlk:1M\nOn Hit: target gets 2 Stunned (-2 init)",
     "tags":
     {
       "1": "Card",
@@ -289,7 +289,7 @@
   {
     "name": "Stun Bow Straight shot",
     "description": "On Hit: the text after the colon only applies if the attack hits (that is, is not blocked)\nStunned: while stunned a frame gets -2 init",
-    "gm_notes": "5init\n-1mv\natk:1M@10 pierce\nBlk:1M\nOn Hit: target gets 2 Stunned (-2 init)",
+    "gm_notes": "5init\n-1mv\natk:1M@8 pierce\nBlk:1M\nOn Hit: target gets 2 Stunned (-2 init)",
     "tags":
     {
       "1": "Card",
@@ -302,7 +302,7 @@
   {
     "name": "Stun Bow Low blow",
     "description": "On Hit: the text after the colon only applies if the attack hits (that is, is not blocked)\nStunned: while stunned a frame gets -2 init",
-    "gm_notes": "5init\n-1mv\natk:1L@10 pierce\nBlk:1M\nOn Hit: target gets 2 Stunned (-2 init)",
+    "gm_notes": "5init\n-1mv\natk:1L@8 pierce\nBlk:1M\nOn Hit: target gets 2 Stunned (-2 init)",
     "tags":
     {
       "1": "Card",
@@ -328,7 +328,7 @@
   {
     "name": "Cannon Airburst",
     "description": "Guard Break: this attack consumes one block per zone; zones that are not blocked still deal damage\nReload: this card persists until this frame next resolves an attack from this weapon; that card deals no damage and triggers no abilities, then both are discarded",
-    "gm_notes": "2init\n-2mv\natk:1H@12,1M@12,2L@8 projectile\nBlk:1M\npersist:permanent\nGuard Break (This attack consumes one block per zone)\nReload (This frames next action from this weapon has no effect or attack.)",
+    "gm_notes": "2init\n-2mv\natk:1H@12,1M@12,2L@6 projectile\nBlk:1M\npersist:permanent\nGuard Break (This attack consumes one block per zone)\nReload (This frames next action from this weapon has no effect or attack.)",
     "tags":
     {
       "1": "Card",
@@ -341,7 +341,7 @@
   {
     "name": "Cannon",
     "description": "Guard Break: this attack consumes one block per zone; zones that are not blocked still deal damage\nReload: this card persists until this frame next resolves an attack from this weapon; that card deals no damage and triggers no abilities, then both are discarded",
-    "gm_notes": "2init\n-3mv\natk:1H@8,2M@12,2L@12 projectile\nBlk:1M\npersist:permanent\nGuard Break (This attack consumes one block per zone)\nReload (This frames next action from this weapon has no effect or attack.)",
+    "gm_notes": "2init\n-3mv\natk:1H@6,2M@12,2L@12 projectile\nBlk:1M\npersist:permanent\nGuard Break (This attack consumes one block per zone)\nReload (This frames next action from this weapon has no effect or attack.)",
     "tags":
     {
       "1": "Card",
@@ -718,7 +718,7 @@
   {
     "name": "Plasma Rifle Charged Shot",
     "description": "Guard Break: this attack consumes one block per zone; zones that are not blocked still deal damage\nReload: this card persists until this frame next resolves an attack from this weapon; that card deals no damage and triggers no abilities, then both are discarded",
-    "gm_notes": "3init\n-3mv\natk:2H@9,1M@9 energy\nBlk:1M\npersist:permanent\nGuard Break (This attack consumes one block per zone)\nReload (This frames next action from this weapon has no effect or attack.)",
+    "gm_notes": "3init\n-3mv\natk:2H@7,1M@7 energy\nBlk:1M\npersist:permanent\nGuard Break (This attack consumes one block per zone)\nReload (This frames next action from this weapon has no effect or attack.)",
     "tags":
     {
       "1": "Card",
@@ -731,7 +731,7 @@
   {
     "name": "Plasma Rifle Single Shot",
     "description": "",
-    "gm_notes": "3init\n-2mv\natk:2M@9 energy\nBlk:1M",
+    "gm_notes": "3init\n-2mv\natk:2M@7 energy\nBlk:1M",
     "tags":
     {
       "1": "Card",
@@ -744,7 +744,7 @@
   {
     "name": "Plasma Rifle Plasma Stream",
     "description": "Guard Break: this attack consumes one block per zone; zones that are not blocked still deal damage",
-    "gm_notes": "4init\n-2mv\natk:1M@8,1L@8 energy\nBlk:1M\nGuard Break (This attack consumes one block per zone)",
+    "gm_notes": "4init\n-2mv\natk:1M@7,1L@7 energy\nBlk:1M\nGuard Break (This attack consumes one block per zone)",
     "tags":
     {
       "1": "Card",
@@ -770,7 +770,7 @@
   {
     "name": "Railgun Hypervelocity Shot",
     "description": "Knockback X: move the target frame X steps in any direction away from the source (it cannot move up elevation)",
-    "gm_notes": "2init\n-3mv\natk:2M@12,2L@12 projectile\nBlk:1M\nKnockback 2 (Move the target frame 2 steps in any direction away from the source)",
+    "gm_notes": "2init\n-3mv\natk:2M@10,2L@10 projectile\nBlk:1M\nKnockback 2 (Move the target frame 2 steps in any direction away from the source)",
     "tags":
     {
       "1": "Card",
@@ -782,8 +782,8 @@
   "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Railgun_Piercing%20Round.png":
   {
     "name": "Railgun Piercing Round",
-    "description": "Knockback X: move the target frame X steps in any direction away from the source (it cannot move up elevation)\nClose Quarters: this attack cannot be blocked by attacks that have already resolved",
-    "gm_notes": "2init\n-3mv\natk:2M@12 projectile\nBlk:1M\nKnockback 2 (Move the target frame 2 steps in any direction away from the source)\nClose Quarters (Cannot be blocked by higher initiative attacks)",
+    "description": "Knockback X: move the target frame X steps in any direction away from the source (it cannot move up elevation)",
+    "gm_notes": "2init\n-3mv\natk:2M@10 projectile\nBlk:1M\nKnockback 3 (Move the target frame 3 steps in any direction away from the source)",
     "tags":
     {
       "1": "Card",
@@ -796,7 +796,7 @@
   {
     "name": "Railgun Snipe",
     "description": "Knockback X: move the target frame X steps in any direction away from the source (it cannot move up elevation)",
-    "gm_notes": "1init\n-3mv\natk:2H@16,2M@12 projectile\nBlk:1M\nKnockback 2 (Move the target frame 2 steps in any direction away from the source)",
+    "gm_notes": "1init\n-3mv\natk:2H@14,2M@10 projectile\nBlk:1M\nKnockback 2 (Move the target frame 2 steps in any direction away from the source)",
     "tags":
     {
       "1": "Card",
@@ -1329,7 +1329,7 @@
   {
     "name": "Mystic Ephemeral Images",
     "description": "",
-    "gm_notes": "1init\n-1mv\nBlk:1H\npersist:permanent\nReplace this frame with 3 tokens, one of which is secretly marked to be this frame. All tokens move as this frame and the fakes are removed if attacked.",
+    "gm_notes": "1init\n-1mv\nBlk:1H\npersist:permanent\nReplace this frame with 3 tokens, one of which is secretly marked to be this frame. These tokens use this frame's actions and the fakes are removed if attacked or if they would deal damage.",
     "tags":
     {
       "1": "Card",
@@ -1368,7 +1368,7 @@
   {
     "name": "Mystic Encode the future",
     "description": "",
-    "gm_notes": "1init\n-3mv\nBlk:1H\npersist:1 turn\nNext turn: one allied frame (includes this) chooses cards from their deck",
+    "gm_notes": "1init\n-3mv\nBlk:1H\npersist:1 turn\nNext turn: allied frames choose cards from their deck",
     "tags":
     {
       "1": "Card",
@@ -1601,8 +1601,8 @@
   "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Engineer_Precision%20Tuning.png":
   {
     "name": "Engineer Precision Tuning",
-    "description": "Boosted: while boosted a frame gets +2 mv",
-    "gm_notes": "4init\n-3mv\nBlk:1H\nThis frame gets 4 Boosted (+2 mv)",
+    "description": "Boosted: while boosted a frame gets +2 mv\nLucid: while lucid a frame gets +2 cards",
+    "gm_notes": "4init\n-3mv\nBlk:1H\nThis frame gets 4 Boosted (+2 mv) and 2 Lucid (+2 cards)",
     "tags":
     {
       "1": "Card",
@@ -1641,7 +1641,7 @@
   {
     "name": "Specialist Combo strike",
     "description": "Committed: this attack is discarded after it resolves",
-    "gm_notes": "8init\n-2mv\nBlk:1H\nWhen resolving the next attack from this frame, reveal the top 4 cards of its deck and choose up to 1 attack from the same weapon: add it's attacks to the attack\nCommitted (this attack is discarded after resolving)",
+    "gm_notes": "8init\n-2mv\nBlk:1H\npersist:1 turn\nUntil the end of next turn: When resolving attacks from this frame, reveal the top 4 cards of its deck and choose up to 1 attack from the same weapon: add it's attacks to the attack\nCommitted (this attack is discarded after resolving)",
     "tags":
     {
       "1": "Card",
@@ -1654,7 +1654,7 @@
   {
     "name": "Specialist Snipers aim",
     "description": "Committed: this attack is discarded after it resolves",
-    "gm_notes": "7init\n-3mv\nBlk:1H\nRanged attacks this turn can ignore obstacles, get + 4 range and deal 1 extra damage\nCommitted (this attack is discarded after resolving)",
+    "gm_notes": "7init\n-3mv\nBlk:1H\npersist:1 turn\nUntil the end of next turn: Ranged attacks ignore obstacles, get + 4 range and deal 1 extra damage\nCommitted (this attack is discarded after resolving)",
     "tags":
     {
       "1": "Card",
@@ -1679,8 +1679,8 @@
   "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Specialist_Practiced%20Technique.png":
   {
     "name": "Specialist Practiced Technique",
-    "description": "Lucid: while lucid a frame gets +2 cards",
-    "gm_notes": "5init\n-1mv\nBlk:1H\npersist:1 turn\nLucid (+2 cards)\nNext turn: attacks deal 1 extra damage for each other attack played from the same weapon",
+    "description": "Lucid: while lucid a frame gets +2 cards\nStimmed: while stimmed a frame gets +2 init",
+    "gm_notes": "5init\n-1mv\nBlk:1H\npersist:1 turn\nThis frame gets 1 Lucid (+2 cards) and 1 Stimmed (+2 init)\nNext turn: attacks deal 1 extra damage for each other completed attack from the same weapon",
     "tags":
     {
       "1": "Card",
@@ -1745,7 +1745,7 @@
   {
     "name": "Gun Tower 1",
     "description": "Drone: a token that takes this card's action every turn, using the movement and health printed beside it, until it is destroyed",
-    "gm_notes": "2init\n-2mv\natk:1H@8 projectile\nBlk:1L\ndrone:2hp 0mv\nfaction:Guild\npersist:permanent\nSummon one Gun Tower within 3 (A unit that attacks once each turn with this card, with its own movement and health.)",
+    "gm_notes": "2init\n-2mv\natk:1H@4 projectile\nBlk:1L\ndrone:2hp 0mv\nfaction:Guild\npersist:permanent\nSummon one Gun Tower within 2 (A unit that attacks once each turn with this card, with its own movement and health.)",
     "tags":
     {
       "1": "Card",
@@ -1758,7 +1758,7 @@
   {
     "name": "Gun Tower 2",
     "description": "Drone: a token that takes this card's action every turn, using the movement and health printed beside it, until it is destroyed",
-    "gm_notes": "2init\n-2mv\natk:1M@8 projectile\nBlk:1L\ndrone:2hp 0mv\nfaction:Guild\npersist:permanent\nSummon one Gun Tower within 3 (A unit that attacks once each turn with this card, with its own movement and health.)",
+    "gm_notes": "2init\n-2mv\natk:1M@4 projectile\nBlk:1L\ndrone:2hp 0mv\nfaction:Guild\npersist:permanent\nSummon one Gun Tower within 2 (A unit that attacks once each turn with this card, with its own movement and health.)",
     "tags":
     {
       "1": "Card",
@@ -1809,7 +1809,7 @@
   {
     "name": "Kuwagata",
     "description": "",
-    "gm_notes": "4mv\narmour:4H/4M/4L\nweapons:4\nboosters:3\ndeck:21\nfaction:Ouwa\nonce, during planning; discard your hand and draw a new one",
+    "gm_notes": "4mv\narmour:4H/4M/4L\nweapons:4\nboosters:3\ndeck:21\nfaction:Ouwa\nOnce, during planning; discard your hand and draw a new one",
     "tags":
     {
       "1": "Card",
@@ -1893,7 +1893,7 @@
   {
     "name": "Flamekin",
     "description": "Deathstrike: when this frame would be destroyed it fights on until the end of the next turn, and is only removed if it is still dead",
-    "gm_notes": "4mv\narmour:2H/2M/2L\nweapons:3\nboosters:3\ndeck:21\nfaction:Revolution\nDeathstrike\nAt the end of each turn, repair 1",
+    "gm_notes": "4mv\narmour:2H/2M/2L\nweapons:3\nboosters:3\ndeck:21\nfaction:Revolution\nDeathstrike\nAt the end of each turn, repair 2",
     "tags":
     {
       "1": "Card",

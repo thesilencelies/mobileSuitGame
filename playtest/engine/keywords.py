@@ -11,6 +11,7 @@ bookkeeping; the attack pipeline in `combat.py` calls these as hooks.
 
 from __future__ import annotations
 
+import re
 from typing import Iterable, Mapping, Optional
 
 from .state import GameState, FrameState, discard_card, move_card, record_movement
@@ -69,7 +70,7 @@ FRAME_ABILITIES: Mapping[str, str] = {
     "Hannael": "flying; shield 1",
     "Elemiah": "shield 2; impact attacks gain knockback(1)",
     "J7R-Salaryman": "ranged attacks get +4 range",
-    "Flamekin": "deathstrike; repair 1 at the end of each turn",
+    "Flamekin": "deathstrike; repairs at the end of each turn",
     "Fenrir": "cannot use ranged weapons",
     "Hector MkI": "the first block each turn is not discarded",
     "Kamikiri": "the first melee attack each turn deals an extra cut Mid",
@@ -133,11 +134,19 @@ def movement_budget(state: GameState, frame: FrameState, card: Optional[Card]) -
 
 
 def range_bonus(state: GameState, frame: FrameState, card: Card) -> int:
-    """Extra range on a ranged attack from abilities and effects."""
+    """Extra range on a ranged attack from abilities and effects.
+
+    The one place the sources are added up. `turn_flags["range_bonus"]` is the
+    generic hook for anything that lasts a single turn; Snipers aim outlives
+    the turn, so it is asked for by card rather than left in a flag.
+    """
+    from . import effects
+
     bonus = 0
     if frame.spec.name == "J7R-Salaryman" and card.is_ranged:
         bonus += 4
     bonus += int(frame.turn_flags.get("range_bonus", 0))
+    bonus += effects.snipers_range_bonus(state, frame, card)
     return bonus
 
 
@@ -298,10 +307,22 @@ def block_is_kept(state: GameState, defender: FrameState, block_card: Card,
 # --------------------------------------------------------------------------
 
 
+#: "At the end of each turn, repair N" -- Flamekin's line in `Frames.csv`.
+_END_REPAIR_RE = re.compile(r"at the end of each turn,?\s*repair\s+(\d+)", re.I)
+
+
 def end_of_turn(state: GameState) -> None:
-    """Frame abilities that fire at the end of every turn."""
+    """Frame abilities that fire at the end of every turn.
+
+    The amount is read off the frame's printed ability rather than keyed to
+    the frame's name, so a balance pass in `Frames.csv` -- Flamekin went from
+    1 to 2 -- needs no engine change.
+    """
     from .state import repair
 
     for frame in state.frames.values():
-        if frame.alive and frame.spec.name == "Flamekin":
-            repair(state, frame, 1)
+        if not frame.alive:
+            continue
+        match = _END_REPAIR_RE.search(frame.spec.ability_text or "")
+        if match:
+            repair(state, frame, int(match.group(1)))

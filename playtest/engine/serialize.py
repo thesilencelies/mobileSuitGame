@@ -131,6 +131,8 @@ def _pending_json(
         out["pickMax"] = pending.pick_max
     if pending.pick_kind:
         out["pickKind"] = pending.pick_kind
+    if pending.context:
+        out["context"] = {k: v for k, v in pending.context.items()}
     return out
 
 
@@ -201,6 +203,16 @@ def _board_json(state: GameState) -> dict[str, Any]:
             "settled": obj.latched is not None,
             "value": value,
         })
+        # A running count the objective keeps -- the Solar Farm's charge. It
+        # decides the objective and cannot be read off the board, so it has to
+        # be in the view or the player is playing blind.
+        counted = objectivelib.tally(state, obj)
+        if counted is not None:
+            label, counts = counted
+            objectives[-1]["tallyLabel"] = label
+            objectives[-1]["tally"] = {
+                str(seat): value for seat, value in counts.items()
+            }
     return {
         "width": board.width,
         "height": board.height,
@@ -228,6 +240,15 @@ def _token_json(state: GameState, token, seat: Team) -> dict[str, Any]:
     if token.owner is not None:
         out["owner"] = token.owner
     from . import effects
+
+    # An area this token projects, so the client can draw it. A gravity well
+    # re-prices movement for five tiles in every direction and has nothing on
+    # the board to say so, which is exactly the kind of silent rule a player
+    # ends up reverse-engineering from a refused move.
+    aura = effects.token_aura(token.kind)
+    if aura is not None:
+        radius, name, text = aura
+        out["aura"] = {"radius": radius, "name": name, "text": text}
 
     if token.kind == effects.IMAGE:
         found = effects.image_owner(state, token)

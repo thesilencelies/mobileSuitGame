@@ -265,11 +265,12 @@ def test_nautilus_softens_ranged_movement_and_salaryman_extends_range():
     state = make_state()
     nautilus = add_frame(state, 0, "VX4-Nautilus", Pos(1, 1))
     salaryman = add_frame(state, 0, "J7R-Salaryman", Pos(2, 1))
-    card = CATALOGUE["Assault Rifle_Aimed Fire"]         # mv -2, range 9
+    card = CATALOGUE["Assault Rifle_Aimed Fire"]         # mv -2, ranged
     assert kw.card_movement_modifier(state, nautilus, card) == 0
     assert kw.range_bonus(state, salaryman, card) == 4
     assert kw.range_bonus(state, nautilus, card) == 0
-    assert combat.effective_range(state, salaryman, card, "High") == 13
+    assert (combat.effective_range(state, salaryman, card, "High")
+            == card.ranges["High"] + 4)
 
 
 def test_rippersmasher_caps_every_movement_penalty_at_one():
@@ -475,11 +476,15 @@ def test_dodge_shortens_incoming_ranged_attacks():
     state = make_state()
     gunner = add_frame(state, 0, "Kuwagata", Pos(1, 1))
     dodger = add_frame(state, 1, "Kuwagata", Pos(6, 1))
-    card = CATALOGUE["Assault Rifle_Aimed Fire"]          # range 9
+    card = CATALOGUE["Assault Rifle_Aimed Fire"]
+    gap = state.board.distance(gunner.pos, dodger.pos)
+    assert card.ranges["High"] >= gap, "the shot has to start in range"
     assert combat.zones_in_range(state, gunner, card, dodger.pos, dodger)
     uid = give(state, dodger, "Basic_Dodge")
     effects.resolve_effect(state, dodger, uid)
-    assert combat.effective_range(state, gunner, card, "High", dodger) == 1
+    # The printed range is a balance number; what the card does is take enough
+    # off it that a shot that was in range no longer is.
+    assert combat.effective_range(state, gunner, card, "High", dodger) < gap
     assert combat.zones_in_range(state, gunner, card, dodger.pos, dodger) == {}
 
 

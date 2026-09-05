@@ -1046,6 +1046,21 @@ def _held_value(snap: Snapshot, frame: FrameView, pos: Pos, kind: str) -> float:
     return 1.4 if pos == token.pos else 0.6 * _falloff(snap.distance(pos, token.pos), 8)
 
 
+#: What a frame in contact with a pure gunline is still exposed to: the Basic
+#: actions, which are melee and which every frame in the game carries.
+MELEE_THREAT_FLOOR = 0.3
+
+#: How hard a melee frame is pulled toward contact per tile of gap.
+MELEE_CLOSE_PULL = 0.25
+
+#: What arriving in contact with a shooter that has not fired yet is worth, on
+#: top of whatever the frame does when it gets there. Deliberately a *contact*
+#: bonus and not a longer pull: pulling harder from across the board just walks
+#: frames off objectives (arena: 45.0% vs 51.7% over 60 games), while paying
+#: for the last step in is the part that actually takes a turn off the enemy.
+MELEE_PIN_VALUE = 1.5
+
+
 def exposure(
     snap: Snapshot,
     frame: FrameView,
@@ -1064,6 +1079,16 @@ def exposure(
         return 0.0
     threat = 0.0
     incoming = sum(prof.atk_weight.values()) or 1.0
+    # Only the enemy's *melee* cards can hurt something standing on top of
+    # them: "ranged attacks may not target an adjacent frame". So walking into
+    # contact with a gunline is not the most dangerous thing on the board, it
+    # is the safest -- and the AI used to score it as the most dangerous and
+    # keep its distance from exactly the frames it should have been smothering.
+    # The floor is the Basic actions: everybody has a Punch, so contact is
+    # never free.
+    melee_threat = MELEE_THREAT_FLOOR + (1.0 - MELEE_THREAT_FLOOR) * max(
+        0.0, 1.0 - prof.ranged_share
+    )
     for enemy in snap.enemies():
         if enemy.pos is None:
             continue
@@ -1071,9 +1096,9 @@ def exposure(
         reach = enemy.movement + 1
         if distance <= reach:
             # Melee range this turn.
-            threat += incoming * (1.0 if distance <= 1 else 0.6)
+            threat += incoming * melee_threat * (1.0 if distance <= 1 else 0.6)
         elif distance <= reach + 2:
-            threat += incoming * 0.3
+            threat += incoming * melee_threat * 0.3
         if prof.ranged_share > 0.05 and 1 < distance <= 8:
             # Only a frame that can see us can shoot us.
             if has_los(snap, pos, enemy, frame, los_cache):
@@ -1138,7 +1163,7 @@ def position_value(
     value += objective_value(snap, frame, pos, params)
     value += terrain_value(snap, pos, params)
     value -= exposure(snap, frame, pos, prof, params, los_cache)
-    value += _standoff_value(snap, frame, pos, cards, primary, params)
+    value += _standoff_value(snap, frame, pos, cards, primary, prof, params)
     return value
 
 
@@ -1148,12 +1173,18 @@ def _standoff_value(
     pos: Pos,
     cards: Sequence[CardInfo],
     primary: Optional[CardInfo],
+    prof: Profile,
     params: AIParams,
 ) -> float:
     """Ranged frames want a gap; melee frames want to be on top of someone.
 
     A ranged attack may not target an adjacent frame, so standing next to the
-    enemy with a rifle committed is worse than useless.
+    enemy with a rifle committed is worse than useless -- and the mirror of
+    that is worth more than it looks: closing on a *shooter* does not just let
+    a melee frame swing, it takes the shooter's whole turn away. The guns are
+    also the slow cards, so the frame that walks in first is usually the one
+    that gets to. `prof` is the enemy's profile, so the pull scales with how
+    much of their damage is ranged.
     """
     if params.standoff <= 0:
         return 0.0
@@ -1176,8 +1207,32 @@ def _standoff_value(
         else:
             value += params.standoff * 0.5
     elif melee and not ranged:
-        value -= params.standoff * 0.25 * max(0, nearest - 1)
+        value -= params.standoff * MELEE_CLOSE_PULL * max(0, nearest - 1)
+        pinned = max(
+            (
+                _pin_value(enemy, prof)
+                for enemy in enemies
+                if snap.distance(pos, enemy.pos) <= 1
+            ),
+            default=0.0,
+        )
+        value += params.standoff * MELEE_PIN_VALUE * pinned
     return value
+
+
+def _pin_value(enemy: FrameView, prof: Profile) -> float:
+    """What standing on top of `enemy` takes away from it, 0..1.
+
+    "Ranged attacks may not target an adjacent frame", so a shot it has not
+    fired yet is a shot it does not get -- and the guns are the slow cards, so
+    a frame that closes early usually closes before they go off. Worth nothing
+    against an enemy that has already spent its actions, or one that was never
+    going to shoot.
+    """
+    pending = sum(1 for card in enemy.committed if not card.resolved)
+    if pending <= 0:
+        return 0.0
+    return prof.ranged_share * min(1.0, pending / 2.0)
 
 
 def reach_gap(

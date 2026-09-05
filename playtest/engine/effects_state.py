@@ -146,6 +146,68 @@ def is_cloaked(state: GameState, frame: FrameState) -> bool:
     return bool(record and frame.alive and frame.pos is not None)
 
 
+def image_positions(state: GameState, frame: FrameState) -> list[Pos]:
+    """Where this frame's live Ephemeral Images stand, in board order.
+
+    Empty when the frame is not hiding among any -- which is what makes
+    `origins` below fall back to the frame's own tile.
+    """
+    record = image_records(state).get(frame.id)
+    if not record or not frame.alive:
+        return []
+    spots = []
+    for token_id in record.get("tokens", ()):
+        token = state.tokens.get(token_id)
+        if token is not None and token.alive and token.pos is not None:
+            spots.append(token.pos)
+    return sorted(set(spots), key=lambda p: (p.y, p.x))
+
+
+def origins(state: GameState, frame: FrameState) -> list[Pos]:
+    """Every tile this frame's own actions may be measured from.
+
+    Its own tile, normally. Behind Ephemeral Images it is the images': "these
+    tokens use this frame's actions", and each of them acts from where it
+    stands, so anything an action counts -- range, sight, "within N" -- may be
+    counted from whichever image suits. That is the whole reason the decoys
+    are worth putting down for anything but concealment.
+    """
+    spots = image_positions(state, frame)
+    if spots:
+        return spots
+    return [frame.pos] if frame.pos is not None else []
+
+
+def reach_to(
+    state: GameState, frame: FrameState, pos: Optional[Pos]
+) -> Optional[int]:
+    """The shortest distance from any of `frame`'s origins to `pos`."""
+    gaps = [
+        gap for gap in (distance(state, origin, pos) for origin in origins(state, frame))
+        if gap is not None
+    ]
+    return min(gaps) if gaps else None
+
+
+def gap_between(
+    state: GameState, actor: FrameState, other: FrameState
+) -> Optional[int]:
+    """Shortest distance between two frames, counting the images of both.
+
+    A frame behind Ephemeral Images is on the table as three pieces, and each
+    of them "is a frame in itself for interactions and targeting" -- so it is
+    in reach of something if any of its images is, and it reaches something if
+    any of its images does.
+    """
+    gaps = [
+        gap
+        for pos in origins(state, other)
+        for gap in (reach_to(state, actor, pos),)
+        if gap is not None
+    ]
+    return min(gaps) if gaps else None
+
+
 def spawn_token(
     state: GameState,
     kind: str,
@@ -219,14 +281,30 @@ def frames_within(
             continue
         if side == "enemy" and allied:
             continue
-        if not allied and is_cloaked(state, other):
-            continue        # it is not on the table as far as the enemy knows
-        gap = distance(state, frame.pos, other.pos)
+        # A cloaked frame is not skipped: its images are what an enemy card
+        # picks (`effects._frame_options` offers them, `_target_frame` maps the
+        # answer back here), and it is in reach if any of them is.
+        gap = gap_between(state, frame, other)
         if gap is None or gap > reach:
             continue
         out.append(other)
     out.sort(key=lambda f: (f.seat == frame.seat, f.id))
     return out
+
+
+def free_tiles_from(
+    state: GameState, frame: FrameState, reach: int
+) -> list[Pos]:
+    """`free_tiles` measured from any of `frame`'s origins, in board order.
+
+    Behind Ephemeral Images a card that puts something down "within N" may
+    measure that N from whichever image suits -- one storm, anywhere in range
+    of any of them -- so the legal tiles are the union.
+    """
+    seen: set[Pos] = set()
+    for origin in origins(state, frame):
+        seen.update(free_tiles(state, origin, reach))
+    return sorted(seen, key=lambda p: (p.y, p.x))
 
 
 def free_tiles(

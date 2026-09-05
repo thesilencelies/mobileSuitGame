@@ -504,7 +504,14 @@ def test_striking_the_real_image_hits_the_frame_and_ends_the_trick():
     ], "the images go once the frame has been found"
 
 
-def test_the_images_move_as_the_frame_does():
+def test_the_real_image_goes_where_the_frame_goes_and_nothing_else_does():
+    """Each image is its own piece; only the one the frame stands on follows it.
+
+    They used to be dragged along at a fixed offset so a lone move could not
+    say which was real. That is not needed and is now the wrong shape: the
+    pieces are indistinguishable, so an enemy that shoves one learns only that
+    it shoved one -- and each of them can be moved by name.
+    """
     state, frame, foe = duel(gap=6)
     play(state, frame, effects.EPHEMERAL)
     _, fakes = _images(state, frame)
@@ -512,10 +519,241 @@ def test_the_images_move_as_the_frame_does():
     frame.pos = Pos(frame.pos.x + 2, frame.pos.y + 1)
     effects.sync_images(state)
     real, fakes = _images(state, frame)
-    assert real.pos == frame.pos
+    assert real.pos == frame.pos, "the frame is standing on it"
     for fake in fakes:
-        assert fake.pos != before[fake.id], "a fake left behind gives it away"
-        assert state.board.distance(fake.pos, frame.pos) <= 1
+        assert fake.pos == before[fake.id], "nothing moved them"
+    assert effects.is_cloaked(state, frame)
+
+
+def _walk_images(state, frame, uid, pick=None):
+    """Run the per-image movement the frame's card grants. Returns the moves.
+
+    `pick(options) -> option` chooses each image's tile; the default takes the
+    furthest one offered, which is the interesting case.
+    """
+    state.resolution = Resolution(frame_id=frame.id, uid=uid, steps=[])
+    effects.after_move(state, frame, frame.pos, frame.pos)
+    asked = 0
+    decision, state.pending = state.pending, None
+    while decision is not None:
+        asked += 1
+        assert decision.kind == "effect_choice" and decision.pick_kind == "move"
+        options = [o for o in decision.options if "x" in o]
+        chosen = pick(options) if pick else max(
+            options,
+            key=lambda o: state.board.distance(frame.pos, Pos(o["x"], o["y"])),
+        )
+        decision = answer(state, decision, chosen)
+    return asked
+
+
+def test_each_image_walks_on_its_own_when_the_frame_acts():
+    """"These tokens use this frame's actions" -- so each of them moves.
+
+    They used to be dragged along at a fixed offset. Now the frame's own move
+    is one answer and each fake is another, so the three can spread out.
+    """
+    state, frame, _ = duel(gap=9)
+    play(state, frame, effects.EPHEMERAL)
+    _, fakes = _images(state, frame)
+    before = {f.id: f.pos for f in fakes}
+    home = frame.pos
+
+    uid = give(state, frame, "Basic_Sprint")
+    budget = kw.movement_budget(state, frame, CATALOGUE["Basic_Sprint"])
+    assert budget > 1, "the card has to actually grant a move"
+    assert _walk_images(state, frame, uid) == len(fakes), "one question per fake"
+
+    assert frame.pos == home, "the frame itself did not move"
+    _, fakes = _images(state, frame)
+    for fake in fakes:
+        assert fake.pos != before[fake.id]
+        assert state.board.distance(fake.pos, before[fake.id]) <= budget
+    assert any(state.board.distance(f.pos, frame.pos) > 1 for f in fakes), (
+        "an image can walk away from the frame, which is the point of them"
+    )
+    effects.sync_images(state)
+    assert effects.is_cloaked(state, frame), "spreading out is not a reveal"
+    assert all(f.alive for f in fakes)
+
+
+def test_an_action_may_be_counted_from_any_image():
+    """"effects can be counted from any of them": range and sight both."""
+    state = make_state(width=20, height=20)
+    state.phase = "action"
+    frame = add_frame(state, 0, "Kamikiri", Pos(2, 2))
+    foe = add_frame(state, 1, "Hector MkI", Pos(2, 8))
+    card = CATALOGUE["Basic_Punch"]                       # melee, adjacent only
+
+    play(state, frame, effects.EPHEMERAL)
+    assert not combat.can_target(state, frame, card, foe.pos, foe), "nowhere near"
+
+    _, fakes = _images(state, frame)
+    fakes[0].pos = Pos(2, 7)                              # one image walks up
+    assert combat.can_target(state, frame, card, foe.pos, foe), (
+        "the image next to the target is what the action is counted from"
+    )
+    assert combat.zones_in_range(state, frame, card, foe.pos, foe)
+    assert not combat.zones_in_range(
+        state, frame, card, foe.pos, foe, origin=frame.pos
+    ), "and not from the frame's own tile, which is still six tiles away"
+
+
+def test_a_fake_that_would_have_dealt_damage_is_removed():
+    """"the fakes are removed ... if they would deal damage".
+
+    All three swing. The one that hit was real; any fake that also reached is
+    revealed for what it is. A fake out of reach swung at nothing and stays.
+    """
+    state = make_state(width=20, height=20)
+    state.phase = "action"
+    frame = add_frame(state, 0, "Kamikiri", Pos(2, 2))
+    foe = add_frame(state, 1, "Hector MkI", Pos(3, 2))
+    play(state, frame, effects.EPHEMERAL)
+    real, fakes = _images(state, frame)
+    near, far = fakes
+    near.pos = Pos(3, 1)                       # also next to the target
+    far.pos = Pos(2, 9)                        # nowhere near it
+
+    run_attack(state, frame, give(state, frame, "Basic_Punch"), foe)
+    assert sum(foe.damage.values()) > 0, "the attack landed"
+    assert not near.alive, "it reached, so it gave itself away"
+    assert far.alive, "it could not have hit anything"
+    assert real.alive and effects.is_cloaked(state, frame), "two images left"
+
+
+def test_an_image_is_targeted_in_the_frames_place_and_the_debuff_sticks():
+    """"Each image is treated as a frame in itself for interactions and
+    targeting", and "debuffs that target an image are passed onto the original".
+    """
+    state = make_state(width=20, height=20)
+    state.phase = "action"
+    mystic = add_frame(state, 0, "Hannael", Pos(4, 4))
+    ally = add_frame(state, 0, "Flamekin", Pos(6, 6))
+    foe = add_frame(state, 1, "Hector MkI", Pos(5, 5))
+    play(state, mystic, effects.EPHEMERAL)
+    images = set(effects.image_tokens(state, mystic))
+    assert len(images) == 3
+
+    uid, decision = play(state, foe, effects.LOCKDOWN)
+    assert decision is not None
+    assert {o["token"] for o in decision.options if "token" in o} == images, (
+        "three images are three things to aim at"
+    )
+    assert {o.get("frame") for o in decision.options} == {None, ally.id}, (
+        "the hidden frame itself is not offered; the visible one is"
+    )
+
+    answer(state, decision, {"token": sorted(images)[0]})
+    assert mystic.statuses["slowed"] > 0 and mystic.statuses["stunned"] > 0, (
+        "aimed at an image, landed on the frame -- even if that image was a fake"
+    )
+    assert effects.is_cloaked(state, mystic), "and it is still hiding"
+
+
+def test_a_displaced_image_moves_on_its_own():
+    """"Each image can be individually moved using say Displace."
+
+    A decoy that is shoved goes by itself and the frame stays put, which gives
+    nothing away: the pieces are indistinguishable, so shoving one tells the
+    shover only that it shoved one.
+    """
+    state = make_state(width=20, height=20)
+    state.phase = "action"
+    mystic = add_frame(state, 0, "Hannael", Pos(4, 4))
+    tactician = add_frame(state, 1, "Hector MkI", Pos(6, 4))
+    play(state, mystic, effects.EPHEMERAL)
+    real, fakes = _images(state, mystic)
+    home = mystic.pos
+    fake = fakes[0]
+    where = fake.pos
+
+    _uid, decision = play(state, tactician, effects.DISPLACE)
+    assert decision is not None
+    picked = next(o for o in decision.options if o.get("token") == fake.id)
+    decision = answer(state, decision, picked)
+    assert decision is not None, "then where it goes"
+    spot = next(o for o in decision.options
+                if (o["x"], o["y"]) != (where.x, where.y))
+    answer(state, decision, spot)
+
+    assert fake.pos == Pos(spot["x"], spot["y"]), "the image was displaced"
+    assert mystic.pos == home, "the frame was not"
+    assert real.pos == mystic.pos
+    assert effects.is_cloaked(state, mystic)
+
+
+def test_teleport_takes_every_image_with_it():
+    """"When they use Teleport each image teleports, as they all use the
+    abilities" -- asked once per image, the real one carrying the frame."""
+    state = make_state(width=20, height=20)
+    state.phase = "action"
+    mystic = add_frame(state, 0, "Hannael", Pos(4, 4))
+    play(state, mystic, effects.EPHEMERAL)
+    real, _fakes = _images(state, mystic)
+    before = {t: state.tokens[t].pos for t in effects.image_tokens(state, mystic)}
+
+    _uid, decision = play(state, mystic, effects.TELEPORT)
+    asked = 0
+    far = [Pos(15, 15), Pos(16, 16), Pos(15, 16)]
+    while decision is not None:
+        asked += 1
+        spot = next(o for o in decision.options
+                    if Pos(o["x"], o["y"]) in far)
+        decision = answer(state, decision, spot)
+    assert asked == len(before), "one question per image"
+
+    effects.sync_images(state)
+    now = {t: state.tokens[t].pos for t in effects.image_tokens(state, mystic)}
+    assert all(now[t] != before[t] for t in now), "all three went"
+    assert mystic.pos == now[real.id], "the frame is under the real one"
+    assert effects.is_cloaked(state, mystic)
+
+
+def test_one_storm_is_placed_in_range_of_any_image():
+    """"If they use storm one storm is placed in range of all of them."
+
+    One token, and the "within 5" may be measured from whichever image suits.
+    """
+    state = make_state(width=20, height=20)
+    state.phase = "action"
+    mystic = add_frame(state, 0, "Hannael", Pos(3, 3))
+    play(state, mystic, effects.EPHEMERAL)
+    _real, fakes = _images(state, mystic)
+    fakes[0].pos = Pos(14, 14)                      # one image walks off
+
+    _uid, decision = play(state, mystic, effects.PSYCHIC_STORM)
+    assert decision is not None
+    tiles = {(o["x"], o["y"]) for o in decision.options}
+    reach = effects.STORM_RADIUS
+    assert any(state.board.distance(Pos(*t), fakes[0].pos) <= reach
+               and state.board.distance(Pos(*t), mystic.pos) > reach
+               for t in tiles), "in range of the far image and nothing else"
+
+    spot = next(t for t in sorted(tiles)
+                if state.board.distance(Pos(*t), fakes[0].pos) <= reach
+                and state.board.distance(Pos(*t), mystic.pos) > reach)
+    answer(state, decision, {"x": spot[0], "y": spot[1]})
+    storms = [t for t in state.tokens.values() if t.kind == fx.STORM and t.alive]
+    assert len(storms) == 1, "one storm, not one per image"
+    assert storms[0].pos == Pos(*spot)
+
+
+def test_a_blocked_attack_leaves_the_images_standing():
+    """No damage was dealt, so no fake was shown up."""
+    state = make_state(width=20, height=20)
+    state.phase = "action"
+    frame = add_frame(state, 0, "Kamikiri", Pos(2, 2))
+    foe = add_frame(state, 1, "Hector MkI", Pos(3, 2))
+    play(state, frame, effects.EPHEMERAL)
+    _, fakes = _images(state, frame)
+    fakes[0].pos = Pos(3, 1)
+
+    give(state, foe, "Basic_Block")
+    run_attack(state, frame, give(state, frame, "Basic_Punch"), foe)
+    assert sum(foe.damage.values()) == 0, "the block held"
+    assert all(f.alive for f in fakes)
+    assert effects.is_cloaked(state, frame)
 
 
 def test_one_image_left_is_no_disguise_at_all():
@@ -576,21 +814,31 @@ def test_utter_darkness_makes_everything_within_five_untargetable_next_turn():
     }
 
 
-def test_encode_the_future_lets_the_chosen_ally_commit_from_its_deck():
+def test_encode_the_future_lets_every_ally_commit_from_its_deck():
+    """"Next turn: allied frames choose cards from their deck" -- all of them.
+
+    The card used to name one ally and ask which; it now names the side, so
+    the effect arms every frame on it and asks nothing.
+    """
     state = make_state()
     mystic = add_frame(state, 0, "Hannael", Pos(2, 2))
     ally = add_frame(state, 0, "Flamekin", Pos(3, 3))
+    enemy = add_frame(state, 1, "Fenrir", Pos(8, 8))
     hand = give(state, ally, "Spear_Thrust", location="hand")
     deck = give(state, ally, "Halberd_Crush", location="deck")
+    mine = give(state, mystic, "Spear_Thrust", location="hand")
+    mine_deck = give(state, mystic, "Halberd_Crush", location="deck")
+    theirs = give(state, enemy, "Spear_Thrust", location="hand")
+    give(state, enemy, "Halberd_Crush", location="deck")
 
     uid, decision = play(state, mystic, effects.ENCODE)
-    assert {o["frame"] for o in decision.options} == {mystic.id, ally.id}
-    answer(state, decision, {"frame": ally.id})
+    assert decision is None, "there is nothing left to choose"
     assert effects.commit_pool(state, ally) == [hand], "not this turn"
 
     carry_over(state, uid)
     assert set(effects.commit_pool(state, ally)) == {hand, deck}
-    assert effects.commit_pool(state, mystic) == [], "only the chosen frame"
+    assert set(effects.commit_pool(state, mystic)) == {mine, mine_deck}, "itself too"
+    assert effects.commit_pool(state, enemy) == [theirs], "allies only"
 
     carry_over(state)
     assert effects.commit_pool(state, ally) == [hand], "one turn only"
@@ -1241,14 +1489,32 @@ def test_combo_strike_adds_a_second_attack_from_the_same_weapon():
     )
 
 
-def test_combo_strike_holds_its_charge_if_the_attack_resolved_first():
+def test_combo_strike_rides_every_attack_until_the_end_of_next_turn():
+    """"Until the end of next turn: when resolving attacks from this frame..."
+
+    The card in play is the whole state, so it rides each attack in turn --
+    including one whose attack step the controller already ran, which simply
+    has nothing to add to and does not spend the card.
+    """
     state, attacker, _ = duel()
-    play(state, attacker, effects.COMBO_STRIKE)
+    uid, _ = play(state, attacker, effects.COMBO_STRIKE)
     give(state, attacker, "Halberd_Crush", location="deck")
-    swing = give(state, attacker, "Halberd_Eviscerate")
-    state.resolution = Resolution(frame_id=attacker.id, uid=swing, steps=[])
-    assert effects.resolve_effect(state, attacker, swing) is None
-    assert fx.slot(state, "combo")[attacker.id]["armed"], "still armed for next time"
+
+    early = give(state, attacker, "Halberd_Eviscerate")
+    state.resolution = Resolution(frame_id=attacker.id, uid=early, steps=[])
+    assert effects.resolve_effect(state, attacker, early) is None, (
+        "the attack already happened: nothing to add to"
+    )
+
+    first = give(state, attacker, "Halberd_Sweep")
+    state.resolution = Resolution(frame_id=attacker.id, uid=first, steps=["attack"])
+    assert effects.resolve_effect(state, attacker, first) is not None
+
+    carry_over(state, uid)
+    give(state, attacker, "Halberd_Crush", location="deck")
+    later = give(state, attacker, "Halberd_Sweep")
+    state.resolution = Resolution(frame_id=attacker.id, uid=later, steps=["attack"])
+    assert effects.resolve_effect(state, attacker, later) is not None, "next turn too"
 
 
 def test_snipers_aim_extends_range_ignores_obstacles_and_adds_damage():
@@ -1309,11 +1575,20 @@ def test_practiced_technique_stacks_damage_across_one_weapon_next_turn():
     )
 
     carry_over(state, uid)
+
+    def completed(key):
+        """A card of `key` that has already resolved this turn."""
+        state.cards[give(state, attacker, key)].resolved = True
+
     give(state, attacker, "Halberd_Crush")
+    assert effects.attack_damage_bonus(state, attacker, card, defender.id) == ({}, 0), (
+        "'each other completed attack' -- one still face down is not completed"
+    )
+    completed("Halberd_Crush")
     assert effects.attack_damage_bonus(state, attacker, card, defender.id) == ({}, 1)
-    give(state, attacker, "Halberd_Sweep")
+    completed("Halberd_Sweep")
     assert effects.attack_damage_bonus(state, attacker, card, defender.id) == ({}, 2)
-    give(state, attacker, "Spear_Thrust")
+    completed("Spear_Thrust")
     assert effects.attack_damage_bonus(state, attacker, card, defender.id) == ({}, 2), (
         "another weapon adds nothing"
     )
@@ -1513,7 +1788,10 @@ def test_a_token_shot_out_of_a_carrier_drops_toward_the_drone():
     enemy = add_frame(state, 1, "Hector MkI", Pos(10, 10))
     summon(state, frame, "Gun Tower_Gun Tower 1", Pos(3, 10))
     drone = next(t for t in state.tokens.values() if t.kind == fx.DRONE)
-    drone.pos = Pos(15, 10)                         # the far side of the enemy
+    # The far side of the enemy, at the tower's printed reach: the point is
+    # which way the token falls, so the shot has to actually connect.
+    reach = CATALOGUE["Gun Tower_Gun Tower 1"].ranges["High"]
+    drone.pos = Pos(enemy.pos.x + reach, 10)
     shiny = TokenState(id="s", kind="shiny", pos=enemy.pos, carriable=True,
                        objective="Shiny Thing", carrier=enemy.id)
     state.tokens[shiny.id] = shiny
@@ -1626,21 +1904,22 @@ def test_crawl_summons_a_drone_that_attacks_low():
 
 
 def test_a_gun_tower_is_placed_at_range_and_shoots_without_moving():
-    """"Summon one Gun Tower within 3" -- a turret, not a pet.
+    """"Summon one Gun Tower within N" -- a turret, not a pet.
 
     Placement reach and count both come off the printed text, so the card
     needed no handler of its own: `_effect_handler` matches it on being a
     drone card at all.
     """
-    state, frame, enemy = duel(gap=6)
     card = CATALOGUE["Gun Tower_Gun Tower 1"]
+    reach = effects._reach_from_text(card.text, 1)
+    state, frame, enemy = duel(gap=card.ranges["High"])
     assert card.drone_movement == 0, "it does not move"
 
     uid, decision = play(state, frame, "Gun Tower_Gun Tower 1")
     assert decision is not None
     gaps = {state.board.distance(frame.pos, Pos(o["x"], o["y"]))
             for o in decision.options}
-    assert gaps and max(gaps) == 3, "'within 3' is read off the card"
+    assert gaps and max(gaps) == reach, "'within N' is read off the card"
     assert answer(state, decision, {"x": 4, "y": 2}) is None
 
     towers = [t for t in state.tokens.values() if t.kind == fx.DRONE]
@@ -1649,13 +1928,13 @@ def test_a_gun_tower_is_placed_at_range_and_shoots_without_moving():
     assert tower.pos == Pos(4, 2)
     assert tower.hp == card.drone_health == 2
 
-    # It cannot close, but it does not need to: High 1 at range 8. With one
-    # target and nothing to block with there is nothing to ask, so the whole
-    # of the tower's turn happens inside this call.
+    # It cannot close, but it does not need to: it shoots at its printed
+    # range. With one target and nothing to block with there is nothing to
+    # ask, so the whole of the tower's turn happens inside this call.
     assert effects.followup_decision(state) is False
     assert tower.pos == Pos(4, 2), "a turret stays put"
     assert enemy.damage["High"] == 1, "it shoots from where it was built"
-    assert state.board.distance(tower.pos, enemy.pos) == 4, "well out of reach"
+    assert state.board.distance(tower.pos, enemy.pos) > 1, "well out of reach"
 
 
 def test_attack_dogs_come_out_two_at_a_time():
@@ -1871,11 +2150,12 @@ def test_revealed_frames_stay_face_up_as_the_turn_runs():
 
 def test_effect_bookkeeping_survives_a_clone_without_sharing_it():
     state, frame, _ = duel()
-    play(state, frame, effects.COMBO_STRIKE)
+    play(state, frame, effects.ENCODE)
+    armed = fx.slot(state, "encode")[frame.id]
     copy = state.clone()
-    assert fx.slot(copy, "combo")[frame.id]["armed"]
-    fx.slot(copy, "combo")[frame.id] = {"armed": False}
-    assert fx.slot(state, "combo")[frame.id]["armed"], "the clone is independent"
+    assert fx.slot(copy, "encode")[frame.id] == armed
+    fx.slot(copy, "encode").pop(frame.id)
+    assert fx.slot(state, "encode")[frame.id] == armed, "the clone is independent"
 
 
 def test_tokens_created_by_effects_are_deterministic():

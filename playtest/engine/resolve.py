@@ -788,18 +788,67 @@ def _run_steps(state: GameState) -> bool:
     return False
 
 
-def _movement_decision(state: GameState, frame: FrameState, card: Card) -> bool:
-    budget = kw.movement_budget(state, frame, card)
-    if budget <= 0 or frame.pos is None or state.board is None:
-        return False
+#: How far past the budget a movement decision prices tiles it is *not*
+#: offering. Two is enough to cover a climb the frame cannot afford (entering
+#: elevation 2 from the ground costs 3), which is the case that otherwise reads
+#: as the engine refusing a step for no stated reason.
+OUT_OF_REACH_MARGIN = 2
+
+
+def _walk(state: GameState, frame: FrameState, card: Card, budget: int):
+    """`walk_options` plus the effects that re-price it, at one budget."""
     options = state.walk_options(
         frame, budget,
         flying=kw.is_flying(frame),
         climb_free=effects.ignores_elevation(state, frame),
     )
-    options = effects.adjust_move_options(state, frame, budget, options)
+    return effects.adjust_move_options(state, frame, budget, options)
+
+
+def _out_of_reach(
+    state: GameState,
+    frame: FrameState,
+    card: Card,
+    budget: int,
+    options: Sequence[Mapping[str, Any]],
+) -> list[dict[str, Any]]:
+    """Tiles the frame cannot afford *because of the terrain*, priced.
+
+    Not answers -- they go in `context`, never in `options`. The point is the
+    unexplained refusal: a tile that is simply too far away explains itself,
+    but one the frame is standing next to and still cannot enter does not, and
+    a player looking at a gap in the green is left inferring a rule from an
+    absence. So this keeps only the tiles whose step off the frontier costs
+    more than a step, which is exactly the climbs (entering elevation 2 from
+    the ground is 3) and nothing else.
+    """
+    if state.board is None:
+        return []
+    reached = {(o["x"], o["y"]): int(o["cost"]) for o in options}
+    out: list[dict[str, Any]] = []
+    for option in _walk(state, frame, card, budget + OUT_OF_REACH_MARGIN):
+        spot = (option["x"], option["y"])
+        if spot in reached:
+            continue
+        cost = int(option["cost"])
+        steps = [
+            cost - reached[(n.x, n.y)]
+            for n in state.board.neighbours(Pos(*spot))
+            if (n.x, n.y) in reached
+        ]
+        if steps and min(steps) > 1:
+            out.append({"x": spot[0], "y": spot[1], "cost": cost})
+    return out
+
+
+def _movement_decision(state: GameState, frame: FrameState, card: Card) -> bool:
+    budget = kw.movement_budget(state, frame, card)
+    if budget <= 0 or frame.pos is None or state.board is None:
+        return False
+    options = _walk(state, frame, card, budget)
     if not options:
         return False
+    beyond = _out_of_reach(state, frame, card, budget, options)
     state.pending = PendingDecision(
         kind="move",
         # Normally the frame's own seat -- but System Override hands the next
@@ -812,6 +861,7 @@ def _movement_decision(state: GameState, frame: FrameState, card: Card) -> bool:
         prompt=f"{card.name}: move {frame.id} (up to {budget})",
         options=options,
         frame_id=frame.id,
+        context={"budget": budget, "outOfReach": beyond} if beyond else {"budget": budget},
     )
     return True
 
