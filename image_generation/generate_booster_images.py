@@ -8,9 +8,10 @@ mech figure (from pictures/foreground/, excluding collective figures) over a
 layered rocket-engine flare:  yellow-orange jagged outer burst → orange mid
 burst → blue plasma → white-blue hot core.
 
-Output filenames: booster_<sanitised_name>.png
-Update the CardImg column in "Booster actions.csv" to
-booster_pictures/booster_<sanitised_name>.png to use these images.
+Output filenames: Booster_<sanitised_name>.png -- capitalised to match the
+CardImg column in "Booster actions.csv" (booster_pictures/Booster_<name>.png)
+and the rest of the card art. They used to be written lowercase, which only
+worked because TeX Live's kpathsea quietly falls back to a case-folded search.
 """
 
 import csv
@@ -243,12 +244,12 @@ def main() -> None:
             # Seed selection with card name so the same card always picks the
             # same foreground, but different cards get different figures.
             fg_path = random.Random(hash(name)).choice(fg_images)
-            out     = os.path.join(OUTPUT_DIR, f"booster_{sanitise(name)}.png")
+            out     = os.path.join(OUTPUT_DIR, f"Booster_{sanitise(name)}.png")
             print(f"Generating {name!r} …")
             generate_booster_image(name, fg_path, out)
 
-    print("\nDone.  Update CardImg in 'Booster actions.csv' to e.g.:")
-    print("  booster_pictures/booster_<Name>.png")
+    print("\nDone.  CardImg in 'Booster actions.csv' reads e.g.:")
+    print("  booster_pictures/Booster_<Name>.png")
 
 
 if __name__ == "__main__":

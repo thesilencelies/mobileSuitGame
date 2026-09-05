@@ -63,7 +63,7 @@ Scripts that procedurally generate card artwork. All paths are resolved relative
 |---|---|---|
 | `generate_backgrounds.py` | `pictures/backgrounds/<Group>_bg.png` | Deterministic radial-streak background per faction group |
 | `generate_weapon_images.py` | `pictures/weapon_pictures/<name>.png` | Weapon sprite + motion-line arcs/rays per attack zone |
-| `generate_booster_images.py` | `pictures/booster_pictures/booster_<name>.png` | Mech foreground over rocket-engine flare |
+| `generate_booster_images.py` | `pictures/booster_pictures/Booster_<name>.png` | Mech foreground over rocket-engine flare |
 | `set_background_to_transparency.py` | `<input>_t.png` (sibling file) | Converts white pixels to alpha; accepts a file or folder |
 
 Run each from any directory: `python image_generation/<script>.py`
