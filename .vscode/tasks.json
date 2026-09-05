@@ -170,6 +170,29 @@
       "group": "build"
     },
     {
+      "label": "upload rules",
+      "command": "python3",
+      "type": "shell",
+      "args": [
+        "upload_rules.py"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": "build"
+    },
+    {
+      "label": "create and publish rules",
+      "type": "shell",
+      "command": "echo published",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "create rules",
+        "upload rules"
+      ],
+      "group": "build"
+    },
+    {
       "label": "create all",
       "type": "shell",
       "command": "echo created",
