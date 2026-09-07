@@ -217,3 +217,150 @@ class CamperAgent:
         take = min(int((view.get("pending") or {}).get("pickMax") or 2), len(options))
         best = sorted(options, key=rank, reverse=True)[:take]
         return [str(o["uid"]) for o in best]
+
+
+class BaiterAgent:
+    """Strips the guard with cheap fast attacks, then lands one killing blow.
+
+    Modelled on how a human actually beat this AI. Blocking is compulsory and
+    spends the blocker, so an attack that is *certain* to be blocked is not a
+    wasted action -- it is a card taken off the defender. Two real games went
+    the same way: cheap fast hits pulled the blocks out, the defender's big
+    slow weapons were eaten before they swung, and the kill was a single card
+    taking a zone from full armour to destroyed.
+
+    That is a strategy no parameter setting of `Agent` plays, which is the
+    point of it being here. A panel of tuned variants of one scorer cannot
+    price a defence against a tactic none of its members use, and `bait` was
+    measured as a loss against exactly such a panel.
+
+    The rule, in full:
+
+    * commit the **fastest cheap attack** it holds and the **biggest single
+      zone hit**, in that order of preference -- the first to force a block,
+      the second to arrive after the guard is gone;
+    * attack whichever enemy zone its damage would *finish*, else the softest;
+    * block with the least valuable card that is legal, never the best one.
+
+    Like the other baselines it reads only the seat's own view.
+    """
+
+    name = "baiter"
+
+    def __init__(self, seat: int, catalogue: Mapping[str, Any] | None = None,
+                 params: Any = None, seed: int = 0, name: str = "baiter") -> None:
+        self.seat = int(seat)
+        self.catalogue = dict(catalogue or {})
+        self.rng = random.Random(seed)
+        self.name = name
+        self.stats: dict[str, int] = {}
+
+    # -- reading a card off the raw catalogue JSON -----------------------
+
+    def _card(self, key: str) -> Mapping[str, Any]:
+        return self.catalogue.get(str(key)) or {}
+
+    @staticmethod
+    def _damage(card: Mapping[str, Any]) -> int:
+        return sum(int(v or 0) for v in (card.get("attacks") or {}).values())
+
+    @staticmethod
+    def _biggest_zone(card: Mapping[str, Any]) -> int:
+        values = [int(v or 0) for v in (card.get("attacks") or {}).values()]
+        return max(values) if values else 0
+
+    @staticmethod
+    def _init(card: Mapping[str, Any]) -> int:
+        got = card.get("initiative")
+        if isinstance(got, (list, tuple)) and got:
+            return int(got[0])
+        return int(got or 0)
+
+    def act(self, view: Mapping[str, Any]) -> Optional[Command]:
+        pending = view.get("pending")
+        if (
+            not pending
+            or pending.get("waiting")
+            or int(pending.get("seat", -1)) != self.seat
+        ):
+            return None
+        kind = str(pending.get("kind"))
+        options: Sequence[Mapping[str, Any]] = list(pending.get("options") or ())
+        if not options:
+            return None
+        self.stats[kind] = self.stats.get(kind, 0) + 1
+
+        if kind == "commit_actions":
+            return Command(kind, self.seat, {"uids": self._commit(view, options)})
+        if kind == "attack_target":
+            return Command(kind, self.seat, self._target(view, options))
+        if kind == "choose_block":
+            # Never spend a good card blocking: that is the trade it is trying
+            # to force on the other side, not to take itself.
+            worst = min(options, key=lambda o: self._damage(self._card(o.get("key"))))
+            return Command(kind, self.seat, {"uid": str(worst["uid"])})
+        if kind in ("move", "deploy", "effect_choice", "move_token",
+                    "place_objective"):
+            tiled = [o for o in options if "x" in o and "y" in o]
+            marks = [
+                f["pos"] for f in (view.get("frames") or ())
+                if int(f.get("seat", 0)) != self.seat and f.get("alive") and f.get("pos")
+            ]
+            if tiled and marks:
+                best = min(tiled, key=lambda o: min(
+                    max(abs(int(o["x"]) - int(m["x"])), abs(int(o["y"]) - int(m["y"])))
+                    for m in marks))
+                return Command(kind, self.seat, dict(best))
+        return Command(kind, self.seat, dict(self.rng.choice(list(options))))
+
+    def _commit(
+        self, view: Mapping[str, Any], options: Sequence[Mapping[str, Any]]
+    ) -> list[str]:
+        """One cheap fast attack to pull a block, one heavy hit to land."""
+        take = min(int((view.get("pending") or {}).get("pickMax") or 2), len(options))
+        attacks = [o for o in options if self._damage(self._card(o.get("key"))) > 0]
+        if len(attacks) < take:
+            return [str(o["uid"]) for o in options[:take]]
+        chosen: list[Mapping[str, Any]] = []
+        # The stripper: fastest, and cheap, so losing it to a block costs least.
+        stripper = max(
+            attacks,
+            key=lambda o: (self._init(self._card(o.get("key"))),
+                           -self._damage(self._card(o.get("key")))),
+        )
+        chosen.append(stripper)
+        # The hammer: the biggest hit on any one zone, which is what kills.
+        rest = [o for o in attacks if o is not stripper]
+        while rest and len(chosen) < take:
+            hammer = max(rest, key=lambda o: self._biggest_zone(self._card(o.get("key"))))
+            chosen.append(hammer)
+            rest = [o for o in rest if o is not hammer]
+        for option in options:
+            if len(chosen) >= take:
+                break
+            if option not in chosen:
+                chosen.append(option)
+        return [str(o["uid"]) for o in chosen[:take]]
+
+    def _target(
+        self, view: Mapping[str, Any], options: Sequence[Mapping[str, Any]]
+    ) -> dict[str, str]:
+        """Aim where the hit finishes a zone, else where it hurts most."""
+        frames = {str(f.get("id")): f for f in (view.get("frames") or ())}
+
+        def value(option: Mapping[str, Any]) -> tuple[int, int]:
+            zones = {str(z): int(d) for z, d in (option.get("zones") or {}).items()}
+            frame = frames.get(str(option.get("id")))
+            if frame is None or not zones:
+                return (0, sum(zones.values()))
+            armour = frame.get("armour") or {}
+            damage = frame.get("damage") or {}
+            kills = 0
+            for zone, hit in zones.items():
+                left = int(armour.get(zone, 0)) - int(damage.get(zone, 0))
+                if left > 0 and hit >= left:
+                    kills = 1
+            return (kills, sum(zones.values()))
+
+        best = max(options, key=value)
+        return {"kind": str(best["kind"]), "id": str(best["id"])}

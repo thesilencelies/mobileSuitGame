@@ -81,6 +81,15 @@ MAX_BLOCK_PROB = 0.88
 #: future hit above a real one. The default behind `AIParams.approach_falloff`.
 APPROACH_DISCOUNT = 0.72
 
+#: The largest one-shot risk `caution` can be asked to ignore. A zone counts
+#: as one-shot-able once the chance of it happening reaches
+#: `CAUTION_SPAN * (1 - caution)`. The span is small because the risks are:
+#: in the game this was calibrated on, 12 of 127 Mid-attacking cards in the
+#: pool could destroy the frame's Mid armour outright, which over two played
+#: cards is a 6% chance -- so a lever whose range stopped at 50% would have
+#: had one useful setting at either end and nothing in between.
+CAUTION_SPAN = 0.25
+
 #: Cost of committing an attack that a reload marker will swallow. The card
 #: does nothing whatsoever -- it does not attack, force a block or trigger an
 #: ability -- so it is a wholly wasted action, not merely a harmless one.
@@ -147,6 +156,11 @@ def profile(cards: Sequence[CardInfo], *, peak_q: float = 1.0) -> Profile:
             prof.atk_freq[zone] += 1
             prof.atk_vals[zone].append(damage)
     for zone in ZONES:
+        # Sorted once here so every later "how many of these hits kill me"
+        # question is a bisect rather than a scan. `threat_profile` asks it
+        # per zone per candidate hand, and the pool it asks about is the
+        # opponent's whole faction list -- hundreds of cards.
+        prof.atk_vals[zone].sort()
         prof.peak_atk[zone] = quantile(prof.atk_vals[zone], peak_q)
         prof.block_freq[zone] /= n
         prof.atk_weight[zone] /= n
@@ -177,7 +191,9 @@ def blend(prior: Profile, observed: Profile, weight: float) -> Profile:
         # observed peak is taken at face value; the prior's peak has already
         # been damped to a quantile of the faction pool.
         out.peak_atk[zone] = max(prior.peak_atk[zone], observed.peak_atk[zone])
-        out.atk_vals[zone] = list(prior.atk_vals[zone]) + list(observed.atk_vals[zone])
+        out.atk_vals[zone] = sorted(
+            list(prior.atk_vals[zone]) + list(observed.atk_vals[zone])
+        )
     out.inits = sorted(prior.inits + observed.inits)
     out.ranged_share = (
         prior.ranged_share * (1 - weight) + observed.ranged_share * weight
@@ -635,9 +651,19 @@ def token_value(
     if token.kind == "drone":
         # A drone attacks again every turn it survives, and nothing else in
         # this function would price it -- it belongs to no objective.
+        #
+        # `token_greed` is the correction a real game asked for: at turn 2 this
+        # came out at 2.2, as much as landing a 2-damage hit on a frame, and a
+        # frame walked the length of the board to swat a one-hit-point drone,
+        # arrived alone in front of three enemies and was killed. The value is
+        # real; what is missing is that a token cannot be *finished off* the
+        # way a frame can, so chasing one buys no victory points.
         turns_left = max(1, TURNS_PER_GAME - snap.turn + 1)
         progress = min(1.0, damage / max(1, token.hp))
-        return params.aggression * DRONE_KILL_VALUE * progress * turns_left * 0.5
+        return (
+            params.aggression * params.token_greed
+            * DRONE_KILL_VALUE * progress * turns_left * 0.5
+        )
     obj = snap.objective_for_token(token)
     if obj is None or obj.settled:
         return 0.0
@@ -660,12 +686,68 @@ def token_value(
 # --------------------------------------------------------------------------
 
 
-def threat_profile(
+def one_shot_risk(
     prof: Profile, health: Mapping[str, int], hand_len: int
+) -> dict[str, float]:
+    """Chance at least one card they play this turn destroys that zone outright.
+
+    Read off the profile as a rate rather than a threshold: what share of the
+    cards they could be holding would take a zone from `health` to dead in one
+    hit, compounded over the number of cards they are about to play. The
+    binomial form matters for the same reason it does in `block_probability` --
+    two cards at a 10% rate is 19%, not 20%, and over a whole game the linear
+    form drifts badly.
+    """
+    out: dict[str, float] = {}
+    total = max(1, prof.n)
+    for zone in ZONES:
+        values = prof.atk_vals[zone]
+        need = max(1, health.get(zone, 99))
+        lethal = len(values) - bisect_left(values, need)
+        rate = min(1.0, lethal / total)
+        out[zone] = 1.0 - (1.0 - rate) ** max(1, hand_len)
+    return out
+
+
+def threat_profile(
+    prof: Profile,
+    health: Mapping[str, int],
+    hand_len: int,
+    *,
+    caution: float = 0.0,
 ) -> tuple[dict[str, bool], dict[str, bool], dict[str, int]]:
-    """`(kill_risk, one_shot, need)` per zone for a defender with `health`."""
+    """`(kill_risk, one_shot, need)` per zone for a defender with `health`.
+
+    `caution` is how small a chance of being destroyed outright is still worth
+    covering: a zone counts as one-shot-able when that chance reaches
+    `1 - caution`. At 0 the only test is the old one -- the profile's damped
+    peak hit -- which is what this shipped with.
+
+    That peak is a quantile of the pool (`PRIOR_PEAK_QUANTILE`), and the
+    quantile turns out to be the wrong shape of question. Read against two
+    real games a human won 8-0 and 4-2: every one of the four frames that died
+    was killed by **one card, from full health on that zone**, and in the 8-0
+    the AI's Mid armour of 3 was one-shot by 12 of the 127 Mid-attacking cards
+    in the pool it was facing -- while the 0.9 quantile read 2, so `one_shot`
+    was False, `need` was 0, and the survival term contributed nothing at all
+    to the zone the frame actually died on. A rate answers "how likely is it
+    that one of the cards they are about to play kills me here"; a quantile
+    answers "is the typical card lethal", which nothing in this game ever is.
+    """
     press = {z: prof.atk_weight[z] * hand_len for z in ZONES}
     one_shot = {z: prof.peak_atk[z] >= max(1, health.get(z, 99)) for z in ZONES}
+    if caution > 0.0:
+        floor = CAUTION_SPAN * (1.0 - min(1.0, caution))
+        risk = one_shot_risk(prof, health, hand_len)
+        for zone in ZONES:
+            # `risk > 0` is not redundant with the floor: at `caution` 1.0 the
+            # floor is 0, and without this a zone nothing in their whole pool
+            # can destroy in one hit would be guarded as though something
+            # could. The lever is meant to say "guard what can actually be
+            # one-shot", not "guard everything".
+            one_shot[zone] = one_shot[zone] or (
+                risk[zone] > 0.0 and risk[zone] >= floor
+            )
     kill_risk = {
         z: one_shot[z] or (press[z] > 0 and press[z] * 2 >= max(1, health.get(z, 99)))
         for z in ZONES
@@ -675,7 +757,8 @@ def threat_profile(
     }
     n_one = {
         z: (
-            sum(1 for v in prof.atk_vals[z] if v >= max(1, health.get(z, 99)))
+            len(prof.atk_vals[z])
+            - bisect_left(prof.atk_vals[z], max(1, health.get(z, 99)))
             if one_shot[z]
             else 0
         )
@@ -689,10 +772,16 @@ def threat_profile(
 
 
 def survival_deficit(
-    cards: Sequence[CardInfo], prof: Profile, health: Mapping[str, int]
+    cards: Sequence[CardInfo],
+    prof: Profile,
+    health: Mapping[str, int],
+    *,
+    caution: float = 0.0,
 ) -> float:
     """How badly this hand fails to cover the coverable lethal threats."""
-    kill_risk, one_shot, need = threat_profile(prof, health, len(cards))
+    kill_risk, one_shot, need = threat_profile(
+        prof, health, len(cards), caution=caution
+    )
     if not any(kill_risk.values()):
         return 0.0
     has_super = {z: False for z in ZONES}
@@ -767,7 +856,9 @@ def score_hand(
             elif cards[i].reload:
                 reload_state.add(group)
 
-    kill_risk, one_shot, need_lethal = threat_profile(prof, health, n)
+    kill_risk, one_shot, need_lethal = threat_profile(
+        prof, health, n, caution=params.caution
+    )
     under_alpha = any(kill_risk.values()) and pressure > 0.3
 
     hitters = {z: 0 for z in ZONES}
@@ -857,6 +948,46 @@ def score_hand(
         weight = params.survival if one_shot[zone] else params.survival * 0.5
         survival += weight * pressure * min(held, need_lethal[zone])
 
+    # -- what the compulsory block is going to cost ------------------------
+    # Blocking is not optional: if a card in front of the frame covers the
+    # zone, one of them is spent, and if it had not resolved yet its own
+    # attack never happens. So the *shape* of a hand decides how much a turn
+    # of incoming attacks costs -- and the engine spends the cheapest legal
+    # blocker, so what matters per zone is the cheapest card covering it, not
+    # the average.
+    #
+    # This is the trade two real human wins turned on. Across those games the
+    # AI spent 8 and 6 blocks to the human's 3, and in the 4-2 it gave up 18
+    # damage of its own attacks to stop 9 -- blocking a 1-damage drone poke
+    # with a 5-damage Cannon and a 0-damage utility card with a 3-damage one.
+    # Cheap fast attacks bait out the blocks, the big slow weapon is eaten
+    # before it swings, and the kill lands on a frame with nothing left. The
+    # old scorer only ever *rewarded* covering a zone; nothing charged for
+    # covering it with the wrong card.
+    bait = 0.0
+    if params.bait > 0:
+        for zone in ZONES:
+            incoming = prof.atk_freq[zone] * n
+            if incoming <= 0:
+                continue
+            spends = []
+            for i, card in enumerate(cards):
+                if card.blocks.get(zone, 0) <= 0:
+                    continue
+                if card.blocks[zone] >= 2:
+                    spends.append(0.0)     # a super block is never discarded
+                    continue
+                if not card.is_attack or i in dud:
+                    spends.append(0.0)     # nothing to forfeit
+                    continue
+                # Only an attack that has not resolved yet loses anything, so
+                # this is the chance it is still waiting when the block lands.
+                spends.append(
+                    sum(card.attacks.values()) * (1.0 - rel_init(card, prof))
+                )
+            if spends:
+                bait += params.bait * min(1.0, incoming) * min(spends)
+
     concentration = params.concentration * sum(
         landing[z] for z in ZONES if hitters[z] >= 2
     )
@@ -874,7 +1005,7 @@ def score_hand(
             1.0 + sum(card.attacks.values())
         ) * opportunity.get(i, 1.0)
 
-    return offense + defense + concentration + survival + positional - waste
+    return offense + defense + concentration + survival + positional - waste - bait
 
 
 def softmax_pick(scores: Sequence[float], temperature: float, rng: random.Random) -> int:

@@ -23,6 +23,7 @@ from playtest.ai import (
     PRESETS,
     Agent,
     AIParams,
+    BaiterAgent,
     CamperAgent,
     GreedyAgent,
     RandomAgent,
@@ -235,6 +236,46 @@ def test_random_and_greedy_baselines_are_legal(catalogue):
     agents = {0: RandomAgent(seat=0, seed=1), 1: GreedyAgent(seat=1, seed=2)}
     state = play(state, agents)
     assert is_over(state)
+
+
+def test_the_baiter_baseline_forces_blocks_and_plays_legally(catalogue):
+    """The outside baseline built from how a human actually won.
+
+    It need not be strong -- it is not -- but it has to actually apply the
+    pressure it exists to apply, or `bait` is being measured against nothing.
+    """
+    state = make_game(seed=23)
+    agents = {
+        0: BaiterAgent(seat=0, catalogue=catalogue, seed=1),
+        1: Agent(seat=1, catalogue=catalogue, seed=2),
+    }
+    state = play(state, agents)
+    assert is_over(state)
+    forced = sum(
+        1 for entry in state.log
+        if "blocks with" in str(entry.get("text", ""))
+    )
+    assert forced, "the point of it is to pull blocks out of the other side"
+
+
+def test_the_baiter_baseline_forces_blocks_and_plays_legally(catalogue):
+    """The outside baseline built from how a human actually won.
+
+    It need not be strong -- it is not -- but it has to actually apply the
+    pressure it exists to apply, or `bait` is being measured against nothing.
+    """
+    state = make_game(seed=23)
+    agents = {
+        0: BaiterAgent(seat=0, catalogue=catalogue, seed=1),
+        1: Agent(seat=1, catalogue=catalogue, seed=2),
+    }
+    state = play(state, agents)
+    assert is_over(state)
+    forced = sum(
+        1 for entry in state.log
+        if "blocks with" in str(entry.get("text", ""))
+    )
+    assert forced, "the point of it is to pull blocks out of the other side"
 
 
 def test_the_camper_baseline_plays_a_legal_game_and_goes_for_the_ground(catalogue):
@@ -1181,6 +1222,76 @@ def test_live_card_text_is_never_pruned_as_dominated(cat):
     assert not S.dominates(spear, live)
     assert not S.carries_live_text(inert)
     assert S.carries_live_text(live)
+
+
+def test_a_rare_but_lethal_card_is_guarded_against(cat, catalogue):
+    """The failure two real human wins were built on.
+
+    Every one of the four frames that died across those games died to *one*
+    card, from full health on that zone. The scorer's old test asked whether
+    the pool's damped peak hit was lethal -- a question about the typical
+    card -- and on the zone that actually killed the frame it answered no: 12
+    of the 127 Mid-attacking cards in the pool could destroy Mid armour of 3
+    outright, and the 0.9 quantile of that pool reads 2. So `one_shot` was
+    False, `need` was 0, and the survival term contributed nothing at all.
+
+    The replacement asks how likely it is that one of the cards they are about
+    to play is lethal, which is the question a player is actually asking.
+    """
+    pool = [c for c in cat.cards.values() if c.attacks.get("Mid", 0) > 0][:200]
+    assert pool, "the catalogue must have Mid attackers"
+    prof = S.profile(pool, peak_q=0.9)
+    armour = {"High": 4, "Mid": 3, "Low": 3}
+    lethal = [c for c in pool if c.attacks.get("Mid", 0) >= armour["Mid"]]
+    assert lethal, "and some of them must be able to one-shot Mid armour of 3"
+    assert prof.peak_atk["Mid"] < armour["Mid"], (
+        "this test is only meaningful while the damped peak misses them"
+    )
+
+    # The old model: blind to it. (Sustained pressure may still flag the zone
+    # as risky -- what it cannot see is that one card ends the frame, which is
+    # what decides whether the survival term counts full or half.)
+    _risk, one_shot, need = S.threat_profile(prof, armour, 2, caution=0.0)
+    assert one_shot["Mid"] is False
+
+    # The shipped model: guards it, and asks for a blocker.
+    _risk, one_shot, need = S.threat_profile(
+        prof, armour, 2, caution=AIParams().caution
+    )
+    assert one_shot["Mid"] is True
+    assert need["Mid"] >= 1
+
+    # And it stays a claim about this zone. Nothing in the pool can take High
+    # armour of 4 off in one hit, so High is not guarded as though it could.
+    assert max(c.attacks.get("High", 0) for c in pool) < armour["High"]
+    assert one_shot["High"] is False
+
+    # And a hand that cannot cover it is scored as the gamble it is.
+    blind = [c for c in pool if "Mid" not in c.block_zones][:2]
+    if len(blind) == 2:
+        assert S.survival_deficit(
+            blind, prof, armour, caution=AIParams().caution
+        ) > 0
+
+
+def test_one_shot_risk_compounds_over_the_cards_they_will_play(cat):
+    """Two cards at a 10% rate is 19%, not 20% -- as in `block_probability`."""
+    pool = [c for c in cat.cards.values() if c.attacks.get("Mid", 0) > 0][:100]
+    prof = S.profile(pool)
+    armour = {"High": 9, "Mid": 3, "Low": 9}
+    one = S.one_shot_risk(prof, armour, 1)["Mid"]
+    two = S.one_shot_risk(prof, armour, 2)["Mid"]
+    assert 0.0 < one < two < 1.0
+    assert two == pytest.approx(1.0 - (1.0 - one) ** 2)
+    # A zone nothing in the pool can one-shot carries no risk at all.
+    assert S.one_shot_risk(prof, {"High": 99, "Mid": 99, "Low": 99}, 2)["Mid"] == 0.0
+
+
+def test_the_beginner_preset_does_not_see_the_one_shot_coming(catalogue):
+    """The difficulty gap is a model the beginner lacks, not a shaved weight."""
+    assert preset("beginner").caution == 0.0
+    assert preset("standard").caution > 0.0
+    assert preset("veteran").caution > 0.0
 
 
 def test_block_probability_is_not_linear_in_hidden_cards(cat, catalogue):

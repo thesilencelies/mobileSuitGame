@@ -419,6 +419,34 @@ def test_export_is_a_replayable_transcript(client: Client) -> None:
     )
 
 
+def test_export_records_the_seed_a_seedless_game_actually_used(
+    client: Client,
+) -> None:
+    """A game started with no seed still has to replay.
+
+    The client does not ask for a seed, so `new_game` picks one -- and an
+    export that wrote back the `null` it was handed dealt a different
+    battlefield on replay and diverged at the first deployment. Real games
+    saved by real players were unreadable for exactly this reason.
+    """
+    from playtest.ai import review
+
+    game_id, view = start(client, seed=None)
+    rng = random.Random(7)
+    for _ in range(600):
+        if view["over"]:
+            break
+        kind, payload = auto_payload(view["pending"], rng)
+        view = send(client, game_id, kind, payload)
+
+    doc = client.get(f"/api/game/{game_id}/export").json()
+    assert doc["config"]["requestedSeed"] is None
+    assert isinstance(doc["config"]["seed"], int)
+    state, problems = review.replay(doc)
+    assert problems == [], "a seedless game must still replay exactly"
+    assert state is not None
+
+
 def test_export_mid_game_holds_back_the_ai_hand(client: Client) -> None:
     """Exporting a running game must not show what the AI is holding."""
     game_id, view = start(client)

@@ -894,6 +894,57 @@ and it does **not** win more games, because the tiles it walks to are tiles it
 walks off the objectives to reach. Chasing contact is not free, and that is
 worth knowing before anyone else tries it.
 
+### What two real human wins showed
+
+Self-play cannot find a weakness both sides share, and a person who beats the
+AI every time is the only source of that. Two exported games — an 8-0 and a
+4-2, both against the *retuned* AI — say the same three things, and one of
+them was a hole in the model rather than a setting.
+
+**Every frame that died, died to one card.** All four kills across both games
+were one hit taking a zone from *full* armour to destroyed: Chainsaw_Disembowel
+4 into Mid 3, Chainsaw_Rip 4 into High 3, Halberd_Crush 3 into High 3 twice.
+And on the zone that killed it, the AI's survival term was contributing
+nothing: it tested whether the pool's damped peak hit was lethal — the 0.9
+quantile, a question about the *typical* card — and in the 8-0 that read 2
+against Mid armour of 3 while 12 of the 127 Mid-attacking cards in the pool
+could kill outright. `caution` replaces that test with a rate: how likely is it
+that one of the cards they are about to play is lethal here. Against opponents
+that do not move when the default does, it is worth **86% → 97%** against
+`camper`, 86% → 89% against `greedy`, and it beats the old model head to head
+by +0.32 VP a game.
+
+**The AI is losing the block-economy trade badly.** Blocking is compulsory and
+spends the card, so cheap fast attacks bait the blocks out. Across the two
+games the AI spent 8 and 6 blocks to the human's 3 — and in the 4-2 it gave up
+**18 damage of its own attacks to stop 9**, blocking a 1-damage drone poke with
+a 5-damage Cannon and a 0-damage utility card with a 3-damage one. The old
+scorer only ever *rewarded* covering a zone; nothing asked with what. `bait`
+charges a hand for the cheapest attack that will be eaten covering each zone.
+
+It ships at **0**, having been given every chance. The first objection to
+measuring it was fair — no opponent on the panel baits, so the panel could not
+price a defence against baiting — so `baiter` was built for the job: a
+baseline that plays the human's plan outright (fastest cheap attack to pull the
+block, biggest single-zone hit to land, and never block with a good card). It
+works as an exploit: `standard` spends **7.9** cards blocking against it
+against ~3.5 against anything else. And `bait` still does not pay even there —
+0.25 is worth +0.36 VP on that one matchup and nothing pooled, and every
+larger value is clearly negative. The behaviour is real (blocks and wasted
+actions both fall as it rises); the win is not. Probably the term is the wrong
+shape: it penalises a hand for *holding* blocks, when the right answer is to
+hold a cheap one alongside the big attack. `baiter` is in the panel now, so
+whoever picks this up next has the opponent to test against.
+
+**A frame walked across the board to kill a drone and died alone.** In the 8-0,
+Red Adam crossed from (3,1) to (7,10) over one turn to swat a one-hit-point
+drone token, arrived by itself in front of three enemy frames and was killed
+next turn. A drone is priced at `DRONE_KILL_VALUE * turns_left * 0.5` — 2.2 on
+turn 2, as much as landing a two-damage hit on a frame, and it cannot be
+finished off for a victory point. `token_greed` scales it; the arena measures
+it as **neutral** (58.1–59.0% across 0.0–1.0), so it ships at 1.0 and the
+finding is recorded rather than acted on.
+
 ### The levers
 
 Beyond the weights the client has always shown, these are the terms added
@@ -902,6 +953,9 @@ one at a time:
 
 | Lever | Default | What it moves |
 |---|---|---|
+| `caution` | 1.0 | How small a chance of losing a frame to a single hit is still worth guarding. The one lever below that came out of real games rather than a sweep, and the largest single gain after `objective_weight` |
+| `bait` | 0.0 | What the compulsory block is expected to cost this hand — the trade a human wins by baiting blocks out. Measured negative even against `baiter` |
+| `token_greed` | 1.0 | How much a drone or objective token is worth chasing. Measured neutral |
 | `lethality` | 0.0 | How much more a hit is worth for *finishing* a zone than for marking it. Only kills and objectives score, so damage that never converts is worth nothing. Trends positive; `veteran` runs it at 1.0 |
 | `reach` | 0.15 | What an attack is worth with nothing in range. 0 (refuse to commit one) measured *worse* — the card can still block |
 | `contact` | 0.0 | Step bonus for ending a move somewhere a committed attack can actually be delivered. Cuts wasted actions, costs objectives |
@@ -909,11 +963,13 @@ one at a time:
 | `endgame` | 1.0 | How hard objective value is discounted early. Both directions measured worse; the existing ramp was right |
 | `move_temperature` | 0.1 | Movement's own softmax temperature, previously hardwired to `temperature * 0.35` |
 
-`camper` — in `ai/baseline.py`, alongside `random` and `greedy` — is a
-strategy rather than a weaker scorer: it walks at the objectives and stands on
-them, built on the raw view dict with no shared model. It is the panel member
-that cannot share a mistake with the agent, and roughly what a person does on
-their first game.
+`camper` and `baiter` — in `ai/baseline.py`, alongside `random` and `greedy` —
+are strategies rather than weaker scorers, built on the raw view dict with no
+model shared with the agent. `camper` walks at the objectives and stands on
+them, which is roughly what a person does on their first game; `baiter` plays
+the plan that beat this AI twice. They are the panel members that cannot share
+a mistake with the agent, which is the only reason a panel is worth more than
+a mirror match.
 
 ## Saving a game to send on
 

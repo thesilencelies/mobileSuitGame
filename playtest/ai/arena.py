@@ -57,7 +57,7 @@ from ..engine import (
     view_for,
 )
 from .agent import Agent
-from .baseline import CamperAgent, GreedyAgent, RandomAgent
+from .baseline import BaiterAgent, CamperAgent, GreedyAgent, RandomAgent
 from .params import AIParams, PRESETS, params_from_dict, preset
 
 #: The default matchup: one squad per faction pairing, three frames a side.
@@ -92,6 +92,7 @@ PANEL: dict[str, str] = {
     "rush": "standard:aggression=2.0,defense=0.4,approach=1.8,survival=4",
     "objectives": "standard:objective_weight=3.5,aggression=0.7,positioning=1.6",
     "camper": "camper",
+    "baiter": "baiter",
     "greedy": "greedy",
 }
 
@@ -132,12 +133,14 @@ def parse_side(spec: str) -> Side:
         return Side("greedy", GreedyAgent)
     if spec == "camper":
         return Side("camper", CamperAgent)
+    if spec == "baiter":
+        return Side("baiter", BaiterAgent)
     base, _, rest = spec.partition(":")
     base = base or "standard"
     if base not in PRESETS:
         raise SystemExit(
             f"unknown preset {base!r}; choose from {', '.join(sorted(PRESETS))}, "
-            "'random', 'greedy' or 'camper'"
+            "'random', 'greedy', 'camper' or 'baiter'"
         )
     params = preset(base)
     if rest:
@@ -676,7 +679,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             sys.stdout.write("\n")
         return 0
     if args.matrix:
-        labels = list(PRESETS) + ["camper", "greedy", "random"]
+        labels = list(PRESETS) + ["camper", "baiter", "greedy", "random"]
         sides = [parse_side(label) for label in labels]
         for i, first in enumerate(sides):
             for second in sides[i + 1:]:

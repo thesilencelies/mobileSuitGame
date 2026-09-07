@@ -54,6 +54,26 @@ class AIParams:
     # a next turn. This is the term that decides whether the AI commits a
     # melee weapon with the enemy nine tiles away.
     reach: float = 0.15
+    # How small a chance of a frame being destroyed *outright*, by one card
+    # from full health on a zone, is still worth covering. See
+    # `scoring.threat_profile`: read against two games a human won 8-0 and
+    # 4-2, every one of the four frames that died died exactly that way, and
+    # on the zone that killed them the old test did not fire at all.
+    #
+    # Tuned to the top of its range, which is the finding and not a shrug: the
+    # sweep is monotone (0.3 and 0.55 never fire at all, 0.9 is worth +0.07 VP,
+    # 1.0 is worth +0.32) and 1.0 means "guard a zone if anything in their pool
+    # can take it out in one hit". Given that is how every frame died, the
+    # model was simply not paranoid enough. Worth +5.3 points of score rate and
+    # +0.45 VP a game over 840 panel games. Kept as a range because the
+    # difficulty presets want to turn it off, not because 0.5 is useful.
+    caution: float = 1.0
+    # What the compulsory block is expected to cost this hand. Blocking is not
+    # optional, so committing a big slow attack alongside nothing cheaper to
+    # cover the same zone is committing it to be eaten before it swings. 0 is
+    # the old behaviour, which only ever rewarded covering a zone and never
+    # asked with what.
+    bait: float = 0.0
 
     # -- the board ----------------------------------------------------------
     # Objectives are about half the victory points on offer and a kill is one,
@@ -92,6 +112,10 @@ class AIParams:
     # single setting measured anywhere (36.5%, -1.03 VP). Five turns is not
     # long enough to spend one walking, and the ground is worth more than the
     # swing.
+    # How much a drone or an objective token is worth shooting, against a
+    # frame. Tokens cannot be killed for a victory point, and a frame that
+    # walks across the board to swat one arrives alone.
+    token_greed: float = 1.0
     approach_falloff: float = 0.55
     # How sharply objective value ramps toward the last turn. The end-of-game
     # objectives are scored once, after turn 5, so what standing on one is
@@ -201,6 +225,26 @@ PARAM_SCHEMA: list[dict[str, Any]] = [
         "help": "What an attack is still worth with nothing in range; 0 refuses to commit one.",
     },
     {
+        "name": "caution",
+        "label": "Fear of the one-shot",
+        "type": "float",
+        "min": 0.0,
+        "max": 1.0,
+        "step": 0.05,
+        "default": AIParams.caution,
+        "help": "How small a chance of losing a frame to a single hit is still worth guarding.",
+    },
+    {
+        "name": "bait",
+        "label": "Block discipline",
+        "type": "float",
+        "min": 0.0,
+        "max": 4.0,
+        "step": 0.05,
+        "default": AIParams.bait,
+        "help": "How wary the AI is of committing a big attack that a forced block will eat first.",
+    },
+    {
         "name": "objective_weight",
         "label": "Objectives",
         "type": "float",
@@ -269,6 +313,16 @@ PARAM_SCHEMA: list[dict[str, Any]] = [
         "step": 0.1,
         "default": AIParams.contact,
         "help": "Reward for ending a move somewhere a committed attack can actually be delivered.",
+    },
+    {
+        "name": "token_greed",
+        "label": "Token hunting",
+        "type": "float",
+        "min": 0.0,
+        "max": 2.0,
+        "step": 0.05,
+        "default": AIParams.token_greed,
+        "help": "How much a drone or objective token is worth chasing, against attacking a frame.",
     },
     {
         "name": "approach_falloff",
@@ -375,6 +429,10 @@ PRESETS: dict[str, dict[str, Any]] = {
         "think_ms": 250,
         "temperature": 4.0,
         "move_temperature": 1.4,
+        # A beginner does not see the one-shot coming. This is the single
+        # largest thing separating it from `standard`, so it belongs here
+        # rather than in another shaved weight.
+        "caution": 0.0,
         "blunder_rate": 0.30,
     },
     "standard": {},

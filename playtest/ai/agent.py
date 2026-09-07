@@ -798,7 +798,9 @@ class Agent:
                     pressure=pressure,
                 )
             )
-            deficits.append(S.survival_deficit(hand, prof, health))
+            deficits.append(
+                S.survival_deficit(hand, prof, health, caution=params.caution)
+            )
 
         # Never gamble with survival: mix only among the survival-safest hands.
         floor = min(deficits)
@@ -1380,7 +1382,9 @@ class Agent:
         # to hit with at all.
         best_pair = min(
             (
-                S.survival_deficit([a, b], prof, frame.health)
+                S.survival_deficit(
+                    [a, b], prof, frame.health, caution=self.params.caution
+                )
                 for a, b in combinations(cards, 2)
             ),
             default=0.0,

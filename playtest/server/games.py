@@ -294,6 +294,17 @@ class Session:
                 entry["redacted"] = True
             transcript.append(entry)
         points = scores(self.state)
+        # The *resolved* seed, not the requested one. A game started with no
+        # seed picks one at random inside `new_game`, and without this the
+        # export of every such game -- which is most of them, since the client
+        # does not ask for a seed -- deals a different battlefield on replay
+        # and diverges at the first deployment. `state.seed` is the number the
+        # engine actually used, and it is what makes the transcript replayable.
+        config = dict(self.config)
+        config["seed"] = (
+            self.state.seed if self.state.seed is not None else config.get("seed")
+        )
+        config["requestedSeed"] = self.config.get("seed")
         return {
             "schema": "netframe.game-export/1",
             "gameId": self.id,
@@ -307,7 +318,7 @@ class Session:
             "aiSeat": self.ai_seat,
             "aiSource": self.ai_source,
             "aiParams": dict(self.ai_params),
-            "config": dict(self.config),
+            "config": config,
             "frames": [
                 {
                     "id": f.id,

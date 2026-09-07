@@ -21,7 +21,7 @@ parameter sets; that is how the defaults were tuned.
 """
 
 from .agent import Agent
-from .baseline import CamperAgent, GreedyAgent, RandomAgent
+from .baseline import BaiterAgent, CamperAgent, GreedyAgent, RandomAgent
 from .params import (
     DEFAULT_PRESET,
     PARAM_SCHEMA,
@@ -37,6 +37,7 @@ __all__ = [
     "RandomAgent",
     "GreedyAgent",
     "CamperAgent",
+    "BaiterAgent",
     "AIParams",
     "PARAM_SCHEMA",
     "PRESETS",
