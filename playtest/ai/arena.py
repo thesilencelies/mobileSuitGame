@@ -22,6 +22,16 @@ Examples::
     python -m playtest.ai.arena --games 40 --a standard --b 'standard:aggression=2'
     python -m playtest.ai.arena --matrix --games 20
     python -m playtest.ai.arena --sweep aggression=0.5,1.0,1.5,2.0 --games 20
+    python -m playtest.ai.arena --panel --games 12 --a 'standard:lethality=1'
+
+`--panel` is the one to trust and the one the shipped defaults were tuned
+with. A single matchup between two parameter sets is a measurement of one
+squad pairing and one seat as much as of the parameters: this harness moved
+by ten points between seeds on that basis, and every promising result from a
+first round of tuning evaporated when it was re-run on a fresh seed. `--panel`
+plays the candidate against several *styles* -- including two opponents that
+are not the scoring agent at all -- over every ordered pairing of four squads,
+and reports the victory-point margin, which is far less noisy than a win rate.
 """
 
 from __future__ import annotations
@@ -33,6 +43,7 @@ import statistics
 import sys
 import time
 from dataclasses import dataclass, field
+from itertools import permutations
 from typing import Any, Callable, Mapping, Optional, Sequence
 
 from ..engine import (
@@ -46,12 +57,43 @@ from ..engine import (
     view_for,
 )
 from .agent import Agent
-from .baseline import GreedyAgent, RandomAgent
+from .baseline import CamperAgent, GreedyAgent, RandomAgent
 from .params import AIParams, PRESETS, params_from_dict, preset
 
 #: The default matchup: one squad per faction pairing, three frames a side.
 DEFAULT_DECKS_A = ("deck_aegis_percival", "deck_aegis_hector", "deck_collective_adam")
 DEFAULT_DECKS_B = ("deck_guild_nautilus", "deck_ouwa_kamikiri", "deck_church_elemiah")
+
+#: Four cross-faction squads, used by `--panel`. Every ordered pair of these is
+#: played, so a panel run covers twelve deck matchups rather than one -- a
+#: parameter change that only helps against a particular squad shows up as a
+#: change that does not survive the other eleven.
+SQUADS: dict[str, tuple[str, ...]] = {
+    "aegis": DEFAULT_DECKS_A,
+    "guild": DEFAULT_DECKS_B,
+    "revolution": ("deck_revolution_flamekin", "deck_revolution_ripper",
+                   "deck_ouwa_kuwagata"),
+    "church": ("deck_church_hannael", "deck_guild_salaryman",
+               "deck_collective_fenrir"),
+}
+
+#: The opponents `--panel` measures a candidate against.
+#:
+#: Several *styles*, not several strengths, and two of them (`camper`,
+#: `greedy`) are not the scoring agent at all. That is the whole point: a
+#: panel made only of parameter variants of `Agent` measures a parameter set
+#: against its own family, and a change that exploits a blind spot they all
+#: share scores well on every one of them at once while playing no better.
+#: The defaults in `params.py` were tuned against exactly this.
+PANEL: dict[str, str] = {
+    "standard": "standard",
+    "veteran": "veteran",
+    "turtle": "standard:defense=2.2,survival=13,aggression=0.6,approach=0.5",
+    "rush": "standard:aggression=2.0,defense=0.4,approach=1.8,survival=4",
+    "objectives": "standard:objective_weight=3.5,aggression=0.7,positioning=1.6",
+    "camper": "camper",
+    "greedy": "greedy",
+}
 
 #: A stall guard. A 5-turn 3v3 game is a few hundred decisions; anything past
 #: this means the engine and the agents are not making progress.
@@ -82,18 +124,20 @@ _OVERRIDE_RE = re.compile(r"^([A-Za-z_]+)=(-?[0-9.]+)$")
 
 
 def parse_side(spec: str) -> Side:
-    """`"veteran"`, `"random"`, `"greedy"` or `"standard:aggression=2,pool=5"`."""
+    """`"veteran"`, `"random"`, `"greedy"`, `"camper"` or `"standard:aggression=2"`."""
     spec = spec.strip()
     if spec == "random":
         return Side("random", RandomAgent)
     if spec == "greedy":
         return Side("greedy", GreedyAgent)
+    if spec == "camper":
+        return Side("camper", CamperAgent)
     base, _, rest = spec.partition(":")
     base = base or "standard"
     if base not in PRESETS:
         raise SystemExit(
             f"unknown preset {base!r}; choose from {', '.join(sorted(PRESETS))}, "
-            "'random' or 'greedy'"
+            "'random', 'greedy' or 'camper'"
         )
     params = preset(base)
     if rest:
@@ -490,6 +534,89 @@ def print_matrix(reports: Sequence[MatchReport], file=None) -> None:
 
 
 # --------------------------------------------------------------------------
+# The panel: one candidate against several styles, over every deck pairing
+# --------------------------------------------------------------------------
+
+
+def run_panel(
+    spec: str,
+    games: int,
+    seed: int,
+    *,
+    panel: Optional[Mapping[str, str]] = None,
+    squads: Optional[Mapping[str, Sequence[str]]] = None,
+    catalogue: Optional[Mapping[str, Any]] = None,
+    progress: bool = False,
+) -> list[MatchReport]:
+    """`spec` against every panel opponent, over every ordered squad pairing.
+
+    `games` is per opponent *per pairing*, so the total is
+    `games * len(panel) * len(squads) * (len(squads) - 1)` -- with the
+    defaults, 84 games for every game asked for. That is the price of a number
+    that means something: single-matchup runs of this harness moved by ten
+    points between seeds, and every parameter that looked good on one squad
+    pairing had to be thrown away when it was tried on the others.
+    """
+    panel = panel or PANEL
+    squads = squads or SQUADS
+    catalogue = catalogue if catalogue is not None else catalogue_json(load_cards())
+    pairs = [(a, b) for a, b in permutations(squads, 2)]
+    reports: list[MatchReport] = []
+    for index, (tag, opponent) in enumerate(panel.items()):
+        merged: list[GameResult] = []
+        for offset, (left, right) in enumerate(pairs):
+            report = run_match(
+                parse_side(spec), parse_side(opponent), games,
+                seed + 7919 * index + 101 * offset,
+                decks_a=squads[left], decks_b=squads[right],
+                catalogue=catalogue, progress=progress,
+            )
+            merged.extend(report.results)
+        reports.append(MatchReport(spec, tag, len(merged), merged))
+    return reports
+
+
+def print_panel(spec: str, reports: Sequence[MatchReport], file=None) -> None:
+    """One row per opponent, then the pooled result -- the number that counts."""
+    file = file or sys.stdout
+    total = [result for report in reports for result in report.results]
+    print(f"\n{spec}\n  against the panel, every squad pairing, both seats",
+          file=file)
+    width = max(len(r.side_b) for r in reports) + 2
+    header = "  " + "opponent".ljust(width) + "".join(
+        f"{title:>8}" for title, _, _ in _COLUMNS[:12]
+    )
+    print(header, file=file)
+    print("  " + "-" * (len(header) - 2), file=file)
+    for report in reports:
+        summary = report.summary(report.side_a)
+        row = "  " + report.side_b.ljust(width)
+        for _title, key, fmt in _COLUMNS[:12]:
+            row += f"{fmt.format(summary.get(key, 0.0)):>8}"
+        print(row, file=file)
+    pooled = MatchReport(spec, "panel", len(total), total)
+    summary = pooled.summary(spec)
+    row = "  " + "POOLED".ljust(width)
+    for _title, key, fmt in _COLUMNS[:12]:
+        row += f"{fmt.format(summary.get(key, 0.0)):>8}"
+    print("  " + "-" * (len(header) - 2), file=file)
+    print(row, file=file)
+    margin = statistics.fmean(
+        [r.vp[r.seat_of[spec]] - r.vp[1 - r.seat_of[spec]] for r in total]
+    ) if total else 0.0
+    spread = (
+        statistics.pstdev([
+            r.vp[r.seat_of[spec]] - r.vp[1 - r.seat_of[spec]] for r in total
+        ]) / max(1, len(total)) ** 0.5
+    ) if len(total) > 1 else 0.0
+    print(f"  VP margin {margin:+.3f} +/- {1.96 * spread:.3f} over "
+          f"{len(total)} games", file=file)
+    print("  VP margin is the low-variance read: a win rate over a few hundred "
+          "games moves\n  several points on noise alone, and most single "
+          "parameter changes are smaller than that.", file=file)
+
+
+# --------------------------------------------------------------------------
 # CLI
 # --------------------------------------------------------------------------
 
@@ -501,15 +628,21 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--games", type=int, default=20, help="games per match")
     parser.add_argument("--seed", type=int, default=1, help="base seed; game g uses seed+g")
-    parser.add_argument("--a", default="standard", help="side A: preset[:k=v,...], 'random' or 'greedy'")
+    parser.add_argument("--a", default="standard",
+                        help="side A: preset[:k=v,...], 'random', 'greedy' or 'camper'")
     parser.add_argument("--b", default="random", help="side B, same syntax")
     parser.add_argument(
         "--matrix", action="store_true",
-        help="round-robin every preset plus the random and greedy baselines",
+        help="round-robin every preset plus the camper, greedy and random baselines",
     )
     parser.add_argument(
         "--sweep", default=None, metavar="NAME=V1,V2,...",
         help="play each value of one parameter against side B",
+    )
+    parser.add_argument(
+        "--panel", action="store_true",
+        help="play side A against every panel opponent over every squad pairing "
+             "-- how the shipped defaults were tuned",
     )
     parser.add_argument("--decks-a", nargs="*", default=list(DEFAULT_DECKS_A))
     parser.add_argument("--decks-b", nargs="*", default=list(DEFAULT_DECKS_B))
@@ -530,8 +663,20 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     )
 
     reports: list[MatchReport] = []
+    if args.panel:
+        for spec in ([args.a] + ([args.b] if args.b != "random" else [])):
+            panel = run_panel(spec, args.games, args.seed, catalogue=catalogue,
+                              progress=args.progress)
+            if args.json:
+                reports.extend(panel)
+            else:
+                print_panel(spec, panel)
+        if args.json:
+            json.dump([r.to_dict() for r in reports], sys.stdout, indent=2)
+            sys.stdout.write("\n")
+        return 0
     if args.matrix:
-        labels = list(PRESETS) + ["greedy", "random"]
+        labels = list(PRESETS) + ["camper", "greedy", "random"]
         sides = [parse_side(label) for label in labels]
         for i, first in enumerate(sides):
             for second in sides[i + 1:]:

@@ -12,6 +12,7 @@ Four things are load-bearing and each has a test here:
 from __future__ import annotations
 
 import ast
+import io
 import json
 import pathlib
 
@@ -22,6 +23,7 @@ from playtest.ai import (
     PRESETS,
     Agent,
     AIParams,
+    CamperAgent,
     GreedyAgent,
     RandomAgent,
     params_from_dict,
@@ -235,6 +237,30 @@ def test_random_and_greedy_baselines_are_legal(catalogue):
     assert is_over(state)
 
 
+def test_the_camper_baseline_plays_a_legal_game_and_goes_for_the_ground(catalogue):
+    """The outside baseline: a strategy, not a weaker copy of the scorer."""
+    state = make_game(seed=17)
+    agents = {
+        0: CamperAgent(seat=0, catalogue=catalogue, seed=1),
+        1: GreedyAgent(seat=1, seed=2),
+    }
+    state = play(state, agents)
+    assert is_over(state)
+    # It is supposed to end up on the objectives, not merely to be legal.
+    objectives = [
+        obj for obj in state.objectives
+        if obj.tiles and (obj.owner == 0 or obj.attack > 0)
+    ]
+    if objectives:
+        tiles = {tile for obj in objectives for tile in obj.tiles}
+        seen = any(
+            f.pos in tiles for f in state.frames.values() if f.seat == 0 and f.pos
+        )
+        # Over five turns of walking at them, at least one camper got there --
+        # or every objective it wanted was settled before it arrived.
+        assert seen or all(obj.settled for obj in objectives)
+
+
 # --------------------------------------------------------------------------
 # No peeking
 # --------------------------------------------------------------------------
@@ -293,7 +319,9 @@ def test_ai_module_does_not_import_engine_internals():
     Checked over the parsed import statements, so a module cannot reach the
     mutable game state at all -- `board` is pure geometry and `types` is the
     frozen contract, and nothing else in `engine` is importable from here.
-    The arena is exempt: it is the harness and legitimately drives games.
+    The harnesses are exempt: `arena` plays games and `review` replays one
+    somebody else already played, and both legitimately drive the engine. The
+    rule is about the agent, which must never see more than its own view.
     """
     # `hazards` is on the list for the same reason as `board` and `types`:
     # it is a table of rules with no state in it at all, and the alternative
@@ -303,7 +331,7 @@ def test_ai_module_does_not_import_engine_internals():
     root = pathlib.Path(__file__).resolve().parents[1] / "ai"
     checked = 0
     for path in sorted(root.glob("*.py")):
-        if path.name == "arena.py":
+        if path.name in ("arena.py", "review.py"):
             continue
         tree = ast.parse(path.read_text())
         checked += 1
@@ -458,6 +486,22 @@ def test_full_ai_vs_ai_game_runs_to_completion(catalogue):
     assert result.decisions > 50
     assert set(result.vp) == {0, 1}
     assert all(v >= 0 for v in result.vp.values())
+
+
+def test_panel_covers_every_opponent_and_squad_pairing(catalogue):
+    """`--panel` is the tuning measurement, so its coverage is the contract."""
+    reports = arena.run_panel("standard", games=1, seed=5, catalogue=catalogue,
+                              panel={"greedy": "greedy", "camper": "camper"},
+                              squads={k: arena.SQUADS[k]
+                                      for k in ("aegis", "guild", "church")})
+    assert [r.side_b for r in reports] == ["greedy", "camper"]
+    # Three squads make six ordered pairings, one game each.
+    for report in reports:
+        assert len(report.results) == 6
+        played = {tuple(r.seat_decks[0]) + tuple(r.seat_decks[1])
+                  for r in report.results}
+        assert len(played) == 6, "every ordered squad pairing must be played"
+    arena.print_panel("standard", reports, file=io.StringIO())
 
 
 def test_arena_match_reports_both_sides(catalogue):

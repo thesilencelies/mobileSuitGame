@@ -832,6 +832,119 @@ added parameters after this client was written and they appeared with no change
 here. Difficulty presets show as chips. Changing values in the drawer and
 pressing **Apply to this game** retunes the running AI immediately.
 
+### How the defaults were arrived at, and what is still wrong
+
+```bash
+python -m playtest.ai.arena --panel --games 12 --a 'standard:lethality=1'
+```
+
+That is the measurement, and it is the one the defaults were tuned with: the
+candidate against every opponent in the panel, over **all twelve orderings of
+four cross-faction squads**, both seats. A single matchup is a measurement of
+one squad pairing and one seat as much as of the parameters — this harness
+moved by ten points between seeds on that basis, and every promising result
+from a first round of tuning evaporated when it was re-run on a fresh seed.
+The report leads on the **victory-point margin**, which is far less noisy than
+a win rate over the same games.
+
+The panel is several *styles*, not several strengths, and two of its members
+are not the scoring agent at all. Tuning against one opponent configuration
+measures a parameter set against its own reflection; a change that exploits a
+blind spot its opponent shares scores well and plays no better.
+
+**What the sweeps say.** One-at-a-time sweeps of every weight land inside the
+error bars, with four exceptions, and one of them dominates:
+
+| Change | Effect |
+|---|---|
+| `objective_weight` 1.0 → 2.5 | **+0.86 VP a game**, the largest single effect anywhere |
+| `move_temperature` 0.28 → 0.1 | +0.3 VP; movement was being sampled far too warm |
+| `approach_falloff` 0.72 → 0.55 | +0.3 VP; the AI walked too far toward hits it could not make |
+| `temperature` 0.8 → 0.4 | +0.3 VP |
+
+Together, over **1008 games** against the panel on one set of seeds, they take
+the default from **55.7% to 62.9%** and its victory-point margin from +0.28 to
+**+1.11 a game**; head to head, the retuned AI beats the one it replaced
+**64.6%** over 144 games. Against the outside baselines it goes from 78% to
+85% (`camper`) and 80% to 88% (`greedy`), and from 77% to 89% against `random`.
+A second round of tuning on top of these found nothing that survived a change
+of seed — which is the point of changing the seed. Think time is unchanged:
+~5 ms a decision, 18 ms at p95.
+
+**Why objectives were the whole story.** A kill is one victory point and was
+priced at `scoring.KILL_VALUE` — seven damage marks. Standing on a three-point
+objective came out at 4.2. The two halves of the scoreboard were never in the
+same units, and objectives are about half the points on offer.
+
+**What is still wrong, and it is not the weights.** `pool` already sees the
+whole hand, and doubling `search_width` from 48 to 96 changes nothing
+measurable; `temperature` 0 is *worse* than sampling. All three say the same
+thing: the evaluator is not accurate enough for more search or a sharper
+policy to pay. That is also why `veteran` is now a short preset that beats
+`standard` by only a few points — there is little left to win by multiplying
+these terms by different numbers.
+
+The clearest symptom is that **about 47% of attacks resolve with nothing legal
+to hit** (`noTgt` in the arena report). Roughly three quarters of those are
+structural — five turns, a board the length of two squads' approach — but a
+measured 28% of melee whiffs happened with a tile the frame could have reached
+sitting in its own option list. The `contact` lever exists for exactly that
+and does what it says (whiffs 6.9 → 5.7 per game, more damage, more kills) —
+and it does **not** win more games, because the tiles it walks to are tiles it
+walks off the objectives to reach. Chasing contact is not free, and that is
+worth knowing before anyone else tries it.
+
+### The levers
+
+Beyond the weights the client has always shown, these are the terms added
+while tuning. Each defaults to the behaviour it replaced, so they can be moved
+one at a time:
+
+| Lever | Default | What it moves |
+|---|---|---|
+| `lethality` | 0.0 | How much more a hit is worth for *finishing* a zone than for marking it. Only kills and objectives score, so damage that never converts is worth nothing. Trends positive; `veteran` runs it at 1.0 |
+| `reach` | 0.15 | What an attack is worth with nothing in range. 0 (refuse to commit one) measured *worse* — the card can still block |
+| `contact` | 0.0 | Step bonus for ending a move somewhere a committed attack can actually be delivered. Cuts wasted actions, costs objectives |
+| `approach_falloff` | 0.55 | How much of an attack's worth survives each tile it is short by |
+| `endgame` | 1.0 | How hard objective value is discounted early. Both directions measured worse; the existing ramp was right |
+| `move_temperature` | 0.1 | Movement's own softmax temperature, previously hardwired to `temperature * 0.35` |
+
+`camper` — in `ai/baseline.py`, alongside `random` and `greedy` — is a
+strategy rather than a weaker scorer: it walks at the objectives and stands on
+them, built on the raw view dict with no shared model. It is the panel member
+that cannot share a mistake with the agent, and roughly what a person does on
+their first game.
+
+## Saving a game to send on
+
+The **Log** tab has **Save game** and **Copy**. Both fetch
+`GET /api/game/{id}/export`, which is the whole game as one JSON document:
+
+| Key | What it is |
+|---|---|
+| `config` | What the game was created from -- both squads, `framesPerSide`, the terrain decks, and the **seed** |
+| `aiParams`, `aiSource` | What the AI was playing under, after presets were applied |
+| `log` | The public event log, exactly as the Log tab shows it |
+| `transcript` | **Every command both seats made, in order** -- kind, payload, the prompt it answered and how many options it had |
+| `frames`, `scores`, `kills` | Where everything stood at the end |
+
+Seed plus transcript is enough to **replay the game**: feed the same config to
+`new_game` and the commands back through `apply_command` in order and it plays
+out identically. That is the point of it -- a game where the AI was outplayed
+can be handed to someone who can go and look at why.
+
+`python -m playtest.ai.review <file.json>` does that and prints the game back
+as a turn-by-turn report: what each side committed, what landed, what missed,
+and where the points went.
+
+**Redaction.** While the game is still running the AI's own card identities are
+stripped out of its commands -- otherwise exporting mid-game would show you the
+hand you are playing against. Once the game is over there is nothing left to
+spoil and the transcript goes out whole. The event log is public either way.
+
+**Undo** rewinds the transcript with it, so an exported game is the game as
+played and not as first attempted.
+
 ## HTTP API
 
 ```
@@ -851,6 +964,7 @@ POST   /api/game/{id}/command      {kind, payload{}} -> new view
 POST   /api/game/{id}/undo         step back one human decision
 POST   /api/game/{id}/ai-params    {aiParams{}} retune the AI mid-game
 GET    /api/game/{id}/log          full event log
+GET    /api/game/{id}/export       the whole game as one shareable file
 GET    /api/game/{id}/threat?frame=…[&x=&y=]  reach + line of sight, public only
                                     x/y = what it would see from a tile it is
                                     only considering; reach stays where it is

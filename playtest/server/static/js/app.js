@@ -230,6 +230,8 @@ function bindChrome() {
   });
   buildSpeedRow();
   $('replay-skip').addEventListener('click', () => finishReplay());
+  $('log-save').addEventListener('click', () => guard(() => saveGameFile()));
+  $('log-copy').addEventListener('click', () => guard(() => copyGameFile()));
   $('apply-params').addEventListener('click', () => guard(async () => {
     const params = app.drawerForm.payload();
     await api.setAiParams(app.gameId, params);
@@ -2200,6 +2202,68 @@ function objectiveSpot(obj) {
   if (!tiles.length) return null;
   const mid = tiles[Math.floor(tiles.length / 2)];
   return { x: mid[0], y: mid[1] };
+}
+
+/** The exported game, as a pretty-printed JSON string and a filename.
+ *
+ *  One fetch, used by both buttons: the file save and the clipboard copy are
+ *  the same document, because a phone browser that will not write a file can
+ *  usually still paste one into a message.
+ */
+async function gameFile() {
+  const doc = await api.exportGame(app.gameId);
+  const when = new Date((doc.updated || Date.now() / 1000) * 1000);
+  const stamp = when.toISOString().slice(0, 16).replace(/[-:]/g, '').replace('T', '-');
+  return {
+    name: `netframe-${stamp}-${doc.gameId}.json`,
+    text: JSON.stringify(doc, null, 1),
+    doc,
+  };
+}
+
+/** Write the transcript out as a file the player can send on. */
+async function saveGameFile() {
+  const file = await gameFile();
+  const blob = new Blob([file.text], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = file.name;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  // Revoking immediately can cancel the download on some Android browsers.
+  setTimeout(() => URL.revokeObjectURL(url), 20000);
+  logNote(`Saved ${file.name}`
+    + (file.doc.over ? '' : ' (game still running: the AI\'s cards are held back)'));
+  toast('Game saved');
+}
+
+/** The same document on the clipboard, for anywhere a file will not go. */
+async function copyGameFile() {
+  const file = await gameFile();
+  try {
+    await navigator.clipboard.writeText(file.text);
+    logNote(`Copied ${Math.round(file.text.length / 1024)} kB to the clipboard`);
+    toast('Game copied');
+  } catch {
+    // No clipboard permission (or no clipboard at all): fall back to a
+    // selectable box, which is still a paste away from being shared.
+    const box = document.createElement('textarea');
+    box.className = 'logdump';
+    box.readOnly = true;
+    box.value = file.text;
+    const host = $('log');
+    host.prepend(box);
+    box.focus();
+    box.select();
+    logNote('Clipboard unavailable -- select the text above and copy it');
+  }
+}
+
+function logNote(text) {
+  const note = $('log-note');
+  if (note) note.textContent = text;
 }
 
 function renderLog() {

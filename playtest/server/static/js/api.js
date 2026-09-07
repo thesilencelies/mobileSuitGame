@@ -20,6 +20,7 @@
 //   sendCommand(gameId, kind, payload) -> view
 //   undo(gameId)                    -> view
 //   getLog(gameId)                  -> {gameId, log}
+//   exportGame(gameId)              -> the whole game as one JSON document
 //   getThreat(gameId, frameId, at)  -> {reach, los, from, movement, ...}
 //   setAiParams(gameId, params)     -> view
 //   cardImageUrl(key, width)        -> a URL the client can put in an <img>
@@ -77,6 +78,10 @@ export const api = {
 
   undo: (gameId) => post(`/api/game/${gameId}/undo`),
   getLog: (gameId) => request(`/api/game/${gameId}/log`),
+  // The shareable transcript: config, seed, the public log and every
+  // command both seats made. The AI's card identities are redacted until
+  // the game is over, so exporting mid-game cannot spoil its hand.
+  exportGame: (gameId) => request(`/api/game/${gameId}/export`),
   // `at` asks what the frame would see from a tile it is only considering,
   // rather than from where it is standing.
   getThreat: (gameId, frameId, at = null) =>

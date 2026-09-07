@@ -62,7 +62,10 @@ LAST_HIT_VALUE = 1.2
 HAZARD_TILE_COST = 0.6
 
 #: Multiplier on a card's offence when it has no reachable target this turn.
-#: Not zero -- it can still block, and next turn exists.
+#: Not zero -- it can still block, and next turn exists. This is the default
+#: behind `AIParams.reach`, which is what the agent actually reads; it stays a
+#: module constant because `agent._card_loss` wants the same number for the
+#: same reason and a parameterless caller should still get the old answer.
 NO_TARGET = 0.15
 
 #: Multiplier when the *other* committed card's movement could bring this one
@@ -75,7 +78,7 @@ MAX_BLOCK_PROB = 0.88
 #: Per-tile discount on an attack the frame cannot make yet. A melee weapon
 #: three tiles from its target is worth 0.72**3 -- about a third -- of what it
 #: would be worth landed, which is a gradient to walk up without ever rating a
-#: future hit above a real one.
+#: future hit above a real one. The default behind `AIParams.approach_falloff`.
 APPROACH_DISCOUNT = 0.72
 
 #: Cost of committing an attack that a reload marker will swallow. The card
@@ -531,6 +534,21 @@ def zone_attack_value(
 
     value = params.aggression * landed + forced
 
+    # Only kills and objectives are victory points: damage that never converts
+    # scores nothing at all. `lethality` is how much of an attack's worth
+    # comes from *finishing* a zone rather than from marking it, so a hit that
+    # takes off most of what is left counts for more than the same hit into
+    # fresh armour. At 0 this is the flat reading the scorer started with.
+    if params.lethality > 0 and total > 0:
+        finishing = 0.0
+        for zone, damage in zones.items():
+            remaining = target.remaining(zone)
+            if remaining > 0:
+                finishing += damage * min(1.0, damage / remaining)
+        value += (
+            params.aggression * params.lethality * finishing * (landed / total)
+        )
+
     # Killing blows and last hits.
     for zone, damage in zones.items():
         remaining = target.remaining(zone)
@@ -906,6 +924,12 @@ def objective_value(
         return 0.0
     total = 0.0
     late = min(1.0, 0.35 + 0.65 * (snap.turn / 5.0))
+    if params.endgame != 1.0:
+        # The end-of-game objectives are counted once, after turn 5, so what
+        # standing on one is worth is really "will I still be standing here
+        # then". The exponent is how hard the early turns are discounted for
+        # that: >1 says grab them late, <1 says take the ground now and hold.
+        late = late ** params.endgame
     for obj in snap.objectives:
         if obj.settled:
             continue
@@ -1154,17 +1178,63 @@ def position_value(
             snap, frame, primary, pos, prof, params, los_cache,
             focus_id=focus_id, focus_weight=focus_weight,
         )
+        value += params.contact * can_strike_from(
+            snap, frame, primary, pos, los_cache, focus_id=focus_id
+        )
     for card in cards:
         if card.is_attack and card is not primary:
             value += 0.7 * params.positioning * _best_attack_from(
                 snap, frame, card, pos, prof, params, los_cache,
                 focus_id=focus_id, focus_weight=focus_weight,
             )
+            value += 0.7 * params.contact * can_strike_from(
+                snap, frame, card, pos, los_cache, focus_id=focus_id
+            )
     value += objective_value(snap, frame, pos, params)
     value += terrain_value(snap, pos, params)
     value -= exposure(snap, frame, pos, prof, params, los_cache)
     value += _standoff_value(snap, frame, pos, cards, primary, prof, params)
     return value
+
+
+def can_strike_from(
+    snap: Snapshot,
+    frame: FrameView,
+    card: CardInfo,
+    pos: Pos,
+    los_cache: Optional[dict] = None,
+    *,
+    focus_id: Optional[str] = None,
+) -> float:
+    """1.0 if this card could legally be pointed at somebody from `pos`.
+
+    A *step*, not a gradient, and that is the whole point of it. The approach
+    term already slopes toward the enemy, but the last step of that slope --
+    the one that turns "nearly in range" into "attacking" -- is worth a whole
+    action, and as a slope it is a smaller number than the exposure and
+    standoff terms it competes with. The arena caught the consequence: frames
+    stopping one tile short of contact with the tile they needed sitting in
+    the option list.
+
+    1.25 rather than 1.0 for the squad's agreed target, so when two tiles both
+    reach something, the one that reaches the frame everybody else is hitting
+    wins.
+    """
+    if not can_use(frame, card) or not card.is_attack:
+        return 0.0
+    best = 0.0
+    for enemy in snap.enemies():
+        if enemy.pos is None:
+            continue
+        if not can_reach_target(snap, frame, card, pos, enemy, los_cache):
+            continue
+        # Nothing lands if the elevation shift pushes every zone off the frame.
+        if not landing_zones(snap, frame, card, pos, enemy):
+            continue
+        best = max(best, 1.25 if enemy.id == focus_id else 1.0)
+        if best >= 1.25:
+            break
+    return best
 
 
 def _standoff_value(
@@ -1295,6 +1365,7 @@ def _best_attack_from(
     if not can_use(frame, card):
         return 0.0
     approach = params.approach if include_approach else 0.0
+    falloff = params.approach_falloff
     best = 0.0
     for enemy in snap.enemies():
         if enemy.pos is None:
@@ -1312,7 +1383,7 @@ def _best_attack_from(
             potential = zone_attack_value(
                 card, _reference_zones(frame, card), enemy, prof, params
             )
-            best = max(best, weight * approach * potential * APPROACH_DISCOUNT ** gap)
+            best = max(best, weight * approach * potential * falloff ** gap)
     for token in snap.tokens:
         if not token.alive or token.max_hp <= 0 or token.pos is None:
             continue
@@ -1330,7 +1401,7 @@ def _best_attack_from(
                     snap, frame, card,
                     _step_toward(pos, token.pos, gap), token, params,
                 )
-                best = max(best, approach * potential * APPROACH_DISCOUNT ** gap)
+                best = max(best, approach * potential * falloff ** gap)
     return best
 
 

@@ -711,7 +711,10 @@ class Agent:
             elif opportunity_of(i, max_budget) > 0:
                 opp_scale[i] = S.PAIR_ASSIST
             else:
-                opp_scale[i] = S.NO_TARGET
+                # Nothing this card could be pointed at, however far the frame
+                # walks. `reach` is what that is still worth -- it can block,
+                # and there is a next turn.
+                opp_scale[i] = max(0.0, float(params.reach))
 
         # -- positional worth of the movement each card buys ---------------
         # Deliberately cheap: objectives, high ground and closing distance, all
@@ -997,9 +1000,9 @@ class Agent:
             # stand, and the whole point of the card is to put it somewhere
             # else -- so the same numbers are read upside down.
             values = [-v for v in values]
-        # Movement is far less forgiving than card choice, so the policy is much
-        # sharper here than the headline temperature suggests.
-        index = S.softmax_pick(values, params.temperature * 0.35, self.rng)
+        # Movement is far less forgiving than card choice, so it has its own
+        # (much colder) temperature rather than a share of the headline one.
+        index = S.softmax_pick(values, params.move_temperature, self.rng)
         best = tiles[index]
         return Command("move", self.seat, {"x": best.x, "y": best.y})
 

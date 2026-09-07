@@ -161,6 +161,14 @@
     </div>
 
     <div class="view" id="view-log">
+      <!-- The log is also the way a game leaves the phone: "Save" writes the
+           whole transcript to a file (config, seed, every command both sides
+           made) so a finished game can be sent on and replayed. -->
+      <div class="logtools">
+        <button class="btn sm" id="log-save" type="button">Save game</button>
+        <button class="btn sm ghost" id="log-copy" type="button">Copy</button>
+        <span class="hint" id="log-note"></span>
+      </div>
       <div class="log" id="log"></div>
     </div>
   </main>

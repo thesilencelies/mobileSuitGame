@@ -22,6 +22,7 @@ import json
 import mimetypes
 import posixpath
 import re
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Mapping, Optional, Pattern
@@ -146,6 +147,7 @@ class Router:
         r("POST", "/api/game/(?P<game_id>[^/]+)/undo")(self._undo)
         r("POST", "/api/game/(?P<game_id>[^/]+)/ai-params")(self._set_ai_params)
         r("GET", "/api/game/(?P<game_id>[^/]+)/log")(self._log)
+        r("GET", "/api/game/(?P<game_id>[^/]+)/export")(self._export)
         r("GET", "/api/game/(?P<game_id>[^/]+)/threat")(self._threat)
 
     # -- dispatch --------------------------------------------------------
@@ -386,6 +388,24 @@ class Router:
     def _log(self, game_id: str, **_: Any) -> dict[str, Any]:
         session = self.registry.get(game_id)
         return {"gameId": session.id, "log": list(session.state.log)}
+
+    def _export(self, game_id: str, **_: Any) -> Response:
+        """The whole game as one file: config, seed, log and every command.
+
+        Served as a download rather than a plain body -- the point of it is to
+        end up as a file the player can send on, and a phone browser will not
+        save a JSON response it merely rendered.
+        """
+        session = self.registry.get(game_id)
+        blob = json.dumps(session.export(), indent=1).encode("utf-8")
+        stamp = time.strftime("%Y%m%d-%H%M%S", time.localtime(session.updated))
+        return Response(
+            200, blob, "application/json; charset=utf-8",
+            headers={
+                "Content-Disposition":
+                    f'attachment; filename="netframe-{stamp}-{session.id}.json"',
+            },
+        )
 
     def _threat(self, game_id: str, query: Mapping[str, str], **_: Any) -> dict[str, Any]:
         frame_id = query.get("frame")

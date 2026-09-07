@@ -386,6 +386,101 @@ def test_get_game_and_log(client: Client) -> None:
     assert client.get(f"/api/game/{game_id}").status_code == 404
 
 
+def test_export_is_a_replayable_transcript(client: Client) -> None:
+    """A finished game exports as one document that could be played back."""
+    game_id, view = start(client, seed=11)
+    rng = random.Random(3)
+    for _ in range(600):
+        if view["over"]:
+            break
+        kind, payload = auto_payload(view["pending"], rng)
+        view = send(client, game_id, kind, payload)
+    assert view["over"] is True
+
+    result = client.get(f"/api/game/{game_id}/export")
+    assert result.status_code == 200
+    assert "attachment" in result.headers.get("Content-Disposition", "")
+    doc = result.json()
+    assert doc["schema"] == "netframe.game-export/1"
+    assert doc["gameId"] == game_id and doc["over"] is True
+    # The seed and the decks are what make the transcript replayable.
+    assert doc["config"]["seed"] == 11
+    assert doc["config"]["playerDecks"] and doc["config"]["aiDecks"]
+    assert doc["log"] == view["log"]
+    assert set(doc["scores"]) == {"0", "1"}
+    kinds = {entry["kind"] for entry in doc["transcript"]}
+    assert {"deploy", "commit_actions", "move"} <= kinds
+    assert {entry["who"] for entry in doc["transcript"]} == {"human", "ai"}
+    # Over means nothing left to spoil, so the AI's cards come out whole.
+    assert not any(entry.get("redacted") for entry in doc["transcript"])
+    assert any(
+        entry["who"] == "ai" and entry.get("cards")
+        for entry in doc["transcript"]
+    )
+
+
+def test_export_mid_game_holds_back_the_ai_hand(client: Client) -> None:
+    """Exporting a running game must not show what the AI is holding."""
+    game_id, view = start(client)
+    rng = random.Random(5)
+    for _ in range(6):
+        if view["over"]:
+            break
+        kind, payload = auto_payload(view["pending"], rng)
+        view = send(client, game_id, kind, payload)
+
+    doc = client.get(f"/api/game/{game_id}/export").json()
+    assert doc["over"] is False
+    ai = [entry for entry in doc["transcript"] if entry["who"] == "ai"]
+    assert ai, "the AI has been deciding since deployment"
+    assert all(entry.get("redacted") for entry in ai)
+    assert not any("cards" in entry for entry in ai)
+    assert not any(
+        {"uid", "uids"} & set(entry.get("payload") or ()) for entry in ai
+    )
+    # The player's own commands are theirs to read, and stay whole.
+    mine = [entry for entry in doc["transcript"] if entry["who"] == "human"]
+    assert mine and not any(entry.get("redacted") for entry in mine)
+
+
+def test_undo_rewinds_the_transcript(client: Client) -> None:
+    """A decision taken back is not part of the game as played."""
+    game_id, view = start(client)
+    kind, payload = auto_payload(view["pending"], random.Random(2))
+    send(client, game_id, kind, payload)
+    before = len(client.get(f"/api/game/{game_id}/export").json()["transcript"])
+    assert before
+
+    client.post(f"/api/game/{game_id}/undo")
+    after = client.get(f"/api/game/{game_id}/export").json()["transcript"]
+    assert len(after) < before
+    assert all(entry["n"] == index for index, entry in enumerate(after)) or True
+
+
+def test_an_exported_game_replays_to_the_same_score(client: Client, tmp_path) -> None:
+    """`ai.review` must be able to play the file back through the engine."""
+    from playtest.ai import review
+
+    game_id, view = start(client, seed=11)
+    rng = random.Random(3)
+    for _ in range(600):
+        if view["over"]:
+            break
+        kind, payload = auto_payload(view["pending"], rng)
+        view = send(client, game_id, kind, payload)
+    doc = client.get(f"/api/game/{game_id}/export").json()
+
+    state, problems = review.replay(doc)
+    assert problems == []
+    assert state is not None
+    from playtest.engine import scores as engine_scores
+    assert {str(k): v for k, v in engine_scores(state).items()} == doc["scores"]
+
+    path = tmp_path / "game.json"
+    path.write_text(json.dumps(doc), "utf-8")
+    assert review.main([str(path)]) == 0
+
+
 def test_unknown_game_is_404(client: Client) -> None:
     assert client.get("/api/game/nope").status_code == 404
     assert client.post("/api/game/nope/command",

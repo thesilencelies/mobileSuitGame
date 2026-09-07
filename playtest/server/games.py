@@ -87,6 +87,11 @@ class Session:
     #: Digest of the last snapshot appended, so a beat and the decision that
     #: follows it do not both record the same moment.
     last_digest: str = ""
+    #: Every command applied, in order, both seats -- the game's transcript.
+    #: With `config.seed` this is enough to replay the whole game offline,
+    #: which is the point: a player who has just beaten the AI can export it
+    #: and it can be played back and studied. See `Session.export`.
+    transcript: list[dict[str, Any]] = field(default_factory=list)
 
     def view(self, *, with_replay: bool = True) -> dict[str, Any]:
         """The human seat's redacted view, with the server's game id on it."""
@@ -218,6 +223,108 @@ class Session:
         self.prev_frames = {f["id"]: f for f in snap["frames"]}
         self.replay.append(snap)
         del self.replay[:-MAX_REPLAY_FRAMES]
+
+    # -- the transcript --------------------------------------------------
+
+    def note_command(self, state: GameState, command: Command) -> None:
+        """Record one applied command, resolved against the state it acted on.
+
+        Called *before* `apply_command`, because that is the only moment the
+        uids in the payload still mean something: a card names its key while
+        it is still where the command found it, and by the time it has
+        resolved it may have been discarded, reshuffled and drawn again.
+
+        Card identities are stored whole and redacted on the way out (see
+        `export`), so a transcript pulled mid-game cannot show the player the
+        AI's face-down hand while it is still holding it.
+        """
+        payload = dict(command.payload)
+        uids = [str(u) for u in (payload.get("uids") or ())]
+        if payload.get("uid"):
+            uids.append(str(payload["uid"]))
+        cards = [
+            state.cards[uid].key for uid in uids
+            if uid in state.cards
+        ]
+        entry: dict[str, Any] = {
+            "n": len(self.transcript),
+            "turn": int(state.turn),
+            "phase": str(state.phase),
+            "seat": int(command.seat),
+            "who": "human" if command.seat == self.human_seat else "ai",
+            "kind": str(command.kind),
+            "payload": payload,
+        }
+        if cards:
+            entry["cards"] = cards
+        pending = state.pending
+        if pending is not None:
+            entry["prompt"] = str(pending.prompt)
+            if pending.frame_id:
+                entry["frame"] = str(pending.frame_id)
+            entry["options"] = len(pending.options or ())
+        self.transcript.append(entry)
+
+    def export(self) -> dict[str, Any]:
+        """The whole game as one shareable JSON document.
+
+        Everything needed to *replay* it: the config it was created from (the
+        seed included), the parameters the AI was playing under, the public
+        event log, and every command both seats issued in order. Feeding the
+        same seed and the same commands back through `new_game` /
+        `apply_command` reproduces the game exactly.
+
+        **Redaction.** While the game is still running, the AI's card
+        identities are stripped out of its own commands -- otherwise a player
+        could export mid-game and read the hand they are playing against. Once
+        the game is over there is nothing left to spoil, so the transcript
+        goes out whole. The event log is public either way; it always was.
+        """
+        over = is_over(self.state)
+        transcript = []
+        for entry in self.transcript:
+            entry = dict(entry)
+            if not over and entry["who"] == "ai":
+                entry.pop("cards", None)
+                entry.pop("prompt", None)
+                payload = dict(entry.get("payload") or {})
+                for key in ("uid", "uids"):
+                    payload.pop(key, None)
+                entry["payload"] = payload
+                entry["redacted"] = True
+            transcript.append(entry)
+        points = scores(self.state)
+        return {
+            "schema": "netframe.game-export/1",
+            "gameId": self.id,
+            "exported": time.time(),
+            "created": self.created,
+            "updated": self.updated,
+            "over": over,
+            "turn": int(self.state.turn),
+            "phase": str(self.state.phase),
+            "humanSeat": self.human_seat,
+            "aiSeat": self.ai_seat,
+            "aiSource": self.ai_source,
+            "aiParams": dict(self.ai_params),
+            "config": dict(self.config),
+            "frames": [
+                {
+                    "id": f.id,
+                    "seat": f.seat,
+                    "name": f.spec.name,
+                    "faction": f.spec.faction,
+                    "alive": f.alive,
+                    "damage": dict(f.damage),
+                    "armour": dict(f.spec.armour),
+                }
+                for f in self.state.frames.values()
+            ],
+            "scores": {str(seat): int(value) for seat, value in points.items()},
+            "kills": {str(k): int(v) for k, v in self.state.kills.items()},
+            "log": list(self.state.log),
+            "transcript": transcript,
+        }
 
     def reset_replay(self) -> None:
         """Forget the recorded turn and re-baseline the diff on the present."""
@@ -403,6 +510,8 @@ class Registry:
             del session.history[:-UNDO_DEPTH]
             session.reset_replay()
             cmd = Command(kind, session.human_seat, dict(payload))
+            transcript_len = len(session.transcript)
+            session.note_command(session.state, cmd)
             # The watch covers the human's own command as well as the AI loop:
             # answering a block declares the damage, and the AI's next few
             # cards can resolve, all inside this one `apply_command`.
@@ -411,10 +520,12 @@ class Registry:
                     session.state = apply_command(session.state, cmd)
                 except IllegalCommand:
                     session.history.pop()
+                    del session.transcript[transcript_len:]
                     session.reset_replay()
                     raise
                 except (KeyError, ValueError, TypeError) as exc:
                     session.history.pop()
+                    del session.transcript[transcript_len:]
                     session.reset_replay()
                     raise IllegalCommand(str(exc) or type(exc).__name__) from exc
                 _drive_ai(session)
@@ -441,6 +552,13 @@ class Registry:
             if not session.history:
                 raise IllegalCommand("nothing to undo")
             session.state = session.history.pop()
+            # The transcript is a record of the game as played, so a decision
+            # that was taken back is not part of it -- drop everything after
+            # the human command being undone, the AI's answers included.
+            for index in range(len(session.transcript) - 1, -1, -1):
+                if session.transcript[index]["who"] == "human":
+                    del session.transcript[index:]
+                    break
             session.reset_replay()
             session.updated = time.time()
         return session
@@ -478,6 +596,7 @@ def _drive_ai(session: Session) -> None:
         if steps > MAX_AI_STEPS:               # pragma: no cover - safety net
             raise RuntimeError("AI failed to make progress")
         ai_cmd = _ai_command(session)
+        session.note_command(state, ai_cmd)
         session.state = apply_command(state, ai_cmd)
         if len(session.state.log) != logged:
             logged = len(session.state.log)

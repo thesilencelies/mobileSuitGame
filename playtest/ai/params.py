@@ -43,9 +43,28 @@ class AIParams:
     aggression: float = 1.0
     survival: float = 8.0
     focus_fire: float = 0.6
+    # How much a hit is worth for *finishing* a zone rather than for the marks
+    # it puts on it. Only kills and objectives are victory points -- damage
+    # that never converts scores nothing -- so this ramps an attack's value
+    # with how much of the zone's remaining armour it takes off. 0 restores
+    # the flat "a mark is a mark" reading the scorer started with.
+    lethality: float = 0.0
+    # What an attack is still worth when the frame cannot reach anything to
+    # point it at this turn. Not zero: the card can still block, and there is
+    # a next turn. This is the term that decides whether the AI commits a
+    # melee weapon with the enemy nine tiles away.
+    reach: float = 0.15
 
     # -- the board ----------------------------------------------------------
-    objective_weight: float = 1.0
+    # Objectives are about half the victory points on offer and a kill is one,
+    # yet a kill was priced at `scoring.KILL_VALUE` (7 damage marks) while
+    # standing on a 3-point objective came out at 4.2 -- the two halves of the
+    # scoreboard were never in the same units. Rather than restate every
+    # objective in kill-units, the weight carries the correction: arena sweeps
+    # walk up monotonically from 0.5 (45.1%) through 1.0 (55.5%) to 2.5, and
+    # flatten past 3. Worth +0.86 VP a game on its own -- the single largest
+    # effect of anything in this file.
+    objective_weight: float = 2.5
     positioning: float = 1.0
     approach: float = 1.0
     elevation: float = 1.5
@@ -58,10 +77,36 @@ class AIParams:
     # line is worth more, so standoff went up (1.6 beats 0.8 by 54.2/45.8).
     los_caution: float = 0.3
     standoff: float = 1.6
+    # Standing where a committed attack can actually be *delivered* this turn,
+    # as a step rather than as a gradient. The approach term already slopes
+    # toward the enemy, but a slope is a small number next to the exposure and
+    # standoff terms, and the arena found frames stopping one tile short of
+    # contact with the tile they wanted in the list. This pays for the last
+    # step in.
+    contact: float = 0.0
+    # Per-tile discount on an attack the frame cannot make yet: three tiles
+    # short is worth `approach_falloff ** 3` of the same attack landed. Lower
+    # is more short-sighted, higher walks further for a future hit.
+    # 0.72 walked frames a long way toward a hit they could not make this turn,
+    # and the arena is clear that this is a mistake: `approach=2.0` is the worst
+    # single setting measured anywhere (36.5%, -1.03 VP). Five turns is not
+    # long enough to spend one walking, and the ground is worth more than the
+    # swing.
+    approach_falloff: float = 0.55
+    # How sharply objective value ramps toward the last turn. The end-of-game
+    # objectives are scored once, after turn 5, so what standing on one is
+    # worth is really "will I still be here then"; >1 discounts the early
+    # turns harder, <1 chases them from the start.
+    endgame: float = 1.0
 
     # -- policy -------------------------------------------------------------
     pool: int = 7
-    temperature: float = 0.8
+    temperature: float = 0.4
+    # Movement is far less forgiving than card choice -- a tile one step wrong
+    # is an attack that does not happen -- so it has always been sampled far
+    # colder than the headline temperature. It is its own number now so it can
+    # be tuned on its own; 0 always takes the top-scoring tile.
+    move_temperature: float = 0.1
     blunder_rate: float = 0.0
 
     # -- compute budget -----------------------------------------------------
@@ -136,6 +181,26 @@ PARAM_SCHEMA: list[dict[str, Any]] = [
         "help": "How hard the whole squad converges on one enemy each turn to strip its blocks and kill it.",
     },
     {
+        "name": "lethality",
+        "label": "Killer instinct",
+        "type": "float",
+        "min": 0.0,
+        "max": 4.0,
+        "step": 0.05,
+        "default": AIParams.lethality,
+        "help": "How much more a hit is worth for finishing a zone than for merely marking it.",
+    },
+    {
+        "name": "reach",
+        "label": "Wasted actions",
+        "type": "float",
+        "min": 0.0,
+        "max": 1.0,
+        "step": 0.05,
+        "default": AIParams.reach,
+        "help": "What an attack is still worth with nothing in range; 0 refuses to commit one.",
+    },
+    {
         "name": "objective_weight",
         "label": "Objectives",
         "type": "float",
@@ -196,6 +261,36 @@ PARAM_SCHEMA: list[dict[str, Any]] = [
         "help": "How firmly ranged frames keep their distance instead of closing.",
     },
     {
+        "name": "contact",
+        "label": "Close the gap",
+        "type": "float",
+        "min": 0.0,
+        "max": 6.0,
+        "step": 0.1,
+        "default": AIParams.contact,
+        "help": "Reward for ending a move somewhere a committed attack can actually be delivered.",
+    },
+    {
+        "name": "approach_falloff",
+        "label": "Patience",
+        "type": "float",
+        "min": 0.3,
+        "max": 0.95,
+        "step": 0.01,
+        "default": AIParams.approach_falloff,
+        "help": "How much of an attack's worth survives each tile it is still short by.",
+    },
+    {
+        "name": "endgame",
+        "label": "Endgame timing",
+        "type": "float",
+        "min": 0.2,
+        "max": 4.0,
+        "step": 0.1,
+        "default": AIParams.endgame,
+        "help": "How hard objectives are discounted early; high means grab them on the last turns.",
+    },
+    {
         "name": "pool",
         "label": "Cards considered",
         "type": "int",
@@ -214,6 +309,16 @@ PARAM_SCHEMA: list[dict[str, Any]] = [
         "step": 0.1,
         "default": AIParams.temperature,
         "help": "Softmax spread on action choice; 0 always plays the top-scoring pair.",
+    },
+    {
+        "name": "move_temperature",
+        "label": "Movement randomness",
+        "type": "float",
+        "min": 0.0,
+        "max": 3.0,
+        "step": 0.02,
+        "default": AIParams.move_temperature,
+        "help": "Softmax spread when choosing a tile; 0 always walks to the best one.",
     },
     {
         "name": "search_width",
@@ -253,6 +358,12 @@ PRESETS: dict[str, dict[str, Any]] = {
         # Weakness lives in blunder_rate, temperature and the narrow search --
         # not in miscalibrated weights, which would just make it play a
         # different (and confusingly plausible) style.
+        #
+        # `move_temperature` is spelled out because it used to be derived
+        # (`temperature * 0.35`), so this preset got its wandering movement
+        # for free from `temperature: 4.0`. Splitting the two would otherwise
+        # have quietly handed the beginner the tuned agent's movement, which
+        # is most of what movement is worth.
         "objective_weight": 0.4,
         "positioning": 0.4,
         "approach": 0.5,
@@ -263,26 +374,34 @@ PRESETS: dict[str, dict[str, Any]] = {
         "search_width": 20,
         "think_ms": 250,
         "temperature": 4.0,
+        "move_temperature": 1.4,
         "blunder_rate": 0.30,
     },
     "standard": {},
     "veteran": {
-        "defense": 1.15,
-        "concentration": 0.7,
-        "aggression": 1.1,
-        "survival": 9.0,
-        "focus_fire": 0.8,
-        "objective_weight": 1.3,
-        "positioning": 1.2,
-        "approach": 1.2,
-        "elevation": 2.0,
-        "los_caution": 0.35,
-        "standoff": 1.8,
-        "pool": 7,
+        # Much shorter than it used to be, and deliberately so. The old
+        # veteran nudged eleven weights up and beat `standard` 41% of the
+        # time -- it was a different style, not a stronger player, and the
+        # sweeps that produced it were reading noise. Retuning `standard`
+        # made that worse: it now sits at the top of what the weights can
+        # do, and every candidate veteran tried against it landed inside the
+        # error bars (57.7% to 62.4% over 384 games, on a 59.6% control).
+        #
+        # So this is only the three things that are not weights -- a colder
+        # policy, a wider search and longer to run it -- plus `lethality`,
+        # the one term that trended up on its own. It beats the retuned
+        # standard 53.8% over 144 games, which is a real step but a small
+        # one, and it is honest about that: the remaining headroom is in
+        # what the evaluator can see, not in what its terms are multiplied
+        # by. `pool` is already at the whole hand and `objective_weight`
+        # already at its plateau, so neither appears here.
+        "defense": 1.2,
+        "focus_fire": 0.7,
+        "lethality": 1.0,
+        "temperature": 0.3,
+        "move_temperature": 0.08,
         "search_width": 96,
         "think_ms": 1500,
-        "temperature": 0.25,
-        "blunder_rate": 0.0,
     },
 }
 
