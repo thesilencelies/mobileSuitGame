@@ -1585,7 +1585,13 @@ function tokenReadout(token) {
     const owner = token.frame ? C.frameLabel(token.frame) : 'a frame';
     return `${owner}'s drone · ${token.hp}/${token.maxHp}`;
   }
-  return `token: ${token.kind} ${token.hp}/${token.maxHp}`;
+  // Its name, not its slug. Hit points only when it has any — the relic, the
+  // Shiny Thing and the fugitive are luggage, and "the relic 0/0" reads as a
+  // destroyed piece rather than one waiting to be picked up.
+  const parts = [C.tokenLabel(token)];
+  if (token.maxHp > 0) parts.push(`${token.hp}/${token.maxHp}`);
+  if (token.carrier) parts.push(`carried by ${C.frameLabel(token.carrier)}`);
+  return parts.join(' · ');
 }
 
 function focusActive() {

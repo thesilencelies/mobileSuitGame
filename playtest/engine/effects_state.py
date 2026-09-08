@@ -215,6 +215,7 @@ def spawn_token(
     *,
     hp: int = 0,
     owner: Optional[Team] = None,
+    aura_radius: int = 0,
 ) -> TokenState:
     token = TokenState(
         id=state.next_uid("t"),
@@ -223,6 +224,7 @@ def spawn_token(
         hp=hp,
         max_hp=hp,
         owner=owner,
+        aura_radius=aura_radius,
     )
     state.tokens[token.id] = token
     return token

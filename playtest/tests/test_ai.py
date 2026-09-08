@@ -299,7 +299,10 @@ def test_the_camper_baseline_plays_a_legal_game_and_goes_for_the_ground(catalogu
         )
         # Over five turns of walking at them, at least one camper got there --
         # or every objective it wanted was settled before it arrived.
-        assert seen or all(obj.settled for obj in objectives)
+        # `latched` is the field; `settled` is what the *view* calls it, and
+        # asking the state for it silently raised as soon as a seed came
+        # along where the camper did not arrive.
+        assert seen or all(obj.latched is not None for obj in objectives)
 
 
 # --------------------------------------------------------------------------

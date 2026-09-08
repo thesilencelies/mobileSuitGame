@@ -96,7 +96,7 @@ FRAME_WIDTH = 128
 TOKEN_FILES: tuple[str, ...] = (
     "PowerPlant1", "PowerPlant2",
     "Tower1", "Tower2", "Tower3", "Tower4",
-    "Shiny", "Fugitive", "Barricade", "GravityWell",
+    "Shiny", "Relic", "Fugitive", "Barricade", "GravityWell",
     "Portal", "Illusion", "Real", "Image",
     "Cage", "Rebound", "Storm", "Gangs", "Refugees",
 )

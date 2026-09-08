@@ -483,10 +483,13 @@ step by step*.
   nothing on the board to say so, which is how a perfectly correct refusal came
   to look like an engine bug (an elevation-1 frame beside an elevation-2 column
   can climb it for 2, but not while standing in a well). Psychic Storm and
-  Rebound have the same shape. The radius and the wording come from the engine
-  (`effects.TOKEN_AURAS` → `token.aura` in the view); the client draws a dashed
-  silhouette, names it in the tile read-out, and names it in the movement
-  legend whenever the acting frame is standing in one.
+  Rebound have the same shape. The wording comes from `effects.TOKEN_AURAS`;
+  the **radius is the token's own** (`TokenState.aura_radius`, read off the
+  card that made it — see below) and reaches the client as `token.aura`. The
+  client draws a dashed silhouette, names it in the tile read-out, and names it
+  in the movement legend whenever the acting frame is standing in one. Radius
+  and rule come from the same number on purpose: a ring drawn at 5 over a rule
+  enforced at 4 is worse than no ring.
 * **A movement refusal says what it would have cost.** Green tiles carry their
   cost; the tiles the frame cannot afford *because of the terrain* are drawn
   grey with theirs, and the legend names the budget. Climbing is 1 extra per
@@ -620,6 +623,18 @@ uses.
 So a new drone in `Drone actions.csv` works with no engine change at all. The
 same two helpers now drive Barricade's count and Gravity Well's placement
 reach, so a balance edit to those numbers is a CSV edit too.
+
+**Every distance a pilot card prints is read off the card**, including the
+second and third one in a sentence (`_reaches_from_text`, and `_spaces_from_text`
+for Set the trap's "2 space", the one card that gives a distance without saying
+"within"). That covers the ones that are not a reach at all but an *area the
+card leaves behind*: Psychic Storm's burn ring, Gravity Well's drag ring and
+Rebound's sight ring are the **second** "within N" of their text, and are
+carried on the token they create (`TokenState.aura_radius`) rather than kept as
+module constants. They used to be constants, and a CSV balance pass moved the
+printed numbers while the engine kept enforcing the old ones — silently, and
+with the client drawing the old ring on top. The `*_RADIUS` names in
+`effects.py` are now only fallbacks for text that stops saying.
 
 Each placement option carries the drone's printed `reach`, which is what stops
 the AI building an immobile, two-hit-point, range-8 Gun Tower in the enemy's
@@ -803,11 +818,21 @@ the three tiles — but while the images are up:
   * anything the action counts may be counted from **any** image
     (`effects_state.origins`): range, line of sight, every "within N". A zone
     lands if any image is placed to land it;
-  * **a fake that would deal damage is removed.** All three swing and only one
-    can hurt anything, so every fake whose own copy of the attack reached what
-    was hit gives itself away. Shooting is therefore how the trick ends — but
-    only if the shot *lands*: a blocked attack deals no damage and reveals
-    nothing.
+  * **an attack that connects ends the trick.** A decoy cannot hurt anything,
+    so a hit that lands says the swing was real, and every image comes down —
+    decoys included, in reach or not (`effects.images_dealt_damage`). Shooting
+    is what the card costs: it hides a frame right up until that frame does
+    something. **Connecting is the test, not hit points coming off**: a shield
+    counter is a *replacement*, not a negation — the damage was dealt and the
+    counter was spent instead of armour — so an absorbed hit gives the frame
+    away exactly like one that marked the sheet. Gating on damage taken would
+    have made a shield counter a way to shoot from cover for free. The one
+    thing that gives nothing away is a **blocked** attack: no zone lands, so
+    `combat.finish_target` never calls in at all.
+  * that reveal subsumes the card's "the fakes are removed … if they would deal
+    damage" — every image goes, so there is nothing left to remove one at a
+    time. The other half of the clause, "removed if *attacked*", is
+    `strike_image` and is still live.
 * **each image is a frame in itself for interactions and targeting.** While the
   images are up the frame is in no option list; each of its images is one, and
   they are indistinguishable. Whatever the card does then lands on the *frame*

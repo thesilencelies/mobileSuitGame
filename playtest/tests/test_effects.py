@@ -720,27 +720,66 @@ def test_an_action_may_be_counted_from_any_image():
     ), "and not from the frame's own tile, which is still six tiles away"
 
 
-def test_a_fake_that_would_have_dealt_damage_is_removed():
-    """"the fakes are removed ... if they would deal damage".
-
-    All three swing. The one that hit was real; any fake that also reached is
-    revealed for what it is. A fake out of reach swung at nothing and stays.
-    """
+def _punching_mystic(gap: int = 1):
+    """A cloaked frame with its two decoys parked, next to something to hit."""
     state = make_state(width=20, height=20)
     state.phase = "action"
     frame = add_frame(state, 0, "Kamikiri", Pos(2, 2))
-    foe = add_frame(state, 1, "Hector MkI", Pos(3, 2))
+    foe = add_frame(state, 1, "Hector MkI", Pos(2 + gap, 2))
     play(state, frame, effects.EPHEMERAL)
     real, fakes = _images(state, frame)
     near, far = fakes
-    near.pos = Pos(3, 1)                       # also next to the target
+    near.pos = Pos(2 + gap, 1)                 # also next to the target
     far.pos = Pos(2, 9)                        # nowhere near it
+    return state, frame, foe, real, near, far
+
+
+def test_an_attack_that_deals_damage_reveals_the_frame():
+    """"If it deals damage then the opponent knows it's not a fake."
+
+    A decoy cannot mark anything, so a mark on the target says the swing was
+    real -- and the images come down. That is the card's price: it hides a
+    frame right up until that frame does something.
+    """
+    state, frame, foe, real, near, far = _punching_mystic()
 
     run_attack(state, frame, give(state, frame, "Basic_Punch"), foe)
     assert sum(foe.damage.values()) > 0, "the attack landed"
-    assert not near.alive, "it reached, so it gave itself away"
-    assert far.alive, "it could not have hit anything"
-    assert real.alive and effects.is_cloaked(state, frame), "two images left"
+    assert not effects.is_cloaked(state, frame), "damage gives the frame away"
+    assert not [
+        t for t in state.tokens.values() if t.kind == effects.IMAGE and t.alive
+    ], "every image comes down with it, decoys included -- in or out of reach"
+    assert frame.alive and frame.pos == Pos(2, 2), "the frame itself is fine"
+
+
+def test_a_shield_counter_does_not_save_the_trick():
+    """A shield is a replacement, not a negation.
+
+    The damage was dealt -- the counter was spent instead of armour -- so the
+    swing was as real as one that marked the sheet, and it gives the frame
+    away just the same. Gating the reveal on hit points coming off would have
+    made a shield counter a way to shoot from cover for free.
+    """
+    state, frame, foe, real, near, far = _punching_mystic()
+    foe.shields = 1
+
+    run_attack(state, frame, give(state, frame, "Basic_Punch"), foe)
+    assert sum(foe.damage.values()) == 0 and foe.shields == 0, "the shield ate it"
+    assert not effects.is_cloaked(state, frame), "damage was still dealt"
+    assert not [
+        t for t in state.tokens.values() if t.kind == effects.IMAGE and t.alive
+    ]
+
+
+def test_a_blocked_attack_out_of_the_images_gives_nothing_away():
+    """No damage and no zone landed, so there is nothing to read off it."""
+    state, frame, foe, real, near, far = _punching_mystic()
+    give(state, foe, "Basic_Block")            # blocks every zone, compulsory
+
+    run_attack(state, frame, give(state, frame, "Basic_Punch"), foe)
+    assert sum(foe.damage.values()) == 0
+    assert effects.is_cloaked(state, frame), "blocking is how you learn nothing"
+    assert near.alive and far.alive, "no decoy was shown up either"
 
 
 def test_an_image_is_targeted_in_the_frames_place_and_the_debuff_sticks():
@@ -915,7 +954,7 @@ def test_teleport_repositions_the_frame_the_moment_it_resolves():
     assert effects.followup_decision(state) is False, "nothing is owed later"
 
 
-def test_utter_darkness_makes_everything_within_five_untargetable_next_turn():
+def test_utter_darkness_makes_everything_in_its_bubble_untargetable_next_turn():
     state = make_state()
     mystic = add_frame(state, 0, "Hannael", Pos(2, 2))
     ally = add_frame(state, 0, "Flamekin", Pos(3, 2))
@@ -930,9 +969,81 @@ def test_utter_darkness_makes_everything_within_five_untargetable_next_turn():
     assert effects.is_untargetable(state, hunter, card, ally)
     assert effects.is_untargetable(state, hunter, card, mystic)
     assert not effects.is_untargetable(state, hunter, card, far)
+    # The edge is the card's, wherever the CSV currently puts it.
+    reach = _printed_reach(effects.UTTER_DARKNESS)
+    edge = add_frame(state, 0, "Kuwagata", Pos(2 + reach, 2), frame_id="Blue edge")
+    past = add_frame(state, 0, "Adam", Pos(2 + reach + 1, 2), frame_id="Blue past")
+    assert effects.is_untargetable(state, hunter, card, edge)
+    assert not effects.is_untargetable(state, hunter, card, past)
     assert ally.id not in {
         o["id"] for o in combat.legal_targets(state, hunter, card)
     }
+
+
+def _printed_reach(key, which=0):
+    """The `which`-th "within N" the card prints. The engine reads the same."""
+    found = re.findall(r"within (\d+)", CATALOGUE[key].text)
+    return int(found[which])
+
+
+def test_an_area_token_carries_the_radius_its_card_prints():
+    """A storm, a well and a mirror each reach past their own tile.
+
+    How far used to be a module constant, so an edit to the card text moved
+    the number the player reads and left the number the engine enforces where
+    it was -- and the ring the board draws with it. The token now carries the
+    radius off its own card (`TokenState.aura_radius`), which is also what
+    `effects.token_aura` hands the client.
+    """
+    state = make_state(width=20, height=20)
+    caster = add_frame(state, 0, "Hannael", Pos(2, 2))
+    spec = add_frame(state, 0, "Percival MkIV", Pos(4, 2))
+    eng = add_frame(state, 0, "Adam", Pos(6, 2))
+
+    for frame, key, kind in (
+        (caster, effects.PSYCHIC_STORM, fx.STORM),
+        (eng, effects.GRAVITY_WELL, fx.GRAVITY_WELL),
+        (spec, effects.REBOUND, fx.REBOUND),
+    ):
+        _uid, decision = play(state, frame, key)
+        assert decision is not None, key
+        answer(state, decision)
+        token = [t for t in state.tokens.values() if t.kind == kind][-1]
+        printed = _printed_reach(key, 1)
+        assert token.aura_radius == printed, key
+        assert effects.token_aura(token)[0] == printed, (
+            f"{key}: the ring drawn is not the ring enforced"
+        )
+
+
+def test_the_storm_burns_exactly_as_far_as_the_card_says():
+    state = make_state(width=24, height=24)
+    mystic = add_frame(state, 0, "Hannael", Pos(10, 8))
+    reach = _printed_reach(effects.PSYCHIC_STORM, 1)
+    edge = add_frame(state, 1, "Hector MkI", Pos(10 + reach, 10))
+    past = add_frame(state, 1, "Fenrir", Pos(10 + reach + 1, 10))
+
+    _uid, decision = play(state, mystic, effects.PSYCHIC_STORM)
+    answer(state, decision, {"x": 10, "y": 10})
+    effects.end_of_turn(state)
+    assert edge.damage["High"] == 1
+    assert past.damage["High"] == 0, "one tile outside is outside"
+
+
+def test_the_well_taxes_exactly_as_far_as_the_card_says():
+    state = make_state(width=24, height=24)
+    eng = add_frame(state, 0, "Adam", Pos(2, 2))
+    reach = _printed_reach(effects.GRAVITY_WELL, 1)
+    _uid, decision = play(state, eng, effects.GRAVITY_WELL)
+    answer(state, decision, {"x": 2, "y": 3})
+    well = Pos(2, 3)
+
+    inside = effects._gravity_penalty(
+        state, Pos(well.x + reach - 1, well.y), Pos(well.x + reach, well.y))
+    outside = effects._gravity_penalty(
+        state, Pos(well.x + reach, well.y), Pos(well.x + reach + 1, well.y))
+    assert inside == effects.GRAVITY_PENALTY, "the last step inside is taxed"
+    assert outside == 0, "the first step beyond the ring is free"
 
 
 def test_encode_the_future_lets_every_ally_commit_from_its_deck():
@@ -1106,7 +1217,9 @@ def test_a_shove_asks_who_before_it_asks_where():
 def test_outfox_reveals_and_dazes_a_frame_in_range():
     state = make_state(width=20, height=20)
     tac = add_frame(state, 0, "Hector MkI", Pos(2, 2))
-    enemy = add_frame(state, 1, "Fenrir", Pos(7, 2))         # five away
+    # As far as the card says, wherever the CSV currently puts that.
+    reach = int(re.search(r"within (\d+)", CATALOGUE[effects.OUTFOX].text).group(1))
+    enemy = add_frame(state, 1, "Fenrir", Pos(2 + reach, 2))
     far = add_frame(state, 1, "Adam", Pos(19, 19))
     hidden = give(state, enemy, "Spear_Thrust")
 
@@ -1209,7 +1322,8 @@ def test_portal_names_its_own_two_tiles_and_links_them():
     assert first is not None, "the card asks where the near end goes"
     reach = max(state.board.distance(frame.pos, Pos(o["x"], o["y"]))
                 for o in first.options)
-    assert reach == 7, "'within 7' is read off the card"
+    printed = int(re.search(r"within (\d+)", CATALOGUE[effects.PORTAL].text).group(1))
+    assert reach == printed, "the 'within N' is read off the card, not pinned here"
 
     second = answer(state, first, {"x": 6, "y": 1})
     assert second is not None, "and then where the far end goes"

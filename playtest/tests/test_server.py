@@ -2061,14 +2061,18 @@ def test_an_area_token_carries_its_area_into_the_view() -> None:
 
     state = make_state()
     add_frame(state, 0, "Kuwagata", Pos(2, 2))
-    fx.spawn_token(state, fx.GRAVITY_WELL, Pos(8, 8), owner=1)
+    fx.spawn_token(state, fx.GRAVITY_WELL, Pos(8, 8), owner=1, aura_radius=4)
     fx.spawn_token(state, fx.BARRICADE, Pos(3, 3), owner=1)
 
     tokens = {t["kind"]: t for t in view_for(state, 0)["tokens"]}
     aura = tokens["gravitywell"]["aura"]
-    assert aura["radius"] == effects.GRAVITY_RADIUS
+    # The token's own radius, off the card that made it -- not the module
+    # fallback, or the ring drawn would not be the ring enforced.
+    assert aura["radius"] == 4
     assert "movement" in aura["text"] and aura["name"] == "gravity well"
     # Every kind the engine gives an area to has one in the view, and nothing
     # else does -- a token with no aura must not grow a ring on the board.
+    live = {t.kind: t for t in state.tokens.values()}
     for kind, token in tokens.items():
-        assert ("aura" in token) == (effects.token_aura(kind) is not None), kind
+        assert ("aura" in token) == (
+            effects.token_aura(live[kind]) is not None), kind

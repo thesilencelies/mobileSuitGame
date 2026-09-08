@@ -160,6 +160,7 @@ const TOKEN_ART = {
   tower: { stem: 'Tower', states: 4 },
   reactor: { stem: 'PowerPlant', states: 2 },
   shiny: 'Shiny',
+  relic: 'Relic',
   fugitive: 'Fugitive',
   barricade: 'Barricade',
   gravitywell: 'GravityWell',

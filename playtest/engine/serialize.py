@@ -245,7 +245,7 @@ def _token_json(state: GameState, token, seat: Team) -> dict[str, Any]:
     # re-prices movement for five tiles in every direction and has nothing on
     # the board to say so, which is exactly the kind of silent rule a player
     # ends up reverse-engineering from a refused move.
-    aura = effects.token_aura(token.kind)
+    aura = effects.token_aura(token)
     if aura is not None:
         radius, name, text = aura
         out["aura"] = {"radius": radius, "name": name, "text": text}

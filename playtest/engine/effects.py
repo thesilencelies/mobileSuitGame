@@ -80,6 +80,9 @@ _SELECT_MOVE_RE = re.compile(
     r"select an opposing frame within\s*(\d+)\s*:\s*move them\s*(\d+)", re.I
 )
 _WITHIN_RE = re.compile(r"within\s*(\d+)", re.I)
+#: "move ... 2 space" -- the one card that gives a distance without
+#: saying "within" (Set the trap).
+_SPACES_RE = re.compile(r"(\d+)\s*spaces?\b", re.I)
 #: "Summon two attack dogs" -- how many of the thing the card makes. Spelled
 #: out on every card that has one, so the words are part of the pattern.
 _COUNT_RE = re.compile(r"\b(?:summon|create|put)\s+(?:up to\s+)?(\d+|one|two|three)\b", re.I)
@@ -113,6 +116,12 @@ def _parse_statuses(text: str) -> list[tuple[StatusKind, int]]:
 
 def _reach_from_text(text: str, default: int) -> int:
     match = _WITHIN_RE.search(text or "")
+    return int(match.group(1)) if match else default
+
+
+def _spaces_from_text(text: str, default: int) -> int:
+    """How many spaces the card says to move something, when it says "space"."""
+    match = _SPACES_RE.search(text or "")
     return int(match.group(1)) if match else default
 
 
@@ -191,13 +200,23 @@ PRACTICED = "Specialist_Practiced Technique"
 REBOUND = "Specialist_Rebound"
 CAGE_FIGHT = "Specialist_Cage Fight"
 
-#: Gravity Well's radius and per-step cost (from the card text).
+#: Gravity Well's radius and per-step cost.
+#:
+#: Every radius in this block is a **fallback**, not the rule. The cards name
+#: their own distances and the engine reads them off the text -- a card that
+#: puts a token down parses the *second* "within N" of its sentence and hands
+#: it to the token (`TokenState.aura_radius`), so a balance edit in the CSV
+#: moves the ring without an engine change. These numbers are only what is
+#: used if the text ever stops saying.
 GRAVITY_RADIUS = 5
 GRAVITY_PENALTY = 1
 
 #: Barricade tokens per card, and Utter darkness' radius.
 BARRICADE_COUNT = 3
 DARKNESS_RADIUS = 5
+
+#: Set the trap's reveal ring.
+TRAP_REVEAL = 3
 
 #: Psychic Storm: how far the weather reaches and what it does to everything
 #: standing in it, once per turn.
@@ -896,7 +915,9 @@ def _choice_shove_to(
         return
     _move_frame(state, target, dest)
     if ctx.get("after") == "reveal_nearby":
-        for enemy in fx.frames_within(state, target, 3, side="enemy"):
+        for enemy in fx.frames_within(
+            state, target, _trap_reveal(state), side="enemy"
+        ):
             _apply_statuses(state, enemy, [("revealed", 1)])
     elif ctx.get("after") == "suplex":
         # "That target gets 2 stunned and 2 dazed" -- after the throw, so a
@@ -1258,9 +1279,20 @@ def _choice_image_teleport(
 def _effect_utter_darkness(state: GameState, frame: FrameState, uid: str):
     state.note(
         f"{frame.id} calls down darkness: next turn nothing within "
-        f"{DARKNESS_RADIUS} of it can be attacked"
+        f"{_darkness_radius(state)} of it can be attacked"
     )
     return None
+
+
+def _darkness_radius(state: GameState) -> int:
+    """"While any frame is within N of this frame it cannot be attacked."
+
+    Read off the card at the moment it is asked, like Fog of war's, because
+    the card is in the `aside` pile by the time an attack is checked against
+    it -- there is nothing to carry the number on but the catalogue.
+    """
+    card = state.catalogue.get(UTTER_DARKNESS)
+    return _reach_from_text(card.text if card else "", DARKNESS_RADIUS)
 
 
 def _effect_encode(state: GameState, frame: FrameState, uid: str):
@@ -1289,13 +1321,16 @@ def _effect_psychic_storm(state: GameState, frame: FrameState, uid: str):
     it says "every unit", and a storm that politely stepped around its own
     caster's frames would be a different card.
     """
-    reach = _reach_from_text(state.card(uid).text, STORM_RADIUS)
+    reach, inside = _reaches_from_text(
+        state.card(uid).text, STORM_RADIUS, STORM_RADIUS
+    )
     tiles = fx.free_tiles_from(state, frame, reach)
     if not tiles:
         return None
     return _ask(
         state,
         "psychic_storm",
+        ctx={"radius": inside},
         seat=frame.seat,
         frame_id=frame.id,
         prompt=f"Psychic Storm: where does it break (within {reach})?",
@@ -1308,25 +1343,30 @@ def _choice_psychic_storm(
     state: GameState, frame: FrameState, choice: Mapping, ctx: Mapping
 ) -> None:
     pos = Pos(int(choice["x"]), int(choice["y"]))
-    fx.spawn_token(state, fx.STORM, pos, owner=frame.seat)
-    state.note(f"a psychic storm breaks over ({pos.x},{pos.y})")
+    inside = int(ctx.get("radius", STORM_RADIUS))
+    fx.spawn_token(state, fx.STORM, pos, owner=frame.seat, aura_radius=inside)
+    state.note(
+        f"a psychic storm breaks over ({pos.x},{pos.y}), "
+        f"catching everything within {inside}"
+    )
 
 
 def _storm_step(state: GameState) -> None:
     """Every unit standing in a storm takes its damage, once per turn."""
     for storm in fx.tokens_of_kind(state, fx.STORM):
+        reach = storm.aura_radius or STORM_RADIUS
         for target in state.frames.values():
             if not target.alive or target.pos is None:
                 continue
             gap = fx.distance(state, storm.pos, target.pos)
-            if gap is not None and gap <= STORM_RADIUS:
+            if gap is not None and gap <= reach:
                 state.note(f"{target.id} is caught in the storm")
                 deal_damage(state, target, STORM_ZONE, STORM_DAMAGE)
         for token in list(state.tokens.values()):
             if not token.alive or token.pos is None or not fx.is_unit(token):
                 continue
             gap = fx.distance(state, storm.pos, token.pos)
-            if gap is not None and gap <= STORM_RADIUS:
+            if gap is not None and gap <= reach:
                 damage_token(state, token, STORM_DAMAGE)
 
 
@@ -1417,12 +1457,32 @@ def _effect_fog_of_war(state: GameState, frame: FrameState, uid: str):
 
 
 def _effect_set_the_trap(state: GameState, frame: FrameState, uid: str):
-    """"Move an allied frame within 5 2 space. All enemies within 3 of them
-    get revealed"."""
+    """"Move an allied frame within N M space. All enemies within R of them
+    get revealed".
+
+    All three numbers are read off the card, like every other distance here.
+    The middle one is the odd man out -- it is the only place a card gives a
+    distance without saying "within" -- so it has its own reader.
+    """
+    card = state.card(uid)
+    reach, _reveal = _reaches_from_text(card.text, 5, TRAP_REVEAL)
     return _shove_step(
-        state, frame, label="Set the trap", reach=5, steps=2,
+        state, frame, label=card.name,
+        reach=reach, steps=_spaces_from_text(card.text, 2),
         side="ally", after="reveal_nearby",
     )
+
+
+def _trap_reveal(state: GameState) -> int:
+    """"All enemies within R of them get revealed", off the card.
+
+    Asked when the shove lands rather than when the card resolves, so it comes
+    from the catalogue: `_choice_shove_to` is shared with Displace and Suplex
+    and knows only that this one was flagged `reveal_nearby`.
+    """
+    card = state.catalogue.get(SET_THE_TRAP)
+    _reach, reveal = _reaches_from_text(card.text if card else "", 5, TRAP_REVEAL)
+    return reveal
 
 
 def _effect_displace(state: GameState, frame: FrameState, uid: str):
@@ -1808,16 +1868,17 @@ def _effect_gravity_well(state: GameState, frame: FrameState, uid: str):
     far the well can be *placed*, the second the radius it drags inside.
     `_reach_from_text` takes the first, which is the placement one.
     """
-    reach = _reach_from_text(state.card(uid).text, 1)
+    reach, inside = _reaches_from_text(state.card(uid).text, 1, GRAVITY_RADIUS)
     tiles = fx.free_tiles_from(state, frame, reach)
     if not tiles:
         return None
     if len(tiles) == 1:
-        _place_well(state, frame, tiles[0])
+        _place_well(state, frame, tiles[0], inside)
         return None
     return _ask(
         state,
         "gravity_well",
+        ctx={"radius": inside},
         seat=frame.seat,
         frame_id=frame.id,
         prompt=f"Gravity Well: choose a tile within {reach}",
@@ -1826,15 +1887,24 @@ def _effect_gravity_well(state: GameState, frame: FrameState, uid: str):
     )
 
 
-def _place_well(state: GameState, frame: FrameState, pos: Pos) -> None:
-    fx.spawn_token(state, fx.GRAVITY_WELL, pos, owner=frame.seat)
-    state.note(f"a gravity well opens at ({pos.x},{pos.y})")
+def _place_well(
+    state: GameState, frame: FrameState, pos: Pos, inside: int
+) -> None:
+    fx.spawn_token(
+        state, fx.GRAVITY_WELL, pos, owner=frame.seat, aura_radius=inside
+    )
+    state.note(
+        f"a gravity well opens at ({pos.x},{pos.y}), dragging within {inside}"
+    )
 
 
 def _choice_gravity_well(
     state: GameState, frame: FrameState, choice: Mapping, ctx: Mapping
 ) -> None:
-    _place_well(state, frame, Pos(int(choice["x"]), int(choice["y"])))
+    _place_well(
+        state, frame, Pos(int(choice["x"]), int(choice["y"])),
+        int(ctx.get("radius", GRAVITY_RADIUS)),
+    )
 
 
 def _effect_system_override(state: GameState, frame: FrameState, uid: str):
@@ -2053,13 +2123,14 @@ def _effect_rebound(state: GameState, frame: FrameState, uid: str):
     down rather than to the seat -- "this frame" -- so a second Specialist does
     not get to borrow it.
     """
-    reach = _reach_from_text(state.card(uid).text, 5)
+    reach, sees = _reaches_from_text(state.card(uid).text, 5, REBOUND_RADIUS)
     tiles = fx.free_tiles_from(state, frame, reach)
     if not tiles:
         return None
     return _ask(
         state,
         "rebound",
+        ctx={"radius": sees},
         seat=frame.seat,
         frame_id=frame.id,
         prompt=f"Rebound: where does the mirror go (within {reach})?",
@@ -2072,9 +2143,14 @@ def _choice_rebound(
     state: GameState, frame: FrameState, choice: Mapping, ctx: Mapping
 ) -> None:
     pos = Pos(int(choice["x"]), int(choice["y"]))
-    token = fx.spawn_token(state, fx.REBOUND, pos, owner=frame.seat)
+    sees = int(ctx.get("radius", REBOUND_RADIUS))
+    token = fx.spawn_token(
+        state, fx.REBOUND, pos, owner=frame.seat, aura_radius=sees
+    )
     fx.slot(state, "rebound")[token.id] = frame.id
-    state.note(f"{frame.id} sets a rebound at ({pos.x},{pos.y})")
+    state.note(
+        f"{frame.id} sets a rebound at ({pos.x},{pos.y}), seeing within {sees}"
+    )
 
 
 def rebound_sight(
@@ -2095,7 +2171,7 @@ def rebound_sight(
         if owners.get(token.id) != attacker.id:
             continue
         gap = fx.distance(state, token.pos, target_pos)
-        if gap is None or gap > REBOUND_RADIUS:
+        if gap is None or gap > (token.aura_radius or REBOUND_RADIUS):
             continue
         if state.board.has_line_of_sight(
             attacker.pos, token.pos, occupied=state.occupied(exclude=attacker.id)
@@ -2710,9 +2786,20 @@ TOKEN_AURAS: Mapping[str, tuple[int, str, str]] = {
 }
 
 
-def token_aura(kind: str) -> Optional[tuple[int, str, str]]:
-    """`(radius, name, what it does)` for a token that reaches past its tile."""
-    return TOKEN_AURAS.get(kind)
+def token_aura(token: TokenState) -> Optional[tuple[int, str, str]]:
+    """`(radius, name, what it does)` for a token that reaches past its tile.
+
+    The radius is the **token's own** (`aura_radius`), set from the text of the
+    card that put it down, so the ring the client draws is the ring the engine
+    actually enforces. The table only supplies the words and the fallback --
+    if those two could disagree the drawing would be a lie, which is the exact
+    failure the aura was added to fix.
+    """
+    found = TOKEN_AURAS.get(token.kind)
+    if found is None:
+        return None
+    radius, name, text = found
+    return (token.aura_radius or radius), name, text
 
 
 def images_dealt_damage(
@@ -2722,41 +2809,31 @@ def images_dealt_damage(
     target_pos: Optional[Pos],
     defender: Optional[FrameState] = None,
 ) -> None:
-    """"the fakes are removed ... if they would deal damage".
+    """An attack out of the images landed, so the trick is over.
 
-    All three images made this attack. Only one of them can actually hurt
-    anything, so every fake whose own copy of it reached what was hit is
-    revealed for what it is and removed. A fake that could not have reached is
-    left alone: it swung at nothing and gave nothing away.
+    All three images make the attack and only one of them can hurt anything,
+    so a hit that connects says the swing was real and the images come down.
+    That is what the card costs: it hides a frame right up until that frame
+    does something.
+
+    **Connecting is the test, not hit points coming off.** A shield counter is
+    a replacement, not a negation -- the damage was dealt and the counter was
+    spent instead of armour -- so an absorbed hit reveals the frame exactly
+    like one that marked it. The case that gives nothing away is a *blocked*
+    attack: no zone lands, `combat.finish_target` never calls in here, and the
+    other seat learns nothing from the shot.
+
+    This subsumes the card's "the fakes are removed ... if they would deal
+    damage": every image goes, decoys included, so there is nothing left to
+    remove one at a time. The other half of that clause -- "removed if
+    attacked" -- is `strike_image`, and is still very much live.
     """
-    from . import combat
-
-    record = _images(state).get(attacker.id)
-    if record is None or target_pos is None or not card.is_attack:
+    if not card.is_attack or target_pos is None:
         return
-    for token_id in list(record.get("tokens", ())):
-        if token_id == record.get("real"):
-            continue
-        token = state.tokens.get(token_id)
-        if token is None or not token.alive or token.pos is None:
-            continue
-        would_hit = combat.zones_in_range(
-            state, attacker, card, target_pos, defender, origin=token.pos
-        ) and combat.can_target(
-            state, attacker, card, target_pos, defender, origin=token.pos
-        )
-        if would_hit:
-            from . import objectives as objectivelib
-
-            where = token.pos
-            token.alive = False
-            token.pos = None
-            objectivelib.image_leaves(state, token_id, where)
-            record["tokens"] = [t for t in record["tokens"] if t != token_id]
-            state.note(
-                f"an image of {attacker.id} struck and dealt nothing -- "
-                f"it flickers out"
-            )
+    reveal_images(
+        state, attacker,
+        why="it dealt damage, so it was never one of the images",
+    )
 
 
 def sync_images(state: GameState) -> None:
@@ -2953,7 +3030,7 @@ def is_untargetable(
 ) -> bool:
     """Whether an effect currently forbids this attack on this frame.
 
-    * **Utter darkness** -- "while any frame is within 5 of this frame it
+    * **Utter darkness** -- "while any frame is within N of this frame it
       cannot be attacked". Read as a bubble: everything inside it is hidden,
       friend and foe alike, which is the only reading under which the card's
       own frame is protected too.
@@ -2969,7 +3046,7 @@ def is_untargetable(
         state, UTTER_DARKNESS, this_turn=False
     ):
         gap = fx.distance(state, mystic.pos, defender.pos)
-        if gap is not None and gap <= DARKNESS_RADIUS:
+        if gap is not None and gap <= _darkness_radius(state):
             return True
     if card.is_ranged:
         if defender.turn_flags.get("untargetable_ranged"):
@@ -3107,7 +3184,8 @@ def _gravity_penalty(state: GameState, start: Pos, dest: Pos) -> int:
         far = fx.distance(state, well.pos, dest)
         if near is None or far is None:
             continue
-        away = min(GRAVITY_RADIUS, far) - min(GRAVITY_RADIUS, near)
+        radius = well.aura_radius or GRAVITY_RADIUS
+        away = min(radius, far) - min(radius, near)
         if away > 0:
             total += GRAVITY_PENALTY * away
     return total

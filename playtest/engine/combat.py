@@ -713,8 +713,9 @@ def finish_target(state: GameState, attack: AttackInProgress) -> None:
 
     if landed:
         effects.on_hit(state, attacker, card, defender)
-        # "the fakes are removed ... if they would deal damage" -- measured
-        # before a knockback moves the target out from under them.
+        # An unblocked zone means the frame itself swung -- a decoy cannot
+        # mark anything, and a shield counter spent instead of armour is still
+        # damage dealt -- so the images come down.
         effects.images_dealt_damage(state, attacker, card, defender.pos, defender)
         steps = kw.knockback_amount(state, attacker, card)
         if steps:

@@ -123,6 +123,14 @@ class TokenState:
     #: Subtracted from the damage of every zone of every attack that hits it
     #: (rules.tex "Damage reduction and increases"). The Tower's -1.
     damage_reduction: int = 0
+    #: How far this token reaches past its own tile, when it does: the ring a
+    #: gravity well drags inside, the weather a psychic storm covers, how far
+    #: a rebound sees. Read off the card that made it (`effects` parses the
+    #: *second* "within N" of the text) and carried here rather than kept as a
+    #: module constant, so a balance edit in the CSV changes the token without
+    #: touching the engine -- and so two wells from differently-worded cards
+    #: could differ. 0 means "no reach beyond its tile".
+    aura_radius: int = 0
     #: Tiles it may be moved each turn, and the initiative it moves at. 0
     #: movement means it stays where it is put.
     movement: int = 0
