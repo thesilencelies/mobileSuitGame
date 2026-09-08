@@ -539,6 +539,24 @@ def _bomb_decision(
     )
 
 
+def bomb_awaiting(state: GameState, seat: Team) -> Optional[ObjectiveState]:
+    """The Dome Campus still waiting on `seat` to name a bomb carrier.
+
+    There can be more than one on the board: both players may bring the same
+    battlefield, which is legal and deals the objective twice. Answering by
+    *name* then always wrote the carrier onto the first copy, so the second
+    kept asking -- a legal setup that never finished dealing. This picks the
+    copy that is actually asking, which is the one owned by the other side and
+    still without a carrier.
+    """
+    for objective in state.objectives:
+        if objective.name != "Dome Campus" or objective.memo.get("carrier"):
+            continue
+        if other_seat(state, objective.owner) == seat:
+            return objective
+    return None
+
+
 def set_bomb_carrier(
     state: GameState, objective: ObjectiveState, frame_id: str
 ) -> None:

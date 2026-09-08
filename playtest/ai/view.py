@@ -45,6 +45,11 @@ class CardInfo:
     keywords: frozenset[str]
     knockback: int
     persistence: Optional[int]
+    #: Drone cards only: what this card summons. A summon is an attacker that
+    #: costs no action on any later turn, which is a kind of value nothing
+    #: else in this dataclass expresses.
+    drone_health: int = 0
+    drone_movement: int = 0
     #: True when the engine does not implement this card's text. The scorer
     #: models printed stats and never card text, so this does not change how a
     #: card is valued -- it marks text that is inert *in the engine*, which is
@@ -109,6 +114,11 @@ class CardInfo:
     def reload(self) -> bool:
         return "reload" in self.keywords
 
+    @property
+    def summons(self) -> bool:
+        """True when playing this card leaves an attacker on the board."""
+        return self.drone_health > 0
+
 
 def card_info(key: str, entry: Mapping[str, Any]) -> CardInfo:
     """Build a `CardInfo` from one `GET /api/cards` entry."""
@@ -129,6 +139,8 @@ def card_info(key: str, entry: Mapping[str, Any]) -> CardInfo:
         keywords=frozenset(entry.get("keywords") or ()),
         knockback=int(entry.get("knockback", 0) or 0),
         persistence=entry.get("persistence"),
+        drone_health=int(entry.get("droneHealth", 0) or 0),
+        drone_movement=int(entry.get("droneMovement", 0) or 0),
         not_implemented="notImplemented" in entry,
     )
 

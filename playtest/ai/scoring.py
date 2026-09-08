@@ -90,6 +90,35 @@ APPROACH_DISCOUNT = 0.72
 #: had one useful setting at either end and nothing in between.
 CAUTION_SPAN = 0.25
 
+#: Extra actions a card buys, keyed by card. Everything else the scorer needs
+#: it reads off printed numbers; this cannot be, because "play 1 extra action"
+#: is text, and the AI does not read text. It is a table of three because
+#: there are only three such cards in the game -- and leaving them out is not
+#: neutral, it is scoring a whole second hand at zero.
+#:
+#: The value is in *actions bought*, which is the unit the tempo term wants.
+#: `Parallel Action` buys no extra action; it buys a second hand to choose it
+#: from, which is worth a fraction of one. There is precedent for a small
+#: named table here: `view.NO_RANGED_FRAMES` and `RANGE_BONUS_FRAMES` are the
+#: same shape of fact, and the same maintenance burden -- if a card is added
+#: that buys actions, it belongs in this dict.
+ACTION_ECONOMY: dict[str, float] = {
+    "Wunderkid_Hyper": 1.0,              # next turn: play 1 extra action
+    "Bruiser_Relentless Assault": 1.0,   # this turn: other actions resolve twice
+    "Wunderkid_Parallel Action": 0.5,    # next turn: a second hand to pick from
+}
+
+#: What one action is worth, in the units `score_hand` already counts in.
+#: Calibrated against the offence term: an action is roughly one landed attack
+#: of average size, and the pool's average attack is a shade over 2 marks.
+ACTION_VALUE = 2.2
+
+#: How much of a summoned attacker's future output to believe. A drone with 1
+#: hit point in front of three enemies does not get four turns of attacking,
+#: and the scorer has no way to tell how long it will live -- so its damage is
+#: counted per turn remaining and then halved.
+SUMMON_CONFIDENCE = 0.5
+
 #: Cost of committing an attack that a reload marker will swallow. The card
 #: does nothing whatsoever -- it does not attack, force a block or trigger an
 #: ability -- so it is a wholly wasted action, not merely a harmless one.
@@ -816,6 +845,7 @@ def score_hand(
     opportunity: Optional[Mapping[int, float]] = None,
     board_value: Optional[Mapping[int, float]] = None,
     pressure: float = 1.0,
+    turn: int = 1,
 ) -> float:
     """Rate a combination of cards as one turn's actions.
 
@@ -826,7 +856,9 @@ def score_hand(
     positional worth of playing it (objectives, elevation, standoff).
     `pressure` in [0,1] is how much the enemy can actually hurt us this turn --
     it scales the defensive terms, so the AI does not sit behind a wall of
-    blocks while nothing can reach it.
+    blocks while nothing can reach it. `turn` is which turn it is, which only
+    the tempo term needs: a card that pays next turn pays nothing on the last
+    one.
     """
     if not cards:
         return 0.0
@@ -888,7 +920,16 @@ def score_hand(
     landing = {z: 0.0 for z in ZONES}
     budget = {z: prof.block_freq[z] * n for z in ZONES}
     forced = {z: 0 for z in ZONES}
-    for i, card, t in sorted(attackers, key=lambda x: -sum(x[1].attacks.values())):
+    # Initiative order, because that is the order the engine resolves in and
+    # blocking is compulsory: the attack that lands first is the one that eats
+    # a blocker, and what is left of the defender's hand is what the next
+    # attack faces. This used to draw the budget down in order of *decreasing
+    # damage*, which is not a thing that happens -- it handed the block to the
+    # biggest attack and let the small one through, the exact inverse of the
+    # sequence a human wins with (a cheap fast hit to pull the guard, the
+    # heavy slow one behind it). Getting the order right is what lets the
+    # scorer see that pairing is worth anything at all.
+    for i, card, t in sorted(attackers, key=lambda x: (-x[1].init, -x[2])):
         opp = opportunity.get(i, 1.0)
         surv = (0.35 + 0.65 * t) if under_alpha else 1.0
         cqm = 0.5 if card.close_quarters else 1.0
@@ -988,6 +1029,39 @@ def score_hand(
             if spends:
                 bait += params.bait * min(1.0, incoming) * min(spends)
 
+    # -- value that arrives on a later turn --------------------------------
+    # Everything above prices what a card does *now*. Two real games say that
+    # is most of what the AI is missing on offence, not defence: in the 8-0 the
+    # human committed 7 cards whose worth is later -- two drones, an extra
+    # action, a second hand, three persistent effects -- against the AI's 0,
+    # and the chain is legible in the log. Parallel Action drew a fresh hand,
+    # which found Chainsaw_Disembowel, which killed a frame outright the next
+    # turn. In the 4-2, where the AI matched the human 5 economy cards to 5,
+    # the game was close.
+    #
+    # The scorer rated that hand exactly backwards: `Attack Dog_Rex and Rover`
+    # -- a permanent free attacker that went on to deal 4 damage and land a
+    # kill -- came out at 0.15, the worst card on the board, because a summon
+    # was invisible and all it could see was a one-damage poke.
+    tempo = 0.0
+    if params.tempo > 0:
+        turns_left = max(0, TURNS_PER_GAME - turn)
+        for i, card in enumerate(cards):
+            if card.summons:
+                # A summoned attacker costs no action on any turn after this
+                # one, which is the whole of its value: this turn it does what
+                # any other card would.
+                per_turn = sum(card.attacks.values()) or 1
+                tempo += (
+                    params.tempo * SUMMON_CONFIDENCE * per_turn * turns_left
+                )
+            bought = ACTION_ECONOMY.get(card.key, 0.0)
+            if bought:
+                # An action next turn is worth nothing on the last turn.
+                horizon = 1.0 if turns_left > 0 or card.key.endswith(
+                    "Relentless Assault") else 0.0
+                tempo += params.tempo * ACTION_VALUE * bought * horizon
+
     concentration = params.concentration * sum(
         landing[z] for z in ZONES if hitters[z] >= 2
     )
@@ -1005,7 +1079,10 @@ def score_hand(
             1.0 + sum(card.attacks.values())
         ) * opportunity.get(i, 1.0)
 
-    return offense + defense + concentration + survival + positional - waste - bait
+    return (
+        offense + defense + concentration + survival + positional + tempo
+        - waste - bait
+    )
 
 
 def softmax_pick(scores: Sequence[float], temperature: float, rng: random.Random) -> int:
@@ -1042,14 +1119,183 @@ _WITHIN_TWO = {"Church"}
 _TOKEN_HUNT = {"Power Reactors", "The Tower", "Riverside", "Car Park"}
 
 
+#: How much of an objective's value a frame still sees when the objective is
+#: somebody else's job, or nobody's. Not zero: plans are made on partial
+#: information and a frame that happens to walk past an objective should still
+#: take it. But low enough that three frames stop converging on one tile.
+OFF_PLAN = 0.2
+
+#: What one turn of walking costs an objective's worth, when deciding whether
+#: it is worth walking to at all. An objective four turns away in a five-turn
+#: game is not a plan, it is a wish.
+PLAN_TRAVEL_DECAY = 0.55
+
+
+@dataclass
+class ObjectivePlan:
+    """Which objectives the squad is going for, and who is going.
+
+    The scorer's objective term is a smooth gradient: every frame is pulled
+    toward every unsettled objective, in proportion to its stake and how near
+    it is. That reads well and plays badly, and two things it cannot express
+    are what a real game turns on.
+
+    **It cannot say no.** An objective the squad cannot reach in the turns
+    that are left, or one an enemy is already standing on that we have no way
+    to shift, still pulls -- so frames drift toward ground they will never
+    hold, and the pull only gets stronger as `objective_weight` goes up. That
+    is why the best weight swings by about half a victory point a game between
+    the `control` and `siege` battlefields: on one it is buying ground, on the
+    other it is buying a walk.
+
+    **It cannot divide the work.** Three frames see the same best objective
+    and all three walk at it, which scores it once and leaves the rest of the
+    board to the other side.
+
+    So this is an assignment, formed once a turn like `TeamPlan` and shared by
+    every frame: at most one objective per frame, best first, and objectives
+    nobody can get to are dropped rather than chased. It is deliberately a
+    preference and not a rule -- `OFF_PLAN` leaves a frame enough of a pull to
+    pick up an objective it happens to walk past.
+    """
+
+    turn: int
+    #: frame id -> index into `snap.objectives`.
+    assigned: dict[str, int] = field(default_factory=dict)
+    #: index -> what it is worth pursuing at all, 0..1.
+    reachable: dict[int, float] = field(default_factory=dict)
+    #: How far to believe the plan, from `AIParams.planning`. At 0 every
+    #: objective is worth its full stake to every frame, which is the smooth
+    #: gradient this replaced -- so the two can be measured against each other.
+    strength: float = 1.0
+
+    def weight_for(self, frame_id: str, index: int) -> float:
+        """How much of objective `index` this frame should be looking at."""
+        if self.assigned.get(frame_id) == index:
+            planned = 1.0
+        elif index in self.assigned.values():
+            planned = OFF_PLAN         # somebody else's job
+        else:
+            planned = OFF_PLAN + (1.0 - OFF_PLAN) * 0.5 * self.reachable.get(index, 0.0)
+        return 1.0 - self.strength * (1.0 - planned)
+
+
+def objective_goals(snap: Snapshot, obj: ObjectiveView) -> list[Pos]:
+    """The tiles a frame has to get to for this objective to pay.
+
+    Not always the objective's own tiles: a token hunt is wherever the tokens
+    are standing, and a carried token is wherever it (or whoever is holding
+    it) has got to.
+    """
+    if obj.name in _TOKEN_HUNT:
+        return [
+            t.pos for t in snap.tokens_for(obj)
+            if t.alive and t.pos is not None and t.owner != snap.seat
+        ]
+    if obj.name == "Shiny Thing":
+        return [t.pos for t in snap.tokens if t.kind == "shiny" and t.alive and t.pos]
+    if obj.name == "Fugitive":
+        spots = [t.pos for t in snap.tokens if t.kind == "fugitive" and t.alive and t.pos]
+        return spots or list(obj.tiles)
+    return list(obj.tiles)
+
+
+def plan_objectives(
+    snap: Snapshot, params: AIParams, *, frames: Optional[Sequence[FrameView]] = None
+) -> ObjectivePlan:
+    """Assign at most one objective to each frame, best first.
+
+    `frames` overrides which of our frames are being planned for, which is
+    what deployment needs: at setup nobody has a position yet, so the caller
+    supplies the frames in the order they are being placed.
+    """
+    plan = ObjectivePlan(
+        turn=snap.turn, strength=max(0.0, min(1.0, params.planning))
+    )
+    if params.objective_weight <= 0 or plan.strength <= 0:
+        return plan
+    mine = list(frames) if frames is not None else [
+        f for f in snap.mine() if f.pos is not None
+    ]
+    turns_left = max(1, TURNS_PER_GAME - snap.turn + 1)
+
+    # (value, objective index, frame id) for every pairing worth considering.
+    offers: list[tuple[float, int, str]] = []
+    for index, obj in enumerate(snap.objectives):
+        if obj.settled:
+            continue
+        stake = obj.value_for(snap.seat)
+        if stake <= 0:
+            continue
+        goals = objective_goals(snap, obj)
+        if not goals:
+            # No tiles to stand on and no tokens left to shoot: nothing a plan
+            # can do with it. The Egg and the like still have their own tiles.
+            continue
+        blocked = _contested(snap, obj, goals)
+        best_reach = 0.0
+        for frame in mine:
+            if frame.pos is None:
+                # Deployment: nobody has walked anywhere yet, so distance is
+                # not a fact about this frame. Judge the objective on its own.
+                reach = 1.0
+            else:
+                speed = max(1, frame.movement + 1)
+                turns = min(snap.distance(frame.pos, g) for g in goals) / speed
+                reach = PLAN_TRAVEL_DECAY ** max(0.0, turns - (turns_left - 1))
+            reach *= blocked
+            best_reach = max(best_reach, reach)
+            offers.append((stake * reach, index, frame.id))
+        plan.reachable[index] = best_reach
+
+    taken_frames: set[str] = set()
+    taken_objectives: set[int] = set()
+    for _value, index, frame_id in sorted(offers, key=lambda o: -o[0]):
+        if frame_id in taken_frames or index in taken_objectives:
+            continue
+        if plan.reachable.get(index, 0.0) < 0.25:
+            continue                    # not worth sending anyone
+        plan.assigned[frame_id] = index
+        taken_frames.add(frame_id)
+        taken_objectives.add(index)
+    return plan
+
+
+def _contested(snap: Snapshot, obj: ObjectiveView, goals: Sequence[Pos]) -> float:
+    """How much of this objective is still available to us, 0..1.
+
+    A frame cannot walk through another, so ground an enemy is already
+    standing on is ground we do not get by walking at it. Only the tiles that
+    are actually free count -- and for something scored by *destroying* tokens
+    an enemy standing nearby is not in the way at all.
+    """
+    if obj.name in _TOKEN_HUNT:
+        return 1.0
+    held = {e.pos for e in snap.enemies() if e.pos is not None}
+    free = [g for g in goals if g not in held]
+    if not free:
+        return 0.15                     # every tile of it is occupied
+    return len(free) / len(goals)
+
+
 def objective_value(
-    snap: Snapshot, frame: FrameView, pos: Pos, params: AIParams
+    snap: Snapshot,
+    frame: FrameView,
+    pos: Pos,
+    params: AIParams,
+    plan: Optional[ObjectivePlan] = None,
 ) -> float:
     """What standing on `pos` is worth in objective points.
 
     Objectives are roughly half the victory points on offer, so this is not a
     tiebreak. End-of-game objectives ramp up as the game runs out; latching
     ones (the Egg, the Fugitive) count at full weight from turn one.
+
+    `plan` is the squad's assignment for the turn (`plan_objectives`). Without
+    it every objective pulls every frame, which is how three frames come to
+    walk at the same tile and how a frame comes to chase ground it cannot
+    reach. With it, a frame sees its own objective at full weight and the rest
+    at `OFF_PLAN`.
     """
     if params.objective_weight <= 0:
         return 0.0
@@ -1061,12 +1307,16 @@ def objective_value(
         # then". The exponent is how hard the early turns are discounted for
         # that: >1 says grab them late, <1 says take the ground now and hold.
         late = late ** params.endgame
-    for obj in snap.objectives:
+    for index, obj in enumerate(snap.objectives):
         if obj.settled:
             continue
         stake = obj.value_for(snap.seat)
         if stake <= 0:
             continue
+        if plan is not None:
+            stake *= plan.weight_for(frame.id, index)
+            if stake <= 0:
+                continue
         if obj.name == "Shiny Thing":
             # The only objective with no tiles of its own: it is wherever its
             # token is, so it must be handled before the tile lookup below.
@@ -1293,6 +1543,7 @@ def position_value(
     los_cache: Optional[dict] = None,
     focus_id: Optional[str] = None,
     focus_weight: float = 0.0,
+    plan: Optional[ObjectivePlan] = None,
 ) -> float:
     """What it is worth for `frame` to be standing on `pos`.
 
@@ -1321,7 +1572,7 @@ def position_value(
             value += 0.7 * params.contact * can_strike_from(
                 snap, frame, card, pos, los_cache, focus_id=focus_id
             )
-    value += objective_value(snap, frame, pos, params)
+    value += objective_value(snap, frame, pos, params, plan)
     value += terrain_value(snap, pos, params)
     value -= exposure(snap, frame, pos, prof, params, los_cache)
     value += _standoff_value(snap, frame, pos, cards, primary, prof, params)

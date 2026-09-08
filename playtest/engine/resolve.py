@@ -1292,7 +1292,10 @@ def _handle_choose_frame(
     if state.phase == "cleanup":
         objectivelib.take_relic(state, frame)
         return
-    objective = objectivelib.objective_named(state, "Dome Campus")
+    # The copy that is asking, not the first one named: both players may bring
+    # the same battlefield, which deals two Dome Campuses, and answering by
+    # name wrote both answers onto the first -- so the second asked forever.
+    objective = objectivelib.bomb_awaiting(state, cmd.seat)
     _require(objective is not None, "nothing is waiting on a frame")
     assert objective is not None
     objectivelib.set_bomb_carrier(state, objective, frame.id)

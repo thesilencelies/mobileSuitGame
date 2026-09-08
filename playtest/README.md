@@ -1003,6 +1003,123 @@ finished off for a victory point. `token_greed` scales it; the arena measures
 it as **neutral** (58.1–59.0% across 0.0–1.0), so it ships at 1.0 and the
 finding is recorded rather than acted on.
 
+### What the AI can copy, rather than only defend against
+
+A third human win (6-0) turned the question round: what is the *player* doing
+that the AI never does? Three games agree, and the answer is not tactics but
+**card economy** — value that arrives on a later turn.
+
+| | game 1 (8-0) | game 2 (4-2) | game 3 (6-0) |
+|---|---|---|---|
+| human economy cards committed | 7 | 5 | 7 |
+| AI economy cards committed | 0 | 5 | 1 |
+
+The one game the AI matched the human on them is the one it nearly won. And
+the scorer's own numbers explain why it never did: asked to rate the human's
+turn-1 hand, it put `Attack Dog_Rex and Rover` — a permanent drone that
+attacks for free every turn, and which in game 1 dealt 4 damage and landed the
+killing blow — at **0.15**, the worst card on the board, because a summon was
+not in its model of a card at all. `Wunderkid_Hyper` (an extra action next
+turn) and `Wunderkid_Parallel Action` (a whole second hand) both scored 8.45,
+and *only* for blocking High. `tempo` prices all three; `CardInfo` now carries
+`droneHealth`/`droneMovement`, which it previously dropped on the floor.
+
+**A model bug the same log found.** `score_hand` drew the defender's block
+budget down in order of *decreasing damage* — but blocking is compulsory and
+the engine resolves by **initiative**, so the attack that lands first is the
+one that eats a blocker. The model handed the block to the biggest attack and
+let the small one through, the exact inverse of the sequence the human wins
+with. With that corrected, a cheap-fast plus slow-heavy pair scores twice what
+two heavy attacks at the same initiative do, on half the damage.
+
+**What did not work, and it is worth knowing.** Reading the same games, the
+obvious conclusion is that the AI plays not to lose while the human plays to
+win — 4 damage and 0 kills in game 3, where 6 of its 16 attacks found no
+target and 9 of the rest were blocked. Every attempt to rebalance toward
+offence made it *worse*: `aggression` 1.6 buys damage (9.3 → 10.2) and kills
+(1.25 → 1.35) and loses 2.5 points of score rate, and cutting `defense` or
+`survival` does nothing at all. The arena cannot settle this, and the reason
+is structural: **no opponent in the panel wins the way the human does**, by
+stripping a guard and then landing one card that takes a zone from full
+armour to destroyed. Until one does, "play for kills" will keep measuring as a
+loss while losing 8-0, 6-0 and 4-2 to someone doing it. That is the next piece
+of work, and `baiter` is half of it.
+
+### The objectives are a variable, not a backdrop
+
+```bash
+python -m playtest.ai.arena --panel --games 12 --terrain siege
+```
+
+`--terrain` makes both seats bring the same battlefield, which makes the
+**objectives** a controlled variable. It matters more than it sounds, because
+the four shipped objective decks are not variations on a theme: `control` is
+five objectives scored by standing somewhere, four of them counted once after
+turn 5; `siege` scores three of its five by destroying tokens, and they latch
+the moment it is done. The default random deal averages over both and calls
+the average the answer.
+
+It is not the answer. Measured over the same panel and seeds:
+
+| | random deal | `control` | `siege` |
+|---|---|---|---|
+| `standard` | +1.350 | +1.194 | +1.451 |
+| `aggression=1.6` | **−0.23** | +0.03 | +0.04 |
+| `objective_weight=4.0` | +0.03 | **−0.26** | **+0.19** |
+
+Two things follow. **The finding that playing for damage loses was partly an
+artefact of the deal** — the penalty is −0.23 VP on a random battlefield and
+vanishes on both fixed ones. And **the best objective weight depends on what
+is on the board**, swinging about 0.45 VP between the two mixes: more weight
+is right when objectives are things you can go and finish, and wrong when they
+are ground that is only counted at the end.
+
+The obvious fix is not the fix. If an end-of-game objective only scores after
+turn 5, valuing it late ought to be better — and it is not: `endgame` 2.0 and
+3.5 both measure *worse* than 1.0 on `control` (+0.96 and +0.99 against
++1.10). The reason is that a frame cannot walk through another, so ground that
+is only counted at the end still has to be taken early and held. What is
+actually wrong is that a smooth distance gradient pulls frames toward
+objectives they cannot win — one already occupied, or too far to reach and
+hold — instead of committing to the ones they can. A single scalar cannot
+express that; the squad needs an objective *plan*, the way `TeamPlan` already
+picks one enemy to converge on. That is the open work.
+
+### The objective plan (first pass, and it does not pay yet)
+
+`scoring.ObjectivePlan` is the assignment the gradient could not express:
+formed once a turn like `TeamPlan` and shared by every frame, it gives at most
+one objective to each frame, best first, and **drops** objectives nobody can
+reach in the turns that are left or that an enemy is already standing on. The
+`planning` lever is how far to believe it — 0 is the old smooth gradient, 1 is
+full commitment.
+
+It ships at **0**. Over two seeds and three objective mixes it is
+arena-neutral, and the only effect that replicated is that full commitment
+*hurts* on `control` (−0.17 VP, −0.045 at 0.75). That reads as a real
+mechanism rather than noise: on contested ground a frame hovering between two
+objectives takes whichever is still free at the end, and an assignment throws
+that option away. On `siege`, where objectives are discrete things you go and
+finish, full commitment looked worth +0.19 — on one seed, and it did not
+survive the second.
+
+**Deployment was the other hope, and it failed too — informatively.** The
+objective term is worth almost nothing on a deployment row: its falloff spans
+about six tiles and most objectives are further (2, 5, 9 and 12 on a sampled
+board), and the board's distance is Chebyshev, so from a fixed row it
+saturates on the *row* difference — every column is equally far from something
+eight rows away. So deployment has never been objective-aware, plan or no
+plan. Replacing that with a direct pull toward the column of the frame's own
+objective is **worse at every strength**: the squad's mean column gap falls
+from 3.9 to 1.6 and the number of distinct objectives it deploys to cover
+falls from 2.2 to 1.6, because the objectives worth assigning sit in the
+middle and pulling each frame to its own drags them all inward. The blunt
+`abs(gap - 3)` spacing rule beats it, and the pull was backed out.
+
+What the plan is good for is being the structure a better answer needs. The
+next thing to try is making the *exclusivity* depend on the objective: a token
+hunt divides between frames cleanly, contested ground does not.
+
 ### The levers
 
 Beyond the weights the client has always shown, these are the terms added
@@ -1011,7 +1128,9 @@ one at a time:
 
 | Lever | Default | What it moves |
 |---|---|---|
-| `caution` | 1.0 | How small a chance of losing a frame to a single hit is still worth guarding. The one lever below that came out of real games rather than a sweep, and the largest single gain after `objective_weight` |
+| `planning` | 0.0 | How firmly each frame commits to one objective rather than drifting toward all of them. Arena-neutral so far; see above |
+| `caution` | 1.0 | How small a chance of losing a frame to a single hit is still worth guarding. Came out of real games rather than a sweep, and the largest single gain after `objective_weight` |
+| `tempo` | 1.0 | Worth of drones, extra actions and anything else that pays on a later turn. From three human wins; the measured margin is small (62.2% → 64.7%) partly because the panel squads hold only one to five such cards in sixty |
 | `bait` | 0.0 | What the compulsory block is expected to cost this hand — the trade a human wins by baiting blocks out. Measured negative even against `baiter` |
 | `token_greed` | 1.0 | How much a drone or objective token is worth chasing. Measured neutral |
 | `lethality` | 0.0 | How much more a hit is worth for *finishing* a zone than for marking it. Only kills and objectives score, so damage that never converts is worth nothing. Trends positive; `veteran` runs it at 1.0 |

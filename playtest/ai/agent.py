@@ -142,6 +142,8 @@ class Agent:
         self._deadline = float("inf")
         #: The squad's shared target for the current turn.
         self._plan: Optional[TeamPlan] = None
+        #: The squad's objective assignment for the current turn.
+        self._objectives: Optional[S.ObjectivePlan] = None
         #: Decision counters, for the arena's diagnostics.
         self.stats: dict[str, int] = {}
 
@@ -341,6 +343,21 @@ class Agent:
         self._plan = plan if plan.target_id is not None else None
         return plan
 
+    def objective_plan(self, snap: Snapshot) -> S.ObjectivePlan:
+        """Which objective each frame is going for, formed once a turn.
+
+        Cached exactly like `team_plan` and for the same reason: the whole
+        value of an assignment is that every frame reads the *same* one. Three
+        frames each re-planning from their own position would each conclude
+        they should take the nearest objective, which is the behaviour this
+        exists to stop.
+        """
+        plan = self._objectives
+        if plan is None or plan.turn != snap.turn:
+            plan = S.plan_objectives(snap, self.params)
+            self._objectives = plan
+        return plan
+
     def _squad_cards(self, frame: FrameView) -> list[CardInfo]:
         """What this frame could bring to bear: its hand, or what it committed.
 
@@ -487,6 +504,27 @@ class Agent:
         plus a spacing term -- frames deployed on top of each other funnel into
         the same approach lane and get blocked by their own squadmates, while
         frames scattered to opposite corners never converge on anything.
+
+        The plan is rebuilt for each placement rather than cached, because each
+        one changes the answer -- a frame already placed is judged on the
+        distance it now has, so the next frame to go down takes the best
+        objective *left*.
+
+        **The objective term is worth almost nothing here, and that is not an
+        oversight to go and fix.** Its falloff spans about six tiles and most
+        objectives are further than that from a deployment row (on a sampled
+        board: 2, 5, 9 and 12 tiles), and the board's distance is Chebyshev,
+        so from a fixed row it saturates on the *row* difference -- every
+        column is equally far from something eight rows away. So what actually
+        decides this is terrain and the spacing term.
+        
+        Replacing that with a pull toward the column of the frame's own
+        assigned objective was tried and is *worse* at every strength: the
+        squad's mean column gap falls from 3.9 to 1.6 and the number of
+        distinct objectives it deploys to cover falls from 2.2 to 1.6, because
+        the objectives worth assigning tend to sit in the middle and pulling
+        each frame to its own drags them all inward. The blunt spacing rule
+        beats it. Whatever fixes deployment, it is not that.
         """
         params = self.params
         frame = snap.frame(str(options[0].get("frame")))
@@ -494,12 +532,16 @@ class Agent:
             f.pos for f in snap.mine()
             if f.pos is not None and (frame is None or f.id != frame.id)
         ]
+        # Every frame of ours, placed or not: the one being deployed has no
+        # position yet, so `plan_objectives` judges its objectives on their own
+        # worth and it picks up whatever the placed frames have not claimed.
+        plan = S.plan_objectives(snap, params, frames=list(snap.mine()))
         values: list[float] = []
         tiles = [Pos(int(o["x"]), int(o["y"])) for o in options]
         for tile in tiles:
             value = S.terrain_value(snap, tile, params)
             if frame is not None:
-                value += S.objective_value(snap, frame, tile, params)
+                value += S.objective_value(snap, frame, tile, params, plan)
             if placed:
                 gap = min(snap.distance(tile, p) for p in placed)
                 # Two or three tiles apart: close enough to support, far enough
@@ -723,10 +765,12 @@ class Agent:
         # is actually choosing a tile rather than choosing how far it could go.
         enemy_positions = [e.pos for e in snap.enemies() if e.pos is not None]
 
+        objectives = self.objective_plan(snap)
+
         def ground_value(tile: Pos) -> float:
-            value = S.objective_value(snap, frame, tile, params) + S.terrain_value(
-                snap, tile, params
-            )
+            value = S.objective_value(
+                snap, frame, tile, params, objectives
+            ) + S.terrain_value(snap, tile, params)
             if enemy_positions and params.approach > 0:
                 nearest = min(snap.distance(tile, e) for e in enemy_positions)
                 value -= params.approach * 0.35 * nearest
@@ -775,6 +819,7 @@ class Agent:
                 opportunity={0: opp_scale[i]},
                 board_value={0: board_value[i]},
                 pressure=pressure,
+                turn=snap.turn,
             )
             for i in live
         }
@@ -796,6 +841,7 @@ class Agent:
                     opportunity={k: opp_scale[i] for k, i in enumerate(combo)},
                     board_value={k: board_value[i] for k, i in enumerate(combo)},
                     pressure=pressure,
+                    turn=snap.turn,
                 )
             )
             deficits.append(
@@ -987,6 +1033,7 @@ class Agent:
                     snap, frame, tile, prof, params,
                     cards=others, primary=primary, los_cache=self._los,
                     focus_id=focus_id, focus_weight=focus_weight,
+                    plan=self.objective_plan(snap),
                 )
             )
             if len(values) >= MIN_CANDIDATES and self._out_of_time():
@@ -1024,10 +1071,12 @@ class Agent:
             ideal = (2 + max(c.max_range for c in attackers) + S.range_bonus(frame, attackers[0])) / 2.0
         enemies = [e.pos for e in snap.enemies() if e.pos is not None]
 
+        plan = self.objective_plan(snap)
+
         def key(tile: Pos) -> float:
-            score = S.objective_value(snap, frame, tile, params) + S.terrain_value(
-                snap, tile, params
-            )
+            score = S.objective_value(
+                snap, frame, tile, params, plan
+            ) + S.terrain_value(snap, tile, params)
             if enemies:
                 score -= 0.5 * min(abs(snap.distance(tile, e) - ideal) for e in enemies)
             return -score
@@ -1284,7 +1333,12 @@ class Agent:
             if card is None:
                 continue
             rated.append(
-                (S.score_hand([card], prof, self.params, health), option)
+                (
+                    S.score_hand(
+                        [card], prof, self.params, health, turn=snap.turn
+                    ),
+                    option,
+                )
             )
         if not rated:
             return options[0]

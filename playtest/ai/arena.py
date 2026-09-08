@@ -77,6 +77,23 @@ SQUADS: dict[str, tuple[str, ...]] = {
                "deck_collective_fenrir"),
 }
 
+#: Battlefields worth measuring separately, because they change what winning
+#: *is*. The objective deck that comes with a terrain deck decides how the
+#: points are scored, and the four shipped sets are not variations on a theme:
+#:
+#: * ``control`` -- Triangle, Solar Farm, Church, The Egg, Lake Crosses: five
+#:   objectives scored by standing somewhere, four of them counted once after
+#:   turn 5. Nothing here rewards killing anything.
+#: * ``siege`` -- Holo Spires, Power Reactors, Fugitive, Riverside, The Tower:
+#:   three of the five are scored by destroying tokens, and they latch the
+#:   moment it is done.
+#: * ``assault`` / ``strike`` -- mixed.
+#:
+#: Tuning on the default deal averages over these and calls the average the
+#: answer. It is not: a weight that wins on ``control`` by camping can lose on
+#: ``siege``, and only splitting them out shows it.
+OBJECTIVE_MIXES: tuple[str, ...] = ("control", "siege", "assault", "strike")
+
 #: The opponents `--panel` measures a candidate against.
 #:
 #: Several *styles*, not several strengths, and two of them (`camper`,
@@ -196,6 +213,7 @@ def play_game(
     decks_b: Sequence[str] = DEFAULT_DECKS_B,
     swap: bool = False,
     catalogue: Optional[Mapping[str, Any]] = None,
+    terrain: Optional[str] = None,
 ) -> GameResult:
     """Play one full game and return everything the report needs.
 
@@ -216,6 +234,12 @@ def play_game(
         ai_decks=seat_decks[1],
         seed=seed,
         frames_per_side=min(len(seat_decks[0]), len(seat_decks[1])),
+        # Both seats bring the same battlefield when one is named, which makes
+        # the *objectives* a controlled variable rather than a deal. See
+        # `OBJECTIVE_MIXES`: what is on the board decides what winning means,
+        # and a parameter set tuned only on the default deal is tuned for one
+        # answer to that.
+        terrain_decks=({seat: terrain for seat in (0, 1)} if terrain else None),
     )
     state = new_game(config)
     agents = {
@@ -426,6 +450,7 @@ def run_match(
     swap: bool = True,
     catalogue: Optional[Mapping[str, Any]] = None,
     progress: bool = False,
+    terrain: Optional[str] = None,
 ) -> MatchReport:
     """Play `games` games, alternating seats when `swap`."""
     if side_a.label == side_b.label:
@@ -438,6 +463,7 @@ def run_match(
             decks_a=decks_a, decks_b=decks_b,
             swap=bool(swap and index % 2),
             catalogue=catalogue,
+            terrain=terrain,
         )
         results.append(result)
         if progress:
@@ -550,6 +576,7 @@ def run_panel(
     squads: Optional[Mapping[str, Sequence[str]]] = None,
     catalogue: Optional[Mapping[str, Any]] = None,
     progress: bool = False,
+    terrain: Optional[str] = None,
 ) -> list[MatchReport]:
     """`spec` against every panel opponent, over every ordered squad pairing.
 
@@ -572,7 +599,7 @@ def run_panel(
                 parse_side(spec), parse_side(opponent), games,
                 seed + 7919 * index + 101 * offset,
                 decks_a=squads[left], decks_b=squads[right],
-                catalogue=catalogue, progress=progress,
+                catalogue=catalogue, progress=progress, terrain=terrain,
             )
             merged.extend(report.results)
         reports.append(MatchReport(spec, tag, len(merged), merged))
@@ -647,6 +674,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="play side A against every panel opponent over every squad pairing "
              "-- how the shipped defaults were tuned",
     )
+    parser.add_argument(
+        "--terrain", default=None, metavar="DECK",
+        help="both seats bring this battlefield, making the objectives a "
+             f"controlled variable ({', '.join(OBJECTIVE_MIXES)}). Default is "
+             "the game's own random deal, which averages over all of them",
+    )
     parser.add_argument("--decks-a", nargs="*", default=list(DEFAULT_DECKS_A))
     parser.add_argument("--decks-b", nargs="*", default=list(DEFAULT_DECKS_B))
     parser.add_argument("--no-swap", action="store_true", help="do not alternate seats")
@@ -663,13 +696,14 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         games=args.games, seed=args.seed,
         decks_a=args.decks_a, decks_b=args.decks_b,
         swap=swap, catalogue=catalogue, progress=args.progress,
+        terrain=args.terrain,
     )
 
     reports: list[MatchReport] = []
     if args.panel:
         for spec in ([args.a] + ([args.b] if args.b != "random" else [])):
             panel = run_panel(spec, args.games, args.seed, catalogue=catalogue,
-                              progress=args.progress)
+                              progress=args.progress, terrain=args.terrain)
             if args.json:
                 reports.extend(panel)
             else:

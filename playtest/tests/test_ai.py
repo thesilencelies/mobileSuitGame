@@ -15,6 +15,7 @@ import ast
 import io
 import json
 import pathlib
+from dataclasses import replace
 
 import pytest
 
@@ -837,6 +838,121 @@ def test_the_evaluator_will_not_park_a_frame_on_the_rails(cat, catalogue):
     assert late > rails, "and less bad with only one turn left to stand there"
 
 
+def test_the_objective_plan_divides_the_work(catalogue):
+    """Three frames, three objectives -- not three frames on one tile.
+
+    The scorer's objective term is a gradient, so every frame is pulled toward
+    the best objective and they all walk at the same one. The plan assigns at
+    most one objective per frame.
+    """
+    from playtest.engine import GameConfig, apply_command, legal_commands, new_game
+
+    state = new_game(GameConfig(
+        player_decks=["deck_aegis_percival", "deck_aegis_hector",
+                      "deck_collective_adam"],
+        ai_decks=["deck_guild_nautilus", "deck_ouwa_kamikiri",
+                  "deck_church_elemiah"],
+        seed=5, frames_per_side=3, terrain_decks={0: "siege", 1: "siege"},
+    ))
+    steps = 0
+    while state.phase == "setup" and steps < 60:
+        if state.pending is None:
+            break
+        state = apply_command(state, legal_commands(state, state.pending.seat)[0])
+        steps += 1
+
+    snap = Snapshot(json.loads(json.dumps(view_for(state, 1))))
+    # Explicitly on: it ships off, because the arena does not yet show it
+    # winning. What is asserted here is that it does what it says when it is
+    # switched on.
+    plan = S.plan_objectives(snap, AIParams().replace(planning=1.0))
+    assert plan.assigned, "nobody was given anything to do"
+    # One objective each: no two frames sent to the same one.
+    assert len(set(plan.assigned.values())) == len(plan.assigned)
+    # And a frame sees its own at full weight and another's at a discount.
+    frame_id, index = next(iter(plan.assigned.items()))
+    assert plan.weight_for(frame_id, index) == pytest.approx(1.0)
+    others = [i for i in plan.assigned.values() if i != index]
+    if others:
+        assert plan.weight_for(frame_id, others[0]) < 1.0
+
+
+def test_planning_zero_is_exactly_the_old_gradient(cat, catalogue):
+    """The off switch has to be genuinely off, or the A/B measured nothing."""
+    from playtest.engine import GameConfig, apply_command, legal_commands, new_game
+
+    state = new_game(GameConfig(
+        player_decks=["deck_aegis_percival", "deck_aegis_hector",
+                      "deck_collective_adam"],
+        ai_decks=["deck_guild_nautilus", "deck_ouwa_kamikiri",
+                  "deck_church_elemiah"],
+        seed=5, frames_per_side=3, terrain_decks={0: "control", 1: "control"},
+    ))
+    steps = 0
+    while state.phase == "setup" and steps < 60:
+        if state.pending is None:
+            break
+        state = apply_command(state, legal_commands(state, state.pending.seat)[0])
+        steps += 1
+    snap = Snapshot(json.loads(json.dumps(view_for(state, 1))))
+    off = AIParams().replace(planning=0.0)
+    plan = S.plan_objectives(snap, off)
+    assert plan.assigned == {}
+    frame = next(f for f in snap.mine() if f.pos is not None)
+    for index in range(len(snap.objectives)):
+        assert plan.weight_for(frame.id, index) == pytest.approx(1.0)
+    # And the tile value it produces is the one with no plan at all.
+    assert S.objective_value(snap, frame, frame.pos, off, plan) == pytest.approx(
+        S.objective_value(snap, frame, frame.pos, off, None)
+    )
+
+
+def test_the_plan_will_not_send_a_frame_at_occupied_ground(cat, catalogue):
+    """Ground an enemy is standing on is not ground you get by walking at it.
+
+    A frame cannot move through another, so a stand-on objective that is
+    entirely occupied is worth far less than its stake suggests -- which is
+    the half of "can we actually score this" that the distance gradient has no
+    way to express.
+    """
+    from playtest.engine import GameConfig, apply_command, legal_commands, new_game
+
+    state = new_game(GameConfig(
+        player_decks=["deck_aegis_percival", "deck_aegis_hector",
+                      "deck_collective_adam"],
+        ai_decks=["deck_guild_nautilus", "deck_ouwa_kamikiri",
+                  "deck_church_elemiah"],
+        seed=5, frames_per_side=3, terrain_decks={0: "control", 1: "control"},
+    ))
+    steps = 0
+    while state.phase == "setup" and steps < 60:
+        if state.pending is None:
+            break
+        state = apply_command(state, legal_commands(state, state.pending.seat)[0])
+        steps += 1
+    snap = Snapshot(json.loads(json.dumps(view_for(state, 1))))
+
+    stand_on = next(
+        (o for o in snap.objectives if o.tiles and o.name in S._STAND_ON), None
+    )
+    assert stand_on is not None, "control deals objectives you stand on"
+    goals = list(stand_on.tiles)
+    assert S._contested(snap, stand_on, goals) == pytest.approx(1.0)
+
+    # Stand an enemy on every tile of it. It is now worth a fraction.
+    enemies = [f for f in snap.enemies() if f.pos is not None]
+    for enemy, tile in zip(enemies, goals):
+        enemy.pos = tile
+    covered = min(len(enemies), len(goals))
+    if covered:
+        assert S._contested(snap, stand_on, goals) < 1.0
+    # A token hunt is never blocked this way: standing near a reactor does not
+    # stop anyone shooting it.
+    hunt = next((o for o in snap.objectives if o.name in S._TOKEN_HUNT), None)
+    if hunt is not None:
+        assert S._contested(snap, hunt, list(hunt.tiles)) == pytest.approx(1.0)
+
+
 def test_objectives_pull_the_evaluator(cat, catalogue):
     from playtest.engine.types import Pos
 
@@ -1225,6 +1341,98 @@ def test_live_card_text_is_never_pruned_as_dominated(cat):
     assert not S.dominates(spear, live)
     assert not S.carries_live_text(inert)
     assert S.carries_live_text(live)
+
+
+def test_a_summoned_attacker_is_not_the_worst_card_in_the_hand(cat):
+    """What three human wins were built on, and the scorer could not see.
+
+    `Attack Dog_Rex and Rover` leaves a drone on the board that attacks every
+    turn for free; in one of those games it dealt 4 damage and landed the
+    killing blow. The scorer rated it **0.15** -- the worst card available --
+    because a summon was not in its model of a card at all, so all it could
+    see was a one-damage poke.
+    """
+    dog = cat.get("Attack Dog_Rex and Rover")
+    poke = cat.get("Spear_Thrust")
+    assert dog is not None and poke is not None
+    assert dog.summons and not poke.summons
+
+    prof = S.profile(cat.playable_for("Aegis"), peak_q=0.9)
+    health = {"High": 4, "Mid": 4, "Low": 4}
+    params = AIParams()
+    blind = params.replace(tempo=0.0)
+
+    # Turn 2 of five, with nothing yet in reach -- the turn it is played on.
+    def rate(card, p):
+        return S.score_hand([card], prof, p, health,
+                            opportunity={0: p.reach}, turn=2)
+
+    assert rate(dog, blind) < rate(poke, blind), (
+        "this test is only meaningful while the old model rated it below a "
+        "one-damage attack"
+    )
+    assert rate(dog, params) > rate(dog, blind)
+
+    # And the value is in the turns it will get, so it is worth less late.
+    early = S.score_hand([dog], prof, params, health,
+                         opportunity={0: params.reach}, turn=1)
+    late = S.score_hand([dog], prof, params, health,
+                        opportunity={0: params.reach}, turn=5)
+    assert early > late
+
+
+def test_an_extra_action_is_worth_something_and_nothing_on_the_last_turn(cat):
+    """`Wunderkid_Hyper` buys an action next turn -- and there is no next turn."""
+    hyper = cat.get("Wunderkid_Hyper")
+    assert hyper is not None and hyper.key in S.ACTION_ECONOMY
+    prof = S.profile(cat.playable_for("Revolution"), peak_q=0.9)
+    health = {"High": 4, "Mid": 4, "Low": 4}
+    params = AIParams()
+
+    def rate(p, turn):
+        return S.score_hand([hyper], prof, p, health,
+                            opportunity={0: p.reach}, turn=turn)
+
+    assert rate(params, 2) > rate(params.replace(tempo=0.0), 2)
+    assert rate(params, 5) == pytest.approx(rate(params.replace(tempo=0.0), 5))
+
+
+def test_the_block_budget_is_spent_in_initiative_order(cat):
+    """A cheap fast hit pulls the guard so the slow heavy one lands.
+
+    Blocking is compulsory and the engine resolves by initiative, so the
+    attack that lands first is the one that eats a blocker. The scorer used to
+    draw the defender's block budget down in order of *decreasing damage* --
+    handing the block to the biggest attack and letting the small one through,
+    which is the exact inverse of the sequence, and left it unable to see that
+    pairing a fast cheap attack with a slow heavy one is worth anything.
+    """
+    fast = cat.get("Spear_Thrust")            # initiative 7, 1 damage
+    heavy = cat.get("Chainsaw_Disembowel")    # initiative 3, 4 damage
+    assert fast is not None and heavy is not None
+    assert fast.init > heavy.init
+    assert sum(fast.attacks.values()) < sum(heavy.attacks.values())
+
+    prof = S.profile(cat.playable_for("Revolution"), peak_q=0.9)
+    health = {"High": 4, "Mid": 4, "Low": 4}
+    # Offence alone: the defensive terms dwarf it and would hide the effect.
+    params = AIParams().replace(
+        defense=0.0, survival=0.0, caution=0.0, concentration=0.0, tempo=0.0
+    )
+
+    # The same two cards and the same damage either way -- only which of them
+    # resolves first differs. The cheap one going first is the sequence that
+    # works, because the block it pulls is a block the heavy one no longer
+    # meets; the heavy one going first spends itself on the guard.
+    cheap_first = S.score_hand([fast, heavy], prof, params, health, turn=2)
+    swapped = S.score_hand(
+        [
+            replace(fast, initiative=heavy.initiative),
+            replace(heavy, initiative=fast.initiative),
+        ],
+        prof, params, health, turn=2,
+    )
+    assert cheap_first > swapped
 
 
 def test_a_rare_but_lethal_card_is_guarded_against(cat, catalogue):

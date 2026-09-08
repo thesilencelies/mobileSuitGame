@@ -51,6 +51,43 @@ def finish(state):
 # --------------------------------------------------------------------------
 
 
+def test_both_players_bringing_the_same_battlefield_finishes_setup():
+    """Two Dome Campuses is a legal deal, and it used to hang the game.
+
+    Nothing stops both players bringing the same terrain deck, and doing so
+    deals its objectives twice. The bomb carrier was then answered by *name* --
+    `objective_named("Dome Campus")` always returns the first -- so the second
+    copy never got a carrier, kept asking, and setup never finished. It ran
+    until the harness's decision cap and looked like a hang.
+    """
+    from playtest.engine import GameConfig, apply_command, legal_commands, new_game
+
+    state = new_game(GameConfig(
+        player_decks=["deck_aegis_percival", "deck_aegis_hector",
+                      "deck_collective_adam"],
+        ai_decks=["deck_guild_nautilus", "deck_ouwa_kamikiri",
+                  "deck_church_elemiah"],
+        seed=5, frames_per_side=3,
+        terrain_decks={0: "assault", 1: "assault"},
+    ))
+    names = [o.name for o in state.objectives]
+    assert names.count("Dome Campus") == 2, "this deal is the point of the test"
+
+    steps = 0
+    while state.phase == "setup" and steps < 60:
+        pending = state.pending
+        if pending is None:
+            break
+        state = apply_command(state, legal_commands(state, pending.seat)[0])
+        steps += 1
+    assert state.phase != "setup", "setup never finished"
+    # Both copies were answered, not one of them twice.
+    carriers = [
+        o.memo.get("carrier") for o in state.objectives if o.name == "Dome Campus"
+    ]
+    assert all(carriers), f"a Dome Campus was left without a carrier: {carriers}"
+
+
 def test_every_scoring_terrain_card_is_an_objective_the_engine_plays():
     """The CSV is the source of truth: a card with points must be scriptable."""
     assert set(O.SCORERS) == set(OBJECTIVE_NAMES)

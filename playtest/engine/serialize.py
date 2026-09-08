@@ -316,6 +316,13 @@ def card_json(card: Card) -> dict[str, Any]:
         "keywords": sorted(card.keywords),
         "knockback": card.knockback,
         "persistence": card.persistence,
+        # What this card puts on the board, when it puts something there.
+        # Printed on the card and public like the rest of it -- and without it
+        # neither the client nor the AI can tell a card that summons a drone
+        # from a one-damage poke, which is exactly how the scorer came to rate
+        # a permanent free attacker as the worst card in its hand.
+        "droneHealth": card.drone_health,
+        "droneMovement": card.drone_movement,
         "image": f"{card.key}.png",
     }
 

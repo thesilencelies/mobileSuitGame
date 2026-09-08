@@ -54,6 +54,22 @@ class AIParams:
     # a next turn. This is the term that decides whether the AI commits a
     # melee weapon with the enemy nine tiles away.
     reach: float = 0.15
+    # Value that arrives on a *later* turn: a summoned drone that attacks for
+    # free every turn, an extra action, a second hand. The scorer prices what
+    # a card does now and nothing else, and two games a human won say that is
+    # the largest thing it is missing on offence -- 7 such cards to the AI's 0
+    # in the 8-0, and the AI rating a permanent free attacker as the worst card
+    # in its hand. See the tempo term in `scoring.score_hand`.
+    #
+    # Shipped at 1.0 on a small but twice-replicated margin (62.2% -> 64.7%
+    # over 720 panel games, and 63.6% -> 64.5% over 504 on another seed; the
+    # VP gain, +0.06, is inside the error bars). The margin is small partly
+    # because the panel can barely measure it: the four squads hold between
+    # one and five of these cards in sixty, and two of them hold no
+    # action-economy card at all. Three human wins in a row committed 7, 5 and
+    # 7 such cards against the AI's 0, 5 and 1 -- and the one game where the
+    # AI matched the human on them (5-5) is the one it nearly won.
+    tempo: float = 1.0
     # How small a chance of a frame being destroyed *outright*, by one card
     # from full health on a zone, is still worth covering. See
     # `scoring.threat_profile`: read against two games a human won 8-0 and
@@ -112,6 +128,28 @@ class AIParams:
     # single setting measured anywhere (36.5%, -1.03 VP). Five turns is not
     # long enough to spend one walking, and the ground is worth more than the
     # swing.
+    # How far the squad commits to an objective *plan* rather than being
+    # pulled toward every objective at once: one objective per frame, best
+    # first, and objectives nobody can reach or that an enemy is already
+    # standing on dropped rather than chased. 0 restores the smooth gradient,
+    # which cannot say no and cannot divide the work. See
+    # `scoring.ObjectivePlan`.
+    #
+    # Off by default, which is the measurement and not a lack of nerve. Over
+    # two seeds and three objective mixes the plan is **arena-neutral**: the
+    # only effect that replicated is that full commitment *hurts* on
+    # `control` (-0.17 VP, -0.045 at 0.75), where objectives are contested
+    # ground and a frame hovering between two of them takes whichever is
+    # still free at the end. It looked strongly positive on `siege` on one
+    # seed (+0.19) and that did not survive the second, and the hope that it
+    # would at least improve deployment did not survive measurement either.
+    #
+    # It ships because it does what it is supposed to do -- one objective per
+    # frame, unreachable and occupied ground dropped, all covered by tests --
+    # and because it is the structure any better answer needs. It does not
+    # ship *on*, because nothing yet shows it winning. `planning=1` turns it
+    # fully on.
+    planning: float = 0.0
     # How much a drone or an objective token is worth shooting, against a
     # frame. Tokens cannot be killed for a victory point, and a frame that
     # walks across the board to swat one arrives alone.
@@ -225,6 +263,16 @@ PARAM_SCHEMA: list[dict[str, Any]] = [
         "help": "What an attack is still worth with nothing in range; 0 refuses to commit one.",
     },
     {
+        "name": "tempo",
+        "label": "Playing for later",
+        "type": "float",
+        "min": 0.0,
+        "max": 3.0,
+        "step": 0.05,
+        "default": AIParams.tempo,
+        "help": "Worth of drones, extra actions and other cards that pay off on a later turn.",
+    },
+    {
         "name": "caution",
         "label": "Fear of the one-shot",
         "type": "float",
@@ -313,6 +361,16 @@ PARAM_SCHEMA: list[dict[str, Any]] = [
         "step": 0.1,
         "default": AIParams.contact,
         "help": "Reward for ending a move somewhere a committed attack can actually be delivered.",
+    },
+    {
+        "name": "planning",
+        "label": "Objective planning",
+        "type": "float",
+        "min": 0.0,
+        "max": 1.0,
+        "step": 0.05,
+        "default": AIParams.planning,
+        "help": "How firmly each frame commits to one objective instead of drifting toward all of them.",
     },
     {
         "name": "token_greed",
@@ -429,10 +487,12 @@ PRESETS: dict[str, dict[str, Any]] = {
         "think_ms": 250,
         "temperature": 4.0,
         "move_temperature": 1.4,
-        # A beginner does not see the one-shot coming. This is the single
-        # largest thing separating it from `standard`, so it belongs here
-        # rather than in another shaved weight.
+        # A beginner does not see the one-shot coming, and does not play for
+        # next turn either. These two are the largest things separating it
+        # from `standard`, so they belong here rather than in more shaved
+        # weights.
         "caution": 0.0,
+        "tempo": 0.0,
         "blunder_rate": 0.30,
     },
     "standard": {},

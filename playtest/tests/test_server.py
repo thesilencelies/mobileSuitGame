@@ -1423,6 +1423,13 @@ def test_a_beat_reports_only_what_that_beat_did(client: Client) -> None:
     attack would draw its burst over whatever the AI did next, attributed to
     the wrong card. A card being revealed is the sharpest case, since nothing
     can have landed between the reveal and the beat.
+
+    This caught a real one: `effects._drone_resolve` applied a drone's damage
+    without emitting the `attack` beat the frame path emits after its own
+    `finish_target`, so a drone's hit never moved the baseline and its burst
+    was drawn on the next card revealed. It went unnoticed for as long as it
+    did because the AI almost never played a drone -- teaching the scorer what
+    a summon is worth is what surfaced it.
     """
     game_id, view = start(client, seed=7)
     rng = random.Random(3)

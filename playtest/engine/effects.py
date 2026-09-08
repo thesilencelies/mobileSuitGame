@@ -3726,6 +3726,7 @@ def _drone_resolve(
 ) -> bool:
     """Work the drone's attack through its compulsory blocks. True if parked."""
     from . import combat
+    from . import resolve as _resolve
 
     while attack.current is not None:
         decision = combat.next_block_decision(state, attack)
@@ -3750,6 +3751,14 @@ def _drone_resolve(
             )
             return True
         combat.finish_target(state, attack)
+        # The same beat the frame path emits after its own `finish_target`
+        # (`resolve._block_loop`). Without it a drone's damage lands with
+        # nothing watching: the server's replay baseline is never advanced
+        # past it, so the burst surfaces on the *next* beat that is recorded
+        # and is drawn on whatever card happened to be revealed then. It went
+        # unnoticed because the AI rarely played a drone -- teaching it to
+        # value one is what found this.
+        _resolve._beat(state, "attack")
         combat.advance_attack(state, attack)
     fx.slot(state, "drone_attack").pop(token_id, None)
     return False
