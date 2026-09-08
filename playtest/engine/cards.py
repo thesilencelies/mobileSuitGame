@@ -23,6 +23,7 @@ set of traps in a different shape):
 from __future__ import annotations
 
 import csv
+import hashlib
 import re
 from collections import Counter
 from dataclasses import dataclass
@@ -192,6 +193,45 @@ def load_cards(root: Optional[Path] = None) -> dict[str, Card]:
                 if card is not None:
                     catalogue[card.key] = card
     return catalogue
+
+
+def card_fingerprint(card: Card) -> str:
+    """Eight hex characters over everything printed on this card.
+
+    The point of it is a saved game. A log played before a balance pass is not
+    evidence about the cards as they stand now, and the honest way to say so is
+    per card: an edit to one weapon group does not invalidate a game that
+    never saw it. So an export carries one of these per card that was in play,
+    and `ai.review` diffs them against today's catalogue and names what moved.
+
+    Everything the engine reads off the card goes in, text included -- a
+    reworded ability is a different card. Nothing else does: the image path
+    changes when art is regenerated and has no bearing on play.
+    """
+    parts = (
+        card.key, card.card_type, card.group, card.faction,
+        tuple(card.initiative), card.movement,
+        tuple(sorted(card.attacks.items())),
+        tuple(sorted(card.ranges.items())),
+        tuple(sorted((z, d or "") for z, d in card.dtypes.items())),
+        tuple(sorted(card.blocks.items())),
+        tuple(sorted(card.keywords)), card.knockback, card.persistence,
+        " ".join(card.text.split()),
+        card.drone_health, card.drone_movement,
+    )
+    return hashlib.sha256(repr(parts).encode("utf-8")).hexdigest()[:8]
+
+
+def frame_fingerprint(spec: FrameSpec) -> str:
+    """The same, for a frame's printed stats. Armour decides every kill."""
+    parts = (
+        spec.name, spec.faction, spec.movement, spec.weapon_slots,
+        spec.booster_slots, spec.deck_size,
+        tuple(sorted(spec.armour.items())),
+        " ".join(spec.ability_text.split()),
+        tuple(sorted(spec.keywords)), spec.shield,
+    )
+    return hashlib.sha256(repr(parts).encode("utf-8")).hexdigest()[:8]
 
 
 def load_frames(root: Optional[Path] = None) -> dict[str, FrameSpec]:

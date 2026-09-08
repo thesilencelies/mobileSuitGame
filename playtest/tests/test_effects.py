@@ -468,6 +468,10 @@ def test_another_seat_cannot_tell_the_frame_from_its_images():
     images = [t for t in theirs["tokens"] if t["kind"] == effects.IMAGE]
     assert len(images) == 3
     assert all("real" not in t for t in images), "the view marked the real one"
+    # Whose they are and which frame they stand for is not the secret -- the
+    # board draws both (seat colour, frame badge) and could not without these.
+    assert all(t.get("frame") == frame.id for t in images)
+    assert all(t.get("owner") == frame.seat for t in images)
 
     mine = view_for(state, 0)
     seen = next(f for f in mine["frames"] if f["id"] == frame.id)
@@ -526,25 +530,41 @@ def test_the_real_image_goes_where_the_frame_goes_and_nothing_else_does():
 
 
 def _walk_images(state, frame, uid, pick=None):
-    """Run the per-image movement the frame's card grants. Returns the moves.
+    """Run the movement step of the card `frame` is resolving.
 
-    `pick(options) -> option` chooses each image's tile; the default takes the
+    Every image walks, the frame's own move among them, so this answers each
+    question the step raises and returns the list of what each answer moved --
+    `"frame"` for the frame's own move, `"image"` for a decoy's. The order is
+    the engine's shuffle, which is the thing the card depends on.
+
+    `pick(options) -> option` chooses each tile; the default takes the
     furthest one offered, which is the interesting case.
     """
-    state.resolution = Resolution(frame_id=frame.id, uid=uid, steps=[])
-    effects.after_move(state, frame, frame.pos, frame.pos)
-    asked = 0
-    decision, state.pending = state.pending, None
-    while decision is not None:
-        asked += 1
-        assert decision.kind == "effect_choice" and decision.pick_kind == "move"
+    from playtest.engine import resolve as resolvelib
+    from playtest.engine.types import Command
+
+    card = CATALOGUE[state.cards[uid].key]
+    state.resolution = Resolution(frame_id=frame.id, uid=uid, steps=["movement"])
+    moved = []
+    while resolvelib._movement_decision(state, frame, card):
+        decision, state.pending = state.pending, None
+        here = frame.pos if decision.kind == "move" else state.tokens[
+            fx.bag(state)["await"]["ctx"]["token"]
+        ].pos
         options = [o for o in decision.options if "x" in o]
         chosen = pick(options) if pick else max(
-            options,
-            key=lambda o: state.board.distance(frame.pos, Pos(o["x"], o["y"])),
+            options, key=lambda o: state.board.distance(here, Pos(o["x"], o["y"])),
         )
-        decision = answer(state, decision, chosen)
-    return asked
+        if decision.kind == "move":
+            moved.append("frame")
+            resolvelib._handle_move(
+                state, decision, Command(seat=frame.seat, kind="move", payload=chosen)
+            )
+        else:
+            assert decision.pick_kind == "move"
+            moved.append("image")
+            answer(state, decision, chosen)
+    return moved
 
 
 def test_each_image_walks_on_its_own_when_the_frame_acts():
@@ -562,19 +582,120 @@ def test_each_image_walks_on_its_own_when_the_frame_acts():
     uid = give(state, frame, "Basic_Sprint")
     budget = kw.movement_budget(state, frame, CATALOGUE["Basic_Sprint"])
     assert budget > 1, "the card has to actually grant a move"
-    assert _walk_images(state, frame, uid) == len(fakes), "one question per fake"
+    moved = _walk_images(state, frame, uid)
+    assert moved.count("image") == len(fakes), "one question per fake"
+    assert moved.count("frame") == 1, "and one for the frame's own move"
 
-    assert frame.pos == home, "the frame itself did not move"
+    assert frame.pos != home, "the frame walked too"
     _, fakes = _images(state, frame)
     for fake in fakes:
         assert fake.pos != before[fake.id]
         assert state.board.distance(fake.pos, before[fake.id]) <= budget
-    assert any(state.board.distance(f.pos, frame.pos) > 1 for f in fakes), (
-        "an image can walk away from the frame, which is the point of them"
-    )
+    shift = (frame.pos.x - home.x, frame.pos.y - home.y)
+    assert any(
+        (f.pos.x - before[f.id].x, f.pos.y - before[f.id].y) != shift
+        for f in fakes
+    ), "the fakes are walking, not being dragged along at a fixed offset"
     effects.sync_images(state)
     assert effects.is_cloaked(state, frame), "spreading out is not a reveal"
     assert all(f.alive for f in fakes)
+
+
+def test_the_images_are_asked_in_an_order_that_says_nothing():
+    """The frame's own move is shuffled in among its decoys'.
+
+    It used to come first every time -- the movement step asked the frame and
+    then queued the fakes -- so the log answered the card's one question on
+    the turn it was played, every time.
+    """
+    seen = set()
+    for seed in range(1, 12):
+        state, frame, _ = duel(seed=seed, gap=9)
+        play(state, frame, effects.EPHEMERAL)
+        uid = give(state, frame, "Basic_Sprint")
+        moved = _walk_images(state, frame, uid)
+        assert moved.count("frame") == 1 and moved.count("image") == 2
+        seen.add(moved.index("frame"))
+        lines = [
+            entry["text"] for entry in state.log
+            if "moves to" in entry["text"]
+        ]
+        assert len(lines) == 3, "all three walked"
+        assert all(line.startswith("an image of ") for line in lines), (
+            "the log must not say which line was the frame"
+        )
+    assert len(seen) > 1, "the real image is always in the same place in the queue"
+
+
+def test_a_cloaked_frames_move_is_not_named_in_the_log():
+    """The view redacts the tile; the log has to as well.
+
+    "For ephemeral images the log currently tells me the location of the real
+    frame" -- and `GameState.note` ships to both seats verbatim, so one line
+    naming the frame was handing over the answer the card is built to hide.
+    """
+    state, frame, _ = duel(gap=9)
+    play(state, frame, effects.EPHEMERAL)
+    uid = give(state, frame, "Basic_Sprint")
+    _walk_images(state, frame, uid)
+    lines = [entry["text"] for entry in state.log]
+    assert not [line for line in lines if line.startswith(f"{frame.id} moves to")]
+    said = " ".join(lines)
+    assert f"({frame.pos.x},{frame.pos.y})" in said, (
+        "the tile is still reported -- as one of three, which is the point"
+    )
+
+
+def test_an_image_picks_up_a_token_and_carries_it():
+    """"They are frames in all regards until exposed."
+
+    If only the real image could pick the relic up, the piece carrying it
+    would answer the card's one question -- so any of them can, and the token
+    travels with that piece rather than snapping to the frame.
+    """
+    from playtest.engine import objectives as objectivelib
+    from playtest.engine.state import TokenState
+
+    state, frame, _ = duel(gap=9)
+    play(state, frame, effects.EPHEMERAL)
+    _, fakes = _images(state, frame)
+    fake = fakes[0]
+    spot = Pos(fake.pos.x, fake.pos.y + 3)
+    state.tokens["s"] = TokenState(
+        id="s", kind="shiny", pos=spot, carriable=True
+    )
+
+    was = fake.pos
+    fake.pos = spot
+    objectivelib.on_image_move(state, frame, fake.id, was)
+    assert state.tokens["s"].carrier == frame.id, "the image picked it up"
+    assert state.tokens["s"].carrier_via == fake.id, "and it is the one holding it"
+
+    onward = Pos(spot.x + 1, spot.y)
+    fake.pos = onward
+    objectivelib.on_image_move(state, frame, fake.id, spot)
+    assert state.tokens["s"].pos == onward, "it travels with the image"
+    assert frame.pos != onward, "and not with the frame, which never went there"
+
+
+def test_a_struck_image_leaves_what_it_was_carrying_behind():
+    from playtest.engine import objectives as objectivelib
+    from playtest.engine.state import TokenState
+
+    state, frame, foe = duel(gap=9)
+    play(state, frame, effects.EPHEMERAL)
+    _, fakes = _images(state, frame)
+    fake = fakes[0]
+    state.tokens["s"] = TokenState(
+        id="s", kind="shiny", pos=fake.pos, carriable=True
+    )
+    objectivelib.on_image_move(state, frame, fake.id, fake.pos)
+    assert state.tokens["s"].carrier == frame.id
+
+    where = fake.pos
+    assert effects.strike_image(state, fake)
+    assert state.tokens["s"].carrier is None, "the illusion went, the relic did not"
+    assert state.tokens["s"].pos == where
 
 
 def test_an_action_may_be_counted_from_any_image():

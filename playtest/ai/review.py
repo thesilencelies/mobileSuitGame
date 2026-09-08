@@ -33,9 +33,12 @@ from ..engine import (
     GameConfig,
     apply_command,
     is_over,
+    load_cards,
+    load_frames,
     new_game,
     scores,
 )
+from ..engine.cards import card_fingerprint, frame_fingerprint
 
 _RESOLVES = re.compile(r"^(?P<who>.+?) resolves (?P<key>.+?) \(initiative")
 _DAMAGE = re.compile(r"^(?P<who>.+?) takes (?P<n>\d+) (?P<zone>High|Mid|Low) damage$")
@@ -51,6 +54,56 @@ def load(path: str | Path) -> dict[str, Any]:
     return doc
 
 
+def drift(doc: Mapping[str, Any]) -> dict[str, Any]:
+    """What has changed in the card data since this game was played.
+
+    A saved game is only evidence about the cards it was played with. Balance
+    passes are frequent and a log outlives them, so this compares the per-card
+    fingerprints the export carries against today's catalogue and says exactly
+    what moved -- and, more usefully, which of those cards actually *resolved*
+    in the game, since an edit to a card nobody drew changes nothing about what
+    the log shows.
+    """
+    dataset = dict(doc.get("dataset") or {})
+    recorded_cards = dict(dataset.get("cards") or {})
+    recorded_frames = dict(dataset.get("frames") or {})
+    out: dict[str, Any] = {
+        "known": bool(recorded_cards or recorded_frames),
+        "changed": [], "missing": [], "frames": [], "in_play": [],
+    }
+    if not out["known"]:
+        return out
+
+    catalogue = load_cards()
+    for key, was in sorted(recorded_cards.items()):
+        card = catalogue.get(key)
+        if card is None:
+            out["missing"].append(key)
+        elif card_fingerprint(card) != was:
+            out["changed"].append(key)
+
+    specs = load_frames()
+    for name, was in sorted(recorded_frames.items()):
+        spec = specs.get(name)
+        if spec is None or frame_fingerprint(spec) != was:
+            out["frames"].append(name)
+
+    # Which of the changed cards the game actually turned face up. The log
+    # names every card that resolved or blocked, and those are the ones whose
+    # numbers the reader is about to draw a conclusion from.
+    seen: set[str] = set()
+    for entry in doc.get("log") or ():
+        text = str(entry.get("text", ""))
+        for pattern in (_RESOLVES, _BLOCKS):
+            match = pattern.match(text)
+            if match:
+                seen.add(match.group("key"))
+    out["in_play"] = sorted(
+        set(out["changed"]) & seen
+    )
+    return out
+
+
 def replay(doc: Mapping[str, Any]) -> tuple[Optional[Any], list[str]]:
     """Play the transcript back through the engine.
 
@@ -59,13 +112,26 @@ def replay(doc: Mapping[str, Any]) -> tuple[Optional[Any], list[str]]:
     and cannot be replayed at all, which is the first problem reported.
     """
     problems: list[str] = []
+    moved = drift(doc)
+    if moved["changed"] or moved["missing"] or moved["frames"]:
+        # Said here rather than left to surface as a confusing divergence
+        # twenty commands in: with different card data the replay is a
+        # different game, whatever else it manages to reproduce.
+        problems.append(
+            f"the card data has changed since this game was played "
+            f"({len(moved['changed'])} cards, {len(moved['frames'])} frames) -- "
+            f"the replay below is not the game that was played"
+        )
     transcript = list(doc.get("transcript") or ())
     if any(entry.get("redacted") for entry in transcript):
-        return None, [
+        # Appended, not returned on its own: a redacted export can *also* be
+        # stale, and the reader needs both facts.
+        problems.append(
             "this game was exported while it was still running, so the AI's "
             "commands are redacted and it cannot be replayed -- the log "
             "summary below is all of it"
-        ]
+        )
+        return None, problems
     config = dict(doc.get("config") or {})
     state = new_game(GameConfig(
         player_decks=list(config.get("playerDecks") or ()),
@@ -192,6 +258,14 @@ def report(doc: Mapping[str, Any], *, turns: bool = True, file=None) -> None:
     print(f"  AI parameters: {json.dumps(params) if params else 'defaults'}"
           f"   ({doc.get('aiSource')})", file=file)
 
+    build = dict(doc.get("build") or {})
+    if build:
+        print(f"  played on: build {build.get('build')} "
+              f"commit {build.get('commit')} "
+              f"card data {build.get('cardData')} "
+              f"engine v{build.get('engine')}", file=file)
+    _report_drift(doc, file=file)
+
     points = {int(k): int(v) for k, v in (doc.get("scores") or {}).items()}
     kills = {int(k): int(v) for k, v in (doc.get("kills") or {}).items()}
     print("\nresult", file=file)
@@ -235,6 +309,38 @@ def report(doc: Mapping[str, Any], *, turns: bool = True, file=None) -> None:
             missed = sum(1 for t in lines if _NO_TARGET.match(t))
             print(f"  turn {turn}: {len(lines)} events, {hits} damaging hits, "
                   f"{blocked} blocks, {missed} attacks with no target", file=file)
+
+
+def _report_drift(doc: Mapping[str, Any], file=None) -> None:
+    """Say plainly whether this log still describes the current cards."""
+    file = file or sys.stdout
+    moved = drift(doc)
+    if not moved["known"]:
+        print("  card data: NOT RECORDED -- this game predates provenance in the "
+              "export, so there is no telling whether the cards have changed "
+              "since", file=file)
+        return
+    if not (moved["changed"] or moved["missing"] or moved["frames"]):
+        print("  card data: unchanged since this game was played", file=file)
+        return
+    print("  card data: CHANGED since this game was played", file=file)
+    if moved["changed"]:
+        shown = ", ".join(moved["changed"][:8])
+        more = f" (+{len(moved['changed']) - 8} more)" if len(moved["changed"]) > 8 else ""
+        print(f"    {len(moved['changed'])} cards edited: {shown}{more}", file=file)
+    if moved["missing"]:
+        print(f"    {len(moved['missing'])} cards no longer exist: "
+              f"{', '.join(moved['missing'][:8])}", file=file)
+    if moved["frames"]:
+        print(f"    frames edited: {', '.join(moved['frames'])}", file=file)
+    if moved["in_play"]:
+        print(f"    !! {len(moved['in_play'])} of them were actually played in "
+              f"this game: {', '.join(moved['in_play'])}", file=file)
+        print("       Conclusions drawn from this log about those cards are "
+              "about the old numbers.", file=file)
+    else:
+        print("    none of the edited cards were played in this game, so what "
+              "it shows still stands", file=file)
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:

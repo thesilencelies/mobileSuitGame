@@ -8,11 +8,17 @@ static file the browser loads, hashed into a short id that is *the same on
 every machine holding the same code* and different the moment any of it
 changes.
 
+`cards_id()` is the same idea for the **data**, and it is a separate number on
+purpose. The card CSVs are edited far more often than the code and by a
+different activity -- balancing -- so a single marker would move for both
+reasons and tell you neither. A saved game carries both, and a game played
+before a balance pass is not evidence about the cards as they stand now.
+
 Two deliberate limits:
 
-* **Code and markup only.** Art is not hashed: it is megabytes, it changes on
-  its own schedule, and a rebuilt terrain bundle is visible on the board
-  anyway. `/api/health` already counts the bundles.
+* **Code, markup and card data only.** Art is not hashed: it is megabytes, it
+  changes on its own schedule, and a rebuilt terrain bundle is visible on the
+  board anyway. `/api/health` already counts the bundles.
 * **No subprocess, ever.** The commit, when the app is running from a clone,
   is read out of `.git` by hand. Termux may not have git on PATH, and a build
   marker that can fail to load is worse than no marker at all.
@@ -35,6 +41,22 @@ SOURCE_DIRS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("ai", (".py",)),
     ("server", (".py",)),
     ("server/static", (".html", ".css", ".js", ".mjs", ".webmanifest")),
+)
+
+#: The files that decide what the cards *do*. Everything `engine.cards` reads,
+#: which is the whole of balance: stats, keywords, text, frame armour, and the
+#: terrain that carries the objectives. Deck lists are deliberately absent --
+#: a saved game names the decks it used, and an edit to a deck nobody played
+#: does not make that game stale.
+CARD_SOURCES: tuple[str, ...] = (
+    "Weapon actions.csv",
+    "Basic actions.csv",
+    "Booster actions.csv",
+    "Pilot actions.csv",
+    "Drone actions.csv",
+    "Frames.csv",
+    "Terrain_square.csv",
+    "Terrain_hex.csv",
 )
 
 _CACHE: dict[str, Any] = {}
@@ -91,6 +113,38 @@ def build_id() -> str:
     return str(_CACHE["build"])
 
 
+def cards_id() -> str:
+    """Eight hex characters over the card data, ignoring the code entirely.
+
+    Recomputed from mtimes like `build_id`, because a balance pass happens
+    while the server is up and the point of the number is to notice.
+    """
+    stamp = []
+    for name in CARD_SOURCES:
+        path = REPO_ROOT / name
+        try:
+            info = path.stat()
+        except OSError:
+            continue
+        stamp.append((name, info.st_size, info.st_mtime_ns))
+    key = tuple(stamp)
+    if _CACHE.get("cards_stamp") == key:
+        return str(_CACHE["cards"])
+    digest = hashlib.sha256()
+    for name in CARD_SOURCES:
+        path = REPO_ROOT / name
+        try:
+            body = path.read_bytes()
+        except OSError:                        # a CSV that is simply not there
+            continue
+        digest.update(name.encode())
+        digest.update(b"\0")
+        digest.update(hashlib.sha256(body).hexdigest().encode())
+        digest.update(b"\n")
+    _CACHE.update(cards_stamp=key, cards=digest.hexdigest()[:8])
+    return str(_CACHE["cards"])
+
+
 def commit() -> Optional[str]:
     """The checked-out commit, short, read straight out of `.git`."""
     git = REPO_ROOT / ".git"
@@ -116,10 +170,17 @@ def commit() -> Optional[str]:
 
 
 def info() -> dict[str, Any]:
-    """`{build, commit, files}` -- what the client puts on screen."""
+    """`{build, cardData, commit, files}` -- what the client puts on screen.
+
+    `cardData` and not `cards`: `/api/health` has meant "how many cards are in
+    the catalogue" by that name since the first version of it, and a hash
+    silently overwriting a count is exactly the sort of thing nobody notices
+    until a log says something false.
+    """
     build = build_id()
     return {
         "build": build,
+        "cardData": cards_id(),
         "commit": commit(),
         "files": int(_CACHE.get("files", 0)),
     }

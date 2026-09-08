@@ -651,14 +651,70 @@ def claim_token(state: GameState, token: TokenState) -> bool:
         return False
     if token.pos is None:
         return False
-    frame = state.frame_at(token.pos)
+    frame, via = _holder_at(state, token.pos)
     if frame is None or not frame.alive:
         return False
     if token.holders is not None and token.holders != frame.seat:
         return False
     token.carrier = frame.id
-    state.note(f"{frame.id} picks up {token_label(token)}")
+    token.carrier_via = via
+    state.note(f"{_holder_name(state, frame, via)} picks up {token_label(token)}")
     return True
+
+
+def _holder_name(state: GameState, frame: FrameState, via: str) -> str:
+    """What the log calls the piece holding something.
+
+    The token's tile is public, so naming the frame that just walked onto it
+    would place the frame -- which is exactly what Ephemeral Images is for.
+    While the images are up every piece is "an image of" the frame, the one it
+    is standing on included.
+    """
+    from . import effects
+
+    if via or effects.is_cloaked(state, frame):
+        return f"an image of {frame.id}"
+    return frame.id
+
+
+def _holder_at(
+    state: GameState, pos: Pos
+) -> tuple[Optional[FrameState], str]:
+    """The frame standing on `pos`, and the image it is standing as.
+
+    An Ephemeral Image "is a frame in all regards until exposed", so one of
+    the decoys walking onto a loose token picks it up exactly as the frame
+    would. It has to: if only the real image could, then the piece carrying
+    the relic would be the answer to the card's one question, every time.
+
+    The image id comes back too, because the token then travels with *that*
+    piece (`_carrying_pos`) rather than with the frame.
+    """
+    frame = state.frame_at(pos)
+    if frame is not None:
+        # The frame is standing on its own real image, so no id is needed:
+        # `_carrying_pos` falls back to the frame's tile, which is that image's.
+        return frame, ""
+    from . import effects
+
+    for token in state.tokens.values():
+        if token.kind != effects.IMAGE or not token.alive or token.pos != pos:
+            continue
+        found = effects.image_owner(state, token)
+        if found is not None:
+            return found[0], token.id
+    return None, ""
+
+
+def _carrying_pos(state: GameState, token: TokenState) -> Optional[Pos]:
+    """The tile of the piece holding `token` -- an image's, or the frame's."""
+    if token.carrier_via:
+        image = state.tokens.get(token.carrier_via)
+        if image is not None and image.alive:
+            return image.pos
+        return None
+    frame = state.frames.get(str(token.carrier))
+    return frame.pos if frame is not None else None
 
 
 def on_move(state: GameState, frame: FrameState, old_pos: Optional[Pos]) -> None:
@@ -669,7 +725,50 @@ def on_move(state: GameState, frame: FrameState, old_pos: Optional[Pos]) -> None
         if token.pos == frame.pos:
             claim_token(state, token)
     for token in _carried_tokens(state, frame.id):
-        token.pos = frame.pos
+        if not token.carrier_via:
+            token.pos = frame.pos
+    latch_objectives(state)
+
+
+def on_image_move(
+    state: GameState,
+    frame: FrameState,
+    image_id: str,
+    old_pos: Optional[Pos],
+) -> None:
+    """The same, for one of a frame's Ephemeral Images.
+
+    The image walked (or was displaced, or blinked): it picks up what it
+    landed on and drags what it was already holding, like the frame it is
+    standing in for.
+    """
+    image = state.tokens.get(image_id)
+    if image is None or not image.alive or image.pos is None:
+        return
+    for token in list(state.tokens.values()):
+        if token.pos == image.pos and token.id != image_id:
+            claim_token(state, token)
+    for token in _carried_tokens(state, frame.id):
+        if token.carrier_via == image_id:
+            token.pos = image.pos
+    latch_objectives(state)
+
+
+def image_leaves(state: GameState, image_id: str, pos: Optional[Pos]) -> None:
+    """An image is coming off the table: what it was carrying stays behind.
+
+    Shot, or faded with the rest of them when the frame was found. The relic
+    does not wink out with the illusion -- it drops on the tile the image was
+    standing on, where anything standing there picks it straight back up.
+    """
+    for token in list(state.tokens.values()):
+        if not token.alive or token.carrier_via != image_id:
+            continue
+        token.carrier = None
+        token.carrier_via = ""
+        token.pos = pos if pos is not None else token.pos
+        state.note(f"{token_label(token)} is left where the image stood")
+        claim_token(state, token)
     latch_objectives(state)
 
 
@@ -690,9 +789,17 @@ def on_damage(
         source_pos = attacker.pos
     dropped = False
     for token in _carried_tokens(state, defender.id):
+        # Whatever the *carrying piece* was standing on: behind Ephemeral
+        # Images that can be a decoy on the far side of the board, and the
+        # relic falls there rather than teleporting to the frame.
+        held_at = _carrying_pos(state, token) or defender.pos
+        via = token.carrier_via
         token.carrier = None
-        token.pos = _drop_tile(state, defender, source_pos)
-        state.note(f"{defender.id} drops {token_label(token)}")
+        token.carrier_via = ""
+        token.pos = _drop_tile(state, held_at, source_pos)
+        state.note(
+            f"{_holder_name(state, defender, via)} drops {token_label(token)}"
+        )
         # It may land at somebody's feet -- usually the attacker's, since a
         # melee hit comes from an adjacent tile.
         claim_token(state, token)
@@ -702,17 +809,17 @@ def on_damage(
 
 
 def _drop_tile(
-    state: GameState, defender: FrameState, source: Optional[Pos]
+    state: GameState, held_at: Optional[Pos], source: Optional[Pos]
 ) -> Optional[Pos]:
-    """The adjacent tile nearest the damage source."""
-    if defender.pos is None or state.board is None:
-        return defender.pos
+    """The tile beside `held_at` nearest the damage source."""
+    if held_at is None or state.board is None:
+        return held_at
     candidates = [
-        p for p in state.board.neighbours(defender.pos)
+        p for p in state.board.neighbours(held_at)
         if not state.board.tile(p).impassable
     ]
     if not candidates:
-        return defender.pos
+        return held_at
     if source is None:
         return sorted(candidates)[0]
 

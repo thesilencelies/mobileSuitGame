@@ -1057,6 +1057,7 @@ export class BoardView {
           this._roundRect(ctx, x + 0.06, y + 0.06, 0.88, 0.88, 0.16);
           ctx.stroke();
         }
+        this._drawOwnerMark(ctx, token, s);
         continue;
       }
       const style = TOKEN_STYLE[token.kind] || {};
@@ -1079,7 +1080,45 @@ export class BoardView {
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         ctx.fillText(mark, x + 0.5, y + 0.54);
       }
+      this._drawOwnerMark(ctx, token, s);
     }
+  }
+
+  /** Whose piece this is, for a token that stands in for a frame.
+   *
+   *  Three identical illusions in the middle of a fight are unreadable
+   *  otherwise: with two Mystics on the table there can be six of them, and
+   *  the picture alone says neither which side projected one nor which frame
+   *  it belongs to. So an image gets the same two marks a frame does -- the
+   *  seat's colour as a ring, and the frame's ordinal badge in the corner --
+   *  and nothing else, because *which* of the three it is remains the thing
+   *  the card exists to withhold.
+   */
+  _drawOwnerMark(ctx, token, s) {
+    if (!token.frame || token.kind !== 'image') return;
+    const { x, y } = token.pos;
+    const mine = token.owner === this.seat;
+    ctx.save();
+    ctx.strokeStyle = mine ? '#3fa7ff' : '#ff5d5d';
+    ctx.lineWidth = 2 / s;
+    this._roundRect(ctx, x + 0.08, y + 0.08, 0.84, 0.84, 0.18);
+    ctx.stroke();
+    const mark = frameMark(token.frame);
+    if (mark && s > 16) {
+      ctx.fillStyle = 'rgba(9,13,19,0.88)';
+      this._roundRect(ctx, x + 0.04, y + 0.04, 0.30, 0.24, 0.06);
+      ctx.fill();
+      ctx.strokeStyle = mine ? '#3fa7ff' : '#ff5d5d';
+      ctx.lineWidth = 1.4 / s;
+      this._roundRect(ctx, x + 0.04, y + 0.04, 0.30, 0.24, 0.06);
+      ctx.stroke();
+      ctx.fillStyle = '#e8f0ff';
+      ctx.font = `800 ${0.19}px system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(mark, x + 0.19, y + 0.17);
+    }
+    ctx.restore();
   }
 
   /** Every frame on the board, back to front.

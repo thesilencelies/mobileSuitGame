@@ -162,11 +162,17 @@ async function boot() {
  *  is identical on two machines holding the same code and different the
  *  moment any of it changes. Static files are served `no-cache`, so what the
  *  server hashes really is what is on screen.
+ *
+ *  `cards` is the same idea for the card CSVs, and it is shown separately
+ *  because it moves for a different reason: a balance pass changes what the
+ *  cards do without touching a line of code, and a saved game from before one
+ *  is not evidence about the cards as they stand now.
  */
 function showBuildMarker() {
   const health = app.health || {};
   if (!health.build) return;
   const text = `build ${health.build}`
+    + (health.cardData ? ` · cards ${health.cardData}` : '')
     + (health.commit ? ` · commit ${health.commit}` : '');
   for (const id of ['build-marker', 'drawer-build']) {
     const el = document.getElementById(id);

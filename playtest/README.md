@@ -191,7 +191,10 @@ for. Drag its handle to collapse it when you want more board.
 A decision that is *about* cards shows them: Kuwagata's once-per-game mulligan
 ("discard your hand and draw a new one") lays the seven cards out in the sheet
 and opens the Plan tab on the same hand, because nobody can answer that
-question without seeing what they would be throwing away.
+question without seeing what they would be throwing away. The offer comes back
+every planning phase until it is actually taken — "once per game" is spent by
+mulliganing, not by being asked, and a turn flag stops it being asked twice in
+one phase (`resolve._planning_decision`).
 
 ### The board on a phone
 
@@ -539,6 +542,11 @@ That one decision settles what used to be several problems:
   target list, the initiative ladder and the frame card cannot disagree. The
   board marker still shows just the ordinal, as a badge, because a tile is
   small.
+* an **Ephemeral Image** carries the same two marks: the seat's colour as a
+  ring and the projecting frame's ordinal badge (`Board._drawOwnerMark`). Two
+  Mystics can put six identical illusions on the table, and the picture alone
+  says neither whose they are nor which frame they belong to. *Which* of the
+  three the frame is standing on is still not drawn — that is the card.
 
 Nothing in the client identifies a frame from prompt text. The engine's
 `prompt` is shown as its own explanation, but *who* a decision is about is read
@@ -784,9 +792,14 @@ the three tiles — but while the images are up:
   and finding it ends the trick. Attacking a fake removes it.
 * **each image resolves the frame's action, from where it stands.** "These
   tokens use this frame's actions" is read as all three acting at once:
-  * the card's movement step asks once for the frame (which carries the real
-    image) and then once for each fake, each with the same budget, so the three
-    can spread out. `effects.after_move` drives that;
+  * the card's movement step asks once per image, each with the same budget,
+    so the three can spread out. The question for the real image *is* the
+    frame's own move. `resolve._movement_decision` drives it off a queue the
+    engine shuffles (`effects.begin_image_walk`): the frame used to be asked
+    first and the fakes queued behind it, which answered the card's one
+    question every turn it was played. `resolve._handle_move` takes the real
+    image off the queue instead of finishing the step, and the step loop comes
+    back for the next one. Teleport shuffles its own queue the same way;
   * anything the action counts may be counted from **any** image
     (`effects_state.origins`): range, line of sight, every "within N". A zone
     lands if any image is placed to land it;
@@ -809,12 +822,32 @@ the three tiles — but while the images are up:
 * **an image can be moved on its own** by anything that names one. A Displace
   aimed at an image shoves that image and leaves the rest; the throw is
   measured from where that image is standing.
+* **an image is priced like the frame.** Its move goes through the same
+  re-costing the frame's does (`effects.adjust_move_options` over a `_StandsAt`
+  stand-in), so an image inside a gravity well pays the same surcharge and a
+  Jump's free climb applies to all three.
 * **nothing is dragged.** `sync_images` keeps the real image under the frame
   and does nothing else — it runs from the engine's advance loop rather than
   from each of the ways a frame can be shifted. The fakes used to slide after
   the frame so that a lone move could not say which was real; that is not
   needed, because the pieces are indistinguishable whichever one moved, and it
   is the wrong shape now that each can be targeted by name.
+* **an image picks up and carries tokens.** "They are frames in all regards
+  until exposed", so a decoy that ends on the Shiny Thing, the relic or the
+  fugitive is holding it, and the token travels with *that piece*
+  (`TokenState.carrier_via`, `objectives._holder_at` / `on_image_move`). It has
+  to work that way: if only the real image could pick something up, the piece
+  carrying the relic would be a free answer to the card. When an image leaves
+  the table — shot, or faded with the rest when the frame was found — whatever
+  it was carrying is dropped on the tile it was standing on
+  (`objectives.image_leaves`), because the relic is not part of the illusion.
+* **the log is redacted too, not just the view.** `GameState.note` ships
+  verbatim to both seats, so while the images are up every line that would name
+  the frame's tile says "an image of *frame*" instead —
+  `effects.move_note` for the moves, `objectives._holder_name` for picking a
+  token up and dropping it. The three moves are reported in identical words and
+  differ only in their coordinates, which is the point: the tiles are public,
+  the mapping is not.
 * an image blocks movement like the frame under it would, so an enemy cannot
   find the frame by noticing which of the three tiles it may not walk into.
   That cuts both ways: an image also blocks *sight*, so the decoys can stand in
@@ -978,7 +1011,9 @@ The **Log** tab has **Save game** and **Copy**. Both fetch
 
 | Key | What it is |
 |---|---|
-| `config` | What the game was created from -- both squads, `framesPerSide`, the terrain decks, and the **seed** |
+| `build` | What it was played **on**: `build` (code hash), `commit`, `cardData` (card-CSV hash) and `engine` (rules version) |
+| `dataset` | A fingerprint per card that was in the game and per frame on the board, so a later balance pass can be diffed card by card |
+| `config` | What the game was created from -- both squads, `framesPerSide`, the terrain decks, and the **seed** (the one the engine actually used, not the `null` the client sent) |
 | `aiParams`, `aiSource` | What the AI was playing under, after presets were applied |
 | `log` | The public event log, exactly as the Log tab shows it |
 | `transcript` | **Every command both seats made, in order** -- kind, payload, the prompt it answered and how many options it had |
@@ -993,6 +1028,26 @@ can be handed to someone who can go and look at why.
 as a turn-by-turn report: what each side committed, what landed, what missed,
 and where the points went.
 
+**A log outlives the balance pass that follows it.** Card stats live in CSVs
+that are edited far more often than the code, so `build` carries the two hashes
+separately -- `build`/`commit` for the code, `cardData` for the data -- and
+`dataset` goes further and fingerprints each card that was actually in the
+game. `review` diffs that against today's catalogue and says which cards moved,
+which no longer exist, and **which of them were actually played**, because an
+edit to a weapon group the game never saw does not make it stale:
+
+```
+  card data: CHANGED since this game was played
+    1 cards edited: Chainsaw_Disembowel
+    !! 1 of them were actually played in this game: Chainsaw_Disembowel
+       Conclusions drawn from this log about those cards are about the old numbers.
+```
+
+It also refuses to let a replay quietly mislead: with changed data the game
+replays differently, and that is said up front rather than surfacing as a
+divergence twenty commands in. A log saved before any of this existed reports
+`NOT RECORDED` rather than being read as unchanged.
+
 **Redaction.** While the game is still running the AI's own card identities are
 stripped out of its commands -- otherwise exporting mid-game would show you the
 hand you are playing against. Once the game is over there is nothing left to
@@ -1004,7 +1059,7 @@ played and not as first attempted.
 ## HTTP API
 
 ```
-GET    /api/health                 counts of cards, frames, decks, images, art
+GET    /api/health                 build + card-data hashes, counts of cards, frames, decks, art
 GET    /api/cards                  catalogue keyed by "{Group}_{Name}"
 GET    /api/frames                 frame stats from Frames.csv
 GET    /api/decks                  decks in decks/, with legality

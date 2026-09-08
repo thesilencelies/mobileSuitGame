@@ -447,6 +447,72 @@ def test_export_records_the_seed_a_seedless_game_actually_used(
     assert state is not None
 
 
+def test_export_records_what_it_was_played_on(client: Client) -> None:
+    """A log outlives the balance pass that follows it, so it says which one."""
+    game_id, view = start(client)
+    doc = client.get(f"/api/game/{game_id}/export").json()
+
+    build = doc["build"]
+    assert build["build"] and build["cardData"]
+    assert build["build"] != build["cardData"], (
+        "code and card data are separate markers on purpose: balance moves "
+        "far more often than the code, and one number would mean neither"
+    )
+    assert isinstance(build["engine"], int)
+
+    # `/api/health` has meant "how many cards" by the name `cards` since the
+    # first version of it, so the hash must not land on top of the count.
+    health = client.get("/api/health").json()
+    assert isinstance(health["cards"], int)
+    assert health["cardData"] == build["cardData"]
+
+    # A fingerprint per card that was in the game, and per frame on the board.
+    cards = doc["dataset"]["cards"]
+    assert len(cards) > 20
+    assert all(len(v) == 8 for v in cards.values())
+    assert set(doc["dataset"]["frames"]) == {
+        f["name"] for f in doc["frames"]
+    }
+
+
+def test_review_names_the_cards_a_balance_pass_moved(client: Client) -> None:
+    """The point of the ledger: which edits actually invalidate this log."""
+    from playtest.ai import review
+
+    game_id, view = start(client)
+    doc = client.get(f"/api/game/{game_id}/export").json()
+    assert review.drift(doc)["changed"] == []
+
+    # Rebalance one card that was in the game, by editing its fingerprint's
+    # source of truth -- the recorded value, which is the same comparison.
+    key = sorted(doc["dataset"]["cards"])[0]
+    doc["dataset"]["cards"][key] = "deadbeef"
+    moved = review.drift(doc)
+    assert moved["changed"] == [key]
+    assert moved["missing"] == []
+
+    # And a card that no longer exists is reported as gone, not as edited.
+    doc["dataset"]["cards"]["Nonesuch_Card"] = "deadbeef"
+    moved = review.drift(doc)
+    assert moved["missing"] == ["Nonesuch_Card"]
+
+    # Replaying against changed data is called out before it diverges.
+    _state, problems = review.replay(doc)
+    assert problems and "card data has changed" in problems[0]
+
+
+def test_review_says_so_when_a_log_carries_no_provenance(client: Client) -> None:
+    """Games saved before this existed must not be read as 'unchanged'."""
+    from playtest.ai import review
+
+    game_id, _view = start(client)
+    doc = client.get(f"/api/game/{game_id}/export").json()
+    doc.pop("dataset")
+    moved = review.drift(doc)
+    assert moved["known"] is False
+    assert moved["changed"] == [] and moved["missing"] == []
+
+
 def test_export_mid_game_holds_back_the_ai_hand(client: Client) -> None:
     """Exporting a running game must not show what the AI is holding."""
     game_id, view = start(client)

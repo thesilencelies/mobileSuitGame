@@ -205,6 +205,65 @@ def test_dazed_reduces_the_planning_draw():
         assert frame.draw_count == 5
 
 
+def test_the_kuwagata_mulligan_comes_back_every_turn_until_it_is_taken():
+    """"Once per game" is spent by *mulliganing*, not by being asked.
+
+    Declining used to set `mulligan_used`, so a player who kept a good opening
+    hand never saw the offer again -- the card was once per game only if you
+    took it on turn one.
+    """
+    state = make_state()
+    frame = add_frame(state, 0, "Kuwagata", Pos(1, 1))
+    add_frame(state, 1, "Adam", Pos(8, 8))
+    state.phase = "planning"
+
+    def offer():
+        state.pending = None
+        state.queue = [frame.id]
+        frame.turn_flags.pop("mulligan_offered", None)
+        assert R._planning_decision(state)
+        return state.pending
+
+    decision = offer()
+    assert decision.kind == "effect_choice"
+    assert {bool(o["mulligan"]) for o in decision.options} == {True, False}
+    R._handle_effect_choice(
+        state, decision, Command(kind="effect_choice", seat=0,
+                                 payload={"mulligan": False}))
+    assert not frame.mulligan_used, "declining spends nothing"
+
+    decision = offer()
+    assert decision.kind == "effect_choice", "the offer comes back next turn"
+    hand = [give(state, frame, "Basic_Punch", location="hand") for _ in range(3)]
+    for _ in range(8):
+        give(state, frame, "Basic_Sprint", location="deck")
+    R._handle_effect_choice(
+        state, decision, Command(kind="effect_choice", seat=0,
+                                 payload={"mulligan": True}))
+    assert frame.mulligan_used
+    assert not set(frame.hand) & set(hand), "the hand it kept was thrown away"
+
+    assert offer().kind == "commit_actions", "and now it is spent"
+
+
+def test_the_mulligan_is_offered_once_per_planning_phase():
+    state = make_state()
+    frame = add_frame(state, 0, "Kuwagata", Pos(1, 1))
+    add_frame(state, 1, "Adam", Pos(8, 8))
+    state.phase = "planning"
+    state.queue = [frame.id]
+    assert R._planning_decision(state)
+    decision = state.pending
+    R._handle_effect_choice(
+        state, decision, Command(kind="effect_choice", seat=0,
+                                 payload={"mulligan": False}))
+    state.pending = None
+    assert R._planning_decision(state)
+    assert state.pending.kind == "commit_actions", (
+        "asking again inside the same phase would be an unanswerable loop"
+    )
+
+
 # --------------------------------------------------------------------------
 # Cleanup and persistence
 # --------------------------------------------------------------------------

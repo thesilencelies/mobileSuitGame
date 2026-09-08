@@ -109,6 +109,12 @@ class TokenState:
     objective: str = ""
     #: Frame currently carrying it (the Shiny Thing, the fugitive, the relic).
     carrier: Optional[str] = None
+    #: The Ephemeral Image actually holding it, when the carrier is hiding
+    #: behind them. An image "is a frame in all regards until exposed", so any
+    #: of the three can walk onto a loose token and pick it up -- and the token
+    #: then travels with *that* piece rather than with the frame, which is what
+    #: stops the objective from pointing at the real one.
+    carrier_via: str = ""
     #: Can be picked up by a frame that enters its tile, and dropped when that
     #: frame is damaged (rules.tex:826).
     carriable: bool = False

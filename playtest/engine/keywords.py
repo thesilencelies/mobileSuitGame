@@ -225,7 +225,9 @@ def apply_knockback(
             break  # cannot be knocked up an elevation
         pos = nxt
     if pos != target.pos:
-        state.note(f"{target.id} is knocked back to ({pos.x},{pos.y})")
+        from . import effects
+
+        state.note(effects.move_note(state, target, pos, "is knocked back to"))
         record_movement(state, target, target.pos, pos)
         target.pos = pos
 

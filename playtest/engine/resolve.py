@@ -842,8 +842,50 @@ def _out_of_reach(
 
 
 def _movement_decision(state: GameState, frame: FrameState, card: Card) -> bool:
+    """The card's movement step. True if it parked on a decision.
+
+    Behind Ephemeral Images this is several decisions rather than one: "these
+    tokens use this frame's actions", so all three images walk. They are asked
+    in an order the engine shuffles (`effects.begin_image_walk`), because the
+    order itself would otherwise be the tell -- the real image moving first,
+    every turn, is a free answer to the only question the card asks. The step
+    loop comes back here after each answer and the queue drains one image at a
+    time; the entry for the real image is the frame's own move below.
+    """
+    if not effects.is_cloaked(state, frame):
+        return _frame_move_decision(state, frame, card)
+    budget = kw.movement_budget(state, frame, card)
+    if budget <= 0:
+        return False
+    effects.begin_image_walk(state, frame)
+    while True:
+        token_id = effects.image_walk_head(state, frame)
+        if token_id is None:
+            effects.end_image_walk(state, frame)
+            return False
+        if effects.image_is_real(state, frame, token_id):
+            if _frame_move_decision(state, frame, card):
+                return True
+            effects.image_walk_pop(state, frame)
+            continue
+        decision = effects.image_move_decision(state, frame, token_id, budget)
+        if decision is not None:
+            state.pending = decision
+            return True
+        effects.image_walk_pop(state, frame)
+
+
+def _frame_move_decision(
+    state: GameState, frame: FrameState, card: Card
+) -> bool:
     budget = kw.movement_budget(state, frame, card)
     if budget <= 0 or frame.pos is None or state.board is None:
+        return False
+    res = state.resolution
+    if res is not None and res.effect_state.get("walked"):
+        # Already taken this step. Only reachable if the images came down
+        # part-way through their walk, which would otherwise hand the frame a
+        # second move out of the same card.
         return False
     options = _walk(state, frame, card, budget)
     if not options:
@@ -1199,8 +1241,11 @@ def _handle_effect_choice(
     payload = dict(cmd.payload)
     _require(_offered(pending, payload), "that option was not offered")
     if "mulligan" in payload:
-        frame.mulligan_used = True
+        # Declining spends nothing: the card is "once per game", so the offer
+        # comes back every planning phase until it is actually taken. Only the
+        # turn flag set when it was asked stops it being asked twice in one.
         if payload["mulligan"]:
+            frame.mulligan_used = True
             for uid in list(frame.hand):
                 move_card(state, uid, "discard")
             draw(state, frame, frame.draw_count)
@@ -1318,14 +1363,18 @@ def _handle_move(state: GameState, pending: PendingDecision, cmd: Command) -> No
         frame.pos = dest
         frame.moved_this_turn = True
         record_movement(state, frame, old, dest)
-        state.note(f"{frame.id} moves to ({dest.x},{dest.y})")
+        state.note(effects.move_note(state, frame, dest))
     objectivelib.on_move(state, frame, old)
     effects.after_move(state, frame, old, dest)
     if dest != old:
         _beat(state, "move")
     res = state.resolution
     if res is not None and res.steps and res.steps[0] == "movement":
-        res.steps.pop(0)
+        res.effect_state["walked"] = True
+        # Behind Ephemeral Images the frame's move is one of three: the step
+        # stays at the head of the list until every image has walked.
+        if not effects.image_walked(state, frame):
+            res.steps.pop(0)
 
 
 def _handle_attack_target(

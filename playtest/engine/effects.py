@@ -554,8 +554,8 @@ def _effect_boomerang(state: GameState, frame: FrameState, uid: str):
         "turn": state.turn + 1, "x": frame.pos.x, "y": frame.pos.y
     }
     state.note(
-        f"{frame.id} anchors at ({frame.pos.x},{frame.pos.y}) "
-        f"and snaps back to it at the start of next turn"
+        move_note(state, frame, frame.pos, "anchors at")
+        + " and snaps back to it at the start of next turn"
     )
     return None
 
@@ -574,7 +574,7 @@ def _boomerang_step(state: GameState) -> None:
         dest = _landing_tile(state, frame, home)
         if dest is None or dest == frame.pos:
             continue
-        state.note(f"{frame.id} snaps back to ({dest.x},{dest.y})")
+        state.note(move_note(state, frame, dest, "snaps back to"))
         record_movement(state, frame, frame.pos, dest)
         frame.pos = dest
 
@@ -740,6 +740,14 @@ class _StandsAt:
     def seat(self):
         return self.frame.seat
 
+    @property
+    def spec(self):
+        return self.frame.spec
+
+    @property
+    def turn_flags(self):
+        return self.frame.turn_flags
+
 
 def _shove_step(
     state: GameState,
@@ -875,9 +883,16 @@ def _choice_shove_to(
         # A decoy was shoved: the decoy moves and the frame does not. Nothing
         # is given away -- the pieces are indistinguishable, so an enemy that
         # shoves one learns only that it shoved one.
+        from . import objectives as objectivelib
+
         token = state.tokens[via]
+        before = token.pos
         token.pos = dest
-        state.note(f"an image of {target.id} is displaced")
+        # Word for word what the real one gets (`move_note`), so a shove that
+        # happened to catch the frame does not read differently from one that
+        # caught a decoy.
+        state.note(move_note(state, target, dest, "is moved to"))
+        objectivelib.on_image_move(state, target, via, before)
         return
     _move_frame(state, target, dest)
     if ctx.get("after") == "reveal_nearby":
@@ -890,12 +905,18 @@ def _choice_shove_to(
             state.catalogue[SUPLEX].text))
 
 
-def _move_frame(state: GameState, target: FrameState, pos: Pos) -> None:
+def _move_frame(
+    state: GameState, target: FrameState, pos: Pos, *, quiet: bool = False
+) -> None:
     """A frame put somewhere by a card rather than by its own move step.
 
     A shove, a reflex step, a Teleport. It is still a frame moving on the
     board, so it raises the same beat a move decision does -- otherwise the
     replay would attribute the change to whatever happened next.
+
+    `quiet` is for a caller that writes the log line itself. Only Teleport
+    behind Ephemeral Images needs it: every image blinks, and the real one
+    must not be the single piece whose move is reported twice.
     """
     from . import objectives as objectivelib
     from . import resolve as _resolve
@@ -907,7 +928,8 @@ def _move_frame(state: GameState, target: FrameState, pos: Pos) -> None:
     target.moved_this_turn = True
     record_movement(state, target, old, pos)
     objectivelib.on_move(state, target, old)
-    state.note(f"{target.id} is moved to ({pos.x},{pos.y})")
+    if not quiet:
+        state.note(move_note(state, target, pos, "is moved to"))
     _resolve._beat(state, "move")
 
 
@@ -1169,7 +1191,11 @@ def _teleport_images(state: GameState, frame: FrameState):
     record = _images(state).get(frame.id)
     if record is None:
         return None
-    record["porting"] = list(record.get("tokens", ()))
+    order = list(record.get("tokens", ()))
+    # Shuffled for the same reason the movement queue is: the order the images
+    # are asked in must not be the one that says which of them is real.
+    state.rng.shuffle(order)
+    record["porting"] = order
     return _next_image_teleport(state, frame)
 
 
@@ -1210,15 +1236,20 @@ def _choice_image_teleport(
     token_id = str(ctx.get("token"))
     if record is not None and record.get("porting"):
         record["porting"] = [t for t in record["porting"] if t != token_id]
+    from . import objectives as objectivelib
+
     token = state.tokens.get(token_id)
     dest = Pos(int(choice["x"]), int(choice["y"]))
+    before = token.pos if token is not None else None
     if token is not None and token.alive:
         if record is not None and token_id == record.get("real"):
             # The frame is standing on this one, so it goes too; `sync_images`
-            # keeps the token on the frame's tile from here.
-            _move_frame(state, frame, dest)
+            # keeps the token on the frame's tile from here. Quietly: the one
+            # line below is what every image gets, real or not.
+            _move_frame(state, frame, dest, quiet=True)
         token.pos = dest
-        state.note(f"an image of {frame.id} blinks somewhere else")
+        state.note(f"an image of {frame.id} blinks to ({dest.x},{dest.y})")
+        objectivelib.on_image_move(state, frame, token_id, before)
     nxt = _next_image_teleport(state, frame)
     if nxt is not None:
         state.pending = nxt
@@ -2392,6 +2423,22 @@ def image_tokens(state: GameState, frame: FrameState) -> list[str]:
     return list(record.get("tokens", ())) if record else []
 
 
+def move_note(
+    state: GameState, frame: FrameState, dest: Pos, verb: str = "moves to"
+) -> str:
+    """The log line for a frame arriving somewhere.
+
+    The log is public (`GameState.note`), so a frame behind Ephemeral Images
+    cannot be named as the thing that arrived: "Mystic-1 moves to (4,7)" hands
+    the other seat the one fact the whole card exists to withhold, and it did
+    -- the view redacted the tile and the log printed it. While the images are
+    up the frame moves as one of them, in the same words a fake gets, and the
+    three lines differ only in their coordinates.
+    """
+    who = f"an image of {frame.id}" if is_cloaked(state, frame) else frame.id
+    return f"{who} {verb} ({dest.x},{dest.y})"
+
+
 def image_owner(
     state: GameState, token: TokenState
 ) -> Optional[tuple[FrameState, bool]]:
@@ -2463,14 +2510,22 @@ def _effect_ephemeral_images(state: GameState, frame: FrameState, uid: str):
 
 def _clear_images(state: GameState, frame: FrameState) -> Optional[dict]:
     """Take every image off the board and forget them. Returns the old record."""
+    from . import objectives as objectivelib
+
     record = _images(state).pop(frame.id, None)
     if record is None:
         return None
     for token_id in record.get("tokens", ()):
         token = state.tokens.get(token_id)
         if token is not None:
+            # Anything this image was carrying is a real object: it stays on
+            # the tile the image was standing on rather than fading with it.
+            # Taken off the board first, so the thing it dropped is not
+            # immediately picked back up by the image that just vanished.
+            where = token.pos
             token.alive = False
             token.pos = None
+            objectivelib.image_leaves(state, token_id, where)
     return record
 
 
@@ -2487,11 +2542,15 @@ def strike_image(state: GameState, token: TokenState) -> bool:
     found = image_owner(state, token)
     if found is None:
         return False
+    from . import objectives as objectivelib
+
     frame, real = found
     if real:
         return False
+    where = token.pos
     token.alive = False
     token.pos = None
+    objectivelib.image_leaves(state, token.id, where)
     record = _images(state).get(frame.id)
     if record is not None:
         record["tokens"] = [t for t in record["tokens"] if t != token.id]
@@ -2499,83 +2558,133 @@ def strike_image(state: GameState, token: TokenState) -> bool:
     return True
 
 
-def _image_moves(state: GameState, frame: FrameState) -> bool:
-    """"These tokens use this frame's actions": every image walks, not just
-    the one the frame is standing on.
+def begin_image_walk(state: GameState, frame: FrameState) -> None:
+    """Queue every image for this movement step, in an order nobody can read.
 
-    Called once the frame's own move is in, so the real image has already gone
-    with it. Each fake is then offered the same budget from its own tile. True
-    if a decision parked.
+    "These tokens use this frame's actions": all three walk, not just the one
+    the frame is standing on. The order they are *asked* in is shuffled here
+    because it would otherwise be the tell the rest of the card works so hard
+    to remove -- if the real image always moved first, the log and the board
+    would announce it every single turn.
+
+    Idempotent: the step loop comes back here after every answer, and only the
+    first call lays a queue down. `end_image_walk` takes it away again.
     """
     record = _images(state).get(frame.id)
-    if record is None:
-        return False
-    # The frame walked of its own accord, so `sync_images` must not now drag
-    # the fakes along behind it as well -- they get their own move below.
-    if frame.pos is not None:
-        record["at"] = [frame.pos.x, frame.pos.y]
-    from . import keywords as kw
-
-    res = state.resolution
-    card = state.catalogue.get(state.cards[res.uid].key) if res is not None else None
-    if card is None:
-        return False
-    budget = kw.movement_budget(state, frame, card)
-    if budget <= 0:
-        return False
-    record["walking"] = [
+    if record is None or record.get("walking") is not None:
+        return
+    order = [
         token_id for token_id in record.get("tokens", ())
-        if token_id != record.get("real")
+        if (state.tokens.get(token_id) is not None
+            and state.tokens[token_id].alive)
     ]
-    return _next_image_move(state, frame, budget)
+    state.rng.shuffle(order)
+    record["walking"] = order
 
 
-def _next_image_move(state: GameState, frame: FrameState, budget: int) -> bool:
-    """Ask the next fake still owed a move. True if a decision parked."""
-    from . import keywords as kw
-
+def image_walk_head(state: GameState, frame: FrameState) -> Optional[str]:
+    """The image due to move next, or None when there is no queue left."""
     record = _images(state).get(frame.id)
-    while record is not None and record.get("walking"):
-        token_id = str(record["walking"][0])
-        token = state.tokens.get(token_id)
-        if token is None or not token.alive or token.pos is None:
-            record["walking"].pop(0)
-            continue
-        options = state.walk_options(token, budget, flying=kw.is_flying(frame))
-        if len(options) <= 1:
-            record["walking"].pop(0)
-            continue
-        state.pending = _ask(
-            state,
-            "image_move",
-            seat=frame.seat,
-            frame_id=frame.id,
-            # Deliberately anonymous: naming which image is being moved would
-            # say nothing, but numbering them across a turn would.
-            prompt=f"Move an image of {frame.id} (up to {budget})",
-            options=options,
-            ctx={"token": token_id, "budget": budget},
-            pick_kind="move",
-        )
-        return True
+    queue = record.get("walking") if record else None
+    if not queue:
+        return None
+    return str(queue[0])
+
+
+def image_walk_pop(state: GameState, frame: FrameState) -> None:
+    """Drop the head of the walk queue -- it has moved, or had nowhere to."""
+    record = _images(state).get(frame.id)
+    queue = record.get("walking") if record else None
+    if queue:
+        queue.pop(0)
+
+
+def end_image_walk(state: GameState, frame: FrameState) -> None:
+    """Take the queue away, so the next movement step lays a fresh one."""
+    record = _images(state).get(frame.id)
     if record is not None:
         record.pop("walking", None)
-    return False
+
+
+def image_is_real(state: GameState, frame: FrameState, token_id: str) -> bool:
+    """True for the image the frame is actually standing on."""
+    record = _images(state).get(frame.id)
+    return bool(record) and str(record.get("real")) == token_id
+
+
+def image_walked(state: GameState, frame: FrameState) -> bool:
+    """The frame's own move is in: take the real image off the queue.
+
+    True while a walk is still in progress, which is what tells the step loop
+    to ask the movement step again instead of moving on to the attack.
+    """
+    record = _images(state).get(frame.id)
+    if record is None or record.get("walking") is None:
+        return False
+    queue = record["walking"]
+    if queue and str(queue[0]) == str(record.get("real")):
+        queue.pop(0)
+    return True
+
+
+def image_move_decision(
+    state: GameState, frame: FrameState, token_id: str, budget: int
+) -> Optional[PendingDecision]:
+    """Where one fake walks, or None when it has nowhere to go."""
+    from . import keywords as kw
+
+    token = state.tokens.get(token_id)
+    if token is None or not token.alive or token.pos is None:
+        return None
+    # The token is what walks -- its own tile is the one it may stay on -- but
+    # the re-pricing is the frame's, measured from where this image stands. An
+    # image inside a gravity well pays the same surcharge the frame would, and
+    # a Jump's free climb is the frame's card, not the piece's.
+    options = state.walk_options(
+        token, budget,
+        flying=kw.is_flying(frame),
+        climb_free=ignores_elevation(state, frame),
+    )
+    options = adjust_move_options(
+        state, _StandsAt(frame, token.pos), budget, options
+    )
+    if len(options) <= 1:
+        return None
+    return _ask(
+        state,
+        "image_move",
+        seat=move_chooser(state, frame),
+        frame_id=frame.id,
+        # Deliberately anonymous: naming which image is being moved would say
+        # nothing, but numbering them across a turn would.
+        prompt=f"Move an image of {frame.id} (up to {budget})",
+        options=options,
+        ctx={"token": token_id, "budget": budget},
+        pick_kind="move",
+    )
 
 
 def _choice_image_move(
     state: GameState, frame: FrameState, choice: Mapping, ctx: Mapping
 ) -> None:
-    record = _images(state).get(frame.id)
-    token = state.tokens.get(str(ctx.get("token")))
-    if record is not None and record.get("walking"):
-        record["walking"] = [
-            t for t in record["walking"] if t != str(ctx.get("token"))
-        ]
-    if token is not None and token.alive:
-        token.pos = Pos(int(choice["x"]), int(choice["y"]))
-        state.note(f"an image of {frame.id} moves")
-    _next_image_move(state, frame, int(ctx.get("budget", 0)))
+    from . import objectives as objectivelib
+
+    token_id = str(ctx.get("token"))
+    token = state.tokens.get(token_id)
+    image_walk_pop(state, frame)
+    if token is None or not token.alive:
+        return
+    dest = Pos(int(choice["x"]), int(choice["y"]))
+    old = token.pos
+    token.pos = dest
+    # Same words the frame's own move gets while it is hiding (`move_note`),
+    # destination and all: three lines that differ only in the coordinates is
+    # the point -- a fake that moved "somewhere" while the frame moved "to
+    # (4,7)" would be a giveaway in the log rather than a report of the turn.
+    state.note(f"an image of {frame.id} moves to ({dest.x},{dest.y})")
+    # "They are frames in all regards until exposed", so an image walks onto a
+    # loose token and picks it up like a frame, and carries it onward.
+    objectivelib.on_image_move(state, frame, token_id, old)
 
 
 #: Tokens that reach past their own tile, and how far. The client draws the
@@ -2637,8 +2746,12 @@ def images_dealt_damage(
             state, attacker, card, target_pos, defender, origin=token.pos
         )
         if would_hit:
+            from . import objectives as objectivelib
+
+            where = token.pos
             token.alive = False
             token.pos = None
+            objectivelib.image_leaves(state, token_id, where)
             record["tokens"] = [t for t in record["tokens"] if t != token_id]
             state.note(
                 f"an image of {attacker.id} struck and dealt nothing -- "
@@ -3071,13 +3184,17 @@ def after_move(
 ) -> None:
     """The engine's one "a frame finished moving" seam.
 
-    Ephemeral Images keys off it: the frame has just taken the move its card
-    granted, and each of its fakes is owed the same one from its own tile.
-    Portal used to key off it too -- it read "create a portal at the start and
-    end of this move", so the pair could only be known once the frame had
-    walked -- but the card now names its own two tiles.
+    Ephemeral Images used to key off it, queuing each fake's move once the
+    frame's own was in. That put the real image first every time, so the walk
+    is now driven from the movement step itself (`begin_image_walk`), which can
+    shuffle all three into one order. Portal used to key off it too -- it read
+    "create a portal at the start and end of this move", so the pair could only
+    be known once the frame had walked -- but the card now names its own two
+    tiles.
     """
-    _image_moves(state, frame)
+    record = _images(state).get(frame.id)
+    if record is not None and frame.pos is not None:
+        record["at"] = [frame.pos.x, frame.pos.y]
 
 
 def after_card_resolved(state: GameState, frame: FrameState, uid: str) -> None:

@@ -10,7 +10,7 @@
 //
 // The contract, in full:
 //
-//   getHealth()                     -> {ok, build, commit, cards, frames, ai, ...}
+//   getHealth()                     -> {ok, build, cardData, commit, frames, ai, ...}
 //   getCatalogue()                  -> {"{Group}_{Name}": cardJson, ...}
 //   getFrames()                     -> {frameName: frameJson, ...}
 //   getDecks()                      -> {decks: [...]}

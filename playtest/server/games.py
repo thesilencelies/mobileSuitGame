@@ -30,7 +30,14 @@ from ..engine import (
     view_for,
     watching,
 )
-from . import ai_bridge, readouts
+from ..engine.cards import card_fingerprint, frame_fingerprint
+from . import ai_bridge, build, readouts
+
+#: The shape of the rules the engine implements, bumped when a change would
+#: make an older saved game replay differently. Distinct from the *code*
+#: marker in `build.py`: most commits do not change the rules, and a log is
+#: only invalidated by the ones that do.
+ENGINE_VERSION = 1
 
 #: How many human decisions can be stepped back through `POST /undo`.
 UNDO_DEPTH = 40
@@ -265,6 +272,42 @@ class Session:
             entry["options"] = len(pending.options or ())
         self.transcript.append(entry)
 
+    def provenance(self) -> dict[str, Any]:
+        """What code and what card data this game was played on.
+
+        Two markers and a per-card ledger, because they answer different
+        questions. `build`/`commit` say which code ran. `cards` says whether
+        the balance data has been touched at all since -- one number, cheap to
+        compare. The `dataset` ledger says *what* changed, per card and per
+        frame that was actually in this game, which is the question a saved log
+        exists to answer: an edit to a weapon group this game never saw does
+        not make it stale, and an edit to the Chainsaw that killed a frame in
+        it makes it stale completely.
+        """
+        keys = sorted({
+            inst.key for inst in self.state.cards.values()
+            if inst.key in self.state.catalogue
+        })
+        names = sorted({frame.spec.name for frame in self.state.frames.values()})
+        return {
+            "build": {
+                **build.info(),
+                "engine": ENGINE_VERSION,
+            },
+            "dataset": {
+                "cards": {
+                    key: card_fingerprint(self.state.catalogue[key]) for key in keys
+                },
+                "frames": {
+                    name: frame_fingerprint(frame.spec)
+                    for name, frame in {
+                        f.spec.name: f for f in self.state.frames.values()
+                    }.items()
+                    if name in names
+                },
+            },
+        }
+
     def export(self) -> dict[str, Any]:
         """The whole game as one shareable JSON document.
 
@@ -294,6 +337,7 @@ class Session:
                 entry["redacted"] = True
             transcript.append(entry)
         points = scores(self.state)
+        provenance = self.provenance()
         # The *resolved* seed, not the requested one. A game started with no
         # seed picks one at random inside `new_game`, and without this the
         # export of every such game -- which is most of them, since the client
@@ -312,6 +356,12 @@ class Session:
             "created": self.created,
             "updated": self.updated,
             "over": over,
+            # What this game was played *on*. A log from before a balance pass
+            # is not evidence about the cards as they stand now, and without
+            # this there is no way to tell: the transcript would replay against
+            # today's CSVs and quietly produce a different game.
+            "build": provenance["build"],
+            "dataset": provenance["dataset"],
             "turn": int(self.state.turn),
             "phase": str(self.state.phase),
             "humanSeat": self.human_seat,
