@@ -8,14 +8,17 @@ The hand is a *baseline* the designer edits by hand afterwards. Seeding rules:
   - 2 booster cards
   - 2 ranged attack cards (prefer longest range; if the deck has no ranged
     attacks, use the highest-movement attack cards instead)
-  - 2 setup cards (pilot self/ally buffs, shield creators, drone/token creators)
-  - 1 decent blocker (highest block)
+  - 3 setup cards, preferring drone creators, then pilot self/ally buffs, then
+    other token (and shield) creators — taken round-robin so the three slots
+    mix rather than being three of a kind
+  - no blocker: defensive cards are the *filler* now, not a seeded slot
 
 Every card in the hand comes out of the parent deck — there are no universal
 fallbacks. If the deck cannot fill a category (no boosters, say), the empty
-slots go to the next-best card from the *other* categories, and failing that to
-a random card the deck still has left, so the hand is always 7 cards (or the
-whole deck, if it is smaller). A deck listing a card twice may draw it twice.
+slots go to the deck's best blocker, then to the next-best card from the
+*other* categories, and failing that to a random card the deck still has left,
+so the hand is always 7 cards (or the whole deck, if it is smaller). A deck
+listing a card twice may draw it twice.
 
 Run: python generate_opening_hands.py
 """
@@ -110,7 +113,12 @@ def is_shield_setup(c):
 
 def is_drone_setup(c):
     t = c["text"].lower()
-    return c["is_drone"] or "summon" in t or "drone" in t or "token" in t
+    return c["is_drone"] or "summon" in t or "drone" in t
+
+
+def is_token_setup(c):
+    """Anything else a card puts on the board: tokens, and shields."""
+    return "token" in c["text"].lower() or is_shield_setup(c)
 
 
 def is_pilot_buff(c):
@@ -140,13 +148,36 @@ def ranged_candidates(avail):
     return ranged + melee
 
 
-def setup_candidates(avail):
-    """Drone creators, then shield creators, then pilot buffs, then any pilot."""
+def _round_robin(tiers):
+    """Flatten ranked tiers one entry at a time, so the result mixes tiers.
+
+    Tier order is still the preference — the best drone comes before the best
+    buff — but a deck deep in one tier no longer spends every slot on it.
+    """
     out = []
-    for pred in (is_drone_setup, is_shield_setup, is_pilot_buff,
-                 lambda c: c["is_pilot"]):
-        out += [e for e in avail if pred(e[1]) and e not in out]
+    for i in range(max((len(t) for t in tiers), default=0)):
+        for tier in tiers:
+            if i < len(tier):
+                out.append(tier[i])
     return out
+
+
+def setup_candidates(avail):
+    """Drone creators, then pilot buffs, then other token creators, mixed.
+
+    Each card lands in the first tier it matches, the three tiers are taken
+    round-robin (so three setup slots prefer one of each over three drones),
+    and any pilot card the tiers missed backs the whole list up.
+    """
+    tiers = []
+    seen = set()
+    for pred in (is_drone_setup, is_pilot_buff, is_token_setup,
+                 lambda c: c["is_pilot"]):
+        tier = [e for e in avail if e[0] not in seen and pred(e[1])]
+        seen.update(e[0] for e in tier)
+        tiers.append(tier)
+    # The trailing "any pilot" tier is a last resort, not part of the mix.
+    return _round_robin(tiers[:-1]) + tiers[-1]
 
 
 def blocker_candidates(avail):
@@ -158,9 +189,15 @@ def blocker_candidates(avail):
 CATEGORIES = [
     ("booster", 2, booster_candidates),
     ("ranged", 2, ranged_candidates),
-    ("setup", 2, setup_candidates),
-    ("block", 1, blocker_candidates),
+    ("setup", 3, setup_candidates),
+    # Blockers are no longer seeded outright (quota 0): they are what a slot
+    # falls back to when one of the categories above runs dry.
+    ("block", 0, blocker_candidates),
 ]
+
+# Order the leftover slots are filled in — a defensive card first, then the
+# next-best card from any other category.
+FILL_ORDER = ["block", "booster", "ranged", "setup"]
 
 
 def pick_hand(deck_keys, db, rng):
@@ -193,13 +230,14 @@ def pick_hand(deck_keys, db, rng):
             if take(entry):
                 filled += 1
 
-    # Slots the deck could not fill in their own category go to the next-best
-    # card from another category, and to a random leftover if none of them
-    # match either.
+    # Slots the deck could not fill in their own category go to a blocker, then
+    # to the next-best card from another category, and to a random leftover if
+    # none of them match either.
+    ranker = {name: candidates for name, _quota, candidates in CATEGORIES}
     while len(chosen) < hand_size:
         rest = avail()
-        for _name, _quota, candidates in CATEGORIES:
-            pool = candidates(rest)
+        for name in FILL_ORDER:
+            pool = ranker[name](rest)
             if pool and take(pool[0]):
                 break
         else:
