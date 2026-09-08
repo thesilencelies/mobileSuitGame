@@ -116,14 +116,5 @@
         "--no-basic"
       ]
     }
-  ],
-  "compounds": [
-    {
-      "name": "create deck",
-      "configurations": [
-        "generate TTS images - deck",
-        "generate TTS images - deck backs"
-      ]
-    }
   ]
 }

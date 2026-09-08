@@ -1264,7 +1264,7 @@
   {
     "name": "Bruiser Intimidate",
     "description": "Committed: this attack is discarded after it resolves",
-    "gm_notes": "8init\n0mv\nBlk:1H\nAll enemies within 5 must consume one block\nCommitted (this attack is discarded after resolving)",
+    "gm_notes": "8init\n0mv\nBlk:1H\nAll enemies within 3 must consume one block\nCommitted (this attack is discarded after resolving)",
     "tags":
     {
       "1": "Card",
@@ -1355,7 +1355,7 @@
   {
     "name": "Mystic Utter darkness",
     "description": "",
-    "gm_notes": "1init\n-4mv\nBlk:1H\npersist:1 turn\nNext turn: While any frame is within 5 of this frame it cannot be attacked",
+    "gm_notes": "1init\n-4mv\nBlk:1H\npersist:1 turn\nNext turn: While any frame is within 4 of this frame it cannot be attacked",
     "tags":
     {
       "1": "Card",
@@ -1381,7 +1381,7 @@
   {
     "name": "Mystic Psychic Storm",
     "description": "",
-    "gm_notes": "1init\n-2mv\nBlk:1H\nCreate storm token within 5. At the end of each turn, every unit within 5 of that storm token takes energy high",
+    "gm_notes": "1init\n-2mv\nBlk:1H\nCreate storm token within 5. At the end of each turn, every unit within 3 of that storm token takes energy high",
     "tags":
     {
       "1": "Card",
@@ -1394,7 +1394,7 @@
   {
     "name": "Mystic Doom",
     "description": "Dazed: while dazed a frame gets -2 cards",
-    "gm_notes": "1init\n-2mv\nBlk:1H\npersist:1 turn\nTarget a frame within 5: they get Dazed (-2 card) and at the end of next turn, if they have not moved more than 3 spaces they take 3 energy high",
+    "gm_notes": "1init\n-2mv\nBlk:1H\npersist:1 turn\nTarget a frame within 6: they get Dazed (-2 card) and at the end of next turn, if they have not moved more than 3 spaces they take 3 energy high",
     "tags":
     {
       "1": "Card",
@@ -1420,7 +1420,7 @@
   {
     "name": "Tactician Fog of war",
     "description": "",
-    "gm_notes": "3init\n0mv\nBlk:1H\npersist:1 turn\nNext turn: Allied frames within 7 of this frame cannot be targeted by ranged attacks",
+    "gm_notes": "3init\n0mv\nBlk:1H\npersist:1 turn\nNext turn: Allied frames within 5 of this frame cannot be targeted by ranged attacks",
     "tags":
     {
       "1": "Card",
@@ -1446,7 +1446,7 @@
   {
     "name": "Tactician Outfox",
     "description": "Revealed: while revealed a frame's chosen actions are turned face up\nDazed: while dazed a frame gets -2 cards",
-    "gm_notes": "4init\n-1mv\nBlk:1H\nTarget frame within 5 gets 3 Revealed (chosen actions are turned face up) and 2 Dazed (-2 card)",
+    "gm_notes": "4init\n-1mv\nBlk:1H\nTarget frame within 4 gets 3 Revealed (chosen actions are turned face up) and 2 Dazed (-2 card)",
     "tags":
     {
       "1": "Card",
@@ -1459,7 +1459,7 @@
   {
     "name": "Tactician Displace",
     "description": "",
-    "gm_notes": "1init\n-2mv\nBlk:1H\nMove another target frame within 5 to a new position within 8",
+    "gm_notes": "1init\n-2mv\nBlk:1H\nMove another target frame within 5 to a new position within 8 of this frame",
     "tags":
     {
       "1": "Card",
@@ -1511,7 +1511,7 @@
   {
     "name": "Wunderkid Portal",
     "description": "",
-    "gm_notes": "3init\n-1mv\nBlk:1H\nCreate two portals within 7. Those tiles are connected.",
+    "gm_notes": "3init\n-1mv\nBlk:1H\nCreate two portals within 6. Those tiles are connected.",
     "tags":
     {
       "1": "Card",
@@ -1589,7 +1589,7 @@
   {
     "name": "Engineer Gravity Well",
     "description": "",
-    "gm_notes": "3init\n-2mv\nBlk:1H\nCreate a gravity well within 5. Its an obstacle that adds an extra 1 movement penalty to any step away from it within 5",
+    "gm_notes": "3init\n-2mv\nBlk:1H\nCreate a gravity well within 5. Its an obstacle that adds an extra 1 movement penalty to any step away from it within 4",
     "tags":
     {
       "1": "Card",
@@ -1693,7 +1693,7 @@
   {
     "name": "Specialist Rebound",
     "description": "",
-    "gm_notes": "3init\n-2mv\nBlk:1H\npersist:1 turn\nCreate a Rebound token within 5. If this frame can see the token, its treated as if it can see every enemy within 4 of that token",
+    "gm_notes": "3init\n-2mv\nBlk:1H\npersist:1 turn\nCreate a Rebound token within 6. If this frame can see the token, its treated as if it can see every enemy within 4 of that token",
     "tags":
     {
       "1": "Card",
