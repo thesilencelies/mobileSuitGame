@@ -369,7 +369,6 @@ def _diagnose(state, label_of: Mapping[int, str], agents: Mapping[int, Any]) -> 
 
     for seat, agent in agents.items():
         stats = getattr(agent, "stats", {}) or {}
-        out[label_of[seat]]["blunders"] = float(stats.get("blunder", 0))
         out[label_of[seat]]["fallbacks"] = float(stats.get("fallback", 0))
     return out
 

@@ -150,6 +150,12 @@ class AIParams:
     # ship *on*, because nothing yet shows it winning. `planning=1` turns it
     # fully on.
     planning: float = 0.0
+    # How much a *damaged* frame stops trading and goes to stand on ground.
+    # A frame near death loses the fight it is in and hands over a victory
+    # point for losing it, while an objective it is standing on is one it is
+    # still holding when the game is counted. Scales both what ground is worth
+    # to that frame and its claim on an objective in the plan.
+    retreat: float = 0.0
     # How much a drone or an objective token is worth shooting, against a
     # frame. Tokens cannot be killed for a victory point, and a frame that
     # walks across the board to swat one arrives alone.
@@ -169,7 +175,6 @@ class AIParams:
     # colder than the headline temperature. It is its own number now so it can
     # be tuned on its own; 0 always takes the top-scoring tile.
     move_temperature: float = 0.1
-    blunder_rate: float = 0.0
 
     # -- compute budget -----------------------------------------------------
     # This runs on a phone under Termux, so the search is bounded twice over:
@@ -373,6 +378,16 @@ PARAM_SCHEMA: list[dict[str, Any]] = [
         "help": "How firmly each frame commits to one objective instead of drifting toward all of them.",
     },
     {
+        "name": "retreat",
+        "label": "Break off when hurt",
+        "type": "float",
+        "min": 0.0,
+        "max": 3.0,
+        "step": 0.05,
+        "default": AIParams.retreat,
+        "help": "How readily a damaged frame stops trading hits and goes to stand on an objective.",
+    },
+    {
         "name": "token_greed",
         "label": "Token hunting",
         "type": "float",
@@ -452,24 +467,21 @@ PARAM_SCHEMA: list[dict[str, Any]] = [
         "default": AIParams.think_ms,
         "help": "Wall-clock ceiling per decision; the AI narrows its search rather than stalling. 0 = no limit.",
     },
-    {
-        "name": "blunder_rate",
-        "label": "Blunder rate",
-        "type": "float",
-        "min": 0.0,
-        "max": 1.0,
-        "step": 0.05,
-        "default": AIParams.blunder_rate,
-        "help": "Chance of throwing a decision away at random, used to make easy modes easy.",
-    },
 ]
 
 #: Difficulty presets. Values are partial -- anything absent keeps its default.
 PRESETS: dict[str, dict[str, Any]] = {
     "beginner": {
-        # Weakness lives in blunder_rate, temperature and the narrow search --
-        # not in miscalibrated weights, which would just make it play a
-        # different (and confusingly plausible) style.
+        # Weakness lives in temperature and the narrow search -- not in
+        # miscalibrated weights, which would just make it play a different
+        # (and confusingly plausible) style.
+        #
+        # It used to live partly in a `blunder_rate` that threw decisions away
+        # at random. That is gone: as a slider in a scrolling drawer it was
+        # too easy to nudge by accident, and a game against an AI silently set
+        # to discard 85% of its decisions is not a game -- it is dice, and it
+        # looks exactly like an AI that has forgotten how to play. One did,
+        # and the evidence took a while to unpick.
         #
         # `move_temperature` is spelled out because it used to be derived
         # (`temperature * 0.35`), so this preset got its wandering movement
@@ -493,7 +505,6 @@ PRESETS: dict[str, dict[str, Any]] = {
         # weights.
         "caution": 0.0,
         "tempo": 0.0,
-        "blunder_rate": 0.30,
     },
     "standard": {},
     "veteran": {

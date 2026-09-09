@@ -196,10 +196,6 @@ class Agent:
         if not options:
             return None
 
-        if self.params.blunder_rate > 0 and self.rng.random() < self.params.blunder_rate:
-            self.stats["blunder"] = self.stats.get("blunder", 0) + 1
-            return self._random_choice(kind, options)
-
         handler = {
             "deploy": self._deploy,
             "place_objective": self._place_objective,
@@ -353,7 +349,11 @@ class Agent:
         exists to stop.
         """
         plan = self._objectives
-        if plan is None or plan.turn != snap.turn:
+        if plan is None or plan.signature != S.plan_signature(snap):
+            # Re-formed whenever the situation it was about has changed --
+            # not once a turn. Frames die, take damage and move inside a turn,
+            # and an assignment made before that is about a board that is no
+            # longer there.
             plan = S.plan_objectives(snap, self.params)
             self._objectives = plan
         return plan

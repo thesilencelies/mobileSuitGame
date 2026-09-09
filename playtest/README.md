@@ -1120,6 +1120,47 @@ What the plan is good for is being the structure a better answer needs. The
 next thing to try is making the *exclusivity* depend on the objective: a token
 hunt divides between frames cleanly, contested ground does not.
 
+Two refinements have since been built onto it, both from watching real games.
+The plan is **re-formed whenever the board it was about has changed** — frames
+die, take damage and move inside a single turn, since the AI's whole turn
+resolves in one call, so a plan cached per turn was routinely a plan about a
+board that no longer existed. And `retreat` lets a damaged frame stop trading
+and go stand on something: it loses the fight it is in, hands over a victory
+point for losing it, and ground it is standing on is ground it still holds at
+the count. That one is **arena-flat** (+0.05 VP on `control` at its best, nothing on the
+random deal) for a legible reason — with `caution` on, the AI keeps 2.3 of its
+3 frames alive, so there are few badly hurt frames for it to fire on. It ships
+at 0.
+
+**The pattern by now is worth naming.** Every *strategic* lever added from the
+logs — `bait`, `token_greed`, `planning`, `retreat` — measures neutral in the
+arena, while every *model* fix — the one-shot risk behind `caution`, the
+objective/kill units behind `objective_weight`, the movement temperature, the
+initiative order of the block budget — has paid. The arena is good at telling
+you when the AI is misreading the game and bad at telling you when it is
+playing it badly, because its opponents do not punish bad strategy. That is
+not an argument for shipping unmeasured levers on; it is an argument for
+building the opponent that would measure them.
+
+### There is no blunder rate any more
+
+Difficulty used to include `blunder_rate`, a chance of throwing each decision
+away at random. It is gone. As a slider in a scrolling drawer it was too easy
+to move by accident, and the failure is silent and very expensive to diagnose:
+a game against an AI quietly set to discard 85% of its decisions is not a game
+against an AI, it is dice — and it looks exactly like an AI that has forgotten
+how to play. One saved game read that way, and the "it refused to stand on its
+own Egg on turn 1" it seemed to show was not real. Replayed from the same
+board with the dice off, the AI takes that Egg by turn 2 in **6 runs out of
+8**; at 0.85 it took it in **0 out of 8**, and it had valued standing there at
+5.6 against 1.0 for where it was standing all along.
+
+`beginner` is now weak by the means that make it *play* weakly rather than
+erratically — a hot policy, a narrow search, a small hand, and no model of the
+one-shot or of playing for next turn. It still loses to `standard` 93.8% over
+16 games (+2.8 VP), and still beats `random`, so the ladder is intact. A
+config saved with a `blunder_rate` in it still loads; the key is ignored.
+
 ### The levers
 
 Beyond the weights the client has always shown, these are the terms added
@@ -1129,6 +1170,7 @@ one at a time:
 | Lever | Default | What it moves |
 |---|---|---|
 | `planning` | 0.0 | How firmly each frame commits to one objective rather than drifting toward all of them. Arena-neutral so far; see above |
+| `retreat` | 0.0 | How readily a damaged frame stops trading hits and goes to stand on an objective. Arena-flat: with `caution` on, too few frames get hurt enough for it to bite |
 | `caution` | 1.0 | How small a chance of losing a frame to a single hit is still worth guarding. Came out of real games rather than a sweep, and the largest single gain after `objective_weight` |
 | `tempo` | 1.0 | Worth of drones, extra actions and anything else that pays on a later turn. From three human wins; the measured margin is small (62.2% → 64.7%) partly because the panel squads hold only one to five such cards in sixty |
 | `bait` | 0.0 | What the compulsory block is expected to cost this hand — the trade a human wins by baiting blocks out. Measured negative even against `baiter` |

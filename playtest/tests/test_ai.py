@@ -877,6 +877,105 @@ def test_the_objective_plan_divides_the_work(catalogue):
         assert plan.weight_for(frame_id, others[0]) < 1.0
 
 
+def test_the_plan_is_rebuilt_when_the_board_changes_under_it(catalogue):
+    """A plan cached for a whole turn is a plan about a board that has moved.
+
+    Frames die, take damage and move *inside* a turn -- the AI's whole turn
+    resolves inside one call. An assignment made before any of that has
+    happened is stale, which is the half of "a plan needs updating as the game
+    state changes" that a per-turn cache cannot do.
+    """
+    from playtest.engine import GameConfig, apply_command, legal_commands, new_game
+
+    state = new_game(GameConfig(
+        player_decks=["deck_aegis_percival", "deck_aegis_hector",
+                      "deck_collective_adam"],
+        ai_decks=["deck_guild_nautilus", "deck_ouwa_kamikiri",
+                  "deck_church_elemiah"],
+        seed=5, frames_per_side=3, terrain_decks={0: "siege", 1: "siege"},
+    ))
+    steps = 0
+    while state.phase == "setup" and steps < 60:
+        if state.pending is None:
+            break
+        state = apply_command(state, legal_commands(state, state.pending.seat)[0])
+        steps += 1
+
+    view = json.loads(json.dumps(view_for(state, 1)))
+    agent = Agent(seat=1, catalogue=catalogue, params={"planning": 1.0}, seed=3)
+    snap = Snapshot(view)
+    first = agent.objective_plan(snap)
+    assert agent.objective_plan(Snapshot(json.loads(json.dumps(view)))) is first, (
+        "an unchanged board must reuse the plan -- that is what makes it shared"
+    )
+
+    # Hurt one of its frames. Same turn, different situation.
+    hurt = json.loads(json.dumps(view))
+    mine = [f for f in hurt["frames"] if f["seat"] == 1]
+    mine[0]["damage"]["Mid"] = mine[0]["armour"]["Mid"] - 1
+    assert agent.objective_plan(Snapshot(hurt)) is not first
+
+
+def test_a_hurt_frame_values_standing_on_something_more(cat, catalogue):
+    """"If you're damaged maybe better to bail and stand on an objective."
+
+    A frame near death loses the trade it is in *and* hands over a victory
+    point for losing it, while ground it is standing on is ground it still
+    holds when the game is counted. `retreat` is how much of that the scorer
+    believes; at 0 a frame values an objective the same whether it is fresh or
+    one hit from dead.
+    """
+    from playtest.engine import GameConfig, apply_command, legal_commands, new_game
+
+    state = new_game(GameConfig(
+        player_decks=["deck_aegis_percival", "deck_aegis_hector",
+                      "deck_collective_adam"],
+        ai_decks=["deck_guild_nautilus", "deck_ouwa_kamikiri",
+                  "deck_church_elemiah"],
+        seed=5, frames_per_side=3, terrain_decks={0: "control", 1: "control"},
+    ))
+    steps = 0
+    while state.phase == "setup" and steps < 60:
+        if state.pending is None:
+            break
+        state = apply_command(state, legal_commands(state, state.pending.seat)[0])
+        steps += 1
+
+    view = json.loads(json.dumps(view_for(state, 1)))
+    snap = Snapshot(view)
+    frame = next(f for f in snap.mine() if f.pos is not None)
+    # Whichever objective tile this seat is actually paid for standing on --
+    # picked by asking the scorer, so the comparison below is not between two
+    # zeroes.
+    tiles = [t for o in snap.objectives for t in o.tiles]
+    goal = max(tiles, key=lambda t: S.objective_value(snap, frame, t, AIParams()))
+    assert S.objective_value(snap, frame, goal, AIParams()) > 0
+
+    hurt_view = json.loads(json.dumps(view))
+    target = next(f for f in hurt_view["frames"] if f["id"] == frame.id)
+    for zone, armour in target["armour"].items():
+        target["damage"][zone] = max(0, armour - 1)
+    hurt = Snapshot(hurt_view)
+    hurt_frame = hurt.frame(frame.id)
+
+    assert S.frailty(hurt_frame) > S.frailty(frame)
+
+    off = AIParams().replace(retreat=0.0)
+    on = AIParams().replace(retreat=1.5)
+    # With the lever off, being nearly dead changes nothing.
+    assert S.objective_value(hurt, hurt_frame, goal, off) == pytest.approx(
+        S.objective_value(snap, frame, goal, off)
+    )
+    # With it on, the hurt frame wants the ground more -- and the fresh one
+    # is unchanged, so this is about damage and not about the weight.
+    assert S.objective_value(hurt, hurt_frame, goal, on) > S.objective_value(
+        hurt, hurt_frame, goal, off
+    )
+    assert S.objective_value(snap, frame, goal, on) == pytest.approx(
+        S.objective_value(snap, frame, goal, off)
+    )
+
+
 def test_planning_zero_is_exactly_the_old_gradient(cat, catalogue):
     """The off switch has to be genuinely off, or the A/B measured nothing."""
     from playtest.engine import GameConfig, apply_command, legal_commands, new_game

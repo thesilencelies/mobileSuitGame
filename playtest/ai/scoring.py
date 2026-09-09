@@ -1160,6 +1160,10 @@ class ObjectivePlan:
     """
 
     turn: int
+    #: What the board looked like when this was formed -- see
+    #: `plan_signature`. A plan is only worth sharing while it is still about
+    #: the game being played.
+    signature: tuple = ()
     #: frame id -> index into `snap.objectives`.
     assigned: dict[str, int] = field(default_factory=dict)
     #: index -> what it is worth pursuing at all, 0..1.
@@ -1178,6 +1182,36 @@ class ObjectivePlan:
         else:
             planned = OFF_PLAN + (1.0 - OFF_PLAN) * 0.5 * self.reachable.get(index, 0.0)
         return 1.0 - self.strength * (1.0 - planned)
+
+
+def frailty(frame: FrameView) -> float:
+    """How close this frame is to being destroyed, 0 (untouched) to 1."""
+    armour = sum(frame.armour.values())
+    if armour <= 0:
+        return 0.0
+    return max(0.0, min(1.0, 1.0 - frame.total_remaining / armour))
+
+
+def plan_signature(snap: Snapshot) -> tuple:
+    """What a plan depends on, so it can be thrown away when that changes.
+
+    Caching the plan for a whole turn was wrong in a way a real game shows:
+    frames die, take damage and move *inside* a turn, and an assignment made
+    before any of that is an assignment about a board that no longer exists.
+    A frame that has just been hurt should be free to stop trading and go
+    stand on something; a frame whose objective has just been settled by
+    somebody else should stop walking at it.
+
+    Cheap on purpose -- this is compared on every decision.
+    """
+    return (
+        snap.turn,
+        tuple(sorted(
+            (f.id, f.alive, f.total_remaining, f.pos)
+            for f in snap.mine(alive_only=False)
+        )),
+        tuple(o.settled for o in snap.objectives),
+    )
 
 
 def objective_goals(snap: Snapshot, obj: ObjectiveView) -> list[Pos]:
@@ -1210,7 +1244,9 @@ def plan_objectives(
     supplies the frames in the order they are being placed.
     """
     plan = ObjectivePlan(
-        turn=snap.turn, strength=max(0.0, min(1.0, params.planning))
+        turn=snap.turn,
+        strength=max(0.0, min(1.0, params.planning)),
+        signature=plan_signature(snap),
     )
     if params.objective_weight <= 0 or plan.strength <= 0:
         return plan
@@ -1245,7 +1281,13 @@ def plan_objectives(
                 reach = PLAN_TRAVEL_DECAY ** max(0.0, turns - (turns_left - 1))
             reach *= blocked
             best_reach = max(best_reach, reach)
-            offers.append((stake * reach, index, frame.id))
+            # A hurt frame has first claim. It is the one that gains most by
+            # standing on something instead of swinging at somebody: it is
+            # worth a victory point to whoever finishes it, it will not win
+            # the fight it is in, and ground it is standing on it is still
+            # holding. `retreat` is how strongly that is believed.
+            claim = stake * reach * (1.0 + params.retreat * frailty(frame))
+            offers.append((claim, index, frame.id))
         plan.reachable[index] = best_reach
 
     taken_frames: set[str] = set()
@@ -1300,6 +1342,11 @@ def objective_value(
     if params.objective_weight <= 0:
         return 0.0
     total = 0.0
+    # A frame that is nearly dead is worth more to its side standing on ground
+    # than trading hits it is going to lose: the trade gives the other side a
+    # victory point, and the ground is one it is still holding when the game
+    # is counted.
+    hurt = 1.0 + params.retreat * frailty(frame)
     late = min(1.0, 0.35 + 0.65 * (snap.turn / 5.0))
     if params.endgame != 1.0:
         # The end-of-game objectives are counted once, after turn 5, so what
@@ -1352,7 +1399,7 @@ def objective_value(
             total += _relic_value(snap, frame, pos, obj, stake, distance, late)
         elif obj.name == "Dome Campus":
             total += _bomb_value(snap, frame, pos, obj, stake, distance, late)
-    return params.objective_weight * total
+    return params.objective_weight * hurt * total
 
 
 def _hunt_value(snap: Snapshot, pos: Pos, obj: ObjectiveView, stake: int) -> float:
