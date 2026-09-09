@@ -2,6 +2,11 @@
 
 A data-driven card game toolkit that generates printable cards and Tabletop Simulator (TTS) assets from CSV data files.
 
+## Working in this repo
+
+**Commit and push to `master` directly** unless I ask for a branch. This is a
+solo repo and the default "branch first" habit just adds a merge step.
+
 ## Core pipeline
 
 ```
