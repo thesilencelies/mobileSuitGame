@@ -53,10 +53,16 @@
       <div class="deck-grid terrain-grid" id="ai-terrain"></div>
     </div>
 
+    <!-- The presets are the choice most games want; the individual sliders
+         are a long list nobody should have to scroll past to press Start, so
+         they start folded away. -->
     <div class="card-panel">
       <h2>Opponent</h2>
       <div class="preset-row" id="preset-row"></div>
-      <div id="setup-params" class="params"></div>
+      <details class="fold" id="params-fold">
+        <summary>Fine-tune the AI<span class="fold-hint">optional</span></summary>
+        <div id="setup-params" class="params"></div>
+      </details>
       <p class="hint" id="ai-source-note"></p>
     </div>
 

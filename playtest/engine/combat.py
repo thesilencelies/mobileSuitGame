@@ -225,21 +225,29 @@ def _line_of_sight(
     # the others in, because an image blocks sight exactly as the frame would.
     source = origin if origin is not None else attacker.pos
     occupied = occupied - {source}
-    try:
-        seen = state.board.has_line_of_sight(
-            source,
-            target_pos,
-            occupied=occupied,
-            flying_attacker=unobstructed,
-            flying_target=bool(defender is not None and kw.is_flying(defender)),
-        )
-    except TypeError:
-        seen = state.board.has_line_of_sight(
-            source,
-            target_pos,
-            occupied=occupied,
-            flying_attacker=unobstructed,
-        )
+    flying_target = bool(defender is not None and kw.is_flying(defender))
+    # Two additions to the frozen `BoardProtocol`, so they are dropped one at
+    # a time rather than together: a board that takes `flying_target` but not
+    # `blocking` must still be told about the flyer.
+    extras = (
+        {"blocking": state.sight_blockers(), "flying_target": flying_target},
+        {"flying_target": flying_target},
+        {},
+    )
+    for extra in extras:
+        try:
+            seen = state.board.has_line_of_sight(
+                source,
+                target_pos,
+                occupied=occupied,
+                flying_attacker=unobstructed,
+                **extra,
+            )
+            break
+        except TypeError:
+            continue
+    else:                                     # pragma: no cover - no such board
+        seen = False
     # Rebound only ever adds: a mirror the frame can see lends it sight of
     # everything within 4 of the mirror.
     return seen or effects.rebound_sight(state, attacker, target_pos)

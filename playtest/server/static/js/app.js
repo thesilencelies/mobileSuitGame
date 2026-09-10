@@ -1554,7 +1554,25 @@ function onTapTile(x, y) {
     ${tile.hazard ? `<br><b class="hazard">${C.escapeHtml(tile.hazard)}</b>` : ''}
     ${aurasOver(x, y).map((a) => `<br><b class="hazard">inside the ${
       C.escapeHtml(a.name)}</b> — ${C.escapeHtml(a.text)}`).join('')}
-    ${token ? `<br>${C.escapeHtml(tokenReadout(token))}` : ''}`;
+    ${token ? `<br>${C.escapeHtml(tokenReadout(token))}` : ''}
+    ${carrierOver(x, y).map((line) => `<br><b class="hazard">${
+      C.escapeHtml(line)}</b>`).join('')}`;
+}
+
+/** "Blue Hector MkI is carrying the bomb", when it is standing here.
+ *
+ *  Dome Campus attaches itself to one frame and scores when that frame is on
+ *  the site -- so which of six frames it is decides the objective, and the
+ *  board is where you are looking when you want to know.
+ */
+function carrierOver(x, y) {
+  const frame = (app.view.frames || []).find(
+    (f) => f.pos && f.pos.x === x && f.pos.y === y && f.alive !== false);
+  if (!frame) return [];
+  return ((app.view.board || {}).objectives || [])
+    .filter((o) => o.carrier === frame.id)
+    .map((o) => `${C.frameLabel(frame.id, frame.name)} is carrying `
+      + `the ${o.name} bomb`);
 }
 
 /** What a tile is standing inside, in the engine's own words.

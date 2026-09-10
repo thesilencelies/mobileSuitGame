@@ -371,6 +371,92 @@ def test_flying_ignores_obstacles_for_line_of_sight():
     assert board.has_line_of_sight(attacker, target, flying_target=True)
 
 
+def test_an_obstacle_screens_whatever_is_standing_at_its_own_elevation():
+    """Cover belongs to the *target*, so the shooter's elevation is irrelevant.
+
+    A frame beside rubble is behind that rubble whoever is shooting at it --
+    from a rooftop you are shooting at someone who is still hiding behind it.
+    """
+    #  x:     0     1     2      3
+    board = board_from_codes([["e2", "", "obs", ""]])
+    rooftop, ground, target = Pos(0, 0), Pos(1, 0), Pos(3, 0)
+    obstacle = Pos(2, 0)
+    assert board.tile(obstacle).obstacle
+    assert board.tile(obstacle).elevation == board.tile(target).elevation
+
+    assert not board.has_line_of_sight(ground, target), "same level: it screens"
+    assert not board.has_line_of_sight(rooftop, target), (
+        "and from above too -- the target is still behind the rubble"
+    )
+
+
+def test_an_obstacle_below_the_target_does_not_rise_up_to_protect_it():
+    """The one case the elevation test is for.
+
+    A frame up on a walkway is not covered by rubble on the ground beside it.
+    An obstacle *higher* than the target is already an obstruction under
+    "higher terrain next to the target", so this clause only ever covers the
+    level the target is actually standing on.
+    """
+    #  x:     0     1      2      3
+    board = board_from_codes([["", "obs", "e2", ""]])
+    shooter, target = Pos(0, 0), Pos(2, 0)
+    obstacle = Pos(1, 0)
+    assert board.tile(obstacle).obstacle
+    assert board.tile(obstacle).elevation < board.tile(target).elevation
+
+    assert board.has_line_of_sight(shooter, target), (
+        "rubble a level below does not cover what is standing above it"
+    )
+
+
+def test_an_obstacle_above_the_target_still_blocks():
+    """Not a licence to see through everything: the two elevation rules still
+    catch an obstacle that is genuinely above the target or the shooter."""
+    board = board_from_codes([["", "", "obs", ""]])
+    assert not board.has_line_of_sight(Pos(0, 0), Pos(3, 0)), (
+        "flat ground: the obstacle is at the target's level and screens it"
+    )
+    higher = board_from_codes([["", "", "e1", ""]])
+    assert not higher.has_line_of_sight(Pos(0, 0), Pos(3, 0)), (
+        "and raised terrain beside the target blocks under its own rule"
+    )
+
+
+def test_impassable_tiles_a_card_created_block_line_of_sight():
+    """"Those locations become impassible" -- a Barricade, a Cage Fight wall.
+
+    They are not on the terrain card, so the board only learns about them
+    through `blocking`. Passing them as `occupied` instead would make them
+    count one elevation higher, which lets anyone on raised ground see
+    straight through a wall.
+    """
+    flat = board_from_codes([["", "", "", "", ""]])
+    rooftop = board_from_codes([["e2", "", "", "", ""]])
+    # Two tiles clear of the target, so the "adjacent to the target" rules
+    # cannot be what is doing the blocking.
+    wall = frozenset({Pos(2, 0)})
+    shooter, target = Pos(0, 0), Pos(4, 0)
+
+    assert flat.has_line_of_sight(shooter, target), "nothing there yet"
+    assert not flat.has_line_of_sight(shooter, target, blocking=wall)
+    assert not rooftop.has_line_of_sight(shooter, target, blocking=wall), (
+        "a barricade you can shoot over from a rooftop is not a barricade"
+    )
+    # And it is not merely "counts one elevation higher", which an e2 beats.
+    assert rooftop.has_line_of_sight(
+        shooter, target, occupied=wall
+    ), "that is what `occupied` does, and it is not what a wall does"
+
+
+def test_a_flyer_does_not_ignore_a_wall_the_way_it_ignores_an_obstacle():
+    board = board_from_codes([["", "", "", "", ""]])
+    wall = frozenset({Pos(2, 0)})
+    assert not board.has_line_of_sight(
+        Pos(0, 0), Pos(4, 0), blocking=wall, flying_attacker=True
+    ), "Flying ignores obstacles, not impassable terrain"
+
+
 def test_line_of_sight_is_directional():
     """It is not symmetric: "higher than the attacker" depends on who shoots."""
     board = board_from_codes([["e2", "e1", "", ""]])

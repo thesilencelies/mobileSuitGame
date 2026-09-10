@@ -457,123 +457,164 @@ function movement(host, ctx, pending) {
 // how many of the face-down cards block each zone: that is the hidden half of
 // the game, and the count is deliberately given whole rather than per zone.
 function attackTarget(host, ctx, pending) {
-  const guardBreak = isGuardBreak(ctx);
-  banner(host, guardBreak
+  attackBanner(host, ctx);
+  for (const option of pending.options) {
+    targetBox(host, ctx, {
+      kind: option.kind,
+      id: option.id,
+      name: option.name,
+      zones: option.zones,
+      onTap: () => ctx.send('attack_target', { kind: option.kind, id: option.id }),
+    });
+  }
+}
+
+/** The "one block stops it / Guard Break splits it" line above a target list. */
+function attackBanner(host, ctx) {
+  banner(host, isGuardBreak(ctx)
     ? 'Guard Break — every zone must be blocked separately'
     : 'One matching block stops the whole attack', 'info');
+}
 
+/** A drone's shot, told the same way the frame's own shot is.
+ *
+ *  It is the same question -- which of these do I hit, and what can they still
+ *  block -- so it gets the same answer sheet. The engine puts the drone's own
+ *  `zones` on each option (`effects._drone_options`), measured from the
+ *  drone's tile, which is the one thing that differs.
+ */
+function droneTargets(host, ctx, pending) {
+  attackBanner(host, ctx);
   for (const option of pending.options) {
-    const zones = option.zones || {};
-    const total = Object.values(zones).reduce((a, b) => a + b, 0);
-    const target = (ctx.view.frames || []).find((f) => f.id === option.id);
-    const defence = (ctx.view.defence || {})[option.id];
-
-    const box = document.createElement('div');
-    box.className = 'target';
-
-    const head = document.createElement('div');
-    head.className = 'target-head';
-    // Two frames of the same model are two different targets with two
-    // different damage tracks; the list has to say which one this is.
-    const token = option.kind === 'token'
-      ? (ctx.view.tokens || []).find((t) => t.id === option.id) : null;
-    const targetName = option.kind === 'frame'
-      ? C.frameLabel(option.id, option.name || option.id)
-      : tokenName(ctx, token, option);
-    head.innerHTML = `<b>${C.escapeHtml(targetName)}</b>
-      ${option.kind === 'token' ? '<small>token</small>' : ''}
-      <span class="t-cards">${defence
-        ? `${defence.remaining} card${defence.remaining === 1 ? '' : 's'} left`
-          + (defence.faceDown ? ` · <em>${defence.faceDown} face down</em>` : '')
-        : ''}</span>`;
-    box.appendChild(head);
-
-    // Three images of the same frame are three identical options -- which is
-    // the card working. The one thing that does tell them apart is where they
-    // are standing, and that is not a secret, so the list says it.
-    if (token && token.kind === 'image') {
-      const note = document.createElement('p');
-      note.className = 'target-note';
-      note.textContent = `at (${token.pos.x}, ${token.pos.y}). `
-        + 'One of the three is the frame itself and will block; the other two '
-        + 'vanish when struck and cost you the action.';
-      box.appendChild(note);
-    }
-
-    let openZones = 0;
-    if (target && defence) {
-      const grid = document.createElement('div');
-      grid.className = 'zgrid';
-      for (const zone of C.ZONES) {
-        const damage = zones[zone] || 0;
-        const info = (defence.zones || {})[zone] || { cards: 0, super: 0, known: [] };
-        const row = document.createElement('div');
-        row.className = 'zrow';
-        if (damage) row.dataset.hit = '1';
-        const through = damage > 0 && info.cards === 0;
-        if (through && !defence.faceDown) row.dataset.through = '1';
-        if (through) openZones += 1;
-
-        const covers = info.known.map((c) => C.displayName(c.key)
-          + (c.super ? ' ★' : '') + (c.resolved ? '' : ' (face up)'));
-        const blockText = info.cards
-          ? `<b>${info.cards}</b> can block${info.super ? ` · <i>${info.super} super</i>` : ''}`
-          : (defence.faceDown ? 'nothing visible blocks it' : '<span>no block at all</span>');
-
-        row.innerHTML = `<span class="zname">${zone}</span>
-          <span class="zdmg"${damage ? '' : ' data-none="1"'}>${damage || '–'}</span>
-          <span class="zblock">${blockText}</span>`;
-        row.title = covers.length
-          ? `${zone}: ${covers.join(', ')}`
-          : `${zone}: no card this seat can see blocks it`;
-        grid.appendChild(row);
-      }
-      box.appendChild(grid);
-
-      const note = document.createElement('p');
-      note.className = 'target-note';
-      const armour = C.ZONES.map((z) => `${z[0]} ${target.damage[z]}/${target.armour[z]}`);
-      const bits = [`damage ${armour.join(' ')}`];
-      // A shield counter absorbs a whole attack, every zone of it, for one
-      // counter -- so "3 zones uncovered" against a shielded frame is not
-      // three hits. The count is the engine's; the rule is stated, not
-      // recomputed.
-      if (target.shields) {
-        bits.push(`${target.shields} shield counter${target.shields === 1 ? '' : 's'}`
-          + ' — one absorbs this whole attack, every zone of it');
-      }
-      if (defence.keepsNextBlock) bits.push('keeps its next block (frame ability)');
-      if (defence.faceDown) {
-        bits.push(`${defence.faceDown} face-down card${defence.faceDown === 1 ? '' : 's'}`
-          + ' could cover anything');
-      }
-      note.textContent = bits.join(' · ');
-      box.appendChild(note);
-    }
-
-    const go = document.createElement('button');
-    go.className = 'btn primary';
-    go.textContent = `Attack — ${total} mark${total === 1 ? '' : 's'}`
-      + (target && target.shields ? ' · shielded'
-        : (openZones ? ` · ${openZones} zone${openZones === 1 ? '' : 's'} uncovered` : ''));
-    go.addEventListener('click',
-      () => ctx.send('attack_target', { kind: option.kind, id: option.id }));
-    box.appendChild(go);
-    if (openZones) box.dataset.open = '1';
-
-    const look = document.createElement('button');
-    look.className = 'btn ghost sm';
-    look.style.width = '100%';
-    look.style.marginTop = '6px';
-    look.textContent = 'Show me on the board';
-    look.addEventListener('click', () => {
-      if (ctx.selectFrame) ctx.selectFrame(option.id);
-      ctx.showView('board');
+    const isFrame = 'frame' in option;
+    targetBox(host, ctx, {
+      kind: isFrame ? 'frame' : 'token',
+      id: isFrame ? option.frame : option.token,
+      name: option.name,
+      zones: option.zones,
+      onTap: () => ctx.send('effect_choice',
+        isFrame ? { frame: option.frame } : { token: option.token }),
     });
-    if (option.kind === 'frame') box.appendChild(look);
-
-    host.appendChild(box);
   }
+}
+
+/** One target, with what the attack lands and what is left to stop it.
+ *
+ *  `spec` is `{kind, id, name, zones, onTap}` -- everything that differs
+ *  between the frame's own attack and a drone's, which is the target's
+ *  identity and what answering costs.
+ */
+function targetBox(host, ctx, spec) {
+  const option = { kind: spec.kind, id: spec.id, name: spec.name };
+  const zones = spec.zones || {};
+  const total = Object.values(zones).reduce((a, b) => a + b, 0);
+  const target = (ctx.view.frames || []).find((f) => f.id === option.id);
+  const defence = (ctx.view.defence || {})[option.id];
+
+  const box = document.createElement('div');
+  box.className = 'target';
+
+  const head = document.createElement('div');
+  head.className = 'target-head';
+  // Two frames of the same model are two different targets with two
+  // different damage tracks; the list has to say which one this is.
+  const token = option.kind === 'token'
+    ? (ctx.view.tokens || []).find((t) => t.id === option.id) : null;
+  const targetName = option.kind === 'frame'
+    ? C.frameLabel(option.id, option.name || option.id)
+    : tokenName(ctx, token, option);
+  head.innerHTML = `<b>${C.escapeHtml(targetName)}</b>
+    ${option.kind === 'token' ? '<small>token</small>' : ''}
+    <span class="t-cards">${defence
+      ? `${defence.remaining} card${defence.remaining === 1 ? '' : 's'} left`
+        + (defence.faceDown ? ` · <em>${defence.faceDown} face down</em>` : '')
+      : ''}</span>`;
+  box.appendChild(head);
+
+  // Three images of the same frame are three identical options -- which is
+  // the card working. The one thing that does tell them apart is where they
+  // are standing, and that is not a secret, so the list says it.
+  if (token && token.kind === 'image') {
+    const note = document.createElement('p');
+    note.className = 'target-note';
+    note.textContent = `at (${token.pos.x}, ${token.pos.y}). `
+      + 'One of the three is the frame itself and will block; the other two '
+      + 'vanish when struck and cost you the action.';
+    box.appendChild(note);
+  }
+
+  let openZones = 0;
+  if (target && defence) {
+    const grid = document.createElement('div');
+    grid.className = 'zgrid';
+    for (const zone of C.ZONES) {
+      const damage = zones[zone] || 0;
+      const info = (defence.zones || {})[zone] || { cards: 0, super: 0, known: [] };
+      const row = document.createElement('div');
+      row.className = 'zrow';
+      if (damage) row.dataset.hit = '1';
+      const through = damage > 0 && info.cards === 0;
+      if (through && !defence.faceDown) row.dataset.through = '1';
+      if (through) openZones += 1;
+
+      const covers = info.known.map((c) => C.displayName(c.key)
+        + (c.super ? ' ★' : '') + (c.resolved ? '' : ' (face up)'));
+      const blockText = info.cards
+        ? `<b>${info.cards}</b> can block${info.super ? ` · <i>${info.super} super</i>` : ''}`
+        : (defence.faceDown ? 'nothing visible blocks it' : '<span>no block at all</span>');
+
+      row.innerHTML = `<span class="zname">${zone}</span>
+        <span class="zdmg"${damage ? '' : ' data-none="1"'}>${damage || '–'}</span>
+        <span class="zblock">${blockText}</span>`;
+      row.title = covers.length
+        ? `${zone}: ${covers.join(', ')}`
+        : `${zone}: no card this seat can see blocks it`;
+      grid.appendChild(row);
+    }
+    box.appendChild(grid);
+
+    const note = document.createElement('p');
+    note.className = 'target-note';
+    const armour = C.ZONES.map((z) => `${z[0]} ${target.damage[z]}/${target.armour[z]}`);
+    const bits = [`damage ${armour.join(' ')}`];
+    // A shield counter absorbs a whole attack, every zone of it, for one
+    // counter -- so "3 zones uncovered" against a shielded frame is not
+    // three hits. The count is the engine's; the rule is stated, not
+    // recomputed.
+    if (target.shields) {
+      bits.push(`${target.shields} shield counter${target.shields === 1 ? '' : 's'}`
+        + ' — one absorbs this whole attack, every zone of it');
+    }
+    if (defence.keepsNextBlock) bits.push('keeps its next block (frame ability)');
+    if (defence.faceDown) {
+      bits.push(`${defence.faceDown} face-down card${defence.faceDown === 1 ? '' : 's'}`
+        + ' could cover anything');
+    }
+    note.textContent = bits.join(' · ');
+    box.appendChild(note);
+  }
+
+  const go = document.createElement('button');
+  go.className = 'btn primary';
+  go.textContent = `Attack — ${total} mark${total === 1 ? '' : 's'}`
+    + (target && target.shields ? ' · shielded'
+      : (openZones ? ` · ${openZones} zone${openZones === 1 ? '' : 's'} uncovered` : ''));
+  go.addEventListener('click', spec.onTap);
+  box.appendChild(go);
+  if (openZones) box.dataset.open = '1';
+
+  const look = document.createElement('button');
+  look.className = 'btn ghost sm';
+  look.style.width = '100%';
+  look.style.marginTop = '6px';
+  look.textContent = 'Show me on the board';
+  look.addEventListener('click', () => {
+    if (ctx.selectFrame) ctx.selectFrame(option.id);
+    ctx.showView('board');
+  });
+  if (option.kind === 'frame') box.appendChild(look);
+
+  host.appendChild(box);
 }
 
 /** Whether the card that is attacking has Guard Break, from the resolving card. */
@@ -697,7 +738,13 @@ function effectChoice(host, ctx, pending) {
     return effectCards(host, ctx, pending);
   }
   if (every((o) => ('frame' in o && !('x' in o)) || 'token' in o)) {
-    return effectTargets(host, ctx, pending);
+    // A drone's shot carries the zones it would land, so it can be told the
+    // same way the frame's own attack is. Options without them -- picking one
+    // of a Mystic's three images for a debuff, say -- are not an attack and
+    // get the plain list.
+    return every((o) => o.zones)
+      ? droneTargets(host, ctx, pending)
+      : effectTargets(host, ctx, pending);
   }
   const el = list(host);
   for (const option of options) {

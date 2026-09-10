@@ -1740,6 +1740,40 @@ def test_the_client_names_board_art_the_way_the_bundle_does() -> None:
             "counter in board.js")
 
 
+def test_the_client_draws_the_bomb_carrier_and_reads_it_out() -> None:
+    """Dome Campus attaches itself to one frame; the board has to say which.
+
+    It scores when *that* frame is on the site at the end of a turn, so which
+    of six frames it is decides the objective -- and the only place it was
+    said was the objective's own card text.
+    """
+    from pathlib import Path
+
+    static = Path(images.__file__).resolve().parent / "static"
+    board_js = (static / "js" / "board.js").read_text(encoding="utf-8")
+    app_js = (static / "js" / "app.js").read_text(encoding="utf-8")
+
+    assert "_drawCarrying" in board_js and "_carriers()" in board_js
+    # It reads the field the engine actually sends (`serialize._board_json`).
+    assert "o.carrier" in board_js
+    assert "carrierOver" in app_js, "and the tile read-out names it"
+
+
+def test_the_setup_screen_folds_the_ai_sliders_away() -> None:
+    """Presets are the choice most games want; the sliders are a long list."""
+    from pathlib import Path
+
+    static = Path(images.__file__).resolve().parent / "static"
+    html = (static / "index.html").read_text(encoding="utf-8")
+    css = (static / "app.css").read_text(encoding="utf-8")
+
+    fold = html.split('id="params-fold"', 1)
+    assert len(fold) == 2, "the setup sliders live in a <details>"
+    assert "open" not in fold[1].split(">", 1)[0], "and it starts closed"
+    assert 'id="setup-params"' in fold[1], "with the sliders inside it"
+    assert ".fold" in css, "and it is styled as a control, not a bare triangle"
+
+
 # --------------------------------------------------------------------------
 # Frame standees
 # --------------------------------------------------------------------------

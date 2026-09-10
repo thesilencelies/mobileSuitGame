@@ -1160,7 +1160,7 @@
   {
     "name": "Booster Quick Step",
     "description": "",
-    "gm_notes": "8,3init\n0mv\nBlk:1L\nActs twice if not comsumed",
+    "gm_notes": "8,1init\n0mv\nBlk:1L\nActs twice if not comsumed",
     "tags":
     {
       "1": "Card",

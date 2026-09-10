@@ -1201,6 +1201,7 @@ export class BoardView {
       // ordinal off the frame's id is not decoration -- it is the only thing
       // telling them apart.
       this._drawFrameMark(ctx, f, s);
+      if (alive) this._drawCarrying(ctx, f, s);
       if (alive) this._drawStatusPips(ctx, f, s);
       if (!alive) {
         ctx.strokeStyle = '#ff8f8f';
@@ -1455,6 +1456,40 @@ export class BoardView {
    *  card -- Utter darkness, Fog of war -- changes what can be done to the
    *  frame with nothing on the board to say so.
    */
+  /** The bomb, on whoever is running it in.
+   *
+   *  Dome Campus picks a carrier at setup and scores when *that* frame is on
+   *  the site at the end of a turn -- so which of six frames it is decides the
+   *  objective, and the board said nothing about it. The badge goes bottom
+   *  right, the one corner a frame leaves free: the ordinal is top left, the
+   *  status pips top right, the damage strip down the right edge and the tile's
+   *  elevation bottom left.
+   */
+  _drawCarrying(ctx, f, s) {
+    if (s < 22 || !this._carriers().has(f.id)) return;
+    const { x, y } = f.pos;
+    ctx.save();
+    ctx.fillStyle = 'rgba(24,9,9,0.9)';
+    this._roundRect(ctx, x + 1 - 0.31, y + 1 - 0.28, 0.26, 0.23, 0.05);
+    ctx.fill();
+    ctx.strokeStyle = '#ff8f5c';
+    ctx.lineWidth = 1.4 / s;
+    this._roundRect(ctx, x + 1 - 0.31, y + 1 - 0.28, 0.26, 0.23, 0.05);
+    ctx.stroke();
+    ctx.fillStyle = '#ffd2b8';
+    ctx.font = `800 ${0.18}px system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('B', x + 1 - 0.18, y + 1 - 0.165);
+    ctx.restore();
+  }
+
+  /** Frame ids an objective has attached itself to, as a set. */
+  _carriers() {
+    const objectives = (this.view.board || {}).objectives || [];
+    return new Set(objectives.map((o) => o.carrier).filter(Boolean));
+  }
+
   _drawStatusPips(ctx, f, s) {
     if (s < 20) return;
     const pips = [];

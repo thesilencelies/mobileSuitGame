@@ -71,6 +71,44 @@ def test_a_reloading_weapon_spends_its_next_attack_doing_nothing():
     assert gunner.reloading == {}
 
 
+def test_the_spent_reload_card_is_discarded_rather_than_persisting():
+    """"...and then this card is discarded" (rules.tex:963).
+
+    A Reload card prints \\infty persistence so that the *marker* stays on the
+    table until the weapon fires again. The card that does the firing was
+    falling through to the ordinary persistence rules with that same \\infty,
+    which parked the spent dud in the aside row for the rest of the game --
+    doing nothing, blocking nothing, and never returning to the deck.
+    """
+    state, gunner, dfn = _reload_state()
+    marker = arm_reload(state, gunner, "Cannon_Fullbore")
+    shot = give(state, gunner, "Cannon_Pummel")
+    assert CATALOGUE["Cannon_Pummel"].persistence is None, "it prints \\infty"
+
+    frame, uid = R.next_actor(state)
+    R._begin_resolution(state, frame, uid)
+    R._finish_card(state)
+    assert state.cards[shot].location == "discard", "the dud does not persist"
+    assert state.cards[marker].location == "discard"
+
+    R.cleanup_phase(state)
+    assert shot not in gunner.aside and marker not in gunner.aside
+    assert gunner.reloading == {}, "and the weapon is loaded again"
+
+
+def test_a_reload_card_that_actually_fires_still_arms_the_marker():
+    """The other branch: only the *spent* card skips the reload it prints."""
+    state, gunner, dfn = _reload_state()
+    shot = give(state, gunner, "Cannon_Pummel")
+
+    frame, uid = R.next_actor(state)
+    R._begin_resolution(state, frame, uid)
+    assert state.resolution.spent_reloading is False, "nothing to spend yet"
+    R._finish_card(state)
+    assert gunner.reloading.get("Cannon") == shot, "it must reload next time"
+    assert state.cards[shot].location != "discard"
+
+
 def test_the_reload_dud_still_moves():
     state, gunner, dfn = _reload_state()
     marker = arm_reload(state, gunner, "Cannon_Fullbore")

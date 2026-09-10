@@ -99,6 +99,20 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width:
   background: var(--panel-2); color: var(--muted); font-size: 13px; cursor: pointer; }
 .preset[data-on="1"] { border-color: var(--gold); color: var(--gold); }
 
+/* A folded-away section. The summary is the whole tap target, so it needs to
+   look like a control rather than a paragraph with a triangle in front of it. */
+.fold { border: 1px solid var(--line); border-radius: 10px; background: var(--panel-2); }
+.fold > summary { list-style: none; cursor: pointer; padding: 10px 12px;
+  font-size: 14px; font-weight: 600; color: var(--muted);
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.fold > summary::-webkit-details-marker { display: none; }
+.fold > summary::after { content: '▾'; color: var(--muted); font-size: 12px; }
+.fold[open] > summary::after { content: '▴'; }
+.fold[open] > summary { border-bottom: 1px solid var(--line); color: var(--text); }
+.fold-hint { margin-left: auto; margin-right: 6px; font-weight: 400;
+  font-size: 12px; color: var(--muted); opacity: 0.75; }
+.fold > .params, .fold > div { padding: 4px 12px 10px; }
+
 /* parameter sliders, built from GET /api/ai/params */
 .params { display: flex; flex-direction: column; gap: 4px; }
 .param { padding: 6px 0; border-bottom: 1px solid var(--line-soft); }

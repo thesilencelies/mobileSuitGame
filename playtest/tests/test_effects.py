@@ -24,7 +24,7 @@ from playtest.engine import effects_state as fx
 from playtest.engine import keywords as kw
 from playtest.engine.serialize import view_for
 from playtest.engine.state import Resolution, move_card
-from playtest.engine.types import Pos
+from playtest.engine.types import Pos, ZONES
 
 from ._helpers import CATALOGUE, add_frame, give, make_state, run_attack
 
@@ -984,6 +984,35 @@ def _printed_reach(key, which=0):
     """The `which`-th "within N" the card prints. The engine reads the same."""
     found = re.findall(r"within (\d+)", CATALOGUE[key].text)
     return int(found[which])
+
+
+def test_a_barricade_blocks_the_shot_it_stands_in_front_of():
+    """"Those locations become impassible", and impassable terrain blocks sight.
+
+    It used to reach the board only as `occupied`, which counts a tile one
+    elevation higher -- so the wall stopped a shot along the ground and did
+    nothing at all to one taken from a rooftop.
+    """
+    from playtest.engine import combat
+    from playtest.engine.board import Board
+    from playtest.engine.terrain import parse_cell
+
+    # A real board: the stub answers every line-of-sight question with a flag.
+    state = make_state(width=12, height=6)
+    state.board = Board(12, 6, [
+        parse_cell("", Pos(x, y), "test") for y in range(6) for x in range(12)
+    ])
+    state.phase = "action"
+    gunner = add_frame(state, 0, "J7R-Salaryman", Pos(1, 2))
+    foe = add_frame(state, 1, "Kuwagata", Pos(9, 2))
+    card = CATALOGUE["Cannon_Pummel"]                     # ranged, long
+    assert combat.can_target(state, gunner, card, foe.pos, foe), "a clear lane"
+
+    fx.spawn_token(state, fx.BARRICADE, Pos(5, 2), owner=1)
+    assert Pos(5, 2) in state.sight_blockers()
+    assert not combat.can_target(state, gunner, card, foe.pos, foe), (
+        "the barricade is in the way"
+    )
 
 
 def test_an_area_token_carries_the_radius_its_card_prints():
@@ -2069,6 +2098,34 @@ def test_a_drone_shoots_an_objective():
     assert any(o.get("token") == reactor.id for o in options), options
     effects._drone_fire(state, token_id, record, {"token": reactor.id})
     assert reactor.hp < 2, "the drone shot it"
+
+
+def test_every_drone_target_carries_the_zones_its_shot_would_land():
+    """The client tells a drone's attack the way it tells the frame's own.
+
+    `attackTarget` needs `zones` per option -- what lands where, so it can put
+    it beside what the target can still block. The drone's options were the
+    one attack decision that shipped a bare name, so its shot was picked blind
+    while the frame's shot got the whole read-out. The numbers were already
+    being worked out here (`_drone_zones_at`) and thrown away.
+    """
+    state = make_state()
+    frame = add_frame(state, 0, "Kuwagata", Pos(2, 2))
+    foe = add_frame(state, 1, "Hector MkI", Pos(4, 4))
+    summon(state, frame, "Swarm_Swarm", Pos(3, 3))
+    token_id = next(t.id for t in state.tokens.values() if t.kind == fx.DRONE)
+    card = CATALOGUE["Swarm_Swarm"]
+
+    options = effects._drone_options(state, token_id, card, frame)
+    assert options, "the drone can reach something"
+    for option in options:
+        assert option.get("zones"), option
+        assert set(option["zones"]) <= set(ZONES)
+        assert all(v > 0 for v in option["zones"].values())
+    mine = next(o for o in options if o.get("frame") == foe.id)
+    assert mine["zones"] == effects._drone_zones(state, token_id, card, foe), (
+        "the zones are the drone's own, measured from the drone's tile"
+    )
 
 
 def test_a_drone_will_not_shoot_its_own_sides_objective():

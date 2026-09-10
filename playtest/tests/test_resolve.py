@@ -98,20 +98,25 @@ def test_ties_start_from_the_priority_seat():
 
 
 def test_a_cards_initiative_list_makes_it_act_twice():
-    """`Quick Step` is "8,3" and acts at each value if it is not consumed."""
+    """`Quick Step` prints two initiatives and acts at each if not consumed.
+
+    The values are read off the card: they are a balance number, and pinning
+    them here only meant a CSV edit failed in two places instead of none.
+    """
     state, a, b = _action_state()
     uid = give(state, a, "Booster_Quick Step")
-    assert CATALOGUE["Booster_Quick Step"].initiative == (8, 3)
+    early, late = CATALOGUE["Booster_Quick Step"].initiative
+    assert early > late, "the second act is later in the turn"
 
     frame, first = next_actor(state)
     assert first == uid
     from playtest.engine import keywords as kw
-    assert kw.effective_initiative(state, a, state.card(uid), 0) == 8
+    assert kw.effective_initiative(state, a, state.card(uid), 0) == early
 
     state.cards[uid].init_index = 1                      # first act done
     frame, second = next_actor(state)
     assert second == uid, "it is still in the queue at its second value"
-    assert kw.effective_initiative(state, a, state.card(uid), 1) == 3
+    assert kw.effective_initiative(state, a, state.card(uid), 1) == late
 
     state.cards[uid].init_index = 2
     assert next_actor(state) is None

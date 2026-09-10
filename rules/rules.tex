@@ -480,11 +480,13 @@ If there are no obstructions on that line, the target is valid.
 
 The following count as an obstruction:
 \begin{itemize}
-  \item Impassable terrain
+  \item Impassable terrain --- including anything a card has made impassable, such as a Barricade token or a Cage Fight wall
   \item Terrain at a higher elevation than the attacker
-  \item Obstacles adjacent to the target
+  \item Obstacles adjacent to the target, at the same elevation as the target
   \item Terrain at a higher elevation than the target adjacent to the target
 \end{itemize}
+
+An obstacle is cover the target is behind, so it is the target's elevation that matters and not the attacker's: rubble beside a frame screens it from anywhere, a rooftop included --- shooting down, you are shooting at something still hiding behind it. What an obstacle does not do is protect a frame standing above it: rubble a level below the target does not rise up to cover them. An obstacle higher than the target already obstructs under the rule below it.
 
 A tile with a frame on it counts as one elevation higher when checking line of sight. For example a frame standing on flat ground obstructs like an elevation-1 tile.
 
@@ -1020,7 +1022,7 @@ count & type & group & cards \\
   Feint & If this attack is not blocked, it deals no damage. (Blocks are compulsory) \\
   Close Quarters & This attack cannot be blocked by attacks that have already been resolved \\
   Knockback (X) & Move the target frame X steps in any direction away from the source (cannot move up elevation) \\
-  Reload & This card persists until this frame next resolves an attack from this weapon. That card has no effect or attack. 
+  Reload & This card persists until this frame next resolves an attack from this weapon. That card has no effect or attack, and both cards are then discarded. 
   It deals no damage, consumes no blocks and triggers no abilities but still moves as normal. This card is then discarded \\
 \end{tabular}
 
@@ -1224,9 +1226,9 @@ Each turn: \textbf{Planning} $\to$ \textbf{Action} $\to$ \textbf{Cleanup}.
 \item Clear line attacker $\to$ target $=$ valid.
 \item Blockers on the line:
   \begin{qreflist}
-  \item impassable terrain;
+  \item impassable terrain (barricades and cage walls included);
   \item terrain higher than the attacker;
-  \item an obstacle next to the target;
+  \item an obstacle next to the target, at the target's own elevation;
   \item higher terrain next to the target.
   \end{qreflist}
 \item A tile with a frame on it counts as \textbf{one elevation higher}.

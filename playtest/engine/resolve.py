@@ -735,7 +735,17 @@ def _finish_card(state: GameState) -> None:
     if kw.is_committed(card):
         state.note(f"{card.key} is Committed and is discarded")
         discard_card(state, res.uid)
-    elif kw.is_reload(card) and not res.spent_reloading:
+    elif res.spent_reloading:
+        # "That attack has no effect or attack, and then this card is
+        # discarded" (rules.tex:963). It must not persist: a Reload card
+        # prints \infty so that the *marker* stays on the table until the
+        # weapon fires, and this is the card that just fired it. Falling
+        # through to the persistence rules parked the spent dud in the aside
+        # row for the rest of the game -- doing nothing, and never coming back
+        # to the deck.
+        state.note(f"{card.key} finished reloading and is discarded")
+        discard_card(state, res.uid)
+    elif kw.is_reload(card):
         # A card spent as the reload dud triggers no abilities, its own
         # Reload included -- it must not re-arm the weapon it just cleared.
         kw.start_reload(state, frame, res.uid)

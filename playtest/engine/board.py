@@ -283,6 +283,7 @@ class Board:
         target: Pos,
         *,
         occupied: frozenset[Pos] = frozenset(),
+        blocking: frozenset[Pos] = frozenset(),
         flying_attacker: bool = False,
         flying_target: bool = False,
     ) -> frozenset[Pos]:
@@ -292,8 +293,27 @@ class Board:
 
         * impassable terrain -- anywhere on the line;
         * terrain higher than the *attacker* -- anywhere on the line;
-        * obstacles *adjacent to the target*;
+        * obstacles *adjacent to the target*, and **only at the target's own
+          elevation**;
         * terrain higher than the *target*, *adjacent to the target*.
+
+        ``blocking`` is impassable terrain the *board* does not know about,
+        because something was put there during the game: a Barricade token, a
+        Cage Fight wall. "Those locations become impassible" is the whole of
+        what those cards say, so they obstruct exactly as printed impassable
+        terrain does -- anywhere on the line, at any elevation. Passing them in
+        ``occupied`` instead would only make them count one elevation higher,
+        which lets anyone standing above them see straight through a wall.
+
+        An obstacle is cover the *target* is behind, so what matters is the
+        target's elevation and not the shooter's: rubble beside a frame screens
+        it from anywhere, a rooftop included, because the frame is taking cover
+        behind the rubble either way. What it must not do is protect someone
+        standing above it -- an obstacle a level below the target does not
+        suddenly rise up to cover them. An obstacle *higher* than the target is
+        already an obstruction under the rule on the next line, and one higher
+        than the attacker under the rule two lines up, so this clause is only
+        ever about the level the target is actually standing on.
 
         A tile holding a frame counts one elevation higher. Obstacles do not
         block LoS to or from a ``Flying`` frame (rules.tex:967).
@@ -314,11 +334,16 @@ class Board:
                 tile = self.tile(pos)
                 elev = tile.elevation + (1 if pos in occupied else 0)
                 adjacent_to_target = self.is_adjacent(pos, target)
-                if tile.impassable:
+                if tile.impassable or pos in blocking:
                     out.add(pos)
                 elif elev > a_elev:
                     out.add(pos)
-                elif adjacent_to_target and tile.obstacle and not ignore_obstacles:
+                elif (
+                    adjacent_to_target
+                    and tile.obstacle
+                    and not ignore_obstacles
+                    and tile.elevation == t_elev
+                ):
                     out.add(pos)
                 elif adjacent_to_target and elev > t_elev:
                     out.add(pos)
@@ -330,6 +355,7 @@ class Board:
         target: Pos,
         *,
         occupied: frozenset[Pos] = frozenset(),
+        blocking: frozenset[Pos] = frozenset(),
         flying_attacker: bool = False,
         flying_target: bool = False,
         samples: Optional[int] = None,
@@ -370,6 +396,7 @@ class Board:
             attacker,
             target,
             occupied=occupied,
+            blocking=blocking,
             flying_attacker=flying_attacker,
             flying_target=flying_target,
         )

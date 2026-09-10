@@ -438,6 +438,13 @@ class GameState:
                 return f
         return None
 
+    #: Token kinds a card puts down that *are* impassable terrain, in the
+    #: printed sense: "those locations become impassible" (Barricade), "a 5x5
+    #: box of impassible terrain" (Cage Fight). An Ephemeral Image is not one
+    #: -- it is an illusion, and it is in `occupied` only so that it screens
+    #: exactly as much as the frame it might be.
+    SOLID_TOKENS = ("barricade", "cage")
+
     def occupied(self, *, exclude: Optional[str] = None) -> frozenset[Pos]:
         """Tiles that stop a line of sight, and the conservative movement set.
 
@@ -464,9 +471,23 @@ class GameState:
         out |= {
             t.pos for t in self.tokens.values()
             if t.alive and t.pos is not None
-            and t.kind in ("barricade", "image", "cage")
+            and t.kind in self.SOLID_TOKENS + ("image",)
         }
         return frozenset(p for p in out if p is not None)
+
+    def sight_blockers(self) -> frozenset[Pos]:
+        """Tiles a card has made impassable, which stop a line of sight dead.
+
+        Separate from `occupied` because the two do different things to a
+        line: `occupied` counts a tile one elevation higher, which a frame
+        standing above can still see over, while impassable terrain blocks
+        whatever the elevations are. A barricade you can shoot over from a
+        rooftop is not a barricade.
+        """
+        return frozenset(
+            t.pos for t in self.tokens.values()
+            if t.alive and t.pos is not None and t.kind in self.SOLID_TOKENS
+        )
 
     def _side_of(self, mover: Any) -> Optional[Team]:
         """Which seat a frame or token belongs to. Seat 0 is falsy -- be exact."""

@@ -369,6 +369,11 @@ appear opposite yours as you build your own line.
 Drawer toggles: terrain and piece art, line-of-sight shading for the selected
 frame, enemy reach shading, terrain-card outlines, tile coordinates.
 
+The **AI sliders start folded**. The presets are the choice almost every game
+wants, and the full parameter list is long enough that starting a game meant
+scrolling past all of it — so `#setup-params` sits in a closed `<details>` on
+the setup screen. The drawer's copy, which you open deliberately, is unchanged.
+
 ### Choosing a target
 
 The target list is the read the game turns on, so it states, per zone, what the
@@ -386,6 +391,16 @@ defender can still cover:
 All of it comes from the engine's own `combat.block_options`, so Close Quarters
 barring already-resolved cards, and Guard Break letting one wide card cover
 several zones at once, are the engine's answers rather than the client's guess.
+
+**A drone's shot is the same question, so it gets the same sheet.** It arrives
+as an `effect_choice` rather than an `attack_target`, and used to render as a
+bare list of names — so the frame's own attack was picked with a full read-out
+and the drone's was picked blind. `effects._drone_options` now puts the `zones`
+its copy of the card would land on each option (measured from the *drone's*
+tile, which is the only thing that differs), and `decisions.js` routes any
+target option carrying `zones` through the same `targetBox` the attack list
+uses. Options without them — picking one of a Mystic's three images for a
+debuff — are not an attack and still get the plain list.
 
 ### Watching the AI move
 
@@ -477,6 +492,12 @@ step by step*.
   bottom-left corner (the one corner nothing else uses: the ordinal badge is
   top-left, status pips top-right, the code glyphs bottom-right). Tapping a
   tile has always given the same number in the read-out.
+* **The bomb is drawn on whoever is carrying it.** Dome Campus attaches itself
+  to one frame at setup and scores when *that* frame is on the site at the end
+  of a turn — so which of six frames it is decides the objective, and the only
+  place it was said was the objective's own card text. The carrier now gets a
+  `B` badge bottom-right (`Board._drawCarrying`, off the `carrier` field the
+  view already carried) and the tile read-out names it.
 * **A token that reaches past its own tile draws the ring it reaches.** A
   gravity well re-prices movement for five tiles in every direction — every
   step *away* from it inside that ring costs one extra — and it used to put
@@ -587,10 +608,28 @@ an objective token's turn, and the threat overlay the client draws. Staying put
 is always in the list — it is a legal answer, and the only one a bound frame
 has.
 
-`occupied()` is neither of those: it is what stops a *line of sight*, which is
-frames (a frame "counts as one elevation higher") plus the solid tokens.
-Drones and gangs do not adjust line of sight, so they are not in it, and
-shooting over one is fine.
+`occupied()` is neither of those: it is what raises a tile for *line of sight*,
+which is frames (a frame "counts as one elevation higher") plus the solid
+tokens. Drones and gangs do not adjust line of sight, so they are not in it,
+and shooting over one is fine.
+
+`sight_blockers()` is the stronger version, and the two do different things to
+a line. A tile in `occupied` counts one elevation higher, so a frame standing
+above it still sees over; a tile in `sight_blockers` stops the line whatever
+the elevations are. That is the difference between a frame and a wall, and the
+walls are the ones a *card* put there — a Barricade ("those locations become
+impassible"), a Cage Fight box. They reach the board as `blocking`, an addition
+to the frozen `BoardProtocol` alongside `flying_target`; `combat._line_of_sight`
+drops the two optional kwargs **one at a time** rather than together, so a board
+that takes `flying_target` but not `blocking` is still told about the flyer.
+
+Obstacles screen only what is standing at **their own elevation** — the
+*target's*, not the attacker's. Cover belongs to the frame behind it, so rubble
+beside a target screens it from anywhere including a rooftop: shooting down,
+you are shooting at something still hiding behind it. What it must not do is
+protect a frame standing above it, which is the case the test is for; an
+obstacle higher than the target already obstructs under "higher terrain next to
+the target".
 
 ### Card text, and adding a card
 

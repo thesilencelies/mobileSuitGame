@@ -2173,9 +2173,8 @@ def rebound_sight(
         gap = fx.distance(state, token.pos, target_pos)
         if gap is None or gap > (token.aura_radius or REBOUND_RADIUS):
             continue
-        if state.board.has_line_of_sight(
-            attacker.pos, token.pos, occupied=state.occupied(exclude=attacker.id)
-        ):
+        if _sees(state, attacker.pos, token.pos,
+                 occupied=state.occupied(exclude=attacker.id)):
             return True
     return False
 
@@ -2497,6 +2496,30 @@ image_positions = fx.image_positions
 def image_tokens(state: GameState, frame: FrameState) -> list[str]:
     record = _images(state).get(frame.id)
     return list(record.get("tokens", ())) if record else []
+
+
+def _sees(
+    state: GameState, source: Pos, target: Pos, *, occupied
+) -> bool:
+    """Line of sight for the effects that ask outside the attack pipeline.
+
+    A drone's shot and a Rebound mirror both draw an ordinary line, so both
+    have to see the walls a card put on the board (`sight_blockers`). Guarded
+    the way `combat._line_of_sight` is: `blocking` is an addition to the frozen
+    `BoardProtocol`, so a board without it is asked the old question.
+    """
+    try:
+        return bool(state.board.has_line_of_sight(
+            source, target, occupied=occupied, blocking=state.sight_blockers(),
+        ))
+    except TypeError:
+        try:
+            return bool(state.board.has_line_of_sight(
+                source, target, occupied=occupied))
+        except Exception:
+            return False
+    except Exception:
+        return False
 
 
 def move_note(
@@ -3556,13 +3579,7 @@ def _drone_zones_at(
             if gap == 1:
                 zones[zone] = damage
         elif 1 < gap <= printed:
-            try:
-                clear = state.board.has_line_of_sight(
-                    token.pos, defender_pos, occupied=state.occupied()
-                )
-            except Exception:
-                clear = False
-            if clear:
+            if _sees(state, token.pos, defender_pos, occupied=state.occupied()):
                 zones[zone] = damage
     if zones and not card.is_ranged:
         delta = state.elevation(token.pos) - state.elevation(defender_pos)
@@ -3583,6 +3600,12 @@ def _drone_options(
     same way a frame does. Attackable tokens are offered by the same rule
     `combat.legal_targets` uses -- anything with hit points that is not the
     drone's own side's.
+
+    Each option carries the `zones` its copy of the card would land with, the
+    same key `combat.legal_targets` puts on a frame's targets. It was already
+    being computed here and thrown away, and without it the client had nothing
+    to show but a name -- so a drone's shot was picked blind while the frame's
+    own shot got a zone-by-zone read-out of what the target can still block.
     """
     options: list[dict] = []
     for other in state.frames.values():
@@ -3593,14 +3616,20 @@ def _drone_options(
                 image = state.tokens.get(image_id)
                 if image is None or not image.alive:
                     continue
-                if _drone_zones_at(state, token_id, card, image.pos):
-                    options.append({"token": image_id, "name": "an image"})
+                zones = _drone_zones_at(state, token_id, card, image.pos)
+                if zones:
+                    options.append({
+                        "token": image_id, "name": "an image", "zones": dict(zones),
+                    })
             continue
-        if not _drone_zones(state, token_id, card, other):
+        zones = _drone_zones(state, token_id, card, other)
+        if not zones:
             continue
         if is_untargetable(state, summoner, card, other):
             continue
-        options.append({"frame": other.id, "name": other.id})
+        options.append({
+            "frame": other.id, "name": other.id, "zones": dict(zones),
+        })
     for target in state.tokens.values():
         if target.id == token_id or not target.attackable:
             continue
@@ -3608,8 +3637,11 @@ def _drone_options(
             continue                    # already offered, via its own frame
         if target.owner is not None and target.owner == summoner.seat:
             continue
-        if _drone_zones_at(state, token_id, card, target.pos):
-            options.append({"token": target.id, "name": target.kind})
+        zones = _drone_zones_at(state, token_id, card, target.pos)
+        if zones:
+            options.append({
+                "token": target.id, "name": target.kind, "zones": dict(zones),
+            })
     return options
 
 

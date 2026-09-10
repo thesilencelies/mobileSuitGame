@@ -27,7 +27,9 @@ from ._helpers import CATALOGUE, FRAMES
 def test_initiative_is_a_tuple_and_quick_step_has_two_values():
     assert parse_initiative("7") == (7,)
     assert parse_initiative("8,3") == (8, 3)
-    assert CATALOGUE["Booster_Quick Step"].initiative == (8, 3)
+    # The card acts once per value it prints; the values themselves are a
+    # balance number and live in the CSV, not here.
+    assert len(CATALOGUE["Booster_Quick Step"].initiative) == 2
     assert CATALOGUE["Spear_Thrust"].initiative == (7,)
 
 
