@@ -7,6 +7,11 @@ A data-driven card game toolkit that generates printable cards and Tabletop Simu
 **Commit and push to `master` directly** unless I ask for a branch. This is a
 solo repo and the default "branch first" habit just adds a merge step.
 
+`.claude/playtest-ai.md` is the standing record of the playtest AI work: how to
+measure a change, what has already been tried and failed, and what is still
+open. **Read it before tuning `playtest/ai/`** — most of the obvious ideas have
+been measured already.
+
 ## Core pipeline
 
 ```
