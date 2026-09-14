@@ -2,18 +2,25 @@
 """
 generate_all_decks.py
 
-Batch-processes every deck_*.csv in decks/, running the full TTS image pipeline:
-  1. generate_card_sheet.py  → build/<prefix>_image.tex         (fronts)
-  2. pdflatex                → build/<prefix>_image.pdf
-  3. ImageMagick convert     → build/<prefix>_image.png
-  4. generate_card_sheet.py  → build/<prefix>_back_image.tex    (backs, --repeat)
-  5. pdflatex                → build/<prefix>_back_image.pdf
-  6. ImageMagick convert     → build/<prefix>_back_image.png
+Batch-processes every deck_*.csv in decks/, running either:
+  - The TTS image pipeline (default):
+      1. generate_card_sheet.py  → build/<prefix>_image.tex         (fronts)
+      2. pdflatex                → build/<prefix>_image.pdf
+      3. ImageMagick convert     → build/<prefix>_image.png
+      4. generate_card_sheet.py  → build/<prefix>_back_image.tex    (backs, --repeat)
+      5. pdflatex                → build/<prefix>_back_image.pdf
+      6. ImageMagick convert     → build/<prefix>_back_image.png
+  - The print pipeline (--print / --print-a4 / --a4):
+      Generates multi-page 4x2 cards PDFs on A4 paper (landscape) for physical printing:
+      1. generate_card_sheet.py  → build/<prefix>_print.tex         (fronts)
+      2. pdflatex                → build/<prefix>_print.pdf
+      3. generate_card_sheet.py  → build/<prefix>_print_back.tex    (backs, --repeat, --sheets)
+      4. pdflatex                → build/<prefix>_print_back.pdf
 
 Adding a new deck only requires adding deck_<name>.csv to decks/ and
 generating the card files (generateCards.py creates back_<name>.tex in build/).
 
-It also renders the annotated rules-reference cards (build/rules_*_doc.tex,
+In TTS mode, it also renders the annotated rules-reference cards (build/rules_*_doc.tex,
 written by generateCards.py) to trimmed PNGs in RulesImages/.
 """
 
@@ -34,8 +41,11 @@ CARD_IMAGES = WORKSPACE / "CardImages"
 RULES_IMAGES = WORKSPACE / "RulesImages"
 INDIVIDUAL_CARDS_CSV = WORKSPACE / "individual_cards.csv"
 
-COLS = 7
-ROWS = 4
+TTS_COLS = 7
+TTS_ROWS = 4
+
+PRINT_COLS = 4
+PRINT_ROWS = 2
 
 
 def run(cmd, cwd=None, label=""):
@@ -66,11 +76,9 @@ def pdf_to_png(stem, out_dir=TTS_IMAGES, trim=False, out_name=None, background=N
     run(cmd, cwd=BUILD, label=f"convert {stem}.pdf → {out.relative_to(WORKSPACE)}")
 
 
-def process_deck(prefix):
+def process_deck(prefix, print_mode=False):
     print(f"\n=== {prefix} ===")
 
-    front_tex = f"{prefix}_image.tex"
-    back_tex = f"{prefix}_back_image.tex"
     has_back = os.path.exists(f"build/back_{prefix}.tex")
 
     # deck_terrain_* and deck_objective_* both list terrain tiles (objectives are
@@ -79,21 +87,34 @@ def process_deck(prefix):
     is_terrain = prefix in ("terrain", "objective") or prefix.startswith(("terrain_", "objective_"))
     deck_type = "terrain" if is_terrain else "card"
 
-    cols = COLS
-    rows = ROWS
-
     deck_csv = DECKS_DIR / f"deck_{prefix}.csv"
-    num_rows = sum(1 for line in deck_csv.read_text().splitlines() if line.strip())
-    num_cards = num_rows + 1 if has_back else num_rows
-    if num_cards > cols * rows:
-        rows = math.ceil(num_cards / cols)
-        print(f"  Expanding to {rows} rows to fit {num_cards} cards")
+    num_cards = sum(1 for line in deck_csv.read_text().splitlines() if line.strip())
+
+    if print_mode:
+        cols = PRINT_COLS
+        rows = PRINT_ROWS
+        front_stem = f"{prefix}_print"
+        back_stem = f"{prefix}_print_back"
+    else:
+        cols = TTS_COLS
+        rows = TTS_ROWS
+        front_stem = f"{prefix}_image"
+        back_stem = f"{prefix}_back_image"
+        num_cards_tts = num_cards + 1 if has_back else num_cards
+        if num_cards_tts > cols * rows:
+            rows = math.ceil(num_cards_tts / cols)
+            print(f"  Expanding to {rows} rows to fit {num_cards_tts} cards")
+
+    front_tex = f"{front_stem}.tex"
+    back_tex = f"{back_stem}.tex"
 
     deck_run = [sys.executable, "generate_card_sheet.py",
          f"--csv=decks/deck_{prefix}.csv",
          f"--output=build/{front_tex}",
          f"--type={deck_type}",
          f"--cols={cols}", f"--rows={rows}"]
+    if print_mode:
+        deck_run.append("--a4")
     run(
         deck_run,
         cwd=WORKSPACE,
@@ -101,21 +122,30 @@ def process_deck(prefix):
     )
     run(["pdflatex", "-interaction=nonstopmode", front_tex], cwd=BUILD,
         label=f"pdflatex {front_tex}")
-    pdf_to_png(f"{prefix}_image")
+    if not print_mode:
+        pdf_to_png(front_stem)
 
     if has_back:
         print(f"   creating back {back_tex}")
-        run(
-            [sys.executable, "generate_card_sheet.py",
+        back_run = [
+            sys.executable, "generate_card_sheet.py",
             f"--csv=back_{prefix}.tex",
             f"--output=build/{back_tex}",
-            "--repeat", f"--cols={COLS}", f"--rows={ROWS}"],
+            "--repeat", f"--cols={cols}", f"--rows={rows}",
+        ]
+        if print_mode:
+            back_run.append("--a4")
+            num_sheets = math.ceil(num_cards / (cols * rows))
+            back_run.append(f"--sheets={num_sheets}")
+        run(
+            back_run,
             cwd=WORKSPACE,
             label=f"generate_card_sheet  back_{prefix}.tex → {back_tex}",
         )
         run(["pdflatex", "-interaction=nonstopmode", back_tex], cwd=BUILD,
             label=f"pdflatex {back_tex}")
-        pdf_to_png(f"{prefix}_back_image")
+        if not print_mode:
+            pdf_to_png(back_stem)
 
     print(f"  Done: {prefix}")
 
@@ -173,6 +203,11 @@ def main():
         "--skip-rules", action="store_true",
         help="Skip rendering the annotated rules-reference card images.",
     )
+    parser.add_argument(
+        "--print", "--print-a4", "--a4",
+        dest="print_mode", action="store_true",
+        help="Create multi-page 4x2 cards PDFs on A4 paper (landscape) for printing.",
+    )
     args = parser.parse_args()
 
     if args.decks:
@@ -183,24 +218,25 @@ def main():
             sys.exit(f"No deck_*.csv files found in {DECKS_DIR}")
         prefixes = [f.stem[len("deck_"):] for f in csv_files]
 
-    print(f"Processing {len(prefixes)} deck(s): {prefixes}")
+    mode_label = " (print mode: 4x2 A4 landscape PDFs)" if args.print_mode else " (TTS image mode)"
+    print(f"Processing {len(prefixes)} deck(s){mode_label}: {prefixes}")
 
     failed = []
     for prefix in prefixes:
         try:
-            process_deck(prefix)
+            process_deck(prefix, print_mode=args.print_mode)
         except SystemExit as e:
             print(f"  ERROR: {e}")
             failed.append(prefix)
 
-    if not args.skip_individual:
+    if not args.skip_individual and not args.print_mode:
         try:
             process_individual_cards()
         except SystemExit as e:
             print(f"  ERROR: {e}")
             failed.append("individual_cards")
 
-    if not args.skip_rules:
+    if not args.skip_rules and not args.print_mode:
         try:
             process_rules_images()
         except SystemExit as e:

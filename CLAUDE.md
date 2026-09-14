@@ -36,13 +36,14 @@ Run: `python generateCards.py`
 Generates terrain tiles (`build/terrain/<Name>.tex`) from `Terrain_square.csv`: hex/square tile geometry, elevation-wall styling (`TERRAIN_STYLE`, `STYLE_DICT`), and the objective-point icons. Not run standalone — `generateCards.py` imports `create_terrain_card()` (plus `terrain_file`/`terrianoutputfolder`) from it, creates the `build/terrain/` subfolder up front, and calls `create_terrain_card()` per-row from its `__main__` block.
 
 ### generate_card_sheet.py
-Arranges card `.tex` files into a printable grid (default 10×7) for TTS; generates multi-page output as needed.
+Arranges card `.tex` files into a printable grid (default 10×7) for TTS; generates multi-page output as needed. Supports `--a4` to format centered sheets on A4 landscape paper.
 Run: `python generate_card_sheet.py --csv decks/deck_percival.csv --type card --output card_sheet.tex`
-Key args: `--type` (`card`/`terrain`/`frame` — prepends the matching `build/` subfolder to bare CSV entries), `--cols`, `--rows`, `--bleed`, `--add_back`, `--back_text`, `--back_color`, `--repeat`
+Key args: `--type` (`card`/`terrain`/`frame` — prepends the matching `build/` subfolder to bare CSV entries), `--cols`, `--rows`, `--bleed`, `--add_back`, `--back_text`, `--back_color`, `--repeat`, `--sheets`, `--a4`
 
 ### generate_all_decks.py
 Batch-runs the full front+back sheet→PDF→PNG pipeline for all (or specified) decks. Also renders the annotated rules-reference cards (`build/rules_*_doc.tex`) to trimmed PNGs in `RulesImages/`.
-Run: `python generate_all_decks.py [deck_prefix ...]` (`--skip-individual`, `--skip-rules`)
+Supports `--print` (`--print-a4`, `--a4`) to generate multi-page 4×2 cards PDFs on A4 paper (landscape) for physical printing (`build/<prefix>_print.pdf` and matching `build/<prefix>_print_back.pdf`).
+Run: `python generate_all_decks.py [deck_prefix ...]` (`--print`, `--skip-individual`, `--skip-rules`)
 
 ### generate_card_json.py
 Writes `json/cards.json`, one file holding every card's Tabletop Simulator metadata — 116 action cards plus 12 frames, in CSV order. Each card is keyed by the `raw.githubusercontent.com` URL of its `AllCardImages/*.png` (URL-encoded: most card images have spaces in the filename), and the value holds TTS's fixed `name`/`description`/`gm_notes`/`tags` fields — no others can be added.

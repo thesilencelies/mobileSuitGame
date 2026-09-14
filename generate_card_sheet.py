@@ -25,6 +25,8 @@ Arguments:
     --cols      Number of columns per sheet (default: 10)
     --rows      Number of rows per sheet (default: 7)
     --bleed     Gap between cards in cm (default: 0.0 — cards flush together)
+    --a4        Format sheet for A4 landscape paper (centered grid)
+    --sheets    Number of sheets to generate (useful with --repeat)
 """
 
 import argparse
@@ -64,12 +66,7 @@ PREAMBLE = r"""\documentclass{{article}}
  \usetikzlibrary{{arrows.meta}}
  \usetikzlibrary{{calc}}
 
-% Page size matches the exact grid: {page_width}cm x {page_height}cm
-\geometry{{
-    paperwidth={page_width}cm,
-    paperheight={page_height}cm,
-    margin=0cm
-}}
+{geometry}
 
 \setlength{{\parindent}}{{0pt}}
 \setlength{{\parskip}}{{0pt}}
@@ -162,30 +159,57 @@ def read_card_list(csv_path: str, prefix: str = "") -> list[str]:
 
 
 def generate_latex(cards: list[str], bleed: float, cols: int, rows: int,
-                    back_text: str, back_color: str, add_back: bool) -> str:
+                    back_text: str, back_color: str, add_back: bool,
+                    a4: bool = False) -> str:
     """Build the full LaTeX source string."""
 
     cards_per_sheet = cols * rows
     num_sheets = math.ceil(len(cards) / cards_per_sheet)
 
-    # Per-row slack must exceed LaTeX's per-page overhead (~5pt/0.18cm from
-    # baselineskip/strut depth around each row's content), or a sheet with few
-    # rows comes out "Overfull" and pdflatex silently inserts a spurious blank
-    # page before the very first sheet, shifting every card by one page. Every
-    # existing multi-row deck has enough slack to hide this; single-row sheets
-    # (e.g. one-card-per-page renders) do not.
-    row_slack_cm = 0.2
-    page_width  = cols * CARD_WIDTH_CM  + (cols - 1) * bleed
-    page_height = rows * (CARD_HEIGHT_CM + row_slack_cm) + (rows - 1) * bleed
+    if a4:
+        A4_WIDTH_CM = 29.7
+        A4_HEIGHT_CM = 21.0
+        grid_width  = cols * CARD_WIDTH_CM  + (cols - 1) * bleed
+        grid_height = rows * CARD_HEIGHT_CM + (rows - 1) * bleed
+        margin_x = max(0.0, (A4_WIDTH_CM - grid_width) / 2.0)
+        margin_top = max(0.0, (A4_HEIGHT_CM - grid_height) / 2.0)
+        # Leave slack on the bottom margin to avoid LaTeX inserting spurious blank pages
+        margin_bottom = max(0.0, min(margin_top, 1.0))
+        geometry = (
+            f"% A4 landscape with cards centered\n"
+            f"\\geometry{{\n"
+            f"    a4paper,\n"
+            f"    landscape,\n"
+            f"    left={margin_x:.4f}cm,\n"
+            f"    right={margin_x:.4f}cm,\n"
+            f"    top={margin_top:.4f}cm,\n"
+            f"    bottom={margin_bottom:.4f}cm\n"
+            f"}}"
+        )
+    else:
+        # Per-row slack must exceed LaTeX's per-page overhead (~5pt/0.18cm from
+        # baselineskip/strut depth around each row's content), or a sheet with few
+        # rows comes out "Overfull" and pdflatex silently inserts a spurious blank
+        # page before the very first sheet, shifting every card by one page. Every
+        # existing multi-row deck has enough slack to hide this; single-row sheets
+        # (e.g. one-card-per-page renders) do not.
+        row_slack_cm = 0.2
+        page_width  = cols * CARD_WIDTH_CM  + (cols - 1) * bleed
+        page_height = rows * (CARD_HEIGHT_CM + row_slack_cm) + (rows - 1) * bleed
+        geometry = (
+            f"% Page size matches the exact grid: {page_width:.4f}cm x {page_height:.4f}cm\n"
+            f"\\geometry{{\n"
+            f"    paperwidth={page_width:.4f}cm,\n"
+            f"    paperheight={page_height:.4f}cm,\n"
+            f"    margin=0cm\n"
+            f"}}"
+        )
 
     w = f"{CARD_WIDTH_CM:.4f}"
     h = f"{CARD_HEIGHT_CM:.4f}"
 
     lines = []
-    lines.append(PREAMBLE.format(
-        page_width=f"{page_width:.4f}",
-        page_height=f"{page_height:.4f}",
-    ))
+    lines.append(PREAMBLE.format(geometry=geometry))
 
     for sheet in range(num_sheets):
         first_idx  = sheet * cards_per_sheet
@@ -269,11 +293,20 @@ def main():
     parser.add_argument(
         "--repeat", action="store_true"
     )
+    parser.add_argument(
+        "--sheets", type=int, default=None,
+        help="Number of sheets to generate (useful with --repeat to match front page count)."
+    )
+    parser.add_argument(
+        "--a4", action="store_true",
+        help="Format the sheet for A4 landscape paper (centered grid)."
+    )
     args = parser.parse_args()
 
     cards_per_sheet = args.cols * args.rows
     if args.repeat:
-        cards = [args.csv] * (args.cols * args.rows)
+        num_repeat_sheets = args.sheets if args.sheets is not None else 1
+        cards = [args.csv] * (cards_per_sheet * num_repeat_sheets)
     else:
         cards = read_card_list(args.csv, prefix=TYPE_PREFIXES.get(args.type, ""))
 
@@ -282,7 +315,8 @@ def main():
           f"{math.ceil(len(cards) / cards_per_sheet)} sheet(s).")
 
     latex_source = generate_latex(cards, bleed=args.bleed, cols=args.cols, rows=args.rows,
-                                   back_text=args.back_text, back_color=args.back_color, add_back=args.add_back)
+                                   back_text=args.back_text, back_color=args.back_color,
+                                   add_back=args.add_back, a4=args.a4)
 
     with open(args.output, "w", encoding="utf-8") as fh:
         fh.write(latex_source)
