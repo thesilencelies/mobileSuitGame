@@ -236,6 +236,50 @@ TTS_ASSET_TOKENS: dict[str, dict] = {
     },
 }
 
+#: Multi-sided tiles: opposite faces and shared metadata
+TWO_SIDED_TILES: list[dict] = [
+    {
+        "name": "Ephemeral Image",
+        "description": "Marker for Ephemeral Images",
+        "gm_notes": "ephemeral image",
+        "tags": ("Tile", "Token", "Mystic"),
+        "front_file": "Image.png",
+        "back_file": "Real.png",
+    },
+    {
+        "name": "Ephemeral Image",
+        "description": "Marker for Ephemeral Images",
+        "gm_notes": "ephemeral image",
+        "tags": ("Tile", "Token", "Mystic"),
+        "front_file": "Image.png",
+        "back_file": "Illusion.png",
+    },
+    {
+        "name": "Power Plant",
+        "description": "Objective structure (2 HP / 1 HP)",
+        "gm_notes": "2hp / 1hp",
+        "tags": ("Tile", "Token", "Objective"),
+        "front_file": "PowerPlant2.png",
+        "back_file": "PowerPlant1.png",
+    },
+    {
+        "name": "The Tower (4/3 HP)",
+        "description": "Objective structure with 4 HP / 3 HP (damage reduction 1)",
+        "gm_notes": "4hp / 3hp damage_reduction:1",
+        "tags": ("Tile", "Token", "Objective"),
+        "front_file": "Tower4.png",
+        "back_file": "Tower3.png",
+    },
+    {
+        "name": "The Tower (2/1 HP)",
+        "description": "Objective structure with 2 HP / 1 HP (damage reduction 1)",
+        "gm_notes": "2hp / 1hp damage_reduction:1",
+        "tags": ("Tile", "Token", "Objective"),
+        "front_file": "Tower2.png",
+        "back_file": "Tower1.png",
+    },
+]
+
 
 def build_tags(*names: str) -> dict[str, str]:
     """TTS numbers its tags from "1"; a card/tile/figurine is tagged broadest-first."""
@@ -652,18 +696,46 @@ def enumerate_cards() -> list[dict]:
 
 
 def enumerate_tiles() -> list[dict]:
-    """Enumerate game tokens as TTS Tiles: every image in tts_assets/ (excluding
-    card backs) plus unique drone tokens from Drone actions.csv / pictures/."""
+    """Enumerate game tokens as TTS Tiles:
+    - Two-sided tokens: Ephemeral Images (Image / Real and Image / Illusion),
+      Power Plant (2 HP / 1 HP), Tower (4 HP / 3 HP and 2 HP / 1 HP).
+    - Single-sided tokens: Remaining token images in tts_assets/ (same image on both sides).
+    - Unique drone tokens from Drone actions.csv / pictures/ (same image on both sides).
+    """
     tiles: list[dict] = []
-    seen_images: set[str] = set()
+    handled_files: set[str] = set()
 
-    # 1. Images in tts_assets/ (tokens only; card backs excluded)
+    # 1. Two-sided tiles
+    for spec in TWO_SIDED_TILES:
+        front_file = spec["front_file"]
+        back_file = spec["back_file"]
+        handled_files.add(front_file)
+        handled_files.add(back_file)
+
+        front_url = TTS_ASSETS_URL + quote(front_file)
+        back_url = TTS_ASSETS_URL + quote(back_file)
+
+        tiles.append({
+            "name": spec["name"],
+            "description": spec["description"],
+            "gm_notes": spec["gm_notes"],
+            "tags": build_tags(*spec["tags"]),
+            "lua_script": "",
+            "face": front_url,
+            "back": back_url,
+            "type": "2",
+            "thickness": "0.5",
+            "stackable": "true",
+            "_local_images": (TTS_ASSETS_DIR / front_file, TTS_ASSETS_DIR / back_file),
+        })
+
+    # 2. Single-sided token images in tts_assets/ (excluding card backs and two-sided files)
     if TTS_ASSETS_DIR.is_dir():
         for file_path in sorted(TTS_ASSETS_DIR.glob("*.png")):
             filename = file_path.name
-            if filename.endswith("_back.png"):
+            if filename.endswith("_back.png") or filename in handled_files:
                 continue
-            seen_images.add(filename)
+            handled_files.add(filename)
             meta = TTS_ASSET_TOKENS.get(filename, {})
             name = meta.get("name") or file_path.stem.replace("_", " ")
             desc = meta.get("description", "")
@@ -681,10 +753,10 @@ def enumerate_tiles() -> list[dict]:
                 "type": "2",
                 "thickness": "0.5",
                 "stackable": "true",
-                "_local_image": file_path,
+                "_local_images": (file_path,),
             })
 
-    # 2. Unique Drone tokens from Drone actions.csv (art from pictures/)
+    # 3. Unique Drone tokens from Drone actions.csv (art from pictures/)
     seen_drone_groups: set[str] = set()
     for row in read_rows("Drone actions.csv"):
         group = _cell(row, "Group")
@@ -692,9 +764,9 @@ def enumerate_tiles() -> list[dict]:
             continue
         seen_drone_groups.add(group)
         card_img = _cell(row, "CardImg")  # e.g. "Swarm.png", "Gun Tower.png", "Attack Dog.png"
-        if not card_img or card_img in seen_images:
+        if not card_img or card_img in handled_files:
             continue
-        seen_images.add(card_img)
+        handled_files.add(card_img)
 
         hp = _int(row, "Drone_Health")
         mv = _cell(row, "Drone_MV") or "0"
@@ -724,7 +796,7 @@ def enumerate_tiles() -> list[dict]:
             "type": "2",
             "thickness": "0.5",
             "stackable": "true",
-            "_local_image": PICTURES_DIR / card_img,
+            "_local_images": (PICTURES_DIR / card_img,),
         })
 
     return tiles
@@ -818,7 +890,10 @@ def main():
         for name in missing_cards:
             print(f"  {name}")
 
-    missing_tiles = [t["name"] for t in tiles if not t["_local_image"].is_file()]
+    missing_tiles = [
+        t["name"] for t in tiles
+        if any(not p.is_file() for p in t.get("_local_images", ()))
+    ]
     if missing_tiles:
         print(f"\nWarning: {len(missing_tiles)} tile image(s) not found locally:")
         for name in missing_tiles:

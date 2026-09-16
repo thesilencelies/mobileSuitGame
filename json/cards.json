@@ -2951,6 +2951,86 @@
   },
   "Tile": {
     "1": {
+      "name": "Ephemeral Image",
+      "description": "Marker for Ephemeral Images",
+      "gm_notes": "ephemeral image",
+      "tags": {
+        "1": "Tile",
+        "2": "Token",
+        "3": "Mystic"
+      },
+      "lua_script": "",
+      "face": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/Image.png",
+      "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/Real.png",
+      "type": "2",
+      "thickness": "0.5",
+      "stackable": "true"
+    },
+    "2": {
+      "name": "Ephemeral Image",
+      "description": "Marker for Ephemeral Images",
+      "gm_notes": "ephemeral image",
+      "tags": {
+        "1": "Tile",
+        "2": "Token",
+        "3": "Mystic"
+      },
+      "lua_script": "",
+      "face": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/Image.png",
+      "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/Illusion.png",
+      "type": "2",
+      "thickness": "0.5",
+      "stackable": "true"
+    },
+    "3": {
+      "name": "Power Plant",
+      "description": "Objective structure (2 HP / 1 HP)",
+      "gm_notes": "2hp / 1hp",
+      "tags": {
+        "1": "Tile",
+        "2": "Token",
+        "3": "Objective"
+      },
+      "lua_script": "",
+      "face": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/PowerPlant2.png",
+      "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/PowerPlant1.png",
+      "type": "2",
+      "thickness": "0.5",
+      "stackable": "true"
+    },
+    "4": {
+      "name": "The Tower (4/3 HP)",
+      "description": "Objective structure with 4 HP / 3 HP (damage reduction 1)",
+      "gm_notes": "4hp / 3hp damage_reduction:1",
+      "tags": {
+        "1": "Tile",
+        "2": "Token",
+        "3": "Objective"
+      },
+      "lua_script": "",
+      "face": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/Tower4.png",
+      "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/Tower3.png",
+      "type": "2",
+      "thickness": "0.5",
+      "stackable": "true"
+    },
+    "5": {
+      "name": "The Tower (2/1 HP)",
+      "description": "Objective structure with 2 HP / 1 HP (damage reduction 1)",
+      "gm_notes": "2hp / 1hp damage_reduction:1",
+      "tags": {
+        "1": "Tile",
+        "2": "Token",
+        "3": "Objective"
+      },
+      "lua_script": "",
+      "face": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/Tower2.png",
+      "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/Tower1.png",
+      "type": "2",
+      "thickness": "0.5",
+      "stackable": "true"
+    },
+    "6": {
       "name": "Barricade",
       "description": "Impassable terrain marker placed by Engineer",
       "gm_notes": "impassable",
@@ -2966,7 +3046,7 @@
       "thickness": "0.5",
       "stackable": "true"
     },
-    "2": {
+    "7": {
       "name": "Cage",
       "description": "Impassable cage marker placed by Bruiser Lockdown",
       "gm_notes": "impassable",
@@ -2982,7 +3062,7 @@
       "thickness": "0.5",
       "stackable": "true"
     },
-    "3": {
+    "8": {
       "name": "Fugitive",
       "description": "Carriable objective token from Extraction",
       "gm_notes": "carriable objective",
@@ -2998,7 +3078,7 @@
       "thickness": "0.5",
       "stackable": "true"
     },
-    "4": {
+    "9": {
       "name": "Gangs",
       "description": "Mobile objective unit from Riverside",
       "gm_notes": "1hp 1mv 1init",
@@ -3014,7 +3094,7 @@
       "thickness": "0.5",
       "stackable": "true"
     },
-    "5": {
+    "10": {
       "name": "Gravity Well",
       "description": "Hazard marker placed by Engineer Gravity Well",
       "gm_notes": "hazard",
@@ -3030,39 +3110,7 @@
       "thickness": "0.5",
       "stackable": "true"
     },
-    "6": {
-      "name": "Illusion",
-      "description": "Decoy marker for Ephemeral Images (removed when attacked or dealing damage)",
-      "gm_notes": "decoy image",
-      "tags": {
-        "1": "Tile",
-        "2": "Token",
-        "3": "Mystic"
-      },
-      "lua_script": "",
-      "face": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/Illusion.png",
-      "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/Illusion.png",
-      "type": "2",
-      "thickness": "0.5",
-      "stackable": "true"
-    },
-    "7": {
-      "name": "Image",
-      "description": "Decoy marker for Ephemeral Images",
-      "gm_notes": "ephemeral image",
-      "tags": {
-        "1": "Tile",
-        "2": "Token",
-        "3": "Mystic"
-      },
-      "lua_script": "",
-      "face": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/Image.png",
-      "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/Image.png",
-      "type": "2",
-      "thickness": "0.5",
-      "stackable": "true"
-    },
-    "8": {
+    "11": {
       "name": "Portal",
       "description": "Teleport portal placed by Wunderkid Portal",
       "gm_notes": "portal",
@@ -3074,54 +3122,6 @@
       "lua_script": "",
       "face": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/Portal.png",
       "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/Portal.png",
-      "type": "2",
-      "thickness": "0.5",
-      "stackable": "true"
-    },
-    "9": {
-      "name": "Power Plant (1 HP)",
-      "description": "Objective structure with 1 HP remaining",
-      "gm_notes": "1hp",
-      "tags": {
-        "1": "Tile",
-        "2": "Token",
-        "3": "Objective"
-      },
-      "lua_script": "",
-      "face": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/PowerPlant1.png",
-      "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/PowerPlant1.png",
-      "type": "2",
-      "thickness": "0.5",
-      "stackable": "true"
-    },
-    "10": {
-      "name": "Power Plant (2 HP)",
-      "description": "Objective structure with 2 HP remaining",
-      "gm_notes": "2hp",
-      "tags": {
-        "1": "Tile",
-        "2": "Token",
-        "3": "Objective"
-      },
-      "lua_script": "",
-      "face": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/PowerPlant2.png",
-      "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/PowerPlant2.png",
-      "type": "2",
-      "thickness": "0.5",
-      "stackable": "true"
-    },
-    "11": {
-      "name": "Real Frame",
-      "description": "Real frame marker for Ephemeral Images",
-      "gm_notes": "real frame",
-      "tags": {
-        "1": "Tile",
-        "2": "Token",
-        "3": "Mystic"
-      },
-      "lua_script": "",
-      "face": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/Real.png",
-      "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/Real.png",
       "type": "2",
       "thickness": "0.5",
       "stackable": "true"
@@ -3207,70 +3207,6 @@
       "stackable": "true"
     },
     "17": {
-      "name": "The Tower (1 HP)",
-      "description": "Objective structure with 1 HP remaining (damage reduction 1)",
-      "gm_notes": "1hp damage_reduction:1",
-      "tags": {
-        "1": "Tile",
-        "2": "Token",
-        "3": "Objective"
-      },
-      "lua_script": "",
-      "face": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/Tower1.png",
-      "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/Tower1.png",
-      "type": "2",
-      "thickness": "0.5",
-      "stackable": "true"
-    },
-    "18": {
-      "name": "The Tower (2 HP)",
-      "description": "Objective structure with 2 HP remaining (damage reduction 1)",
-      "gm_notes": "2hp damage_reduction:1",
-      "tags": {
-        "1": "Tile",
-        "2": "Token",
-        "3": "Objective"
-      },
-      "lua_script": "",
-      "face": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/Tower2.png",
-      "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/Tower2.png",
-      "type": "2",
-      "thickness": "0.5",
-      "stackable": "true"
-    },
-    "19": {
-      "name": "The Tower (3 HP)",
-      "description": "Objective structure with 3 HP remaining (damage reduction 1)",
-      "gm_notes": "3hp damage_reduction:1",
-      "tags": {
-        "1": "Tile",
-        "2": "Token",
-        "3": "Objective"
-      },
-      "lua_script": "",
-      "face": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/Tower3.png",
-      "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/Tower3.png",
-      "type": "2",
-      "thickness": "0.5",
-      "stackable": "true"
-    },
-    "20": {
-      "name": "The Tower (4 HP)",
-      "description": "Objective structure with 4 HP remaining (damage reduction 1)",
-      "gm_notes": "4hp damage_reduction:1",
-      "tags": {
-        "1": "Tile",
-        "2": "Token",
-        "3": "Objective"
-      },
-      "lua_script": "",
-      "face": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/Tower4.png",
-      "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/Tower4.png",
-      "type": "2",
-      "thickness": "0.5",
-      "stackable": "true"
-    },
-    "21": {
       "name": "Swarm",
       "description": "Ouwa drone unit summoned by Swarm action",
       "gm_notes": "drone:3hp 3mv\natk:1M pierce\nBlk:1M\nfaction:Ouwa",
@@ -3287,7 +3223,7 @@
       "thickness": "0.5",
       "stackable": "true"
     },
-    "22": {
+    "18": {
       "name": "Gun Tower",
       "description": "Guild drone unit summoned by Gun Tower action",
       "gm_notes": "drone:2hp 0mv\natk:1H@4 projectile\nBlk:1L\nfaction:Guild",
@@ -3304,7 +3240,7 @@
       "thickness": "0.5",
       "stackable": "true"
     },
-    "23": {
+    "19": {
       "name": "Attack Dog",
       "description": "Aegis drone unit summoned by Attack Dog action",
       "gm_notes": "drone:1hp 4mv\natk:1L cut\nBlk:1L\nfaction:Aegis",
