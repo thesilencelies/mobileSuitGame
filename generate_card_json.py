@@ -2,39 +2,59 @@
 """
 generate_card_json.py
 
-Writes json/cards.json: every card's Tabletop Simulator metadata in one file,
-each keyed by the GitHub URL of its card image.
+Writes json/cards.json: Tabletop Simulator metadata for all cards, tiles (tokens),
+and figurines in one file.
 
-The schema is fixed by TTS, so no fields can be added:
+The schema matches the TTS custom-object import format:
 
     {
-      "<raw.githubusercontent URL of a card's AllCardImages PNG>": {
-        "name":        "<Group> <Name>",
-        "description": "<one clarifying line per keyword printed on the card>",
-        "gm_notes":    "<every stat, then the card text, newline separated>",
-        "tags":        {"1": "Card", "2": "Action", "3": "Weapon", "4": "Aegis"}
+      "Card": {
+        "1": {
+          "name":        "<Name>",
+          "description": "<one clarifying line per keyword printed on the card>",
+          "gm_notes":    "<every stat, then the card text, newline separated>",
+          "tags":        {"1": "Card", "2": "Action", "3": "Weapon", "4": "Factionless"},
+          "lua_script":  "",
+          "face":        "<raw.githubusercontent URL of front image in AllCardImages>",
+          "back":        "<raw.githubusercontent URL of card back in tts_assets>",
+          "type":        "0",
+          "sideways":    "false"
+        }, ...
       },
-      "<... one entry per card, in CSV order ...>": { }
+      "Tile": {
+        "1": {
+          "name":        "<Name>",
+          "description": "<description of token>",
+          "gm_notes":    "<rules / stats>",
+          "tags":        {"1": "Tile", "2": "Token", "3": "..."},
+          "lua_script":  "",
+          "face":        "<raw.githubusercontent URL of token image>",
+          "back":        "<raw.githubusercontent URL of token image>",
+          "type":        "2",
+          "thickness":   "0.5",
+          "stackable":   "true"
+        }, ...
+      },
+      "Token": {},
+      "Figurine": {
+        "1": {
+          "name":        "<Frame Name>",
+          "description": "<description / keywords>",
+          "gm_notes":    "<frame stats and abilities>",
+          "tags":        {"1": "Figurine", "2": "Frame", "3": "<Faction>"},
+          "lua_script":  "",
+          "face":        "<raw.githubusercontent URL of transparent mech art in pictures/foreground/>",
+          "back":        "<raw.githubusercontent URL of transparent mech art in pictures/foreground/>"
+        }, ...
+      }
     }
 
-Sources, all read straight from the repo-root CSVs (PrintID == 0 rows skipped,
-the same "not part of the game" convention the rest of the pipeline uses):
-
+Sources:
     Weapon/Basic/Booster/Pilot/Drone actions.csv -> Card, Action, <the card type>
-    Frames.csv                                   -> Card, Frame
-
-with the card's faction as the last tag on every card ("Factionless" for the
-majority of cards, which have no Faction cell).
-
-The image URL points at AllCardImages/, whose filenames `generate_card_images.py
---all` produces; this script reuses that module's `card_image_name()` so the two
-cannot drift, and URL-encodes the result (many card images have spaces in them).
-
-Card text is LaTeX. The keyword macros (`\\fulldazed` -> "Dazed (-2 card)") are
-expanded from the *same* dictionaries `generateCards.py` builds card_macros.tex
-from, so a keyword edited there flows through to the JSON. Only the longer
-`description` sentences are held here, in GLOSSARY -- and a startup check fails
-loudly if a keyword exists in generateCards.py without a GLOSSARY entry.
+    Frames.csv                                   -> Card, Frame (and Figurine)
+    Terrain_square.csv                           -> Card, Terrain / Objective
+    tts_assets/*.png                             -> Tile (tokens)
+    Drone actions.csv (art in pictures/)         -> Tile (drone tokens)
 
 Usage:
     python generate_card_json.py
@@ -45,6 +65,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import json
 import os
 import re
 import sys
@@ -52,20 +73,33 @@ from pathlib import Path
 from typing import Callable, Optional
 from urllib.parse import quote
 
-from generate_card_images import ACTION_CSVS, FRAMES_CSV, card_image_name, _print_id_nonzero
+from generate_card_images import (
+    ACTION_CSVS,
+    FRAMES_CSV,
+    TERRAIN_CSV,
+    card_image_name,
+    _print_id_nonzero,
+)
 
 WORKSPACE = Path(__file__).parent
 IMAGE_DIR = WORKSPACE / "AllCardImages"
+TTS_ASSETS_DIR = WORKSPACE / "tts_assets"
+PICTURES_DIR = WORKSPACE / "pictures"
 
-GITHUB_RAW_BASE = (
+GITHUB_REPO_RAW = (
     "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/"
-    "refs/heads/master/AllCardImages/"
+    "refs/heads/master/"
 )
+ALL_CARD_IMAGES_URL = GITHUB_REPO_RAW + "AllCardImages/"
+TTS_ASSETS_URL = GITHUB_REPO_RAW + "tts_assets/"
+PICTURES_URL = GITHUB_REPO_RAW + "pictures/"
+
+NORMAL_CARD_BACK_URL = TTS_ASSETS_URL + "normal_back.png"
+FRAMES_CARD_BACK_URL = TTS_ASSETS_URL + "frames_back.png"
+TERRAIN_CARD_BACK_URL = TTS_ASSETS_URL + "terrain_back.png"
 
 #: TTS object tags, in the order they are numbered: everything is a Card, then
-#: Action or Frame, then the card's own type, then its faction.
-#: source CSV -> the type tag its cards carry. The two Basic actions.csv groups
-#: (the "Basic" moves and the faction "Frame" abilities) are both Basic actions.
+#: Action or Frame or Terrain/Objective, then the card's own type, then its faction.
 CARD_TYPE_TAGS = {
     "Weapon actions.csv": "Weapon",
     "Basic actions.csv": "Basic",
@@ -78,9 +112,133 @@ FACTIONLESS_TAG = "Factionless"
 
 ZONES = (("High", "H"), ("Mid", "M"), ("Low", "L"))
 
+#: Known token metadata for token images in tts_assets/
+TTS_ASSET_TOKENS: dict[str, dict] = {
+    "Barricade.png": {
+        "name": "Barricade",
+        "description": "Impassable terrain marker placed by Engineer",
+        "gm_notes": "impassable",
+        "tags": ("Tile", "Token", "Engineer"),
+    },
+    "Cage.png": {
+        "name": "Cage",
+        "description": "Impassable cage marker placed by Bruiser Lockdown",
+        "gm_notes": "impassable",
+        "tags": ("Tile", "Token", "Bruiser"),
+    },
+    "Fugitive.png": {
+        "name": "Fugitive",
+        "description": "Carriable objective token from Extraction",
+        "gm_notes": "carriable objective",
+        "tags": ("Tile", "Token", "Objective"),
+    },
+    "Gangs.png": {
+        "name": "Gangs",
+        "description": "Mobile objective unit from Riverside",
+        "gm_notes": "1hp 1mv 1init",
+        "tags": ("Tile", "Token", "Objective"),
+    },
+    "GravityWell.png": {
+        "name": "Gravity Well",
+        "description": "Hazard marker placed by Engineer Gravity Well",
+        "gm_notes": "hazard",
+        "tags": ("Tile", "Token", "Engineer"),
+    },
+    "Illusion.png": {
+        "name": "Illusion",
+        "description": "Decoy marker for Ephemeral Images (removed when attacked or dealing damage)",
+        "gm_notes": "decoy image",
+        "tags": ("Tile", "Token", "Mystic"),
+    },
+    "Image.png": {
+        "name": "Image",
+        "description": "Decoy marker for Ephemeral Images",
+        "gm_notes": "ephemeral image",
+        "tags": ("Tile", "Token", "Mystic"),
+    },
+    "Portal.png": {
+        "name": "Portal",
+        "description": "Teleport portal placed by Wunderkid Portal",
+        "gm_notes": "portal",
+        "tags": ("Tile", "Token", "Wunderkid"),
+    },
+    "PowerPlant1.png": {
+        "name": "Power Plant (1 HP)",
+        "description": "Objective structure with 1 HP remaining",
+        "gm_notes": "1hp",
+        "tags": ("Tile", "Token", "Objective"),
+    },
+    "PowerPlant2.png": {
+        "name": "Power Plant (2 HP)",
+        "description": "Objective structure with 2 HP remaining",
+        "gm_notes": "2hp",
+        "tags": ("Tile", "Token", "Objective"),
+    },
+    "Real.png": {
+        "name": "Real Frame",
+        "description": "Real frame marker for Ephemeral Images",
+        "gm_notes": "real frame",
+        "tags": ("Tile", "Token", "Mystic"),
+    },
+    "Rebound.png": {
+        "name": "Rebound",
+        "description": "Rebound marker for line of sight and targeting",
+        "gm_notes": "rebound",
+        "tags": ("Tile", "Token", "Specialist"),
+    },
+    "Refugees.png": {
+        "name": "Refugees",
+        "description": "Mobile objective unit from Car Park",
+        "gm_notes": "1hp 1mv 1init",
+        "tags": ("Tile", "Token", "Objective"),
+    },
+    "Relic.png": {
+        "name": "Relic",
+        "description": "Carriable objective token from Lake Crosses",
+        "gm_notes": "carriable objective",
+        "tags": ("Tile", "Token", "Objective"),
+    },
+    "Shiny.png": {
+        "name": "Shiny Thing",
+        "description": "Carriable objective token from Shiny Thing",
+        "gm_notes": "carriable objective",
+        "tags": ("Tile", "Token", "Objective"),
+    },
+    "Storm.png": {
+        "name": "Psychic Storm",
+        "description": "Psychic storm hazard marker placed by Mystic",
+        "gm_notes": "hazard:deals 1H energy at end of turn to units within 3",
+        "tags": ("Tile", "Token", "Mystic"),
+    },
+    "Tower1.png": {
+        "name": "The Tower (1 HP)",
+        "description": "Objective structure with 1 HP remaining (damage reduction 1)",
+        "gm_notes": "1hp damage_reduction:1",
+        "tags": ("Tile", "Token", "Objective"),
+    },
+    "Tower2.png": {
+        "name": "The Tower (2 HP)",
+        "description": "Objective structure with 2 HP remaining (damage reduction 1)",
+        "gm_notes": "2hp damage_reduction:1",
+        "tags": ("Tile", "Token", "Objective"),
+    },
+    "Tower3.png": {
+        "name": "The Tower (3 HP)",
+        "description": "Objective structure with 3 HP remaining (damage reduction 1)",
+        "gm_notes": "3hp damage_reduction:1",
+        "tags": ("Tile", "Token", "Objective"),
+    },
+    "Tower4.png": {
+        "name": "The Tower (4 HP)",
+        "description": "Objective structure with 4 HP remaining (damage reduction 1)",
+        "gm_notes": "4hp damage_reduction:1",
+        "tags": ("Tile", "Token", "Objective"),
+    },
+}
+
 
 def build_tags(*names: str) -> dict[str, str]:
-    """TTS numbers its tags from "1"; a card is tagged broadest-first."""
+    """TTS numbers its tags from "1"; a card/tile/figurine is tagged broadest-first."""
     return {str(number): name for number, name in enumerate(names, start=1)}
 
 
@@ -268,8 +426,7 @@ def latex_to_text(raw: str) -> str:
 # --------------------------------------------------------------------------
 
 def _int(row: dict, column: str) -> int:
-    """CSV cell -> int. Blank, missing (pilots have no attack columns) or
-    non-numeric all mean 0."""
+    """CSV cell -> int. Blank, missing or non-numeric all mean 0."""
     raw = (row.get(column) or "").strip().replace("+", "")
     try:
         return int(raw)
@@ -375,6 +532,22 @@ def frame_gm_notes(row: dict) -> str:
     return "\n".join(lines)
 
 
+def terrain_gm_notes(row: dict) -> str:
+    lines = []
+    defend = _int(row, "Defend Points")
+    attack = _int(row, "Attack Points")
+    tokens = _int(row, "Tokens")
+    if defend > 0 or attack > 0:
+        lines.append(f"defend:{defend}pts")
+        lines.append(f"attack:{attack}pts")
+    if tokens > 0:
+        lines.append(f"tokens:{tokens}")
+    rules = latex_to_text(_cell(row, "Rules"))
+    if rules:
+        lines.append(rules)
+    return "\n".join(lines)
+
+
 # --------------------------------------------------------------------------
 # description
 # --------------------------------------------------------------------------
@@ -405,24 +578,6 @@ def description_for(text: str, row: dict, is_pilot: bool) -> str:
 # Card enumeration
 # --------------------------------------------------------------------------
 
-class CardEntry:
-    """One card's finished JSON payload, keyed by its card-image URL."""
-
-    def __init__(self, image_name: str, name: str, description: str, gm_notes: str, tags: dict):
-        self.image_name = image_name
-        self.name = name
-        self.description = description
-        self.gm_notes = gm_notes
-        self.tags = tags
-
-    @property
-    def url(self) -> str:
-        # AllCardImages filenames keep the spaces and apostrophes of the card
-        # names ("Sniper Rifle_Patience's Reward.png"), so the URL must escape them
-        return GITHUB_RAW_BASE + quote(self.image_name)
-
-
-
 def read_rows(csv_name: str) -> list[dict]:
     path = WORKSPACE / csv_name
     if not path.is_file():
@@ -431,75 +586,188 @@ def read_rows(csv_name: str) -> list[dict]:
         return [row for row in csv.DictReader(fh) if _print_id_nonzero(row)]
 
 
-def enumerate_cards() -> list[CardEntry]:
-    entries: list[CardEntry] = []
+def enumerate_cards() -> list[dict]:
+    entries: list[dict] = []
 
+    # 1. Action cards
     for csv_name in ACTION_CSVS:
         type_tag = CARD_TYPE_TAGS[csv_name]
         is_pilot = csv_name == "Pilot actions.csv"
         is_drone = csv_name == "Drone actions.csv"
         for row in read_rows(csv_name):
             gm_notes = action_gm_notes(row, is_pilot, is_drone)
-            entries.append(CardEntry(
-                # build/card/*.tex and AllCardImages/*.png are both the literal
-                # "{Group}_{Name}" engine key
-                image_name=f"{_cell(row, 'Group')}_{_cell(row, 'Name')}.png",
-                name=card_display_name(row),
-                description=description_for(gm_notes, row, is_pilot),
-                gm_notes=gm_notes,
-                tags=build_tags("Card", "Action", type_tag, faction_tag(row)),
-            ))
+            image_name = f"{_cell(row, 'Group')}_{_cell(row, 'Name')}.png"
+            entries.append({
+                "name": card_display_name(row),
+                "description": description_for(gm_notes, row, is_pilot),
+                "gm_notes": gm_notes,
+                "tags": build_tags("Card", "Action", type_tag, faction_tag(row)),
+                "lua_script": "",
+                "face": ALL_CARD_IMAGES_URL + quote(image_name),
+                "back": NORMAL_CARD_BACK_URL,
+                "type": "0",
+                "sideways": "false",
+                "_local_image": IMAGE_DIR / image_name,
+            })
 
+    # 2. Frame cards
     for row in read_rows(FRAMES_CSV):
         gm_notes = frame_gm_notes(row)
-        entries.append(CardEntry(
-            image_name=card_image_name(f"frame/{_cell(row, 'Name')}.tex"),
-            name=_cell(row, "Name"),
-            description=description_for(gm_notes, row, is_pilot=False),
-            gm_notes=gm_notes,
-            tags=build_tags("Card", "Frame", faction_tag(row)),
-        ))
+        image_name = card_image_name(f"frame/{_cell(row, 'Name')}.tex")
+        entries.append({
+            "name": _cell(row, "Name"),
+            "description": description_for(gm_notes, row, is_pilot=False),
+            "gm_notes": gm_notes,
+            "tags": build_tags("Card", "Frame", faction_tag(row)),
+            "lua_script": "",
+            "face": ALL_CARD_IMAGES_URL + quote(image_name),
+            "back": FRAMES_CARD_BACK_URL,
+            "type": "0",
+            "sideways": "false",
+            "_local_image": IMAGE_DIR / image_name,
+        })
+
+    # 3. Terrain / Objective cards
+    for row in read_rows(TERRAIN_CSV):
+        gm_notes = terrain_gm_notes(row)
+        image_name = card_image_name(f"terrain/{_cell(row, 'Name')}.tex")
+        is_obj = _int(row, "Defend Points") > 0 or _int(row, "Attack Points") > 0
+        tags = build_tags("Card", "Objective" if is_obj else "Terrain")
+        entries.append({
+            "name": _cell(row, "Name"),
+            "description": description_for(gm_notes, row, is_pilot=False),
+            "gm_notes": gm_notes,
+            "tags": tags,
+            "lua_script": "",
+            "face": ALL_CARD_IMAGES_URL + quote(image_name),
+            "back": TERRAIN_CARD_BACK_URL,
+            "type": "0",
+            "sideways": "false",
+            "_local_image": IMAGE_DIR / image_name,
+        })
 
     if not entries:
-        sys.exit("Error: no printable rows found across the action and frame CSVs.")
+        sys.exit("Error: no printable rows found across action, frame, and terrain CSVs.")
     return entries
+
+
+def enumerate_tiles() -> list[dict]:
+    """Enumerate game tokens as TTS Tiles: every image in tts_assets/ (excluding
+    card backs) plus unique drone tokens from Drone actions.csv / pictures/."""
+    tiles: list[dict] = []
+    seen_images: set[str] = set()
+
+    # 1. Images in tts_assets/ (tokens only; card backs excluded)
+    if TTS_ASSETS_DIR.is_dir():
+        for file_path in sorted(TTS_ASSETS_DIR.glob("*.png")):
+            filename = file_path.name
+            if filename.endswith("_back.png"):
+                continue
+            seen_images.add(filename)
+            meta = TTS_ASSET_TOKENS.get(filename, {})
+            name = meta.get("name") or file_path.stem.replace("_", " ")
+            desc = meta.get("description", "")
+            gm = meta.get("gm_notes", "")
+            tag_names = meta.get("tags") or ("Tile", "Token")
+            url = TTS_ASSETS_URL + quote(filename)
+            tiles.append({
+                "name": name,
+                "description": desc,
+                "gm_notes": gm,
+                "tags": build_tags(*tag_names),
+                "lua_script": "",
+                "face": url,
+                "back": url,
+                "type": "2",
+                "thickness": "0.5",
+                "stackable": "true",
+                "_local_image": file_path,
+            })
+
+    # 2. Unique Drone tokens from Drone actions.csv (art from pictures/)
+    seen_drone_groups: set[str] = set()
+    for row in read_rows("Drone actions.csv"):
+        group = _cell(row, "Group")
+        if group in seen_drone_groups:
+            continue
+        seen_drone_groups.add(group)
+        card_img = _cell(row, "CardImg")  # e.g. "Swarm.png", "Gun Tower.png", "Attack Dog.png"
+        if not card_img or card_img in seen_images:
+            continue
+        seen_images.add(card_img)
+
+        hp = _int(row, "Drone_Health")
+        mv = _cell(row, "Drone_MV") or "0"
+        atk = attack_line(row)
+        blk = block_line(row, is_pilot=False)
+        faction = faction_tag(row)
+
+        gm_parts = [f"drone:{hp}hp {mv}mv"]
+        if atk:
+            gm_parts.append(atk)
+        if blk:
+            gm_parts.append(blk)
+        if _cell(row, "Faction"):
+            gm_parts.append(f"faction:{faction}")
+        gm = "\n".join(gm_parts)
+
+        desc = f"{faction} drone unit summoned by {group} action"
+        url = PICTURES_URL + quote(card_img)
+        tiles.append({
+            "name": group,
+            "description": desc,
+            "gm_notes": gm,
+            "tags": build_tags("Tile", "Token", "Drone", faction),
+            "lua_script": "",
+            "face": url,
+            "back": url,
+            "type": "2",
+            "thickness": "0.5",
+            "stackable": "true",
+            "_local_image": PICTURES_DIR / card_img,
+        })
+
+    return tiles
+
+
+def enumerate_figurines() -> list[dict]:
+    """Supply each frame's transparent mech artwork as the front and back of a Figurine."""
+    figurines: list[dict] = []
+    for row in read_rows(FRAMES_CSV):
+        name = _cell(row, "Name")
+        gm_notes = frame_gm_notes(row)
+        mech_img = _cell(row, "CardImg")  # e.g. "foreground/aegis_percival.png"
+        url = PICTURES_URL + quote(mech_img)
+        figurines.append({
+            "name": name,
+            "description": description_for(gm_notes, row, is_pilot=False),
+            "gm_notes": gm_notes,
+            "tags": build_tags("Figurine", "Frame", faction_tag(row)),
+            "lua_script": "",
+            "face": url,
+            "back": url,
+            "_local_image": PICTURES_DIR / mech_img,
+        })
+    return figurines
 
 
 # --------------------------------------------------------------------------
 # Output
 # --------------------------------------------------------------------------
 
-def _esc(value: str) -> str:
-    return (value.replace("\\", "\\\\").replace('"', '\\"')
-            .replace("\n", "\\n").replace("\t", "\\t"))
-
-
-def json_entry(entry: CardEntry) -> str:
-    """One URL -> card block, indented to sit inside the cards.json object."""
-    tags = ",\n".join(f'      "{key}": "{_esc(value)}"' for key, value in entry.tags.items())
-    return (
-        f'  "{_esc(entry.url)}":\n'
-        "  {\n"
-        f'    "name": "{_esc(entry.name)}",\n'
-        f'    "description": "{_esc(entry.description)}",\n'
-        f'    "gm_notes": "{_esc(entry.gm_notes)}",\n'
-        '    "tags":\n'
-        "    {\n"
-        f"{tags}\n"
-        "    }\n"
-        "  }"
-    )
-
-
-def json_document(entries: list[CardEntry]) -> str:
-    """Written by hand rather than json.dump so the file keeps the layout of the
-    TTS exports it has to sit alongside (each URL key on its own line)."""
-    return "{\n" + ",\n".join(json_entry(entry) for entry in entries) + "\n}\n"
+def to_indexed_dict(entries: list[dict]) -> dict[str, dict]:
+    """Convert a list of items to a stringified 1-based indexed dict (1, 2, 3...).
+    Strips internal helper keys (like `_local_image`)."""
+    out: dict[str, dict] = {}
+    for idx, entry in enumerate(entries, start=1):
+        clean = {k: v for k, v in entry.items() if not k.startswith("_")}
+        out[str(idx)] = clean
+    return out
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Write every card's Tabletop Simulator metadata to json/cards.json."
+        description="Write Tabletop Simulator metadata to json/cards.json."
     )
     parser.add_argument("--output", default="json/cards.json",
                         help="File to write (default: json/cards.json).")
@@ -513,30 +781,53 @@ def main():
     output_path = WORKSPACE / args.output
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    entries = enumerate_cards()
+    cards = enumerate_cards()
+    tiles = enumerate_tiles()
+    figurines = enumerate_figurines()
 
-    # the URL is the key, so two cards resolving to one image would silently
-    # overwrite each other once TTS parsed the file
-    seen: dict[str, str] = {}
-    for entry in entries:
-        clash = seen.get(entry.url)
-        if clash:
-            sys.exit(f"Error: '{entry.name}' and '{clash}' share the image {entry.image_name}")
-        seen[entry.url] = entry.name
+    doc = {
+        "Card": to_indexed_dict(cards),
+        "Tile": to_indexed_dict(tiles),
+        "Token": {},
+        "Figurine": to_indexed_dict(figurines),
+    }
 
-    output_path.write_text(json_document(entries), encoding="utf-8")
+    json_text = json.dumps(doc, indent=2, ensure_ascii=False) + "\n"
+    output_path.write_text(json_text, encoding="utf-8")
+
     if not args.quiet:
-        for entry in entries:
-            print(f"  {entry.name}  <- {entry.image_name}")
+        print(f"Cards ({len(cards)}):")
+        for c in cards:
+            print(f"  {c['name']}  <- {c['face']}")
+        print(f"\nTiles ({len(tiles)}):")
+        for t in tiles:
+            print(f"  {t['name']}  <- {t['face']}")
+        print(f"\nFigurines ({len(figurines)}):")
+        for f in figurines:
+            print(f"  {f['name']}  <- {f['face']}")
 
-    print(f"\nWrote {len(entries)} card(s) to {output_path.relative_to(WORKSPACE)}")
+    print(
+        f"\nWrote {len(cards)} card(s), {len(tiles)} tile(s), and {len(figurines)} figurine(s) "
+        f"to {output_path.relative_to(WORKSPACE)}"
+    )
 
-    missing = [entry.image_name for entry in entries
-               if not (IMAGE_DIR / entry.image_name).is_file()]
-    if missing:
-        print(f"\nWarning: {len(missing)} card image(s) are not in {IMAGE_DIR.name}/, so their "
-              "URLs will 404 until\n`python generate_card_images.py --all` is re-run:")
-        for name in missing:
+    # Check local image existence
+    missing_cards = [c["name"] for c in cards if not c["_local_image"].is_file()]
+    if missing_cards:
+        print(f"\nWarning: {len(missing_cards)} card image(s) not found in {IMAGE_DIR.name}/:")
+        for name in missing_cards:
+            print(f"  {name}")
+
+    missing_tiles = [t["name"] for t in tiles if not t["_local_image"].is_file()]
+    if missing_tiles:
+        print(f"\nWarning: {len(missing_tiles)} tile image(s) not found locally:")
+        for name in missing_tiles:
+            print(f"  {name}")
+
+    missing_figurines = [f["name"] for f in figurines if not f["_local_image"].is_file()]
+    if missing_figurines:
+        print(f"\nWarning: {len(missing_figurines)} figurine image(s) not found locally:")
+        for name in missing_figurines:
             print(f"  {name}")
 
     strays = sorted(p.name for p in output_path.parent.glob("*.json") if p != output_path)
