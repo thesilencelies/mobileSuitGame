@@ -70,6 +70,7 @@ PREAMBLE = r"""\documentclass{{article}}
 
 \setlength{{\parindent}}{{0pt}}
 \setlength{{\parskip}}{{0pt}}
+\setlength{{\topskip}}{{0pt}}
 \pagestyle{{empty}}
 
 \begin{{document}}
@@ -177,8 +178,9 @@ def generate_latex(cards: list[str], bleed: float, cols: int, rows: int,
         grid_height = rows * CARD_HEIGHT_CM + (rows - 1) * bleed
         margin_x = max(0.0, (A4_WIDTH_CM - grid_width) / 2.0)
         margin_top = max(0.0, (A4_HEIGHT_CM - grid_height) / 2.0)
-        # Leave slack on the bottom margin to avoid LaTeX inserting spurious blank pages
-        margin_bottom = max(0.0, min(margin_top, 1.0))
+        # Give textheight enough vertical slack at the bottom so LaTeX does not break
+        # across pages between rows (cards are physically positioned from margin_top).
+        margin_bottom = max(0.0, min(margin_top, 0.4))
         geometry = (
             f"% A4 landscape with cards centered\n"
             f"\\geometry{{\n"
