@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""
+r"""
 generate_card_sheet.py
 
 Reads a CSV file of card .tex filenames (one per line, no header) and generates
 a LaTeX file that lays them out in a grid suitable for Tabletop Simulator
 custom card sheets.
 
-Each card is a TikZ image of 6.4cm × 8.9cm, included via \\input{}.
+Each card is a TikZ image of 6.9cm × 9.4cm (6.4cm × 8.9cm with 2.5mm bleed on all sides), included via \input{}.
 Cards fill left-to-right, top-to-bottom. If the final sheet has fewer cards
 than the grid, the remaining cells are left blank.
 
@@ -41,8 +41,8 @@ import sys
 DEFAULT_COLS = 10
 DEFAULT_ROWS = 7
 
-CARD_WIDTH_CM  = 6.4
-CARD_HEIGHT_CM = 8.9
+CARD_WIDTH_CM  = 6.9
+CARD_HEIGHT_CM = 9.4
 
 # Maps a deck --type to the build/ subfolder its card .tex files live in.
 # Per-card, frame and terrain tiles live in their own subfolders (see generateCards.py),
@@ -99,12 +99,16 @@ EMPTY_CELL = r"""\hbox to {width}cm{{\hss
 FINAL_CELL = r"""\hbox to {width}cm{{\hss
   \begin{{minipage}}[t][{height}cm][t]{{{width}cm}}%
     \vspace{{0pt}}%
-    \begin{{tikzpicture}}[backbox/.style= {{rectangle, minimum height = 8.9cm, minimum width =6.35cm, rounded corners = 0.3cm, fill=white, opacity=0.75}}]
-    \node [rectangle, minimum width = 6.4cm, minimum height = 8.7cm, fill=black!70!white!30] at (3.25,4.5){{}};
-    \draw[<->, line width=12pt, draw={color}] (0.6,0.5) -- (5.8, 8.4);
-    \draw[<->, line width=12pt, draw={color}] (5.8,0.5) -- (0.6, 8.4);
-    \node [rectangle, draw, rounded corners = 0.4cm, minimum width = 5cm, minimum height=2cm, fill=blue!10] at (3.25,4.5) {{}};
-    \node [circle, draw, minimum width = 3.4cm, fill=blue!10] at (3.25,4.5) {{\Large{{{text}}}}};
+    \begin{{tikzpicture}}[backbox/.style= {{rectangle, minimum height = 8.4cm, minimum width =5.9cm, rounded corners = 0.3cm, fill=white, opacity=0.75}}]
+    \node (cardbleed) [rectangle, minimum width = 6.9cm, minimum height = 9.4cm, fill=black] at (3.45,4.7){{}};
+    \useasboundingbox (0,0) rectangle (6.9, 9.4);
+    \clip (0,0) rectangle (6.9, 9.4);
+    \node (cardbg) [rectangle, minimum width = 5.9cm, minimum height = 8.4cm, fill=black!70!white!30] at (3.45,4.7){{}};
+    \draw[<->, line width=12pt, draw={color}] (0.8,0.7) -- (6.1, 8.7);
+    \draw[<->, line width=12pt, draw={color}] (6.1,0.7) -- (0.8, 8.7);
+    \node [rectangle, draw, rounded corners = 0.4cm, minimum width = 4.8cm, minimum height=1.8cm, fill=blue!10] at (3.45,4.7) {{}};
+    \node [circle, draw, minimum width = 3.2cm, fill=blue!10] at (3.45,4.7) {{\Large{{{text}}}}};
+    \fill[black, even odd rule] (cardbleed.south west) rectangle (cardbleed.north east) (cardbg.south west) rectangle (cardbg.north east);
     \end{{tikzpicture}}
   \end{{minipage}}%
   \hss}}%

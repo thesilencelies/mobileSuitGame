@@ -124,69 +124,57 @@ def rc():
 # Flat card background (the whole-card artwork background is gone; art is boxed).
 CARD_BG = "black!42!white"
 
+# Card finished (cut) size is 6.4cm x 8.9cm.
+# A 5mm black bleed runs around the edge: 2.5mm inside the 6.4x8.9cm cut line
+# and 2.5mm outside it, giving a total outer card size of 6.9cm x 9.4cm
+# and an inner safe content area of 5.9cm x 8.4cm.
+CARD_OUTER_W_CM = 6.9
+CARD_OUTER_H_CM = 9.4
+CARD_SAFE_W_CM = 5.9
+CARD_SAFE_H_CM = 8.4
+
 # Art zone (left). minimum width/height are physical cm; the centre is in tikz
 # units. The zone column is aligned to the art's vertical extent, so ART_TOP /
-# ART_BOT (tikz units) are derived here and reused for both. The card base is
-# 6.2cm wide; art/rules widths and positions leave a small border inside it.
-ART_CX, ART_CY = 2.81, 5.9
-ART_W_CM, ART_H_CM = 3.85, 4.2
+# ART_BOT (tikz units) are derived here and reused for both.
+ART_CX, ART_CY = 2.83, 6.32
+ART_W_CM, ART_H_CM = 3.80, 3.90
 ART_TOP = ART_CY + (ART_H_CM / 2) / card_scale
 ART_BOT = ART_CY - (ART_H_CM / 2) / card_scale
 
-# Full-width bottom rules box: fixed width (inside the card border) and a fixed
+# Full-width bottom rules box: fixed width (inside the card bleed) and a fixed
 # bottom edge (tikz units); it grows upward by card type. Set info + copyright
 # sit in the compact band below it.
-RULES_W_CM = 5.9
-RULES_BOTTOM = 0.7
+RULES_W_CM = 5.75
+RULES_BOTTOM = 1.15
 
 # Name plate / initiative / movement (top row). Init and movement sit in the
 # top corners; the name plate spans from the init-circle centre to the
 # movement-chevron centre. NAME_H_CM also sizes the init circle and chevron.
-# Fixed height so a one- or two-line (faction) plate keeps its top a hair below
-# the card edge; the init circle and chevron are sized to match this height.
-NAME_CY = 9.26
-NAME_H_CM = 1.1
-INIT_POS = (1.15, NAME_CY)
-MOVE_POS = (6.58, NAME_CY)
-# half-length of the movement chevron (50% longer than the default chevron); the
-# centre above is chosen so the lengthened tip still lands just inside the corner
-MOVE_CHEVRON_W = 0.93
-# chevron half-height in tikz units so it matches the name-plate height
+NAME_CY = 9.20
+NAME_H_CM = 1.05
+INIT_POS = (1.25, NAME_CY)
+MOVE_POS = (6.50, NAME_CY)
+MOVE_CHEVRON_W = 0.85
 CHEVRON_HALF_H = (NAME_H_CM / 2) / card_scale
 
 # Zone boxes (right column). Physical sizes in cm; centres in tikz units.
-# Nudged left of the art centre so the wider super-block marker (see
-# \superblock in card_macros.tex) does not spill past the card's right edge.
-ZONE_CX = 6.12
-ZONE_W_CM = 1.65
-ZONE_H_CM = 1.35
-# Half extents expressed in tikz units (physical cm / card_scale) for drawing
-# shields / positioning icons relative to a box centre.
+# Kept safely inside the right-hand inner bleed boundary.
+ZONE_CX = 6.08
+ZONE_W_CM = 1.60
+ZONE_H_CM = 1.30
 ZONE_HALF_W = (ZONE_W_CM / 2) / card_scale
 ZONE_HALF_H = (ZONE_H_CM / 2) / card_scale
-# The three zone boxes fill the art's vertical span: the High box's top edge
-# lines up with the top of the art, the Low box's bottom with the bottom.
 ZONE_CY = {"High": ART_TOP - ZONE_HALF_H, "Low": ART_BOT + ZONE_HALF_H}
 ZONE_CY["Mid"] = (ZONE_CY["High"] + ZONE_CY["Low"]) / 2
 
-# Frame armour bars / loadout boxes reuse the zone *heights* (vertical alignment
-# with the attack-card zones is what matters) but not the leftward ZONE_CX nudge:
-# frames have no super-block markers, so that extra right-edge clearance isn't
-# needed. Give them their own X centre whose gap to the card edge is half the
-# (wider) zone gap, so they sit further right without spilling.
-CARD_RIGHT = 4 + (6.2 / card_scale) / 2
-FRAME_ZONE_CX = CARD_RIGHT - ZONE_HALF_W - (CARD_RIGHT - (ZONE_CX + ZONE_HALF_W)) / 2
-# Frame ability box (bottom-left) + loadout column geometry. The full-card art
-# region, the three loadout boxes and the ability box all reference these so the
-# loadout column lines up vertically with the ability box.
-ABIL_CX, ABIL_W_CM, ABIL_H_CM = 2.86, 4.1, 2.0
-ABIL_BOTTOM_Y = 1.05
+# Frame armour bars / loadout boxes reuse the zone *heights*
+CARD_SAFE_RIGHT = 4 + (CARD_SAFE_W_CM / card_scale) / 2
+FRAME_ZONE_CX = 6.29
+ABIL_CX, ABIL_W_CM, ABIL_H_CM = 2.88, 3.85, 2.0
+ABIL_BOTTOM_Y = 1.15
 ABIL_TOP_Y = ABIL_BOTTOM_Y + ABIL_H_CM / card_scale
 
-# Pilot cards show a High block and normal Mid box, but a half-height Low box so
-# the rules box can rise higher into the freed space.
 PILOT_LOW_H_CM = ZONE_H_CM / 2
-# top edge kept where the normal Low box's top is; box shrinks downward from there
 PILOT_LOW_CY = (ZONE_CY["Low"] + ZONE_HALF_H) - (PILOT_LOW_H_CM / 2) / card_scale
 
 header_text = "\\documentclass[a4paper, landscape]{article}\n \\usepackage[left =2cm, right = 2cm, " \
@@ -749,14 +737,14 @@ def _render_callouts(callouts, present, y_overrides=None):
 # Gutters the callout labels sit in. Pushed a little further out than the card
 # edge so the larger label text has breathing room from the artwork.
 LEFT_GUTTER = -0.7
-RIGHT_GUTTER = 8.6
+RIGHT_GUTTER = 8.7
 
 # Real heights of the fixed (non-zone) rules-box elements, so each callout's
 # "y" is where its target actually sits rather than a guess -- _render_callouts
 # sorts/stacks labels by this, which is what keeps leader lines from crossing.
 # Mirrors the rules_h branch in make_card_from_row (weapon/drone vs pilot).
-RULES_H_ACTION = 2.3   # weapon/drone rules box height (cm)
-RULES_H_PILOT = 3.0    # pilot rules box height (cm)
+RULES_H_ACTION = 2.40   # weapon/drone rules box height (cm)
+RULES_H_PILOT = 3.00    # pilot rules box height (cm)
 ACTION_RULES_TOP_Y = RULES_BOTTOM + RULES_H_ACTION / card_scale
 ACTION_RULES_CENTER_Y = (RULES_BOTTOM + ACTION_RULES_TOP_Y) / 2
 PILOT_RULES_TOP_Y = RULES_BOTTOM + RULES_H_PILOT / card_scale
@@ -821,7 +809,7 @@ FRAME_CALLOUTS = [
      "desc": "", "aim": "(frame_logo)"},
     {"y": (ABIL_BOTTOM_Y + ABIL_TOP_Y) / 2, "side": "left",  "title": "Abilities",
      "desc": "", "aim": "(frame_ability)"},
-    {"y": 0.5, "side": "left",  "title": "Flavour",
+    {"y": 0.55, "side": "left",  "title": "Flavour",
      "desc": "", "aim": "(setinfo)"},
     {"y": NAME_CY, "side": "auto", "title": "Name / faction",
      "desc": "", "aim": "(frame_name)"},
@@ -839,7 +827,7 @@ FRAME_CALLOUTS = [
 
 # Callouts for a drone card: a weapon-style card that also fields a persistent
 # unit with its own health bar (drone_health) and movement (drone_move), both
-# drawn at y=3.9 (see the drone extras block in make_card_from_row). Health is
+# drawn at y=4.25 (see the drone extras block in make_card_from_row). Health is
 # listed before movement even though it reads second: they target the same
 # height and the health bars sit further from the gutter than the chevron, so
 # putting health's tied-height label on the outside (see _stack_labels) keeps
@@ -847,9 +835,9 @@ FRAME_CALLOUTS = [
 DRONE_CALLOUTS = [
     {"y": NAME_CY, "side": "left",  "title": "Initiative",
      "desc": "Higher acts first.", "aim": "(initbox)"},
-    {"y": 3.9, "side": "left",  "title": "Drone health",
+    {"y": 4.25, "side": "left",  "title": "Drone health",
      "desc": "Drone hit points.", "aim": "(drone_health)"},
-    {"y": 3.9, "side": "left",  "title": "Drone movement",
+    {"y": 4.25, "side": "left",  "title": "Drone movement",
      "desc": "Drone move per turn.", "aim": "(drone_move)"},
     {"y": ACTION_RULES_TOP_Y - 0.42, "side": "left",  "title": "Persistence",
      "desc": "Turns it persists for.", "aim": "(persistence)"},
@@ -876,38 +864,39 @@ def make_card_from_row(row, card_type, group_capability=None, annotate=False, an
     outname = (annotate_outfile or 'build/rules_card.tex') if annotate else cardoutputfolder + row['Group'] + "_" + row['Name'] + '.tex'
     is_pilot = card_type is CardTypeEnum.PILOT
     with open(outname, 'w') as ofile:
-        # --- card base (flat background; art no longer covers the card) -------
+        # --- card base with 5mm black bleed (2.5mm inside cut line, 2.5mm outside) -------
         card_text = f"\\begin{{tikzpicture}}[x={card_scale}cm, y={card_scale}cm]\n "
-        card_text += f"\\node (cardbg)[rectangle, minimum width = 6.2cm, minimum height = 8.5cm, fill={CARD_BG}] at (4,5){{}};\n"
-        # Pin the picture's bounding box to the card and clip to it, so nothing can
+        card_text += f"\\node (cardbleed)[rectangle, minimum width = {CARD_OUTER_W_CM}cm, minimum height = {CARD_OUTER_H_CM}cm, fill=black] at (4,5){{}};\n"
+        # Pin the picture's bounding box to the outer bleed and clip to it, so nothing can
         # spill past the edge and change the card size on the sheet. Skipped when
         # annotating, where the callouts deliberately extend into the gutters.
         if not annotate:
-            card_text += "\\useasboundingbox (cardbg.south west) rectangle (cardbg.north east);\n"
-            card_text += "\\clip (cardbg.south west) rectangle (cardbg.north east);\n"
+            card_text += "\\useasboundingbox (cardbleed.south west) rectangle (cardbleed.north east);\n"
+            card_text += "\\clip (cardbleed.south west) rectangle (cardbleed.north east);\n"
+        card_text += f"\\node (cardbg)[rectangle, minimum width = {CARD_SAFE_W_CM}cm, minimum height = {CARD_SAFE_H_CM}cm, fill={CARD_BG}] at (4,5){{}};\n"
 
         # --- full-card art: spans from just below the name plate down to the
-        # bottom of the rules text and the full width of the card. The zone
+        # bottom of the rules text and the full width of the card safe area. The zone
         # boxes and rules box are drawn over it (at reduced opacity) so the art
         # shows through behind them.
         art_top_y = NAME_CY - (NAME_H_CM / 2) / card_scale
         art_bot_y = RULES_BOTTOM
         art_cy_full = (art_top_y + art_bot_y) / 2
         art_h_full = (art_top_y - art_bot_y) * card_scale  # region height in cm
-        card_left = 4 - (6.2 / card_scale) / 2
-        card_right = 4 + (6.2 / card_scale) / 2
+        card_left = 4 - (CARD_SAFE_W_CM / card_scale) / 2
+        card_right = 4 + (CARD_SAFE_W_CM / card_scale) / 2
         card_text += "\\begin{scope}\n"
         card_text += (f"\\clip ({card_left:.3f}, {art_bot_y:.3f}) rectangle "
                       f"({card_right:.3f}, {art_top_y:.3f});\n")
-        # background layer fills the whole card width (cover; cropped by the scope)
+        # background layer fills the safe card width (cover; cropped by the scope)
         if row.get("BackgroundLayer"):
-            card_text += (f'\\node at (4,{art_cy_full:.3f}){{\\includegraphics[width=6.2cm,'
+            card_text += (f'\\node at (4,{art_cy_full:.3f}){{\\includegraphics[width={CARD_SAFE_W_CM}cm,'
                           ' keepaspectratio]{' + images_folder + row["BackgroundLayer"] + '}};\n')
         # the art itself is height-fitted to the region so it is never cut off
-        card_text += (f'\\node at (4,{art_cy_full:.3f}){{\\includegraphics[width=6.2cm,'
+        card_text += (f'\\node at (4,{art_cy_full:.3f}){{\\includegraphics[width={CARD_SAFE_W_CM}cm,'
                       f' max height={art_h_full:.2f}cm, keepaspectratio]{{' + images_folder + row["CardImg"] + '}};\n')
         if row.get("ForegroundImg"):
-            card_text += (f'\\node at (4,{art_cy_full:.3f}){{\\includegraphics[width=6.2cm,'
+            card_text += (f'\\node at (4,{art_cy_full:.3f}){{\\includegraphics[width={CARD_SAFE_W_CM}cm,'
                           f' max height={art_h_full:.2f}cm, keepaspectratio]{{' + images_folder + row["ForegroundImg"] + '}};\n')
         card_text += "\\end{scope}\n"
 
@@ -1002,10 +991,10 @@ def make_card_from_row(row, card_type, group_capability=None, annotate=False, an
             dch_w, dch_h = 0.55, 0.4
             art_left = ART_CX - (ART_W_CM / 2) / card_scale
             dch_cx = art_left + dch_w  # so the chevron's left edge sits on the art's left edge
-            card_text += draw_chevron(dch_cx, 3.9, "yellow!85!orange", row['Drone_MV'], h=dch_h, w=dch_w)
+            card_text += draw_chevron(dch_cx, 4.25, "yellow!85!orange", row['Drone_MV'], h=dch_h, w=dch_w)
             # drone-movement callout is on the left, so aim at the chevron's left edge
-            card_text += f"\\coordinate (drone_move) at ({dch_cx - dch_w:.3f}, 3.9);\n"
-            card_text += draw_health_bars(int(row["Drone_Health"]), dch_cx + dch_w + 0.28, 3.9, dch_h, name="drone_health")
+            card_text += f"\\coordinate (drone_move) at ({dch_cx - dch_w:.3f}, 4.25);\n"
+            card_text += draw_health_bars(int(row["Drone_Health"]), dch_cx + dch_w + 0.28, 4.25, dch_h, name="drone_health")
 
         # group zone-capability indicator: bottom-left of the rules box
         if group_capability is not None:
@@ -1023,6 +1012,9 @@ def make_card_from_row(row, card_type, group_capability=None, annotate=False, an
         if row.get("Artist"):
             card_text += ("\\node[anchor=north, inner sep=1pt] at ($(setinfo.south)+(0,-0.01)$)"
                           "{\\tiny{\\copyright  LiliCo 2026 \\emph{ Art: " + row["Artist"] + "}}};\n")
+
+        # 5mm black bleed around the edge of the card (2.5mm inside the 64x89mm cut line, 2.5mm outside)
+        card_text += "\\fill[black, even odd rule] (cardbleed.south west) rectangle (cardbleed.north east) (cardbg.south west) rectangle (cardbg.north east);\n"
 
         if annotate:
             present = {"initbox", "movebox", "nameplate", "setinfo"}
@@ -1100,35 +1092,36 @@ def create_frame_sheet(frame, annotate=False, annotate_outfile=None):
     text sits in a box at the bottom-left with the flavour in the set-info line."""
     outname = (annotate_outfile or 'build/rules_frame.tex') if annotate else frameoutputfolder + frame["Name"] + '.tex'
     with open(outname, 'w') as ofile:
-        # --- card base + boxed art (identical to the action cards) ------------
+        # --- card base with 5mm black bleed (2.5mm inside cut line, 2.5mm outside) -------
         frame_text = f"\\begin{{tikzpicture}}[x={card_scale}cm, y={card_scale}cm]\n "
-        frame_text += f"\\node (cardbg)[rectangle, minimum width = 6.2cm, minimum height = 8.5cm, fill={CARD_BG}] at (4,5){{}};\n"
+        frame_text += f"\\node (cardbleed)[rectangle, minimum width = {CARD_OUTER_W_CM}cm, minimum height = {CARD_OUTER_H_CM}cm, fill=black] at (4,5){{}};\n"
         # pin bounding box + clip to the card (see make_card_from_row); off when annotating
         if not annotate:
-            frame_text += "\\useasboundingbox (cardbg.south west) rectangle (cardbg.north east);\n"
-            frame_text += "\\clip (cardbg.south west) rectangle (cardbg.north east);\n"
+            frame_text += "\\useasboundingbox (cardbleed.south west) rectangle (cardbleed.north east);\n"
+            frame_text += "\\clip (cardbleed.south west) rectangle (cardbleed.north east);\n"
+        frame_text += f"\\node (cardbg)[rectangle, minimum width = {CARD_SAFE_W_CM}cm, minimum height = {CARD_SAFE_H_CM}cm, fill={CARD_BG}] at (4,5){{}};\n"
         # full-card art: spans from just below the name plate down to the bottom
-        # of the ability box, full width (as on the action cards). The armour
+        # of the ability box, full safe width (as on the action cards). The armour
         # zones, loadout boxes and ability box are drawn over it at reduced
         # opacity so the art shows through behind them.
         art_top_y = NAME_CY - (NAME_H_CM / 2) / card_scale
         art_bot_y = ABIL_BOTTOM_Y  # bottom edge of the ability box
         art_cy_full = (art_top_y + art_bot_y) / 2
         art_h_full = (art_top_y - art_bot_y) * card_scale  # region height in cm
-        card_left = 4 - (6.2 / card_scale) / 2
-        card_right = 4 + (6.2 / card_scale) / 2
+        card_left = 4 - (CARD_SAFE_W_CM / card_scale) / 2
+        card_right = 4 + (CARD_SAFE_W_CM / card_scale) / 2
         frame_text += "\\begin{scope}\n"
         frame_text += (f"\\clip ({card_left:.3f}, {art_bot_y:.3f}) rectangle "
                        f"({card_right:.3f}, {art_top_y:.3f});\n")
-        # background layer fills the whole card width (cover; cropped by the scope)
+        # background layer fills the safe card width (cover; cropped by the scope)
         if frame.get("BackgroundLayer"):
-            frame_text += (f'\\node at (4,{art_cy_full:.3f}){{\\includegraphics[width=6.2cm,'
+            frame_text += (f'\\node at (4,{art_cy_full:.3f}){{\\includegraphics[width={CARD_SAFE_W_CM}cm,'
                            ' keepaspectratio]{' + frame_images_folder + frame["BackgroundLayer"] + '}};\n')
         # the art itself is height-fitted to the region so it is never cut off
-        frame_text += (f'\\node at (4,{art_cy_full:.3f}){{\\includegraphics[width=6.2cm,'
+        frame_text += (f'\\node at (4,{art_cy_full:.3f}){{\\includegraphics[width={CARD_SAFE_W_CM}cm,'
                        f' max height={art_h_full:.2f}cm, keepaspectratio]{{' + frame_images_folder + frame["CardImg"] + '}};\n')
         if frame.get("ForegroundImg"):
-            frame_text += (f'\\node at (4,{art_cy_full:.3f}){{\\includegraphics[width=6.2cm,'
+            frame_text += (f'\\node at (4,{art_cy_full:.3f}){{\\includegraphics[width={CARD_SAFE_W_CM}cm,'
                            f' max height={art_h_full:.2f}cm, keepaspectratio]{{' + frame_images_folder + frame["ForegroundImg"] + '}};\n')
         frame_text += "\\end{scope}\n"
 
@@ -1209,12 +1202,15 @@ def create_frame_sheet(frame, annotate=False, annotate_outfile=None):
         # copyright is pinned just above the card edge and the flavour sits above
         # it with tight line spacing, so a two-line flavour can't push it off.
         if frame.get("Artist"):
-            frame_text += ("\\node[anchor=south, inner sep=1pt] at (4.0, 0.12)"
+            frame_text += ("\\node[anchor=south, inner sep=1pt] at (4.0, 0.24)"
                            "{\\tiny{\\copyright  LiliCo 2026 \\emph{ Art: " + frame["Artist"] + "}}};\n")
         set_info_content = ("{\\tiny\\linespread{0.85}\\selectfont\\emph{" + frame["Flavor"] + "}\\par}"
                             if frame["Flavor"] else "")
         frame_text += (f"\\node[anchor=south, text width={RULES_W_CM}cm, align=center, inner sep=1pt] (setinfo) "
-                       f"at (4.0, 0.42){{" + set_info_content + "};\n")
+                       f"at (4.0, 0.55){{" + set_info_content + "};\n")
+
+        # 5mm black bleed around the edge of the card (2.5mm inside the 64x89mm cut line, 2.5mm outside)
+        frame_text += "\\fill[black, even odd rule] (cardbleed.south west) rectangle (cardbleed.north east) (cardbg.south west) rectangle (cardbg.north east);\n"
 
         if annotate:
             present = {"frame_name", "frame_move", "frame_ability", "setinfo",
@@ -1248,12 +1244,16 @@ def create_back(frame, background):
     """creates the frames card/sleeve back"""
     with open(backsoutputfolder + os.path.basename(frame).split(".")[0] + '.tex', 'w') as ofile:
         #load the initial image
-        frame_text = "\\begin{tikzpicture}[scale=0.86, backbox/.style= {rectangle, minimum height = 2.2cm," \
+        frame_text = f"\\begin{{tikzpicture}}[x={card_scale}cm, y={card_scale}cm, backbox/.style= {{rectangle, minimum height = 2.2cm," \
                 + " minimum width =2.2cm, rounded corners = 0.3cm, fill opacity=0.75}]\n "
-        frame_text = frame_text + "\\node [rectangle, minimum width = 6.2cm, minimum height = 8.5cm, fill=black!70!white!30] at (4,5){};\n"
+        frame_text = frame_text + f"\\node (cardbleed) [rectangle, minimum width = {CARD_OUTER_W_CM}cm, minimum height = {CARD_OUTER_H_CM}cm, fill=black] at (4,5){{}};\n"
+        frame_text = frame_text + "\\useasboundingbox (cardbleed.south west) rectangle (cardbleed.north east);\n"
+        frame_text = frame_text + "\\clip (cardbleed.south west) rectangle (cardbleed.north east);\n"
+        frame_text = frame_text + f"\\node (cardbg) [rectangle, minimum width = {CARD_SAFE_W_CM}cm, minimum height = {CARD_SAFE_H_CM}cm, fill=black!70!white!30] at (4,5){{}};\n"
         # background
-        frame_text = frame_text + '\\node at (4,5){\\includegraphics[width=6cm, max height = 8.3cm, keepaspectratio]{' + frame_images_folder + background + '}};\n'
-        frame_text = frame_text + '\\node at (4,5){\\includegraphics[width=6cm, max height = 8.3cm, keepaspectratio]{' + frame_images_folder + frame + '}};\n'
+        frame_text = frame_text + f'\\node at (4,5){{\\includegraphics[width={CARD_SAFE_W_CM}cm, max height = {CARD_SAFE_H_CM}cm, keepaspectratio]{{' + frame_images_folder + background + '}};\n'
+        frame_text = frame_text + f'\\node at (4,5){{\\includegraphics[width={CARD_SAFE_W_CM}cm, max height = {CARD_SAFE_H_CM}cm, keepaspectratio]{{' + frame_images_folder + frame + '}};\n'
+        frame_text = frame_text + "\\fill[black, even odd rule] (cardbleed.south west) rectangle (cardbleed.north east) (cardbg.south west) rectangle (cardbg.north east);\n"
         
         #finish the tikzpicture
         frame_text = frame_text + "\\end{tikzpicture}\n"

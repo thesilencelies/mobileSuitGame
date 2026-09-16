@@ -460,25 +460,28 @@ def _tikz_square_lines(col: int, row: int, size: float, s: TileStyle, offset: Tu
 def create_terrain_card(row):
     """populates the terrain including correct borders"""
     with open(terrianoutputfolder + row["Name"] + '.tex', 'w') as ofile:
-        #load the background image
-        terrain_text = "\\begin{tikzpicture}[backbox/.style= {rectangle, minimum height = 8.9cm," \
-                + " minimum width =6.35cm, rounded corners = 0.3cm, fill=white, opacity=0.75}]\n "
-        terrain_text += "\\node [rectangle, minimum width = 6.4cm, minimum height = 8.7cm, fill=black!10!white!90] at (3.25,4.5){};\n"
-        terrain_text += '\\node [opacity=0.6] at (3.25,4.45){\\includegraphics[width=6.35cm, max height = 8.85cm,' +\
+        # Card finished size is 6.4cm x 8.9cm.
+        # A 5mm black bleed runs around the edge (2.5mm inside cut line, 2.5mm outside),
+        # giving a total outer card size of 6.9cm x 9.4cm and safe content area of 5.9cm x 8.4cm.
+        terrain_text = "\\begin{tikzpicture}[backbox/.style= {rectangle, minimum height = 8.4cm," \
+                + " minimum width =5.9cm, rounded corners = 0.3cm, fill=white, opacity=0.75}]\n "
+        terrain_text += "\\node (cardbleed) [rectangle, minimum width = 6.9cm, minimum height = 9.4cm, fill=black] at (3.45,4.7){};\n"
+        terrain_text += "\\useasboundingbox (0,0) rectangle (6.9, 9.4);\n"
+        terrain_text += "\\clip (0,0) rectangle (6.9, 9.4);\n"
+        terrain_text += "\\node (cardbg) [rectangle, minimum width = 5.9cm, minimum height = 8.4cm, fill=black!10!white!90] at (3.45,4.7){};\n"
+        terrain_text += '\\node [opacity=0.6] at (3.45,4.7){\\includegraphics[width=5.9cm, max height = 8.4cm,' +\
                 'keepaspectratio]{' + terrain_images_folder + row["CardImg"] + '}};\n'
 
         # terrain card size
         cols = 3
         rows = 4
-        hex_size = 2.06 #cm - diameter
+        tile_size = 1.95 #cm - tile width/height
 
-        hoffset = 0.1
-        voffset = 0.2
+        hoffset = 0.525
+        voffset = 0.55
 
         # superimpose the grid
         # put height/terrain information in where relevant (borders?)
-        # col_range = range(-1, cols + 1)
-        # row_range = range(-1, rows + 1)
         col_range = range(0, cols)
         row_range = range(0, rows)
 
@@ -504,34 +507,33 @@ def create_terrain_card(row):
                     "left":   max(e - elev_at(c - 1, r),     0),
                     "right":  max(e - elev_at(c + 1, r),     0),
                 }
-                # hex_lines.append("\n".join(_tikz_hex_lines(c, r + 1, hex_size, style, (hoffset, voffset))))
-                hex_lines.append("\n".join(_tikz_square_lines(c, r, hex_size, style, (hoffset, voffset), side_drops)))
-
+                hex_lines.append("\n".join(_tikz_square_lines(c, r, tile_size, style, (hoffset, voffset), side_drops)))
 
         inner_body = "\n".join(hex_lines)
 
-        # TODO - add this clipping to every card
-        clip_line = f"  \\clip ({hoffset},{voffset}) rectangle (6.4, 8.9);"
+        clip_line = "  \\clip (0.5, 0.5) rectangle (6.4, 8.9);"
         terrain_text += "\\begin{scope}\n" + clip_line + "\n" + inner_body + "\n" + "\\end{scope}\n"
 
         # add rules text if extant (probably an objective card)
-
         if row["Rules"]:
-            terrain_text += "\\node[rectangle, fill = white, opacity = 0.75, minimum height =1.8cm, rounded corners = 0.3cm, " \
-                    + "text width = 3.1cm]  at (4.6, 2.1){\\footnotesize{" + row['Rules'] +"}};\n"
+            terrain_text += "\\node[rectangle, fill = white, opacity = 0.75, minimum height =1.6cm, rounded corners = 0.2cm, " \
+                    + "text width = 2.8cm]  at (4.7, 1.9){\\footnotesize{" + row['Rules'] +"}};\n"
 
-
-        # add objective information symbols
+        # add objective information symbols (in the top safe margin above the grid)
+        sym_y = 8.58
+        sym_iconwidth = "width=0.55cm"
         if int(row["Attack Points"]):
-            terrain_text += '\\node at(1, 8.2){\\includegraphics[' + iconwidth + ']{' + icons_folder + atkpointsImg + '}};\n'
-            terrain_text += "\\node at (1, 8.2){\\Large{\\textbf{" + row['Attack Points'] +"}}};\n"
+            terrain_text += f'\\node at(1.5, {sym_y}){{\\includegraphics[{sym_iconwidth}]{{' + icons_folder + atkpointsImg + '}};\n'
+            terrain_text += f"\\node at (1.5, {sym_y}){{\\large\\textbf{{{row['Attack Points']}}}}};\n"
         if int(row["Defend Points"]):
-            terrain_text += '\\node at(2, 8.2){\\includegraphics[' + iconwidth + ']{' + icons_folder + defpointsImg + '}};\n'
-            terrain_text += "\\node at (2, 8.2){\\Large{\\textbf{" + row['Defend Points'] +"}}};\n"
+            terrain_text += f'\\node at(3.45, {sym_y}){{\\includegraphics[{sym_iconwidth}]{{' + icons_folder + defpointsImg + '}};\n'
+            terrain_text += f"\\node at (3.45, {sym_y}){{\\large\\textbf{{{row['Defend Points']}}}}};\n"
         if int(row["Tokens"]):
-            terrain_text += '\\node at(3, 8.2){\\includegraphics[' + iconwidth + ']{' + icons_folder + tokensImg + '}};\n'
-            terrain_text += "\\node at (3, 8.2){\\large{\\textbf{" + row['Tokens'] +"}}};\n"
+            terrain_text += f'\\node at(5.4, {sym_y}){{\\includegraphics[{sym_iconwidth}]{{' + icons_folder + tokensImg + '}};\n'
+            terrain_text += f"\\node at (5.4, {sym_y}){{\\large\\textbf{{{row['Tokens']}}}}};\n"
 
+        # 5mm black bleed around the edge of the card (2.5mm inside the 64x89mm cut line, 2.5mm outside)
+        terrain_text += "\\fill[black, even odd rule] (cardbleed.south west) rectangle (cardbleed.north east) (cardbg.south west) rectangle (cardbg.north east);\n"
 
         #finish the tikzpicture
         terrain_text += "\\end{tikzpicture}\n"
