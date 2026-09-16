@@ -137,8 +137,11 @@ def build_credentials(path, quiet):
             creds = None  # cached token predates a scope change; re-authorise
 
     if creds and creds.expired and creds.refresh_token:
-        creds.refresh(Request())
-    elif not (creds and creds.valid):
+        try:
+            creds.refresh(Request())
+        except Exception:
+            creds = None
+    if not (creds and creds.valid):
         if not quiet:
             print("auth: opening a browser for one-time Google authorisation…")
         creds = InstalledAppFlow.from_client_secrets_file(
