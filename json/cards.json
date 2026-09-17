@@ -2405,7 +2405,7 @@
     "152": {
       "name": "Construction",
       "description": "",
-      "gm_notes": "",
+      "gm_notes": "{3:height_1}\n{6:height_1}\n{9:height_1}\n{12:height_1}",
       "tags": {
         "1": "Card",
         "2": "Terrain"
@@ -2419,7 +2419,7 @@
     "153": {
       "name": "Warehouse",
       "description": "",
-      "gm_notes": "",
+      "gm_notes": "{4:height_1}\n{5:height_1}\n{7:height_1}\n{8:height_2}\n{9:height_2}\n{10:height_2}\n{11:height_2}\n{12:height_2}",
       "tags": {
         "1": "Card",
         "2": "Terrain"
@@ -2447,7 +2447,7 @@
     "155": {
       "name": "Sports Field",
       "description": "",
-      "gm_notes": "",
+      "gm_notes": "{8:height_1}\n{9:height_1}\n{11:height_1}",
       "tags": {
         "1": "Card",
         "2": "Terrain"
@@ -2461,7 +2461,7 @@
     "156": {
       "name": "Box",
       "description": "",
-      "gm_notes": "",
+      "gm_notes": "{1:height_2}\n{2:height_2}\n{3:height_2}\n{4:height_2}\n{5:height_1}\n{6:height_2}\n{7:height_2}\n{8:height_2}\n{9:height_2}",
       "tags": {
         "1": "Card",
         "2": "Terrain"
@@ -2489,7 +2489,7 @@
     "158": {
       "name": "High Tower",
       "description": "",
-      "gm_notes": "",
+      "gm_notes": "{2:height_2}\n{3:height_2}\n{4:height_2}\n{5:height_3}\n{7:height_2}\n{8:height_2}\n{10:height_2}\n{11:height_2}",
       "tags": {
         "1": "Card",
         "2": "Terrain"
@@ -2503,7 +2503,7 @@
     "159": {
       "name": "Park",
       "description": "",
-      "gm_notes": "",
+      "gm_notes": "{4:height_1}\n{7:height_1}",
       "tags": {
         "1": "Card",
         "2": "Terrain"
@@ -2517,7 +2517,7 @@
     "160": {
       "name": "Triangle",
       "description": "",
-      "gm_notes": "defend:1pts\nattack:1pts\nTriangle:\nIf only one team has a frame on the triangle, they score.",
+      "gm_notes": "{1:height_2}\n{4:height_2}\n{5:height_2}\n{6:height_2}\n{7:height_2}\n{8:height_2}\ndefend:1pts\nattack:1pts\nTriangle:\nIf only one team has a frame on the triangle, they score.",
       "tags": {
         "1": "Card",
         "2": "Objective"
@@ -2531,7 +2531,7 @@
     "161": {
       "name": "Helipad",
       "description": "",
-      "gm_notes": "",
+      "gm_notes": "{1:height_1}\n{2:height_1}\n{3:height_1}\n{4:height_1}\n{5:height_1}\n{6:height_2}\n{7:height_1}\n{8:height_1}\n{9:height_2}\n{11:height_1}\n{12:height_1}",
       "tags": {
         "1": "Card",
         "2": "Terrain"
@@ -2545,7 +2545,7 @@
     "162": {
       "name": "Slum road",
       "description": "",
-      "gm_notes": "",
+      "gm_notes": "{1:height_1}\n{3:height_1}\n{4:height_1}\n{6:height_1}\n{7:height_1}\n{9:height_1}\n{10:height_1}\n{12:height_1}",
       "tags": {
         "1": "Card",
         "2": "Terrain"
@@ -2559,7 +2559,7 @@
     "163": {
       "name": "Suburb L",
       "description": "",
-      "gm_notes": "",
+      "gm_notes": "{2:height_1}\n{4:height_1}\n{5:height_1}\n{7:height_1}\n{11:height_1}\n{12:height_1}",
       "tags": {
         "1": "Card",
         "2": "Terrain"
@@ -2573,7 +2573,7 @@
     "164": {
       "name": "Cross Junction",
       "description": "",
-      "gm_notes": "",
+      "gm_notes": "{1:height_1}\n{4:height_1}\n{9:height_2}\n{11:height_2}\n{12:height_2}",
       "tags": {
         "1": "Card",
         "2": "Terrain"
@@ -2587,7 +2587,7 @@
     "165": {
       "name": "Fugitive",
       "description": "",
-      "gm_notes": "defend:2pts\nattack:1pts\ntokens:1\nExtraction:\nPut a fugitive token anywhere in the enemy back row after deployment. The fugitive token can be held by allies. Defenders score if it reaches the objective point, else attackers score.",
+      "gm_notes": "{7:height_2}\n{8:height_2}\n{10:height_2}\n{11:height_2}\ndefend:2pts\nattack:1pts\ntokens:1\nExtraction:\nPut a fugitive token anywhere in the enemy back row after deployment. The fugitive token can be held by allies. Defenders score if it reaches the objective point, else attackers score.",
       "tags": {
         "1": "Card",
         "2": "Objective"
@@ -2601,7 +2601,7 @@
     "166": {
       "name": "Split Offices",
       "description": "",
-      "gm_notes": "",
+      "gm_notes": "{1:height_2}\n{2:height_2}\n{3:height_2}\n{10:height_1}\n{11:height_1}\n{12:height_1}",
       "tags": {
         "1": "Card",
         "2": "Terrain"
@@ -2643,7 +2643,7 @@
     "169": {
       "name": "Holo Spires",
       "description": "",
-      "gm_notes": "defend:1pts\nattack:1pts\nHolo-spires:\nIf there are any attacking frames on any of the holo spires at the end, attackers score, else defenders score.",
+      "gm_notes": "{1:height_3}\n{2:height_3}\n{5:height_3}\n{6:height_3}\n{7:height_3}\n{9:height_3}\n{11:height_3}\ndefend:1pts\nattack:1pts\nHolo-spires:\nIf there are any attacking frames on any of the holo spires at the end, attackers score, else defenders score.",
       "tags": {
         "1": "Card",
         "2": "Objective"
@@ -2657,7 +2657,7 @@
     "170": {
       "name": "Church",
       "description": "",
-      "gm_notes": "defend:1pts\nattack:1pts\nChurch:\nIf only one team has a frame within 2 of the church, they score.",
+      "gm_notes": "{1:height_2}\n{2:height_2}\n{5:height_1}\n{9:height_1}\n{12:height_1}\ndefend:1pts\nattack:1pts\nChurch:\nIf only one team has a frame within 2 of the church, they score.",
       "tags": {
         "1": "Card",
         "2": "Objective"
@@ -2671,7 +2671,7 @@
     "171": {
       "name": "U homes",
       "description": "",
-      "gm_notes": "",
+      "gm_notes": "{4:height_1}\n{6:height_1}\n{8:height_1}\n{9:height_1}\n{10:height_1}\n{11:height_1}",
       "tags": {
         "1": "Card",
         "2": "Terrain"
@@ -2685,7 +2685,7 @@
     "172": {
       "name": "T Tower",
       "description": "",
-      "gm_notes": "",
+      "gm_notes": "{2:height_1}\n{11:height_2}\n{12:height_2}",
       "tags": {
         "1": "Card",
         "2": "Terrain"
@@ -2699,7 +2699,7 @@
     "173": {
       "name": "Crossings",
       "description": "",
-      "gm_notes": "",
+      "gm_notes": "{1:height_1}",
       "tags": {
         "1": "Card",
         "2": "Terrain"
@@ -2727,7 +2727,7 @@
     "175": {
       "name": "Stadium",
       "description": "",
-      "gm_notes": "",
+      "gm_notes": "{1:height_1}\n{2:height_1}\n{3:height_1}\n{4:height_1}\n{6:height_1}\n{7:height_1}\n{9:height_1}\n{10:height_1}\n{11:height_1}\n{12:height_1}",
       "tags": {
         "1": "Card",
         "2": "Terrain"
@@ -2755,7 +2755,7 @@
     "177": {
       "name": "Two pads",
       "description": "",
-      "gm_notes": "",
+      "gm_notes": "{1:height_2}\n{2:height_2}\n{4:height_2}\n{7:height_2}\n{9:height_2}\n{12:height_2}",
       "tags": {
         "1": "Card",
         "2": "Terrain"
@@ -2769,7 +2769,7 @@
     "178": {
       "name": "The Tower",
       "description": "",
-      "gm_notes": "defend:2pts\nattack:1pts\ntokens:1\nThe Tower:\nThe tower has 4 hitpoints, and takes -1 damage from any attack. If it is destroyed attackers score, else defenders score.",
+      "gm_notes": "{4:height_1}\n{6:height_3}\n{7:height_1}\n{9:height_1}\ndefend:2pts\nattack:1pts\ntokens:1\nThe Tower:\nThe tower has 4 hitpoints, and takes -1 damage from any attack. If it is destroyed attackers score, else defenders score.",
       "tags": {
         "1": "Card",
         "2": "Objective"
@@ -2783,7 +2783,7 @@
     "179": {
       "name": "Twin Peaks",
       "description": "",
-      "gm_notes": "",
+      "gm_notes": "{1:height_3}\n{2:height_3}\n{4:height_2}\n{5:height_2}\n{7:height_3}\n{8:height_3}\n{11:height_2}",
       "tags": {
         "1": "Card",
         "2": "Terrain"
@@ -2797,7 +2797,7 @@
     "180": {
       "name": "The Egg",
       "description": "",
-      "gm_notes": "defend:1pts\nattack:2pts\nThe Egg:\nThe first frame to end two consecutive turns standing on the Egg scores it.",
+      "gm_notes": "{4:height_2}\n{5:height_1}\n{7:height_1}\n{9:height_3}\ndefend:1pts\nattack:2pts\nThe Egg:\nThe first frame to end two consecutive turns standing on the Egg scores it.",
       "tags": {
         "1": "Card",
         "2": "Objective"
@@ -2811,7 +2811,7 @@
     "181": {
       "name": "Railway",
       "description": "",
-      "gm_notes": "Rail lines:\nAny frame that ends a turn on the rails takes energy low",
+      "gm_notes": "{1:height_1}\nRail lines:\nAny frame that ends a turn on the rails takes energy low",
       "tags": {
         "1": "Card",
         "2": "Terrain"
@@ -2825,7 +2825,7 @@
     "182": {
       "name": "Steps",
       "description": "",
-      "gm_notes": "",
+      "gm_notes": "{1:height_1}\n{3:height_1}\n{4:height_1}\n{6:height_1}\n{7:height_1}\n{9:height_1}\n{10:height_1}\n{11:height_1}\n{12:height_1}",
       "tags": {
         "1": "Card",
         "2": "Terrain"
@@ -2839,7 +2839,7 @@
     "183": {
       "name": "Riverside",
       "description": "",
-      "gm_notes": "defend:2pts\nattack:1pts\ntokens:3\nGangs:\nAfter deployment your opponent creates 3 gang tokens outside their back row of cards. These are init 1 1hp tokens with 1mv. Defender scores if all gangs are defeated, else attackers score",
+      "gm_notes": "{10:height_1}\ndefend:2pts\nattack:1pts\ntokens:3\nGangs:\nAfter deployment your opponent creates 3 gang tokens outside their back row of cards. These are init 1 1hp tokens with 1mv. Defender scores if all gangs are defeated, else attackers score",
       "tags": {
         "1": "Card",
         "2": "Objective"
@@ -2853,7 +2853,7 @@
     "184": {
       "name": "Solar Farm",
       "description": "",
-      "gm_notes": "defend:1pts\nattack:1pts\nSolar Farm:\nFor each frame that ends a turn on the farm, that team gets 1 charge. The team with the most charge scores.",
+      "gm_notes": "{2:height_2}\n{3:height_2}\n{4:height_2}\n{5:height_1}\n{6:height_1}\n{7:height_1}\n{8:height_1}\n{9:height_1}\n{11:height_2}\n{12:height_2}\ndefend:1pts\nattack:1pts\nSolar Farm:\nFor each frame that ends a turn on the farm, that team gets 1 charge. The team with the most charge scores.",
       "tags": {
         "1": "Card",
         "2": "Objective"
@@ -2895,7 +2895,7 @@
     "187": {
       "name": "Dome Campus",
       "description": "",
-      "gm_notes": "defend:2pts\nattack:2pts\nStop the bomb:\nAfter deployment the attacker chooses one frame to be the bomb carrier. If this frame ends a turn on the site, attackers score, else defenders score.",
+      "gm_notes": "{1:height_2}\n{4:height_2}\n{9:height_1}\n{12:height_1}\ndefend:2pts\nattack:2pts\nStop the bomb:\nAfter deployment the attacker chooses one frame to be the bomb carrier. If this frame ends a turn on the site, attackers score, else defenders score.",
       "tags": {
         "1": "Card",
         "2": "Objective"
@@ -2909,7 +2909,7 @@
     "188": {
       "name": "Roof",
       "description": "",
-      "gm_notes": "",
+      "gm_notes": "{1:height_1}\n{2:height_1}\n{3:height_1}\n{4:height_1}\n{5:height_1}\n{6:height_1}\n{7:height_1}\n{8:height_1}\n{9:height_1}\n{10:height_1}\n{11:height_1}\n{12:height_1}",
       "tags": {
         "1": "Card",
         "2": "Terrain"
@@ -2937,7 +2937,7 @@
     "190": {
       "name": "Double row",
       "description": "",
-      "gm_notes": "",
+      "gm_notes": "{1:height_2}\n{2:height_2}\n{3:height_2}\n{4:height_2}\n{5:height_2}\n{6:height_2}\n{7:height_2}\n{8:height_2}\n{9:height_2}\n{10:height_2}\n{11:height_2}\n{12:height_2}",
       "tags": {
         "1": "Card",
         "2": "Terrain"
@@ -3217,8 +3217,8 @@
         "4": "Ouwa"
       },
       "lua_script": "",
-      "face": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/pictures/Swarm.png",
-      "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/pictures/Swarm.png",
+      "face": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/playtest/server/static/tokens/Swarm.png",
+      "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/playtest/server/static/tokens/Swarm.png",
       "type": "2",
       "thickness": "0.5",
       "stackable": "true"
@@ -3234,8 +3234,8 @@
         "4": "Guild"
       },
       "lua_script": "",
-      "face": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/pictures/Gun%20Tower.png",
-      "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/pictures/Gun%20Tower.png",
+      "face": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/playtest/server/static/tokens/Gun_Tower.png",
+      "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/playtest/server/static/tokens/Gun_Tower.png",
       "type": "2",
       "thickness": "0.5",
       "stackable": "true"
@@ -3251,8 +3251,8 @@
         "4": "Aegis"
       },
       "lua_script": "",
-      "face": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/pictures/Attack%20Dog.png",
-      "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/pictures/Attack%20Dog.png",
+      "face": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/playtest/server/static/tokens/Attack_Dog.png",
+      "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/playtest/server/static/tokens/Attack_Dog.png",
       "type": "2",
       "thickness": "0.5",
       "stackable": "true"

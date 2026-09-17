@@ -57,7 +57,7 @@ Run: `python generate_all_decks.py [deck_prefix ...]` (`--print`, `--skip-indivi
 
 ### generate_card_json.py
 Writes `json/cards.json`, one file holding Tabletop Simulator metadata for all cards, tiles (tokens), and figurines, structured under top-level `"Card"`, `"Tile"`, `"Token"`, and `"Figurine"` categories with 1-based sequential indices.
-`Card` contains action cards, frame cards, and terrain/objective cards, specifying their front face, back art (`normal_back.png`, `frames_back.png`, `terrain_back.png`), stats in `gm_notes`, keyword descriptions, and tags. `Tile` contains game pieces and tokens (all 20 token images from `tts_assets/` plus unique drone tokens from `pictures/`), each with circular tile type, face/back art, thickness, and stats. `Figurine` supplies each frame's transparent mech artwork as the front and back for 2D standee cutouts.
+`Card` contains action cards, frame cards, and terrain/objective cards, specifying their front face, back art (`normal_back.png`, `frames_back.png`, `terrain_back.png`), stats and tile heightmaps in `gm_notes`, keyword descriptions, and tags. `Tile` contains game pieces and tokens (all 20 token images from `tts_assets/` plus unique drone tokens from `playtest/server/static/tokens/`), each with circular tile type, face/back art, thickness, and stats. `Figurine` supplies each frame's transparent mech artwork as the front and back for 2D standee cutouts.
 Run: `python generate_card_json.py [--output json/cards.json] [--quiet]`
 
 ### upload_rules.py

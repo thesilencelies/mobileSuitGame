@@ -54,7 +54,7 @@ Sources:
     Frames.csv                                   -> Card, Frame (and Figurine)
     Terrain_square.csv                           -> Card, Terrain / Objective
     tts_assets/*.png                             -> Tile (tokens)
-    Drone actions.csv (art in pictures/)         -> Tile (drone tokens)
+    Drone actions.csv (art in playtest/server/static/tokens/) -> Tile (drone tokens)
 
 Usage:
     python generate_card_json.py
@@ -85,6 +85,7 @@ WORKSPACE = Path(__file__).parent
 IMAGE_DIR = WORKSPACE / "AllCardImages"
 TTS_ASSETS_DIR = WORKSPACE / "tts_assets"
 PICTURES_DIR = WORKSPACE / "pictures"
+PLAYTEST_TOKENS_DIR = WORKSPACE / "playtest" / "server" / "static" / "tokens"
 
 GITHUB_REPO_RAW = (
     "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/"
@@ -93,6 +94,7 @@ GITHUB_REPO_RAW = (
 ALL_CARD_IMAGES_URL = GITHUB_REPO_RAW + "AllCardImages/"
 TTS_ASSETS_URL = GITHUB_REPO_RAW + "tts_assets/"
 PICTURES_URL = GITHUB_REPO_RAW + "pictures/"
+PLAYTEST_TOKENS_URL = GITHUB_REPO_RAW + "playtest/server/static/tokens/"
 
 NORMAL_CARD_BACK_URL = TTS_ASSETS_URL + "normal_back.png"
 FRAMES_CARD_BACK_URL = TTS_ASSETS_URL + "frames_back.png"
@@ -578,6 +580,16 @@ def frame_gm_notes(row: dict) -> str:
 
 def terrain_gm_notes(row: dict) -> str:
     lines = []
+    name = _cell(row, "Name")
+    if name != "Helpcard":
+        for r_board in range(4):
+            for c in range(3):
+                tile_num = r_board * 3 + c + 1
+                cell = _cell(row, f"tile_{3 - r_board}_{c}")
+                for code in cell.split():
+                    if code in ("e1", "e2", "e3"):
+                        lines.append(f"{{{tile_num}:height_{code[1]}}}")
+
     defend = _int(row, "Defend Points")
     attack = _int(row, "Attack Points")
     tokens = _int(row, "Tokens")
@@ -756,7 +768,7 @@ def enumerate_tiles() -> list[dict]:
                 "_local_images": (file_path,),
             })
 
-    # 3. Unique Drone tokens from Drone actions.csv (art from pictures/)
+    # 3. Unique Drone tokens from Drone actions.csv (tokens used by playtest sim)
     seen_drone_groups: set[str] = set()
     for row in read_rows("Drone actions.csv"):
         group = _cell(row, "Group")
@@ -784,7 +796,17 @@ def enumerate_tiles() -> list[dict]:
         gm = "\n".join(gm_parts)
 
         desc = f"{faction} drone unit summoned by {group} action"
-        url = PICTURES_URL + quote(card_img)
+
+        # The playtest sim stores drone token sprites in playtest/server/static/tokens/
+        token_filename = f"{group.replace(' ', '_')}.png"
+        playtest_token_path = PLAYTEST_TOKENS_DIR / token_filename
+        if playtest_token_path.is_file():
+            url = PLAYTEST_TOKENS_URL + quote(token_filename)
+            local_img = playtest_token_path
+        else:
+            url = PICTURES_URL + quote(card_img)
+            local_img = PICTURES_DIR / card_img
+
         tiles.append({
             "name": group,
             "description": desc,
@@ -796,7 +818,7 @@ def enumerate_tiles() -> list[dict]:
             "type": "2",
             "thickness": "0.5",
             "stackable": "true",
-            "_local_images": (PICTURES_DIR / card_img,),
+            "_local_images": (local_img,),
         })
 
     return tiles
