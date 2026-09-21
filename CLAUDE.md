@@ -50,6 +50,10 @@ Writes `json/cards.json`, one file holding Tabletop Simulator metadata for all c
 `Card` contains action cards, frame cards, and terrain/objective cards, specifying their front face, back art (`normal_back.png`, `frames_back.png`, `terrain_back.png`), stats in `gm_notes`, keyword descriptions, and tags. `Tile` contains game pieces and tokens (all 20 token images from `tts_assets/` plus unique drone tokens from `pictures/`), each with circular tile type, face/back art, thickness, and stats. `Figurine` supplies each frame's transparent mech artwork as the front and back for 2D standee cutouts.
 Run: `python generate_card_json.py [--output json/cards.json] [--quiet]`
 
+### generate_deck_json.py
+Writes `json/decks.json`, storing Tabletop Simulator metadata for each playable Frame's action deck from `decks/`. Keyed by frame name with frame sleeve back art URL from `TTSImages/` and a 1-based indexed dictionary of card names matching `json/cards.json`.
+Run: `python generate_deck_json.py [--output json/decks.json] [--quiet]`
+
 ### upload_rules.py
 Publishes `rules/rules.pdf` to Google Drive. **The rules PDF is deliberately not tracked in git** — it is ~60MB of build output and 94 committed versions of it were costing 1.6GB of history, so it was purged from the history and `.gitignore`'s `*.pdf` rule now covers it. This script is how a rebuilt PDF reaches readers.
 It **updates the existing Drive file in place** (`FILE_ID` = the id in the shared link) rather than creating a new one, so the link already handed out keeps working and Drive retains the previous revisions. Uploads are resumable and skipped entirely when the PDF's sha256 matches the last publish (remembered in `build/rules_upload_state.json`, so it is ignored along with the rest of `build/`) — that is what makes it safe to chain onto every rebuild; `--force` overrides.
