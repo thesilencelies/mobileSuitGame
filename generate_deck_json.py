@@ -69,10 +69,12 @@ def _print_id_nonzero(row: dict) -> bool:
 
 
 def card_display_name(row: dict) -> str:
-    """"Axe" + "Hook" -> "Axe Hook". A card already carrying its group's name
-    ("Swarm"/"Swarm", "Missile Rack"/"Missile Rack 1") does not say it twice."""
+    """"Axe" + "Hook" -> "Axe Hook". A card with group and name matching
+    ("Swarm"/"Swarm" -> "Swarm Swarm", "Cannon"/"Cannon" -> "Cannon Cannon")
+    keeps both names. A card already carrying its group's name as a prefix
+    ("Missile Rack"/"Missile Rack 1") does not say it twice."""
     group, name = _cell(row, "Group"), _cell(row, "Name")
-    if not group or name == group or name.startswith(group + " "):
+    if not group or name.startswith(group + " "):
         return name
     return f"{group} {name}"
 
