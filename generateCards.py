@@ -353,14 +353,6 @@ def movement_color(value: str) -> str:
     color_name = "green" if parsed > 0 else "red"
     return f"{color_name}!{pct}!white"
 
-def format_action_movement(value: Any) -> str:
-    """Movement string for action cards: positive bonuses always carry a leading '+'."""
-    text = str(value).strip() if value is not None else ""
-    parsed = parse_int_safe(text)
-    if parsed is not None and parsed > 0 and not text.startswith("+"):
-        return f"+{text}"
-    return text
-
 def move_icon_outline_fill(pos: str, color: str) -> str:
     """Filled polygon matching the outline of mvImg, centred on pos (a TikZ coordinate string).
 
@@ -869,6 +861,8 @@ DRONE_CALLOUTS = [
 
 
 def make_card_from_row(row, card_type, group_capability=None, annotate=False, annotate_outfile=None):
+    if parse_int_safe(row.get('Movement')) and int(row['Movement']) > 0 and not str(row['Movement']).startswith('+'):
+        row['Movement'] = f"+{row['Movement']}"
     outname = (annotate_outfile or 'build/rules_card.tex') if annotate else cardoutputfolder + row['Group'] + "_" + row['Name'] + '.tex'
     is_pilot = card_type is CardTypeEnum.PILOT
     with open(outname, 'w') as ofile:
@@ -931,9 +925,8 @@ def make_card_from_row(row, card_type, group_capability=None, annotate=False, an
                       + row['Initiative'] + "}}}};\n")
         # movement: a chevron the height of the name plate, in the top-right corner,
         # overlapping the plate's right end
-        mv_val = format_action_movement(row['Movement'])
-        card_text += draw_chevron(MOVE_POS[0], MOVE_POS[1], movement_color(mv_val),
-                                  mv_val, w=MOVE_CHEVRON_W, h=CHEVRON_HALF_H, point=0.5,
+        card_text += draw_chevron(MOVE_POS[0], MOVE_POS[1], movement_color(row['Movement']),
+                                  row['Movement'], w=MOVE_CHEVRON_W, h=CHEVRON_HALF_H, point=0.5,
                                   fontsize="\\LARGE", name="movebox")
 
         # --- zone boxes (always three; boundary changes on block/super block) -

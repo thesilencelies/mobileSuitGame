@@ -549,9 +549,7 @@ def block_line(row: dict, is_pilot: bool) -> Optional[str]:
 
 
 def action_gm_notes(row: dict, is_pilot: bool, is_drone: bool) -> str:
-    raw_mv = _cell(row, 'Movement') or '0'
-    mv = f"+{raw_mv}" if raw_mv.isdigit() and int(raw_mv) > 0 else raw_mv
-    lines = [f"{_cell(row, 'Initiative')}init", f"{mv}mv"]
+    lines = [f"{_cell(row, 'Initiative')}init", f"{_cell(row, 'Movement') or '0'}mv"]
     lines += [line for line in (attack_line(row), block_line(row, is_pilot)) if line]
     if is_drone:
         lines.append(f"drone:{_int(row, 'Drone_Health')}hp {_cell(row, 'Drone_MV')}mv")
@@ -568,7 +566,7 @@ def action_gm_notes(row: dict, is_pilot: bool, is_drone: bool) -> str:
 
 def frame_gm_notes(row: dict) -> str:
     lines = [
-        f"{_cell(row, 'Movement').lstrip('+')}mv",
+        f"{_cell(row, 'Movement')}mv",
         f"armour:{_int(row, 'Top armour')}H/{_int(row, 'Side armour')}M/{_int(row, 'Low armour')}L",
         f"weapons:{_cell(row, 'Weapon Slots')}",
         f"boosters:{_cell(row, 'Boosters')}",

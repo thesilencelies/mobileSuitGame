@@ -1315,7 +1315,7 @@
     "83": {
       "name": "Basic Dodge",
       "description": "",
-      "gm_notes": "8init\n+2mv\nRanged attacks target at -8 range",
+      "gm_notes": "8init\n+1mv\nRanged attacks target at -8 range",
       "tags": {
         "1": "Card",
         "2": "Action",
