@@ -6,15 +6,20 @@ per-card gaps can be read against how different the two groups otherwise are.
 
 Two checks:
 
-  within  For each group, sets of cards with the same effect but different cost.
-          "Same effect" = identical text + persistence + the same attack and
-          block values, ignoring which zone they sit in. Cost = initiative and
-          movement. Flags which member of a set is strictly cheaper.
+  within  For each group, sets of cards with the same effect but different cost,
+          or any card that strictly dominates another card in the same group.
+          Cost = initiative and movement.
 
   cross   Every pair of cards from *different* groups where one dominates the
-          other: >= on attack, block, range, initiative and movement, with at
-          least one strict. Only cards printing identical text and persistence
-          are compared, since text can be a cost as easily as a bonus.
+          other: >= on attack, block, range, initiative, movement, and abilities,
+          with at least one strict improvement.
+
+Abilities that are strict improvements (guard break, close quarters, on-hit negative
+status effects) or detriments (feint, reload, committed) are ranked. Bonus vs penalty
+is comparable (a double win for the bonus side), while cards with different bonuses
+or different penalties are incomparable. Residual unparsed text must match.
+
+Persistence is a side effect of rules text (e.g. reload) and is ignored in comparisons.
 
 Damage type is recorded and printed but never gates a comparison: it changes
 which frame abilities apply, not the power of the card.
@@ -75,6 +80,56 @@ class Card:
         self.text = clean_text(row.get("Text"))
         self.persistence = (row.get("Persistence") or "").strip()
         self.extra = {k: to_int(row.get(k)) for k in EXTRA_STATS if k in row}
+        self.parse_abilities()
+
+    def parse_abilities(self):
+        text = self.text
+        # Detriments:
+        self.feint = bool(re.search(r"\bfeint\b|\\(?:full)?feint\b", text, re.I))
+        self.reload = bool(re.search(r"\breload\b|\\(?:full)?reload\b", text, re.I))
+        self.committed = bool(re.search(r"\bcommitted\b|\\(?:full)?committed\b", text, re.I))
+
+        # Improvements:
+        self.guardbreak = bool(re.search(r"\bguard\s*break\b|\\(?:full)?guardbreak\b|\\guard\s*break\b", text, re.I))
+        self.closequarters = bool(re.search(r"\bclose\s*quarters\b|\\(?:full)?closequarters\b|\\close\s*quarters\b", text, re.I))
+
+        # On-hit negative status effects:
+        self.on_hit = defaultdict(int)
+        for m in re.finditer(r"on hit:\s*target gets\s*(\d+)?\s*\\*(?:full|small)?(stunned|slowed|dazed|revealed)\b", text, re.I):
+            amt = int(m.group(1)) if m.group(1) else 1
+            st = m.group(2).lower()
+            self.on_hit[st] += amt
+
+        # Residual unparsed text
+        rem = text
+        rem = re.sub(r"\bfeint\b|\\(?:full)?feint\b", "", rem, flags=re.I)
+        rem = re.sub(r"\breload\b|\\(?:full)?reload\b", "", rem, flags=re.I)
+        rem = re.sub(r"\bcommitted\b|\\(?:full)?committed\b", "", rem, flags=re.I)
+        rem = re.sub(r"\bguard\s*break\b|\\(?:full)?guardbreak\b|\\guard\s*break\b", "", rem, flags=re.I)
+        rem = re.sub(r"\bclose\s*quarters\b|\\(?:full)?closequarters\b|\\close\s*quarters\b", "", rem, flags=re.I)
+        rem = re.sub(r"on hit:\s*target gets\s*(?:\d+\s*)?\\*(?:full|small)?(stunned|slowed|dazed|revealed)\b", "", rem, flags=re.I)
+        self.rem_text = re.sub(r"\s+", " ", rem).strip()
+
+    def penalties(self):
+        p = set()
+        if self.feint:
+            p.add("feint")
+        if self.reload:
+            p.add("reload")
+        if self.committed:
+            p.add("committed")
+        return p
+
+    def bonuses(self):
+        b = set()
+        if self.guardbreak:
+            b.add("guard break")
+        if self.closequarters:
+            b.add("close quarters")
+        for s, amt in self.on_hit.items():
+            if amt > 0:
+                b.add(f"{s} on hit")
+        return b
 
     # -- rendering -------------------------------------------------------
     def damage_types(self):
@@ -132,8 +187,20 @@ def load_cards(path, groups=None, include_unprinted=False):
 # -- dominance ------------------------------------------------------------
 
 def comparable(a, b):
-    """Cards are only ranked against each other if they print the same effect text."""
-    return a.text == b.text and a.persistence == b.persistence
+    """Cards are comparable if their unparsed text matches, and they do not print
+    conflicting different bonuses or conflicting different penalties.
+    Bonus vs penalty is comparable (a double win for the bonus side).
+    Persistence is a side effect of rules text and is ignored.
+    """
+    if a.rem_text != b.rem_text:
+        return False
+    p_a, p_b = a.penalties(), b.penalties()
+    if p_a and p_b and p_a != p_b:
+        return False
+    b_a, b_b = a.bonuses(), b.bonuses()
+    if b_a and b_b and b_a != b_b:
+        return False
+    return True
 
 
 def _shape(card, kind):
@@ -159,10 +226,25 @@ def _deltas(a, b):
     deltas.append(("movement", a.mv - b.mv))
     for key in a.extra:
         deltas.append((key.replace("Drone_", ""), a.extra[key] - b.extra.get(key, 0)))
+
+    # detriments (lacking a detriment that b has is a win for a)
+    deltas.append(("no feint", int(b.feint) - int(a.feint)))
+    deltas.append(("no reload", int(b.reload) - int(a.reload)))
+    deltas.append(("no committed", int(b.committed) - int(a.committed)))
+
+    # improvements (having an improvement that b lacks is a win for a)
+    deltas.append(("guard break", int(a.guardbreak) - int(b.guardbreak)))
+    deltas.append(("close quarters", int(a.closequarters) - int(b.closequarters)))
+    statuses = set(a.on_hit.keys()) | set(b.on_hit.keys())
+    for s in sorted(statuses):
+        deltas.append((f"{s} on hit", a.on_hit[s] - b.on_hit[s]))
+
     return deltas
 
 
 def dominates(a, b):
+    if not comparable(a, b):
+        return None
     deltas = _deltas(a, b)
     if any(d < 0 for _, d in deltas):
         return None
@@ -170,7 +252,10 @@ def dominates(a, b):
     return wins or None
 
 
-WIN_ORDER = ("init", "mv", "atk", "blk", "rng", "Health", "MV")
+WIN_ORDER = ("init", "mv", "atk", "blk", "rng", "Health", "MV",
+             "guard break", "close quarters",
+             "stunned on hit", "slowed on hit", "dazed on hit", "revealed on hit",
+             "no feint", "no reload", "no committed")
 
 
 def base_dimension(name):
@@ -189,35 +274,58 @@ def describe_wins(wins):
         totals[base_dimension(name)] += delta
     ordered = sorted(totals.items(),
                      key=lambda kv: WIN_ORDER.index(kv[0]) if kv[0] in WIN_ORDER else len(WIN_ORDER))
-    return ", ".join(f"+{d} {n}" for n, d in ordered if d)
+    parts = []
+    for n, d in ordered:
+        if not d:
+            continue
+        if n in ("guard break", "close quarters", "no feint", "no reload", "no committed"):
+            parts.append(n)
+        else:
+            parts.append(f"+{d} {n}")
+    return ", ".join(parts)
 
 
 # -- checks ---------------------------------------------------------------
 
-def effect_key(card):
-    shape = (tuple(_shape(card, "attack")), tuple(_shape(card, "block")))
-    return shape, card.text, card.persistence, tuple(sorted(card.extra.items()))
-
-
 def check_within(cards):
-    """Same group, same effect, different cost."""
-    by_group = defaultdict(lambda: defaultdict(list))
+    """Same group, same effect, different cost; or strict dominance within group."""
+    by_group = defaultdict(list)
     for card in cards:
-        by_group[card.group][effect_key(card)].append(card)
+        by_group[card.group].append(card)
 
     results = []
     for group in sorted(by_group):
-        for members in by_group[group].values():
-            costs = {(c.init, c.mv) for c in members}
+        members = by_group[group]
+        # 1. Sets of cards with identical effect (same text/shape/extra)
+        by_effect = defaultdict(list)
+        for c in members:
+            key = (tuple(_shape(c, "attack")), tuple(_shape(c, "block")), c.text, tuple(sorted(c.extra.items())))
+            by_effect[key].append(c)
+
+        handled_pairs = set()
+        for same_effect in by_effect.values():
+            costs = {(c.init, c.mv) for c in same_effect}
             if len(costs) < 2:
                 continue
-            ranked = sorted(members, key=lambda c: (-c.init, -c.mv, c.name))
+            ranked = sorted(same_effect, key=lambda c: (-c.init, -c.mv, c.name))
             beaten = []
             for a, b in itertools.permutations(ranked, 2):
-                if (a.init >= b.init and a.mv >= b.mv
-                        and (a.init, a.mv) != (b.init, b.mv)):
-                    beaten.append((a, b))
+                if (a.init >= b.init and a.mv >= b.mv and (a.init, a.mv) != (b.init, b.mv)):
+                    w = dominates(a, b)
+                    if w:
+                        beaten.append((a, b, w))
+                        handled_pairs.add((id(a), id(b)))
             results.append((group, ranked, beaten))
+
+        # 2. Any other strict dominance within the group (e.g. abilities)
+        for a, b in itertools.permutations(members, 2):
+            if (id(a), id(b)) in handled_pairs:
+                continue
+            w = dominates(a, b)
+            if w:
+                results.append((group, [a, b], [(a, b, w)]))
+                handled_pairs.add((id(a), id(b)))
+
     return results
 
 
@@ -279,13 +387,16 @@ def check_cross(cards):
         for loser in beats.values():
             loser.sort(key=lambda t: -sum(d for _, d in t[1]))
         widest = max(sum(d for _, d in w) for _, _, w in cluster_edges)
+        texts = {c.text for c in cluster_cards}
+        shared_text = cluster_cards[0].text if len(texts) == 1 else None
         clusters.append({
             "cards": cluster_cards,
             "edges": cluster_edges,
             "beats": beats,
             "wins_count": wins_count,
             "widest": widest,
-            "text": cluster_cards[0].text,
+            "text": shared_text,
+            "text_varies": len(texts) > 1,
             "groups": sorted({c.group for c in cluster_cards}),
         })
     clusters.sort(key=lambda c: (-c["widest"], -len(c["edges"]), c["cards"][0].name))
@@ -348,13 +459,16 @@ def report_text(within, cross, profiles_by_group, profiles, show):
         if not within:
             out.append("  none")
         for group, ranked, beaten in within:
-            out.append(f"\n{group}   text: {ranked[0].text or '(none)'}   dmg: {ranked[0].dtype_label()}")
-            losers = {id(b) for _, b in beaten}
+            texts = {c.text for c in ranked}
+            txt_label = ranked[0].text or "(none)" if len(texts) == 1 else "various"
+            out.append(f"\n{group}   text: {txt_label}   dmg: {ranked[0].dtype_label()}")
+            losers = {id(b) for _, b, _ in beaten}
             for card in ranked:
                 mark = "  <- strictly worse" if id(card) in losers else ""
-                out.append(f"    {card.name:<22}{card.stat_line()}{mark}")
-            for a, b in beaten:
-                out.append(f"      {a.name} beats {b.name}: {describe_wins(_positive(a, b))}")
+                txt_part = f"   [{card.text}]" if len(texts) > 1 and card.text else ""
+                out.append(f"    {card.name:<22}{card.stat_line()}{txt_part}{mark}")
+            for a, b, ws in beaten:
+                out.append(f"      {a.name} beats {b.name}: {describe_wins(ws)}")
 
     if "cross" in show:
         out.append("")
@@ -366,10 +480,12 @@ def report_text(within, cross, profiles_by_group, profiles, show):
         for idx, cluster in enumerate(cross, 1):
             out.append(f"\n{idx}. {' / '.join(cluster['groups'])}   "
                        f"({len(cluster['cards'])} comparable cards, {cluster_dtypes(cluster)})")
-            out.append(f"     text: {cluster['text'] or '(none)'}")
+            txt_hdr = cluster['text'] or '(none)' if not cluster['text_varies'] else 'various'
+            out.append(f"     text: {txt_hdr}")
             for card in cluster["cards"]:
                 tag = "  <- dominated" if cluster["beats"].get(id(card)) else ""
-                out.append(f"     {card.full_label():<28}{card.stat_line()}{tag}")
+                txt_part = f"   [{card.text}]" if cluster["text_varies"] and card.text else ""
+                out.append(f"     {card.full_label():<28}{card.stat_line()}{txt_part}{tag}")
             for card in cluster["cards"]:
                 losses = cluster["beats"].get(id(card))
                 if losses:
@@ -394,15 +510,6 @@ def report_text(within, cross, profiles_by_group, profiles, show):
     return "\n".join(out)
 
 
-def _positive(a, b):
-    wins = []
-    if a.init > b.init:
-        wins.append(("initiative", a.init - b.init))
-    if a.mv > b.mv:
-        wins.append(("movement", a.mv - b.mv))
-    return wins
-
-
 def report_markdown(within, cross, profiles_by_group, profiles, show):
     out = []
     if "within" in show:
@@ -410,14 +517,23 @@ def report_markdown(within, cross, profiles_by_group, profiles, show):
         if not within:
             out.append("None.\n")
         for group, ranked, beaten in within:
-            out.append(f"**{group}** — {ranked[0].text or 'no text'} · {ranked[0].dtype_label()}\n")
-            out.append("| Card | Init | Mv | High | Mid | Low |")
-            out.append("|---|---|---|---|---|---|")
-            for card in ranked:
-                cells = " | ".join(c[2:] for c in card.zone_cells())
-                out.append(f"| {card.name} | {card.init} | {card.mv} | {cells} |")
-            for a, b in beaten:
-                out.append(f"\n*{a.name} strictly beats {b.name}: {describe_wins(_positive(a, b))}.*")
+            texts = {c.text for c in ranked}
+            txt_label = ranked[0].text or "no text" if len(texts) == 1 else "various"
+            out.append(f"**{group}** — {txt_label} · {ranked[0].dtype_label()}\n")
+            if len(texts) > 1:
+                out.append("| Card | Init | Mv | High | Mid | Low | Text |")
+                out.append("|---|---|---|---|---|---|---|")
+                for card in ranked:
+                    cells = " | ".join(c[2:] for c in card.zone_cells())
+                    out.append(f"| {card.name} | {card.init} | {card.mv} | {cells} | {card.text or 'none'} |")
+            else:
+                out.append("| Card | Init | Mv | High | Mid | Low |")
+                out.append("|---|---|---|---|---|---|")
+                for card in ranked:
+                    cells = " | ".join(c[2:] for c in card.zone_cells())
+                    out.append(f"| {card.name} | {card.init} | {card.mv} | {cells} |")
+            for a, b, ws in beaten:
+                out.append(f"\n*{a.name} strictly beats {b.name}: {describe_wins(ws)}.*")
             out.append("")
 
     if "cross" in show:
@@ -427,14 +543,24 @@ def report_markdown(within, cross, profiles_by_group, profiles, show):
         for idx, cluster in enumerate(cross, 1):
             out.append(f"### {idx}. {' / '.join(cluster['groups'])} — "
                        f"{len(cluster['cards'])} comparable cards, {cluster_dtypes(cluster)}\n")
-            out.append(f"Text: {cluster['text'] or 'none'}.\n")
-            out.append("| Card | Init | Mv | High | Mid | Low | Dmg | |")
-            out.append("|---|---|---|---|---|---|---|---|")
-            for card in cluster["cards"]:
-                cells = " | ".join(c[2:] for c in card.zone_cells())
-                tag = "**dominated**" if cluster["beats"].get(id(card)) else ""
-                out.append(f"| {card.full_label()} | {card.init} | {card.mv} | {cells} | "
-                           f"{card.dtype_label()} | {tag} |")
+            txt_hdr = cluster['text'] or 'none' if not cluster['text_varies'] else 'various'
+            out.append(f"Text: {txt_hdr}.\n")
+            if cluster["text_varies"]:
+                out.append("| Card | Init | Mv | High | Mid | Low | Dmg | Text | |")
+                out.append("|---|---|---|---|---|---|---|---|---|")
+                for card in cluster["cards"]:
+                    cells = " | ".join(c[2:] for c in card.zone_cells())
+                    tag = "**dominated**" if cluster["beats"].get(id(card)) else ""
+                    out.append(f"| {card.full_label()} | {card.init} | {card.mv} | {cells} | "
+                               f"{card.dtype_label()} | {card.text or 'none'} | {tag} |")
+            else:
+                out.append("| Card | Init | Mv | High | Mid | Low | Dmg | |")
+                out.append("|---|---|---|---|---|---|---|---|")
+                for card in cluster["cards"]:
+                    cells = " | ".join(c[2:] for c in card.zone_cells())
+                    tag = "**dominated**" if cluster["beats"].get(id(card)) else ""
+                    out.append(f"| {card.full_label()} | {card.init} | {card.mv} | {cells} | "
+                               f"{card.dtype_label()} | {tag} |")
             out.append("")
             for card in cluster["cards"]:
                 losses = cluster["beats"].get(id(card))
