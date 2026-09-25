@@ -67,7 +67,7 @@
     "5": {
       "name": "Sword Lunge",
       "description": "Committed: this attack is discarded after it resolves",
-      "gm_notes": "7init\n1mv\natk:1M cut\nBlk:1L\nCommitted (this attack is discarded after resolving)",
+      "gm_notes": "7init\n+1mv\natk:1M cut\nBlk:1L\nCommitted (this attack is discarded after resolving)",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -83,7 +83,7 @@
     "6": {
       "name": "Sword Feint",
       "description": "Feint: if this attack is not blocked it deals no damage (blocks are compulsory)",
-      "gm_notes": "7init\n1mv\natk:1H,1M cut\nBlk:1M\nFeint (This attack deals no damage)",
+      "gm_notes": "7init\n+1mv\natk:1H,1M cut\nBlk:1M\nFeint (This attack deals no damage)",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -483,7 +483,7 @@
     "31": {
       "name": "Halberd Thrust",
       "description": "Committed: this attack is discarded after it resolves",
-      "gm_notes": "7init\n1mv\natk:1H pierce\nBlk:1M\nCommitted (this attack is discarded after resolving)",
+      "gm_notes": "7init\n+1mv\natk:1H pierce\nBlk:1M\nCommitted (this attack is discarded after resolving)",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -691,7 +691,7 @@
     "44": {
       "name": "Knife Lunge",
       "description": "Close Quarters: this attack cannot be blocked by attacks that have already resolved\nCommitted: this attack is discarded after it resolves",
-      "gm_notes": "5init\n1mv\natk:1M cut\nBlk:1H\nClose Quarters (Cannot be blocked by higher initiative attacks)\nCommitted (this attack is discarded after resolving)",
+      "gm_notes": "5init\n+1mv\natk:1M cut\nBlk:1H\nClose Quarters (Cannot be blocked by higher initiative attacks)\nCommitted (this attack is discarded after resolving)",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -931,7 +931,7 @@
     "59": {
       "name": "Plasma Rifle Vent",
       "description": "Feint: if this attack is not blocked it deals no damage (blocks are compulsory)",
-      "gm_notes": "7init\n1mv\natk:1H,1M energy\nBlk:1M\nFeint (This attack deals no damage)",
+      "gm_notes": "7init\n+1mv\natk:1H,1M energy\nBlk:1M\nFeint (This attack deals no damage)",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -1315,7 +1315,7 @@
     "83": {
       "name": "Basic Dodge",
       "description": "",
-      "gm_notes": "8init\n2mv\nRanged attacks target at -8 range",
+      "gm_notes": "8init\n+2mv\nRanged attacks target at -8 range",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -1347,7 +1347,7 @@
     "85": {
       "name": "Basic Sprint",
       "description": "",
-      "gm_notes": "1init\n2mv\nBlk:1L",
+      "gm_notes": "1init\n+2mv\nBlk:1L",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -1603,7 +1603,7 @@
     "101": {
       "name": "Bruiser Bind",
       "description": "",
-      "gm_notes": "3init\n1mv\nBlk:1H\npersist:permanent\nTarget an adjacent frame: as long as that frame is adjacent it cannot move",
+      "gm_notes": "3init\n+1mv\nBlk:1H\npersist:permanent\nTarget an adjacent frame: as long as that frame is adjacent it cannot move",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -1875,7 +1875,7 @@
     "118": {
       "name": "Wunderkid Ace Reflexes",
       "description": "",
-      "gm_notes": "8init\n1mv\nBlk:1H\nWhenever this frame is attacked this turn, move 2 after the attack",
+      "gm_notes": "8init\n+1mv\nBlk:1H\nWhenever this frame is attacked this turn, move 2 after the attack",
       "tags": {
         "1": "Card",
         "2": "Action",

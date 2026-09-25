@@ -353,6 +353,14 @@ def movement_color(value: str) -> str:
     color_name = "green" if parsed > 0 else "red"
     return f"{color_name}!{pct}!white"
 
+def format_action_movement(value: Any) -> str:
+    """Movement string for action cards: positive bonuses always carry a leading '+'."""
+    text = str(value).strip() if value is not None else ""
+    parsed = parse_int_safe(text)
+    if parsed is not None and parsed > 0 and not text.startswith("+"):
+        return f"+{text}"
+    return text
+
 def move_icon_outline_fill(pos: str, color: str) -> str:
     """Filled polygon matching the outline of mvImg, centred on pos (a TikZ coordinate string).
 
@@ -923,8 +931,9 @@ def make_card_from_row(row, card_type, group_capability=None, annotate=False, an
                       + row['Initiative'] + "}}}};\n")
         # movement: a chevron the height of the name plate, in the top-right corner,
         # overlapping the plate's right end
-        card_text += draw_chevron(MOVE_POS[0], MOVE_POS[1], movement_color(row['Movement']),
-                                  row['Movement'], w=MOVE_CHEVRON_W, h=CHEVRON_HALF_H, point=0.5,
+        mv_val = format_action_movement(row['Movement'])
+        card_text += draw_chevron(MOVE_POS[0], MOVE_POS[1], movement_color(mv_val),
+                                  mv_val, w=MOVE_CHEVRON_W, h=CHEVRON_HALF_H, point=0.5,
                                   fontsize="\\LARGE", name="movebox")
 
         # --- zone boxes (always three; boundary changes on block/super block) -
@@ -1149,7 +1158,7 @@ def create_frame_sheet(frame, annotate=False, annotate_outfile=None):
                            + images_folder + logos_dict[frame["Faction"]] + "}};\n")
 
         # movement chevron (always yellow) in the top-right corner
-        frame_text += draw_chevron(MOVE_POS[0], MOVE_POS[1], "yellow", frame['Movement'],
+        frame_text += draw_chevron(MOVE_POS[0], MOVE_POS[1], "yellow", str(frame['Movement']).lstrip('+'),
                                    w=MOVE_CHEVRON_W, h=CHEVRON_HALF_H, point=0.5,
                                    fontsize="\\LARGE", name="frame_move")
 

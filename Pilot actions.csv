@@ -3,7 +3,7 @@ Relentless Assault,,Bruiser,7,-2,All other actions this frame takes this turn re
 Intimidate,,Bruiser,8,0,All enemies within 3 must consume one block\\\fullcommitted,0,Bruiser_1.png,proxy_background.png,,,1,GoodBoy
 Net Strength,,Bruiser,5,-2,"All attacks you make this turn and next gain guard break and gain ""On Hit: target gets \fulldazed""",1,Bruiser_1.png,proxy_background.png,,,1,GoodBoy
 Lockdown,,Bruiser,5,-1,Target frame within 3 gets 3 \fullslowed and 3 \fullstunned\\\fullcommitted,0,Bruiser_1.png,proxy_background.png,,,1,GoodBoy
-Bind,,Bruiser,3,1,Target an adjacent frame: as long as that frame is adjacent it cannot move,\infty,Bruiser_1.png,proxy_background.png,,,1,GoodBoy
+Bind,,Bruiser,3,+1,Target an adjacent frame: as long as that frame is adjacent it cannot move,\infty,Bruiser_1.png,proxy_background.png,,,1,GoodBoy
 Suplex,,Bruiser,4,-1,Move Target frame within 3 to a position within 3 the other side of this frame. That target gets 2 \stunned and 2 \dazed,0,Bruiser_1.png,proxy_background.png,,,1,GoodBoy
 Ephemeral Images,,Mystic,1,-1,"Replace this frame with 3 tokens, one of which is secretly marked to be this frame. These tokens use this frame's actions and the fakes are removed if attacked or if they would deal damage.",\infty,Mystic_1.png,proxy_background.png,,,1,GoodBoy
 Teleport,,Mystic,1,-4,Reposition this frame anywhere on the map,0,Mystic_1.png,proxy_background.png,,,1,GoodBoy
@@ -20,7 +20,7 @@ Ennervate,,Tactician,8,0,Allied frames within 5 get 3 \fullstimmed \\\committed,
 Hyper,,Wunderkid,2,-4,Next turn: play 1 extra action,1,Wunderkid_1.png,proxy_background.png,,,1,GoodBoy
 Net Speed,,Wunderkid,7,0,This frame gets 3 \fullstimmed and 3 \fullboosted\\\fullcommitted,0,Wunderkid_1.png,proxy_background.png,,,1,GoodBoy
 Portal,,Wunderkid,3,-1,Create two portals within 6. Those tiles are connected.,0,Wunderkid_1.png,proxy_background.png,,,1,GoodBoy
-Ace Reflexes,,Wunderkid,8,1,"Whenever this frame is attacked this turn, move 2 after the attack",0,Wunderkid_1.png,proxy_background.png,,,1,GoodBoy
+Ace Reflexes,,Wunderkid,8,+1,"Whenever this frame is attacked this turn, move 2 after the attack",0,Wunderkid_1.png,proxy_background.png,,,1,GoodBoy
 Parallel Action,,Wunderkid,3,-1,"Next turn: The next time this frame would take an action or is attacked, draw another hand and swap any face down actions you like with cards from that hand.",1,Wunderkid_1.png,proxy_background.png,,,1,GoodBoy
 Showboating,,Wunderkid,7,0,"For the rest of this turn, any frame that is able to must attack this frame and this frame's blocks are not discarded.",0,Wunderkid_1.png,proxy_background.png,,,1,GoodBoy
 Battlefield Repairs,,Engineer,4,-2,Repair 3 damage from an allied frame within 3,0,Engineer_1.png,proxy_background.png,,,1,GoodBoy
