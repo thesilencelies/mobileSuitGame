@@ -180,7 +180,8 @@ PILOT_LOW_CY = (ZONE_CY["Low"] + ZONE_HALF_H) - (PILOT_LOW_H_CM / 2) / card_scal
 header_text = "\\documentclass[a4paper, landscape]{article}\n \\usepackage[left =2cm, right = 2cm, " \
             + "top = 1.4cm, bottom =1.4cm]{geometry} \n \\usepackage{tikz} \n \\usepackage[export]{adjustbox}" \
             + "\n \\usetikzlibrary{positioning} \n \\usetikzlibrary{patterns} \n \\usetikzlibrary{calc} \n" + \
-            "\\usepackage[none]{hyphenat} \n\\usepackage{contour}\n\\contourlength{0.8pt}\n"
+            "\\usepackage[none]{hyphenat} \n\\usepackage{contour}\n\\contourlength{0.8pt}\n" \
+            + "\\hyphenpenalty=10000\\exhyphenpenalty=10000\n"
 
 begin_doc = "\\begin{document}\n\\noindent\n"
 
@@ -231,7 +232,9 @@ rules_dict = {
 def createMacros():
     with open(buildfolder + 'card_macros.tex', 'w') as ofile:
         card_text = "\\definecolor{cityblue}{RGB}{105,156,255}\n" \
-                    "\\definecolor{citysteel}{RGB}{78,76,118}\n"
+                    "\\definecolor{citysteel}{RGB}{78,76,118}\n" \
+                    "\\hyphenpenalty=10000\\relax\n" \
+                    "\\exhyphenpenalty=10000\\relax\n"
         for elev_info in ELEVATION_COLORS.values():
             r, g, b = elev_info["rgb"]
             card_text += f"\\definecolor{{{elev_info['name']}}}{{RGB}}{{{r},{g},{b}}}\n"

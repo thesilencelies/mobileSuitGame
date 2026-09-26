@@ -524,8 +524,8 @@ def create_terrain_card(row):
 
         # add rules text if extant (probably an objective card)
         if row["Rules"]:
-            terrain_text += "\\node[rectangle, fill = white, fill opacity = 0.50, text opacity = 1.0, minimum width = 5.9cm, minimum height = 1.4cm, rounded corners = 1pt, " \
-                    + "text width = 5.4cm, align = center]  at (3.45, 1.9){\\footnotesize{" + row['Rules'] +"}};\n"
+            terrain_text += "\\node[rectangle, fill = white, fill opacity = 0.80, text opacity = 1.0, minimum width = 5.9cm, minimum height = 1.4cm, rounded corners = 1pt, " \
+                    + "text width = 5.4cm, align = center]  at (3.45, 1.9){\\sffamily\\footnotesize{\\hyphenpenalty=10000\\exhyphenpenalty=10000 " + row['Rules'] +"}};\n"
 
         # add objective information symbols (in the top safe margin above the grid)
         sym_y = 8.58

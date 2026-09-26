@@ -55,6 +55,8 @@ TYPE_PREFIXES = {"card": "card/", "terrain": "terrain/", "frame": "frame/"}
 
 PREAMBLE = r"""\documentclass{{article}}
 \usepackage[none]{{hyphenat}}
+\hyphenpenalty=10000
+\exhyphenpenalty=10000
 \usepackage{{tikz}}
  \usepackage[export]{{adjustbox}}
 \usepackage{{geometry}}
