@@ -61,12 +61,12 @@ def _first_valid(val: Union[str, List[str]], default: str = "") -> str:
 
 
 # ---------------------------------------------------------------------------
-# Elevation Color Scheme
+# Elevation Color Scheme (Palette D)
 # ---------------------------------------------------------------------------
 ELEVATION_COLORS = {
     1: {"name": "elevbrown", "rgb": (105, 55, 15), "hex": "#69370f"},
-    2: {"name": "elevblue",  "rgb": (55, 155, 255), "hex": "#379bff"},
-    3: {"name": "elevwhite", "rgb": (180, 190, 205), "hex": "#b4bed0"},
+    2: {"name": "elevblue",  "rgb": (60, 110, 150), "hex": "#3c6e96"},
+    3: {"name": "elevcyan",  "rgb": (0, 180, 216),  "hex": "#00b4d8"},
 }
 
 TERRAIN_STYLE = "full"
@@ -84,7 +84,7 @@ if TERRAIN_STYLE == "border":
     }
 
     ELEVATION_3_STYLE: TileStyle = {
-        "color":       "elevwhite",
+        "color":       "elevcyan",
         "thickness":   "line width=4pt",
     }
     # too high to access
@@ -156,8 +156,8 @@ elif TERRAIN_STYLE == "corner":
     }
 
 elif TERRAIN_STYLE == "full":
-    ## Elevation progression: e1 brown (earthy, lower saturation/luminance),
-    ## e2 blue (vivid, high saturation), e3 whitish steel (silvery, light luminance).
+    ## Elevation progression (Palette D): e1 brown (earthy, lower saturation/luminance),
+    ## e2 slate blue (industrial steel-blue), e3 cyan (luminous glass spire).
     ## Distinct in hue, saturation, and monochrome luminance for clear reading
     ## in color and grayscale alike.
     ELEVATION_1_STYLE: TileStyle = {
@@ -175,10 +175,10 @@ elif TERRAIN_STYLE == "full":
     }
 
     ELEVATION_3_STYLE: TileStyle = {
-        "color":       "elevwhite",
+        "color":       "elevcyan",
         "thickness":   "semithick",
         "icon":        "e3.png",
-        "fill":        "elevwhite",
+        "fill":        "elevcyan",
     }
     # too high to access
     IMPASSIBLE_STYLE: TileStyle = {
@@ -477,7 +477,7 @@ def create_terrain_card(row):
         terrain_text += "\\useasboundingbox (0,0) rectangle (6.9, 9.4);\n"
         terrain_text += "\\clip (0,0) rectangle (6.9, 9.4);\n"
         terrain_text += "\\node (cardbg) [rectangle, minimum width = 5.9cm, minimum height = 8.4cm, fill=black!10!white!90] at (3.45,4.7){};\n"
-        terrain_text += '\\node [opacity=0.20] at (3.45,4.7){\\includegraphics[width=5.9cm, max height = 8.4cm,' +\
+        terrain_text += '\\node [opacity=0.35] at (3.45,4.7){\\includegraphics[width=5.9cm, max height = 8.4cm,' +\
                 'keepaspectratio]{' + terrain_images_folder + row["CardImg"] + '}};\n'
 
         # terrain card size

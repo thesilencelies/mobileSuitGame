@@ -235,6 +235,7 @@ def createMacros():
         for elev_info in ELEVATION_COLORS.values():
             r, g, b = elev_info["rgb"]
             card_text += f"\\definecolor{{{elev_info['name']}}}{{RGB}}{{{r},{g},{b}}}\n"
+        card_text += "\\definecolor{elevwhite}{RGB}{0,180,216}\n"
         # The base shield is split into a fill and a stroke so the super-block
         # variant can slip its inner emphasis line *between* them (on top of the
         # fill, under the middle outline) -- otherwise the opaque fill would
