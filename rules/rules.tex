@@ -703,10 +703,9 @@ After finishing the attack the card resolution ends, and the card remains on the
 If the defender fails to reveal any valid blocks they did have face down, those cards cannot be activated later in the round and are instead discarded.
 
 \subsubsection{Blocking a \guardbreak\ attack}
-\guardbreak\ (see Keywords) changes only \emph{how much} one block stops. Against an ordinary
-attack a single matching zone stops the whole thing; against \guardbreak\ each zone must be
-blocked on its own, and any zone left uncovered still deals its damage.
-A blocking card covers \emph{every} attacked zone it has a block in --- one card, spent once.
+\guardbreak\ requires a block mark for each zone independently. If a card has multiple zones it blocks, it can block each of those from the 
+\guardbreak attack. Blocking stays compulsory while any remaining card blocks any zone that is still unblocked,
+and the defender chooses which card to spend each time.
 
 \begin{figure}[!ht]
   \centering
@@ -744,8 +743,6 @@ A blocking card covers \emph{every} attacked zone it has a block in --- one card
   unblocked Low deals its damage. \emph{Bottom:} without \guardbreak\ the High block alone cancels the entire attack.}
 \end{figure}
 
-Blocking stays compulsory while any remaining card blocks any zone that is still unblocked,
-and the defender chooses which card to spend each time.
 
 \subsubsection{Melee between elevations}
 If the attack is a melee attack and the defender is at a different elevation to the attacker, the attacks are moved up one bracket per difference in elevation.
@@ -1153,25 +1150,17 @@ Here are some pointers to help you get started in your battles in NetFrame.
 \begin{itemize}
 \item \textbf{Heavy attacks root you in place.} If you intend to swing something big, be
 where you need to be already, or pair it with a booster.
-\item \textbf{Ranged attacks pay more movement.} Range is not free; gunners
-tend to have to stand still to shoot.
-
-\item \textbf{Attacking is how you spend your opponent's cards.} Blocking is compulsory
-and the blocking card is discarded, so every blocked attack strips a card from them.
 \item \textbf{A fast attack can delete a slow heavy one.} If their low initiative
 attack is still face down when your attack forces a block, they may have to
-expend it so it never resolves at all. This is what attacks with \feint are for.
+expend it so it never resolves at all.
 \item \textbf{High initiative is defensive gold} Resolved attacks hang around to block after
 so they can both remove an opponents action and then block as well.
 \item \textbf{Most weapons cannot block every zone.} Many cover only one. Attack the zone
 their weapon leaves open.
 \item \textbf{Watch the group indicator} at the bottom left of every weapon card. It shows
 what the whole weapon group can do. One card played tells you some of whats coming.
-\item \textbf{Almost every ranged attack blocks Mid, and only Mid.} A frame with only
-guns has a very predictable guard: hit it High or Low.
-\item \textbf{Deck size trades variety for consistency.} A small deck sees a large share of
-itself every turn and can rely on finding its key cards; a large one carries far more
-tools and finds any particular one far less often.
+\item \textbf{Almost every ranged attack blocks only Mid.} Its easy to strip those attacks away
+or just swing for the kill if you think they are focussed on shooting.
 \item \textbf{Cover your own blocking zones.} Check which zones your chosen weapons leave
 open and fill the gap - everyone has access to the basic attacks.
 \end{itemize}
@@ -1299,27 +1288,15 @@ Each turn: \textbf{Planning} $\to$ \textbf{Action} $\to$ \textbf{Cleanup}.
 \end{tikzpicture}
 \par}
 
-\qhead{Damage}
-\begin{qreflist}
-\item More damage in a zone than its armour $\to$ frame destroyed.
-\item Last hit left in a zone gives a standing penalty:
-  \begin{qreflist}
-  \item High $\to -1$ initiative;
-  \item Mid $\to -1$ card drawn;
-  \item Low $\to -1$ movement.
-  \end{qreflist}
-\end{qreflist}
-
 \qhead{Line of sight (ranged)}
 \begin{qreflist}
-\item Target: in range, not adjacent.
-\item Clear line attacker $\to$ target $=$ valid.
+\item Target: in range, not adjacent with a clear line attacker $\to$ target.
 \item Blockers on the line:
   \begin{qreflist}
   \item impassable terrain (barricades and cage walls included);
   \item terrain higher than the attacker;
   \item an obstacle next to the target, at the target's own elevation;
-  \item higher terrain next to the target.
+  \item higher terrain than the target next to the target.
   \end{qreflist}
 \item A tile with a frame on it counts as \textbf{one elevation higher}.
 \end{qreflist}
