@@ -231,7 +231,15 @@ rules_dict = {
 
 def createMacros():
     with open(buildfolder + 'card_macros.tex', 'w') as ofile:
-        card_text = "\\definecolor{cityblue}{RGB}{105,156,255}\n" \
+        card_text = "\\RequirePackage[T1]{fontenc}\n" \
+                    "\\RequirePackage{fetamont}\n" \
+                    "\\RequirePackage{roboto}\n" \
+                    "\\RequirePackage[none]{hyphenat}\n\n" \
+                    "% Centralised font definitions\n" \
+                    "\\newcommand{\\cardtitlefont}{\\ffmfamily}\n" \
+                    "\\newcommand{\\cardtextfont}{\\fontfamily{Roboto-LF}\\fontseries{c}\\selectfont}\n" \
+                    "\\newcommand{\\rulesfont}{\\fontfamily{Roboto-LF}\\selectfont}\n\n" \
+                    "\\definecolor{cityblue}{RGB}{105,156,255}\n" \
                     "\\definecolor{citysteel}{RGB}{78,76,118}\n" \
                     "\\hyphenpenalty=10000\\relax\n" \
                     "\\exhyphenpenalty=10000\\relax\n"
@@ -922,10 +930,10 @@ def make_card_from_row(row, card_type, group_capability=None, annotate=False, an
         # name box first so the init circle / chevron overlap its ends on top
         card_text += (f"\\node (nameplate) [rectangle, minimum width={name_w_cm:.2f}cm, minimum height={NAME_H_CM}cm, "
                       f"rounded corners={rc()}, fill=white, draw=black!40, text width={name_w_cm - 1.6:.2f}cm, align=center] "
-                      f"at ({name_cx:.2f}, {NAME_CY}){{\\large{{" + row["Name"])
+                      f"at ({name_cx:.2f}, {NAME_CY}){{\\large{{\\cardtitlefont " + row["Name"] + "}")
         if row["Faction"]:
-            card_text += "}\\\\\n\\small{\\emph{" + row["Faction"] + "}"
-        card_text += "}};\n"
+            card_text += "\\\\\n\\small{\\cardtextfont\\emph{" + row["Faction"] + "}}"
+        card_text += "};\n"
 
         # initiative: a filled circle the height of the name plate, in the top-left
         # corner, overlapping the plate's left end; a symbol sits over the circle
@@ -992,7 +1000,7 @@ def make_card_from_row(row, card_type, group_capability=None, annotate=False, an
         # column; a narrow right gutter lets it use most of the remaining width
         if row["Text"]:
             card_text += (f"\\node[anchor=west, align=left, text width=4.9cm, inner sep=1pt] (textbox) "
-                          f"at ($(rulesbox.west)+(0.98,0)$){{{text_font}{{" + row['Text'] + "}};\n")
+                          f"at ($(rulesbox.west)+(0.98,0)$){{{text_font}{{\\cardtextfont " + row['Text'] + "}};\n")
 
         # persistence: top-left of the rules box
         if row["Persistence"] != "0":
@@ -1146,10 +1154,10 @@ def create_frame_sheet(frame, annotate=False, annotate_outfile=None):
         name_w_cm = (MOVE_POS[0] - INIT_POS[0]) * card_scale
         frame_text += (f"\\node (frame_name) [rectangle, minimum width={name_w_cm:.2f}cm, minimum height={NAME_H_CM}cm, "
                        f"rounded corners={rc()}, fill=white, draw=black!40, text width={name_w_cm - 1.6:.2f}cm, align=center] "
-                       f"at ({name_cx:.2f}, {NAME_CY}){{\\large{{" + frame["Name"])
+                       f"at ({name_cx:.2f}, {NAME_CY}){{\\large{{\\cardtitlefont " + frame["Name"] + "}")
         if frame["Faction"]:
-            frame_text += "}\\\\\n\\small{\\emph{" + frame["Faction"] + "}"
-        frame_text += "}};\n"
+            frame_text += "\\\\\n\\small{\\cardtextfont\\emph{" + frame["Faction"] + "}}"
+        frame_text += "};\n"
 
         # faction logo box in the top-left corner, standing in for the initiative
         # circle. Sized and positioned exactly like the name plate (same height,
@@ -1211,7 +1219,7 @@ def create_frame_sheet(frame, annotate=False, annotate_outfile=None):
         # so the text doesn't clip out the top/bottom of the box.
         abil_font = "\\scriptsize" if estimated_text_len(frame['Abilities']) > 80 else "\\footnotesize"
         frame_text += (f"\\node[text width={abil_w_cm - 0.4:.1f}cm, align=left, inner sep=1pt, font={abil_font}] "
-                       f"at (frame_ability.center){{" + frame['Abilities'] + "};\n")
+                       f"at (frame_ability.center){{\\cardtextfont " + frame['Abilities'] + "};\n")
 
         # --- flavour + copyright at the bottom (no faction/type line needed:
         # faction is shown up top and the card is obviously a frame). The
@@ -1372,7 +1380,7 @@ def create_rules_fragments(weapon_rows, weapon_caps, pilot_rows, drone_rows, fra
         ofile.write("\\input{card_macros.tex}\n")
         ofile.write(begin_doc)
         for label, fname in fragments:
-            ofile.write("\\begin{center}\n{\\Large\\textbf{" + label + "}}\\par\\vspace{0.6cm}\n")
+            ofile.write("\\begin{center}\n{\\Large\\textbf{\\cardtitlefont " + label + "}}\\par\\vspace{0.6cm}\n")
             ofile.write("\\input{" + fname + "}\n")
             ofile.write("\\end{center}\n\\newpage\n\\noindent\n")
         ofile.write("\\end{document}\n")
