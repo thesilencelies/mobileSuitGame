@@ -807,16 +807,13 @@ engine had to make, not something the card says:
 * **"Until the end of next turn"** (Snipers aim, Combo strike) is not stored
   anywhere. The card in front of the frame *is* the state: `fx.card_active`
   covers the turn it resolved and, at persistence 1, the `aside` pile the turn
-  after, which is exactly the window the words name. So Combo strike now rides
-  *every* attack in that window rather than only the next one, and Snipers aim
-  survives the turn flags being cleared. Both cards' numbers — "+ 4 range", "1
-  extra damage" — are read off the printed text at the point of use, so a
-  balance pass needs no engine change.
-* **Practiced Technique** counts "each other **completed** attack from the same
-  weapon" as the ones that have already resolved. The card being resolved is
-  not one of them (`resolved` is set in `_finish_card`, after the damage bonus
-  runs), so nothing is subtracted — a card still face down in the row is not a
-  completed attack, which is what the word was added to say.
+  after, which is exactly the window the words name. So Combo strike rides
+  weapon actions in that window, offering a follow-up attack from the same weapon
+  revealed from the top 4 cards of the deck to resolve after the current attack finishes.
+  Snipers aim survives the turn flags being cleared, with numbers read off the printed text.
+* **Practiced Technique** grants 1 lucid, 1 revealed, and 2 stimmed on play, and
+  checks whether "every action chosen this turn was from the same weapon" next turn:
+  if so, all attacks from that weapon deal 1 extra damage and gain Guard Break.
 * **Encode the future** names a side, not a frame ("allied frames choose cards
   from their deck"), so it arms every frame on it and asks nothing. It used to
   ask which ally.

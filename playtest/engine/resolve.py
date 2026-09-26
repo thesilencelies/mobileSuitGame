@@ -555,6 +555,7 @@ def _end_planning(state: GameState) -> None:
     for frame in state.frames.values():
         tick_statuses(frame)
     for frame in state.frames.values():
+        frame.turn_flags["committed_uids"] = list(frame.committed)
         for uid in list(frame.hand):
             move_card(state, uid, "discard")
     state.phase = "action"
@@ -692,11 +693,12 @@ def _begin_resolution(state: GameState, frame: FrameState, uid: str) -> None:
             steps.append("effect")
         if card.is_attack and not effects.delegates_attack(card):
             steps.append("attack")
+    frame.turn_flags.setdefault("committed_uids", list(frame.committed))
     # The controller picks the order, out of the orders the card allows --
     # "Must attack before moving" (Explosive Exit) and the two boosters whose
     # effect has to be in force before they move. With one order left there is
     # nothing to ask, so the card just takes it.
-    orders = effects.step_orders(card, steps)
+    orders = effects.step_orders(card, steps, state=state, frame=frame)
     state.resolution = Resolution(
         frame_id=frame.id,
         uid=uid,
@@ -772,6 +774,9 @@ def _run_steps(state: GameState) -> bool:
             # Resume an attack that is part-way through its block decisions.
             if _block_loop(state):
                 return True
+            combo_uid = res.effect_state.pop("combo_uid", None)
+            if combo_uid and _attack_step(state, frame, combo_uid):
+                return True
             continue
         if not res.steps:
             break
@@ -792,6 +797,9 @@ def _run_steps(state: GameState) -> bool:
         else:
             res.steps.pop(0)
             if _attack_step(state, frame, res.uid):
+                return True
+            combo_uid = res.effect_state.pop("combo_uid", None)
+            if combo_uid and _attack_step(state, frame, combo_uid):
                 return True
     res.step = ""
     _finish_card(state)
@@ -933,6 +941,7 @@ def _attack_step(state: GameState, frame: FrameState, uid: str) -> bool:
         prompt=f"Choose a target for {card.key}",
         options=options,
         frame_id=frame.id,
+        context={"uid": uid},
     )
     return True
 
@@ -1235,6 +1244,7 @@ def _handle_commit(state: GameState, pending: PendingDecision, cmd: Command) -> 
         state.cards[uid].face_down = True
         state.cards[uid].resolved = False
         state.cards[uid].init_index = 0
+    frame.turn_flags["committed_uids"] = list(frame.committed)
     for uid in list(frame.hand):
         move_card(state, uid, "discard")
     state.note(f"{frame.id} commits {len(uids)} actions")
@@ -1357,8 +1367,9 @@ def _handle_resolve_order(
         sorted(order) == sorted(res.steps), "order must be a permutation of the steps"
     )
     card = state.catalogue[state.cards[res.uid].key]
+    frame = state.frames[res.frame_id]
     _require(
-        order in effects.step_orders(card, res.steps),
+        order in effects.step_orders(card, res.steps, state=state, frame=frame),
         f"{card.name} does not allow that order",
     )
     res.steps = order
@@ -1403,7 +1414,8 @@ def _handle_attack_target(
         "that target was not offered",
     )
     frame = state.frames[res.frame_id]
-    _declare(state, frame, res.uid, {"kind": kind, "id": target_id})
+    uid = str(pending.context.get("uid")) if pending.context and "uid" in pending.context else res.uid
+    _declare(state, frame, uid, {"kind": kind, "id": target_id})
 
 
 def _handle_choose_block(

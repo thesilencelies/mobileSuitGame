@@ -334,7 +334,12 @@ _STEP_NAMES = {"attack": "attack", "move": "movement", "mov": "movement"}
 _EFFECT_BEFORE_MOVE = frozenset({JUMP, BOOMERANG})
 
 
-def step_orders(card: Card, steps: Sequence[str]) -> list[list[str]]:
+def step_orders(
+    card: Card,
+    steps: Sequence[str],
+    state: Optional[GameState] = None,
+    frame: Optional[FrameState] = None,
+) -> list[list[str]]:
     """Every order of a card's resolution steps that the card allows.
 
     The controller normally picks the order (rules.tex: an action's movement,
@@ -350,6 +355,13 @@ def step_orders(card: Card, steps: Sequence[str]) -> list[list[str]]:
             rules.append((before, after))
     if card.key in _EFFECT_BEFORE_MOVE:
         rules.append(("effect", "movement"))
+    if (
+        state is not None
+        and frame is not None
+        and card.card_type == "weapon"
+        and fx.card_active(state, frame, COMBO_STRIKE)
+    ):
+        rules.append(("effect", "attack"))
 
     allowed = []
     for perm in itertools.permutations(steps):
@@ -1721,6 +1733,10 @@ def _choice_parallel_in(
         inst.face_down = True
         inst.resolved = False
         inst.init_index = 0
+        if "committed_uids" in frame.turn_flags:
+            frame.turn_flags["committed_uids"] = [
+                incoming if u == out else u for u in frame.turn_flags["committed_uids"]
+            ]
     nxt = _parallel_step(state, frame)
     if nxt is not None:
         state.pending = nxt
@@ -1977,15 +1993,14 @@ def _range_cap(state: GameState, target: FrameState, cap: int) -> None:
 
 
 def _effect_combo_strike(state: GameState, frame: FrameState, uid: str):
-    """"Until the end of next turn: when resolving attacks from this frame..."
+    """"Until the end of next turn: When this frame takes a weapon action..."
 
     Nothing is armed. Like Snipers aim, the card in front of the frame *is*
     the state -- `fx.card_active` covers the turn it resolved and, at
-    persistence 1, the turn after -- so it now rides *every* attack in that
-    window rather than only the next one. The `combo` slot is used for one
-    attack's chosen extra and is emptied as soon as that attack applies it.
+    persistence 1, the turn after -- so it now rides every weapon action in that
+    window.
     """
-    state.note(f"{frame.id} lines up combos on its attacks this turn and next")
+    state.note(f"{frame.id} lines up combos on its weapon actions this turn and next")
     return None
 
 
@@ -1994,7 +2009,8 @@ def _armed_rider(
 ) -> Optional[str]:
     """The name of an effect owed by `frame` that fires on `card`, if any."""
     if (
-        card.is_attack
+        card.card_type == "weapon"
+        and card.is_attack
         and not delegates_attack(card)
         and fx.card_active(state, frame, COMBO_STRIKE)
     ):
@@ -2017,17 +2033,16 @@ def _combo_options(
 def _combo_decision(
     state: GameState, frame: FrameState, uid: str
 ) -> Optional[PendingDecision]:
-    """"When resolving the next attack ... reveal the top 4 cards of its deck
-    and choose up to 1 attack from the same weapon: add its attacks"."""
+    """"When this frame takes a weapon action, reveal the top 4 cards of its deck
+    and choose up to 1 card from the same weapon: the attack from that card
+    resolves after the current attack finishes"."""
     res = state.resolution
     if res is None or "attack" not in res.steps:
-        # The controller ordered the attack before the effect: nothing to add
-        # to any more. Stay armed for the next attack rather than fizzling.
+        # The controller ordered the attack before the effect: nothing to follow.
+        # Stay armed for the next attack rather than fizzling.
         return None
     card = state.card(uid)
     options = _combo_options(state, frame, card)
-    # Nothing chosen for this attack yet: drop anything a previous one left.
-    fx.slot(state, "combo").pop(frame.id, None)
     if not options:
         state.note(f"Combo strike: no {card.group} attack in the top 4 cards")
         return None
@@ -2037,7 +2052,7 @@ def _combo_decision(
         "combo",
         seat=frame.seat,
         frame_id=frame.id,
-        prompt=f"Combo strike: add a {card.group} attack to {card.name}?",
+        prompt=f"Combo strike: choose a {card.group} attack to follow {card.name}?",
         options=options,
     )
 
@@ -2046,16 +2061,17 @@ def _choice_combo(
     state: GameState, frame: FrameState, choice: Mapping, ctx: Mapping
 ) -> None:
     if choice.get("skip"):
+        state.note("Combo strike skipped")
         return
     uid = str(choice.get("uid"))
     if uid not in state.cards:
         return
     card = state.catalogue[state.cards[uid].key]
-    fx.slot(state, "combo")[frame.id] = {
-        "extra": {z: card.attacks[z] for z in ZONES if card.attacks[z] > 0},
-    }
     discard_card(state, uid)
-    state.note(f"Combo strike adds {card.key}'s attack")
+    res = state.resolution
+    if res is not None:
+        res.effect_state["combo_uid"] = uid
+    state.note(f"Combo strike readies {card.key}'s attack to follow")
 
 
 def _effect_snipers_aim(state: GameState, frame: FrameState, uid: str):
@@ -2109,10 +2125,42 @@ def _effect_master_duelist(state: GameState, frame: FrameState, uid: str):
 def _effect_practiced_technique(state: GameState, frame: FrameState, uid: str):
     _apply_statuses(state, frame, _parse_statuses((state.card(uid).text or "").split("\\\\")[0]))
     state.note(
-        f"{frame.id}'s attacks next turn hit harder for each other "
-        f"attack from the same weapon"
+        f"{frame.id}'s attacks next turn hit harder and gain Guard Break "
+        f"if every action chosen is from the same weapon"
     )
     return None
+
+
+def practiced_technique_active(
+    state: GameState, frame: FrameState, card: Optional[Card] = None
+) -> bool:
+    """True if Practiced Technique's 'Next turn' condition is met.
+
+    'Next turn: If every action chosen this turn was from the same weapon,
+    those attacks deal 1 extra damage and gain \\guardbreak'.
+    """
+    if not fx.card_active(state, frame, PRACTICED, this_turn=False):
+        return False
+    uids = frame.turn_flags.get("committed_uids")
+    if uids is None:
+        uids = list(frame.committed)
+    if not uids:
+        return False
+    groups = set()
+    for uid in uids:
+        inst = state.cards.get(uid)
+        if inst is None:
+            return False
+        action_card = state.catalogue.get(inst.key)
+        if action_card is None or action_card.card_type != "weapon":
+            return False
+        groups.add(action_card.group)
+    if len(groups) != 1:
+        return False
+    weapon_group = next(iter(groups))
+    if card is not None and (card.card_type != "weapon" or card.group != weapon_group):
+        return False
+    return True
 
 
 def _effect_rebound(state: GameState, frame: FrameState, uid: str):
@@ -3035,9 +3083,20 @@ def apply_effect_choice(state: GameState, frame: FrameState, uid: str,
 # --------------------------------------------------------------------------
 
 
-def grants_guard_break(state: GameState, attacker: FrameState) -> bool:
-    """Net Strength: "all attacks you make this turn and next gain guard break"."""
-    return fx.card_active(state, attacker, NET_STRENGTH)
+def grants_guard_break(
+    state: GameState, attacker: FrameState, card: Optional[Card] = None
+) -> bool:
+    """Whether an effect grants guard break to this attack.
+
+    Net Strength: "all attacks you make this turn and next gain guard break".
+    Practiced Technique: "If every action chosen this turn was from the same
+    weapon, those attacks deal 1 extra damage and gain \\guardbreak".
+    """
+    if fx.card_active(state, attacker, NET_STRENGTH):
+        return True
+    if card is not None and practiced_technique_active(state, attacker, card):
+        return True
+    return False
 
 
 def ignores_obstacles(state: GameState, attacker: FrameState) -> bool:
@@ -3088,9 +3147,13 @@ def on_attack_declared(
     state: GameState, attacker: FrameState, card: Card, attack: AttackInProgress
 ) -> None:
     """Fires once an attack has been built, before any block decision."""
-    if grants_guard_break(state, attacker) and not attack.guard_break:
-        attack.guard_break = True
-        state.note(f"Net Strength gives {card.key} Guard Break")
+    if not attack.guard_break:
+        if fx.card_active(state, attacker, NET_STRENGTH):
+            attack.guard_break = True
+            state.note(f"Net Strength gives {card.key} Guard Break")
+        elif practiced_technique_active(state, attacker, card):
+            attack.guard_break = True
+            state.note(f"Practiced Technique gives {card.key} Guard Break")
     if not card.is_ranged and fx.card_active(state, attacker, MASTER_DUELIST):
         for target in attack.targets:
             if target.kind != "frame":
@@ -3921,27 +3984,8 @@ def attack_damage_bonus(
         spread += extra
         state.note(f"Snipers aim adds {extra} damage")
 
-    if fx.card_active(state, attacker, PRACTICED, this_turn=False):
-        # "for each other *completed* attack from the same weapon": the ones
-        # that have already resolved. The card being resolved now is not one
-        # of them -- `resolved` is set in `_finish_card`, after this runs --
-        # so the count is already "other" and nothing is subtracted.
-        same = sum(
-            1 for uid in attacker.committed
-            if state.cards[uid].resolved
-            and state.catalogue[state.cards[uid].key].group == card.group
-            and state.catalogue[state.cards[uid].key].is_attack
-        )
-        if same:
-            spread += same
-            state.note(f"Practiced Technique adds {same} damage")
-
-    combo = fx.slot(state, "combo").get(attacker.id) or {}
-    extra = combo.get("extra")
-    if extra:
-        for zone, amount in extra.items():
-            add(zone, int(amount))
-        # One attack, one added card: the next attack asks again.
-        fx.slot(state, "combo").pop(attacker.id, None)
+    if practiced_technique_active(state, attacker, card):
+        spread += 1
+        state.note("Practiced Technique adds 1 damage")
 
     return bonus, spread

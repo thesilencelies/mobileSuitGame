@@ -2018,8 +2018,8 @@
     },
     "127": {
       "name": "Specialist Combo strike",
-      "description": "Committed: this attack is discarded after it resolves",
-      "gm_notes": "8init\n-2mv\nBlk:1H\npersist:1 turn\nUntil the end of next turn: When resolving attacks from this frame, reveal the top 4 cards of its deck and choose up to 1 attack from the same weapon: add it's attacks to the attack\nCommitted (this attack is discarded after resolving)",
+      "description": "",
+      "gm_notes": "8init\n-2mv\nBlk:1H\npersist:1 turn\nUntil the end of next turn: When this frame takes a weapon action, reveal the top 4 cards of its deck and choose up to 1 card from the same weapon: the attack from that card resolves after the current attack finishes",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -2066,8 +2066,8 @@
     },
     "130": {
       "name": "Specialist Practiced Technique",
-      "description": "Lucid: while lucid a frame gets +2 cards\nStimmed: while stimmed a frame gets +2 init",
-      "gm_notes": "5init\n-1mv\nBlk:1H\npersist:1 turn\nThis frame gets 1 Lucid (+2 cards) and 1 Stimmed (+2 init)\nNext turn: attacks deal 1 extra damage for each other completed attack from the same weapon",
+      "description": "Lucid: while lucid a frame gets +2 cards\nRevealed: while revealed a frame's chosen actions are turned face up\nStimmed: while stimmed a frame gets +2 init\nGuard Break: this attack consumes one block per zone; zones that are not blocked still deal damage",
+      "gm_notes": "5init\n-1mv\nBlk:1H\npersist:1 turn\nThis frame gets 1 Lucid (+2 cards) , 1 Revealed (chosen actions are turned face up) and 2 Stimmed (+2 init)\nNext turn: If every action chosen this turn was from the same weapon, those attacks deal 1 extra damage and gain Guard Break",
       "tags": {
         "1": "Card",
         "2": "Action",

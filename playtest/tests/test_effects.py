@@ -19,7 +19,7 @@ from pathlib import Path
 
 import pytest
 
-from playtest.engine import combat, effects
+from playtest.engine import combat, effects, resolve as R
 from playtest.engine import effects_state as fx
 from playtest.engine import keywords as kw
 from playtest.engine.serialize import view_for
@@ -1741,16 +1741,46 @@ def test_combo_strike_adds_a_second_attack_from_the_same_weapon():
     )
     assert answer(state, decision, {"uid": spare}) is None
     assert state.cards[spare].location == "discard"
+    assert state.resolution.effect_state["combo_uid"] == spare
 
-    bonus, spread = effects.attack_damage_bonus(state, attacker, card, defender.id)
-    combo = CATALOGUE["Halberd_Crush"]
-    assert bonus == {z: n for z, n in combo.attacks.items() if n}, (
-        "Halberd_Crush's attack is added, in its own zone"
-    )
-    assert spread == 0, "a combo names its zones; it is not a flat +N"
-    assert effects.attack_damage_bonus(state, attacker, card, defender.id) == ({}, 0), (
-        "and only once"
-    )
+    # When the current attack finishes, the follow-up combo attack resolves
+    R._run_steps(state)
+
+    eviscerate = CATALOGUE["Halberd_Eviscerate"]
+    crush = CATALOGUE["Halberd_Crush"]
+    assert defender.damage["High"] == eviscerate.attacks["High"] + crush.attacks["High"]
+    assert defender.damage["Low"] == eviscerate.attacks["Low"]
+
+
+def test_combo_strike_follow_up_attacks_after_blocked_first_attack():
+    state, attacker, defender = duel()
+    play(state, attacker, effects.COMBO_STRIKE)
+    defender.turn_flags["hector_block_used"] = True
+
+    spare = give(state, attacker, "Halberd_Crush", location="deck")
+    swing = give(state, attacker, "Halberd_Thrust")
+    # Halberd_Thrust has MidBlock 1 (not a super block)
+    block_uid = give(state, defender, "Halberd_Thrust")
+
+    state.resolution = Resolution(frame_id=attacker.id, uid=swing, steps=["attack"])
+    decision = effects.resolve_effect(state, attacker, swing)
+    answer(state, decision, {"uid": spare})
+
+    # Primary attack starts and requires a block decision
+    parked = R._run_steps(state)
+    assert parked is True
+    assert state.pending is not None and state.pending.kind == "choose_block"
+
+    # Defender blocks the first attack
+    from playtest.engine.types import Command
+    R.handle_command(state, Command("choose_block", defender.seat, {"uid": block_uid}))
+
+    # Primary attack was blocked; combo attack lands unblocked
+    parked2 = R._run_steps(state)
+    assert parked2 is False
+    crush = CATALOGUE["Halberd_Crush"]
+    assert defender.damage.get("High", 0) == crush.attacks["High"]
+    assert defender.damage.get("Mid", 0) == 0
 
 
 def test_combo_strike_rides_every_attack_until_the_end_of_next_turn():
@@ -1830,32 +1860,31 @@ def test_master_duelist_reveals_melee_targets_and_takes_over_their_blocks():
 def test_practiced_technique_stacks_damage_across_one_weapon_next_turn():
     state, attacker, defender = duel()
     uid, _ = play(state, attacker, effects.PRACTICED)
-    assert attacker.statuses["lucid"] > 0, "the printed status applies at once"
+    assert attacker.statuses["lucid"] == 1, "1 lucid applied"
+    assert attacker.statuses["revealed"] == 1, "1 revealed applied"
+    assert attacker.statuses["stimmed"] == 2, "2 stimmed applied"
 
     card = CATALOGUE["Halberd_Eviscerate"]
     give(state, attacker, "Halberd_Eviscerate")
     assert effects.attack_damage_bonus(state, attacker, card, defender.id) == ({}, 0), (
         "'next turn'"
     )
+    assert not effects.grants_guard_break(state, attacker, card)
 
     carry_over(state, uid)
 
-    def completed(key):
-        """A card of `key` that has already resolved this turn."""
-        state.cards[give(state, attacker, key)].resolved = True
-
+    # Next turn: if all actions chosen this turn are from the same weapon,
+    # those attacks deal 1 extra damage and gain guardbreak.
     give(state, attacker, "Halberd_Crush")
-    assert effects.attack_damage_bonus(state, attacker, card, defender.id) == ({}, 0), (
-        "'each other completed attack' -- one still face down is not completed"
-    )
-    completed("Halberd_Crush")
+    assert effects.practiced_technique_active(state, attacker, card)
     assert effects.attack_damage_bonus(state, attacker, card, defender.id) == ({}, 1)
-    completed("Halberd_Sweep")
-    assert effects.attack_damage_bonus(state, attacker, card, defender.id) == ({}, 2)
-    completed("Spear_Thrust")
-    assert effects.attack_damage_bonus(state, attacker, card, defender.id) == ({}, 2), (
-        "another weapon adds nothing"
-    )
+    assert effects.grants_guard_break(state, attacker, card)
+
+    # Another weapon breaks the condition:
+    give(state, attacker, "Spear_Thrust")
+    assert not effects.practiced_technique_active(state, attacker, card)
+    assert effects.attack_damage_bonus(state, attacker, card, defender.id) == ({}, 0)
+    assert not effects.grants_guard_break(state, attacker, card)
 
 
 def test_rebound_lends_the_frame_sight_of_what_it_cannot_see():
