@@ -60,22 +60,31 @@ def _first_valid(val: Union[str, List[str]], default: str = "") -> str:
     return val
 
 
+# ---------------------------------------------------------------------------
+# Elevation Color Scheme
+# ---------------------------------------------------------------------------
+ELEVATION_COLORS = {
+    1: {"name": "elevbrown", "rgb": (105, 55, 15), "hex": "#69370f"},
+    2: {"name": "elevblue",  "rgb": (55, 155, 255), "hex": "#379bff"},
+    3: {"name": "elevwhite", "rgb": (245, 248, 252), "hex": "#f5f8fc"},
+}
+
 TERRAIN_STYLE = "full"
 
 if TERRAIN_STYLE == "border":
     ## styles for other options
     ELEVATION_1_STYLE: TileStyle = {
-        "color":       "blue",
+        "color":       "elevbrown",
         "thickness":   "line width=3pt",
     }
 
     ELEVATION_2_STYLE: TileStyle = {
-        "color":       "blue!50",
+        "color":       "elevblue",
         "thickness":   "line width=4pt",
     }
 
     ELEVATION_3_STYLE: TileStyle = {
-        "color":       "blue!20",
+        "color":       "elevwhite",
         "thickness":   "line width=4pt",
     }
     # too high to access
@@ -147,30 +156,29 @@ elif TERRAIN_STYLE == "corner":
     }
 
 elif TERRAIN_STYLE == "full":
-    ## Elevation ramp: low elevation reads as low-saturation steel-grey blue,
-    ## climbing to a vivid "city" blue at the top so taller tiles pop like
-    ## glass high-rises. The base border is kept thin -- the impression of
-    ## looking onto a building's side comes from the per-edge walls drawn
-    ## below (see ELEVATION_WALL_PER_LEVEL_PT and _tikz_square_lines).
+    ## Elevation progression: e1 brown (earthy, lower saturation/luminance),
+    ## e2 blue (vivid, high saturation), e3 whitish (near-neutral, highest luminance).
+    ## Distinct in hue, saturation, and monochrome luminance for clear reading
+    ## in color and grayscale alike.
     ELEVATION_1_STYLE: TileStyle = {
-        "color":       "cityblue!30!citysteel",
+        "color":       "elevbrown",
         "thickness":   "semithick",
         "icon":        "e1.png",
-        "fill":        "cityblue!30!citysteel",
+        "fill":        "elevbrown",
     }
 
     ELEVATION_2_STYLE: TileStyle = {
-        "color":       "cityblue!60!citysteel",
+        "color":       "elevblue",
         "thickness":   "semithick",
         "icon":        "e2.png",
-        "fill":        "cityblue!60!citysteel",
+        "fill":        "elevblue",
     }
 
     ELEVATION_3_STYLE: TileStyle = {
-        "color":       "cityblue",
+        "color":       "elevwhite",
         "thickness":   "semithick",
         "icon":        "e3.png",
-        "fill":        "cityblue",
+        "fill":        "elevwhite",
     }
     # too high to access
     IMPASSIBLE_STYLE: TileStyle = {
@@ -469,7 +477,7 @@ def create_terrain_card(row):
         terrain_text += "\\useasboundingbox (0,0) rectangle (6.9, 9.4);\n"
         terrain_text += "\\clip (0,0) rectangle (6.9, 9.4);\n"
         terrain_text += "\\node (cardbg) [rectangle, minimum width = 5.9cm, minimum height = 8.4cm, fill=black!10!white!90] at (3.45,4.7){};\n"
-        terrain_text += '\\node [opacity=0.6] at (3.45,4.7){\\includegraphics[width=5.9cm, max height = 8.4cm,' +\
+        terrain_text += '\\node [opacity=0.20] at (3.45,4.7){\\includegraphics[width=5.9cm, max height = 8.4cm,' +\
                 'keepaspectratio]{' + terrain_images_folder + row["CardImg"] + '}};\n'
 
         # terrain card size
@@ -516,8 +524,8 @@ def create_terrain_card(row):
 
         # add rules text if extant (probably an objective card)
         if row["Rules"]:
-            terrain_text += "\\node[rectangle, fill = white, opacity = 0.75, minimum height =1.6cm, rounded corners = 0.2cm, " \
-                    + "text width = 2.8cm]  at (4.7, 1.9){\\footnotesize{" + row['Rules'] +"}};\n"
+            terrain_text += "\\node[rectangle, fill = white, fill opacity = 0.50, text opacity = 1.0, minimum width = 5.9cm, minimum height = 1.4cm, rounded corners = 1pt, " \
+                    + "text width = 5.4cm, align = center]  at (3.45, 1.9){\\footnotesize{" + row['Rules'] +"}};\n"
 
         # add objective information symbols (in the top safe margin above the grid)
         sym_y = 8.58

@@ -1664,12 +1664,14 @@ def test_the_board_draws_elevation_the_way_the_card_does() -> None:
     static = Path(images.__file__).resolve().parent / "static"
     board_js = (static / "js" / "board.js").read_text(encoding="utf-8")
 
-    # cityblue!N!citysteel, mixed the way xcolor mixes it.
-    blue, steel = (105, 156, 255), (78, 76, 118)
-    for mix, level in ((0.30, 1), (0.60, 2), (1.0, 3)):
-        rgb = tuple(round(mix * b + (1 - mix) * s) for b, s in zip(blue, steel))
+    # Elevation colors match terrain_cards.ELEVATION_COLORS
+    for level, info in terrain_cards.ELEVATION_COLORS.items():
+        rgb = info["rgb"]
         assert f"'{rgb[0]},{rgb[1]},{rgb[2]}'" in board_js, (
-            f"e{level} should be rgb{rgb} -- the card's cityblue!{int(mix * 100)}!citysteel"
+            f"e{level} should be rgb{rgb} ({info['name']})"
+        )
+        assert f"'{info['hex']}'" in board_js, (
+            f"e{level} hex should be {info['hex']} ({info['name']})"
         )
 
     # A tile is 2.06 cm on the card, so a point is 1/58.4 of it.

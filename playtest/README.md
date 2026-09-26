@@ -227,11 +227,11 @@ with its own camera rather than a table the browser scrolls:
 * **Terrain is drawn the way the card prints it**, so a rooftop or a blocked
   tile looks the same on the phone as on the table. Everything comes from
   `terrain_cards.py` (`TERRAIN_STYLE = "full"`):
-  * **Elevation** — the `cityblue!N!citysteel` colour ramp laid on at half
-    opacity, so height reads as *blue* and the ground still shows through; the
-    per-edge **walls**, drawn 3.5 pt wider for each level this tile stands above
-    the neighbour across that edge, which is what fakes the perspective onto a
-    building's flank; and the stacked-cube glyph in the corner.
+  * **Elevation** — the brown (e1), blue (e2), and whitish (e3) progression laid on at half
+    opacity, with distinct saturation and grayscale luminance levels so height reads
+    clearly in color and monochrome alike; the per-edge **walls**, drawn 3.5 pt wider
+    for each level this tile stands above the neighbour across that edge, which is what
+    fakes the perspective onto a building's flank; and the stacked-cube glyph in the corner.
   * **Impassable** — black at half opacity under a 5 pt *red* border, and a
     boxed X. A tile you cannot enter is not shaded like one you can.
   * **Obstacle** — a yellow crosshatch, **objective** — a green field of

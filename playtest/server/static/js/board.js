@@ -39,11 +39,11 @@ import { frameMark } from './cards.js';
 // rooftop or a blocked tile looks the same on the table and on the phone.
 // Everything here is lifted from `terrain_cards.py` (TERRAIN_STYLE = "full"):
 //
-//   * the colour ramp is `cityblue!N!citysteel` mixed in `generateCards.py`
-//     (cityblue 105,156,255 -- citysteel 78,76,118), so e1 is a desaturated
-//     steel blue and e3 the vivid glass-tower blue;
+//   * the colour progression moves through e1 brown (105,55,15), e2 blue (55,155,255),
+//     and e3 whitish (245,248,252), with distinct saturation and luminance
+//     levels so height reads clearly in color and in grayscale alike;
 //   * it is laid over the photograph at `fill opacity=0.5`, not as a neutral
-//     wash, so height reads as *blue* and the ground still shows through;
+//     wash, so height tints the ground which still shows through;
 //   * and the height itself comes from the **walls**: each edge is drawn at
 //     `ELEVATION_WALL_PER_LEVEL_PT` (3.5 pt) extra width per level this tile
 //     stands above the neighbour across it. A tile flush with its neighbours
@@ -67,8 +67,8 @@ import { frameMark } from './cards.js';
 //
 // Widths are in tile units: a printed tile is 2.06 cm, so 1 pt is 1/58.4 of a
 // tile. The board's own tiles are square too, so the conversion is exact.
-const ELEV_RGB = ['', '86,100,159', '94,124,200', '105,156,255'];
-const ELEV_CSS = ['', '#56649f', '#5e7cc8', '#699cff'];
+const ELEV_RGB = ['', '105,55,15', '55,155,255', '245,248,252'];
+const ELEV_CSS = ['', '#69370f', '#379bff', '#f5f8fc'];
 
 //: The card lays every fill and hatch on at half opacity, over its photograph.
 const ELEV_ALPHA = 0.5;

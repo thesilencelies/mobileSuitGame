@@ -6,7 +6,7 @@ import math
 import os
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from terrain_cards import terrain_file, terrianoutputfolder, create_terrain_card
+from terrain_cards import terrain_file, terrianoutputfolder, create_terrain_card, ELEVATION_COLORS
 
 weapon_actions_file = 'Weapon actions.csv'
 general_action_file = 'Basic actions.csv'
@@ -232,6 +232,9 @@ def createMacros():
     with open(buildfolder + 'card_macros.tex', 'w') as ofile:
         card_text = "\\definecolor{cityblue}{RGB}{105,156,255}\n" \
                     "\\definecolor{citysteel}{RGB}{78,76,118}\n"
+        for elev_info in ELEVATION_COLORS.values():
+            r, g, b = elev_info["rgb"]
+            card_text += f"\\definecolor{{{elev_info['name']}}}{{RGB}}{{{r},{g},{b}}}\n"
         # The base shield is split into a fill and a stroke so the super-block
         # variant can slip its inner emphasis line *between* them (on top of the
         # fill, under the middle outline) -- otherwise the opaque fill would
