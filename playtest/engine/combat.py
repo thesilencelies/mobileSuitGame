@@ -26,6 +26,7 @@ from .state import (
     damage_token,
     deal_attack_damage,
     discard_card,
+    discard_committed_card,
 )
 from .types import Card, Pos, ZONES, Zone
 
@@ -644,7 +645,9 @@ def apply_block(
     if not kept:
         # If it had not yet resolved, its own action is forfeit -- leaving the
         # committed pile takes it out of the initiative queue.
-        discard_card(state, uid)
+        # If it has resolved and has a persistence mark, it moves to the
+        # persistence zone (aside) until its effect completes (rules.tex).
+        discard_committed_card(state, uid)
     for zone in matched:
         if zone in target.pending_zones:
             target.pending_zones.remove(zone)

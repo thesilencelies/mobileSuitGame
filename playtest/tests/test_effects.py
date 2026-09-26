@@ -316,6 +316,22 @@ def test_intimidate_makes_every_enemy_within_five_consume_a_block():
     assert state.cards[safe].location == "committed", "out of range, untouched"
 
 
+def test_intimidate_resolved_persistent_card_moves_to_aside():
+    state = make_state()
+    bruiser = add_frame(state, 0, "Kamikiri", Pos(2, 2))
+    near = add_frame(state, 1, "Hector MkI", Pos(4, 4))
+    b = give(state, near, "Bruiser_Net Strength", resolved=True, face_down=False)
+    state.cards[b].persist_left = 1
+    state.cards[b].resolved_turn = state.turn
+
+    _uid, decision = play(state, bruiser, effects.INTIMIDATE)
+    assert decision is None, "only one blocker available, chosen automatically"
+    assert state.cards[b].location == "aside"
+    assert b in near.aside
+    assert b not in near.committed
+    assert b not in near.discard
+
+
 def test_net_strength_gives_guard_break_and_a_daze_this_turn_and_next():
     state, attacker, defender = duel()
     uid, _ = play(state, attacker, effects.NET_STRENGTH)
@@ -1831,6 +1847,19 @@ def test_snipers_aim_extends_range_ignores_obstacles_and_adds_damage():
     assert effects.attack_damage_bonus(state, sniper, melee, target.id) == ({}, 0), (
         "ranged attacks only"
     )
+
+
+def test_snipers_aim_committed_with_persistence_moves_to_aside_and_persists():
+    state, sniper, target = duel()
+    uid = give(state, sniper, "Specialist_Snipers aim")
+    from playtest.engine import resolve as R
+    from playtest.engine.state import Resolution
+    state.resolution = Resolution(frame_id=sniper.id, uid=uid, steps=["effect"])
+    R._finish_card(state)
+    assert state.cards[uid].location == "aside"
+    assert uid in sniper.aside
+    assert uid not in sniper.committed
+    assert effects.ignores_obstacles(state, sniper)
 
 
 def test_master_duelist_reveals_melee_targets_and_takes_over_their_blocks():

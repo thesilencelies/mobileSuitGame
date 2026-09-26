@@ -79,6 +79,8 @@ class CardInstance:
     init_index: int = 0
     #: Turns of persistence left once the card has resolved. None = permanent.
     persist_left: Optional[int] = 0
+    #: Turn number when this card resolved.
+    resolved_turn: Optional[int] = None
     #: Echoes of the fallen: set sideways next to another frame's actions,
     #: blocks for it and does nothing else.
     is_echo: bool = False
@@ -702,6 +704,30 @@ def discard_card(state: GameState, uid: str) -> None:
         inst.is_echo = False
         return
     move_card(state, uid, "discard")
+
+
+def discard_committed_card(state: GameState, uid: str) -> None:
+    """Discard a card from play (blocking, cleanup, or an effect).
+
+    "If a card with a persistence mark has resolved, when it is discarded
+    either due to blocking, end of turn cleanup or an effect, it is placed into
+    the persistence zone until its effect completes. If it blocks before it is
+    resolved, it is put into the discard pile directly." (rules.tex)
+    """
+    inst = state.cards[uid]
+    if inst.is_echo:
+        discard_card(state, uid)
+        return
+    card = state.card(uid)
+    if inst.resolved and card.persistence != 0:
+        if inst.persist_left == 0 and card.persistence != 0:
+            inst.persist_left = card.persistence
+        if inst.resolved_turn is None:
+            inst.resolved_turn = state.turn
+        move_card(state, uid, "aside")
+        state.note(f"{card.key} persists")
+    else:
+        discard_card(state, uid)
 
 
 # --------------------------------------------------------------------------

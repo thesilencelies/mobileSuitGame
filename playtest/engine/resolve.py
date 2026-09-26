@@ -32,6 +32,7 @@ from .state import (
     apply_status,
     deal_damage,
     discard_card,
+    discard_committed_card,
     draw,
     destroy_frame,
     move_card,
@@ -733,10 +734,11 @@ def _finish_card(state: GameState) -> None:
     card = state.catalogue[inst.key]
     inst.init_index += 1
     inst.resolved = True
+    inst.resolved_turn = state.turn
     inst.persist_left = card.persistence
     if kw.is_committed(card):
         state.note(f"{card.key} is Committed and is discarded")
-        discard_card(state, res.uid)
+        discard_committed_card(state, res.uid)
     elif res.spent_reloading:
         # "That attack has no effect or attack, and then this card is
         # discarded" (rules.tex:963). It must not persist: a Reload card
@@ -1020,11 +1022,7 @@ def cleanup_phase(state: GameState) -> None:
                 move_card(state, uid, "aside")
                 inst.persist_left = None
                 continue
-            if not inst.resolved or card.persistence == 0:
-                discard_card(state, uid)
-                continue
-            move_card(state, uid, "aside")
-            state.note(f"{card.key} persists")
+            discard_committed_card(state, uid)
         for uid in list(frame.aside):
             inst = state.cards[uid]
             if inst.persist_left is None:

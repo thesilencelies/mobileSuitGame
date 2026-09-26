@@ -365,6 +365,31 @@ def test_a_persistence_one_card_survives_the_next_turn_then_expires():
     assert state.cards[uid].location == "discard"
 
 
+def test_persistent_card_that_blocks_after_resolving_survives_into_next_turn_then_expires():
+    state, frame = _cleanup_state()
+    uid = give(state, frame, "Specialist_Practiced Technique")
+    state.cards[uid].resolved = True
+    state.cards[uid].resolved_turn = state.turn
+    state.cards[uid].persist_left = 1
+
+    # Card blocks during the action phase and moves to aside
+    from playtest.engine.state import discard_committed_card
+    discard_committed_card(state, uid)
+    assert state.cards[uid].location == "aside"
+    assert uid in frame.aside
+
+    # Cleanup of the turn it resolved
+    R.cleanup_phase(state)
+    assert state.cards[uid].location == "aside"
+    assert state.cards[uid].persist_left == 0
+
+    # Next turn's cleanup: expires
+    state.turn += 1
+    R.cleanup_phase(state)
+    assert state.cards[uid].location == "discard"
+    assert uid not in frame.aside
+
+
 def test_an_infinite_persistence_card_is_permanent():
     state, frame = _cleanup_state()
     uid = give(state, frame, "Cannon_Fullbore")          # persistence \infty

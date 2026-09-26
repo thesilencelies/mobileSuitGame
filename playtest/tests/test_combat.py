@@ -251,6 +251,69 @@ def test_persistent_set_aside_cards_neither_resolve_nor_block():
     assert next_block_decision(state, attack) is None
 
 
+def test_resolved_persistent_card_moves_to_aside_when_blocking():
+    state, atk, dfn = _duel()
+    atk_uid = give(state, atk, "Greatsword_Cleave")          # High 2, Mid 2
+    # Defender has a resolved card with persistence 1 that blocks High
+    blocker_uid = give(
+        state, dfn, "Specialist_Practiced Technique", resolved=True, face_down=False
+    )
+    state.cards[blocker_uid].persist_left = 1
+    state.cards[blocker_uid].resolved_turn = state.turn
+
+    attack = combat.declare_attack(
+        state, atk, atk_uid, target_kind="frame", target_id=dfn.id
+    )
+    zones, candidates = next_block_decision(state, attack)
+    assert candidates == [blocker_uid]
+
+    combat.apply_block(state, dfn, attack, blocker_uid, zones)
+    assert state.cards[blocker_uid].location == "aside"
+    assert blocker_uid in dfn.aside
+    assert blocker_uid not in dfn.committed
+    assert blocker_uid not in dfn.discard
+
+
+def test_unresolved_persistent_card_moves_to_discard_when_blocking():
+    state, atk, dfn = _duel()
+    atk_uid = give(state, atk, "Greatsword_Cleave")
+    # Defender has an unresolved card with persistence that blocks High
+    blocker_uid = give(
+        state, dfn, "Specialist_Practiced Technique", resolved=False, face_down=True
+    )
+
+    attack = combat.declare_attack(
+        state, atk, atk_uid, target_kind="frame", target_id=dfn.id
+    )
+    zones, candidates = next_block_decision(state, attack)
+    assert candidates == [blocker_uid]
+
+    combat.apply_block(state, dfn, attack, blocker_uid, zones)
+    assert state.cards[blocker_uid].location == "discard"
+    assert blocker_uid in dfn.discard
+    assert blocker_uid not in dfn.aside
+    assert blocker_uid not in dfn.committed
+
+
+def test_resolved_non_persistent_card_moves_to_discard_when_blocking():
+    state, atk, dfn = _duel()
+    atk_uid = give(state, atk, "Chainsaw_Disembowel")        # Mid 2
+    blocker_uid = give(
+        state, dfn, "Basic_Punch", resolved=True, face_down=False
+    )
+
+    attack = combat.declare_attack(
+        state, atk, atk_uid, target_kind="frame", target_id=dfn.id
+    )
+    zones, candidates = next_block_decision(state, attack)
+    assert candidates == [blocker_uid]
+
+    combat.apply_block(state, dfn, attack, blocker_uid, zones)
+    assert state.cards[blocker_uid].location == "discard"
+    assert blocker_uid in dfn.discard
+    assert blocker_uid not in dfn.aside
+
+
 def test_close_quarters_cannot_be_blocked_by_a_resolved_card():
     state, atk, dfn = _duel()
     assert "closequarters" in CATALOGUE["Knife_Cut"].keywords

@@ -61,27 +61,32 @@ def card_active(
 ) -> bool:
     """True while `key` is in play in front of `frame`.
 
-    `this_turn` covers the turn the card resolved -- it is still in the
-    committed row, face up and marked resolved. `later_turns` covers the turns
-    it spends in the `aside` pile as a persistent card. A card printed
-    "Next turn: ..." is asked for with `this_turn=False`; one printed "this
-    turn and next" is asked for with both.
+    `this_turn` covers the turn the card resolved -- whether still in the
+    committed row or placed into the persistence zone (`aside`) early due to
+    blocking or an effect. `later_turns` covers subsequent turns it spends in
+    the `aside` pile as a persistent card. A card printed "Next turn: ..." is
+    asked for with `this_turn=False`; one printed "this turn and next" is asked
+    for with both.
     """
-    if later_turns:
-        for uid in frame.aside:
+    for pile in (frame.committed, frame.aside):
+        for uid in pile:
             inst = state.cards.get(uid)
-            if inst is not None and inst.key == key:
-                return True
-    if this_turn:
-        for uid in frame.committed:
-            inst = state.cards.get(uid)
-            if (
-                inst is not None
-                and inst.key == key
-                and inst.location == "committed"
-                and inst.resolved
-            ):
-                return True
+            if inst is None or inst.key != key:
+                continue
+            if pile is frame.committed and (inst.location != "committed" or not inst.resolved):
+                continue
+            if inst.resolved_turn is not None:
+                if inst.resolved_turn == state.turn:
+                    if this_turn:
+                        return True
+                elif inst.resolved_turn < state.turn:
+                    if later_turns:
+                        return True
+            else:
+                if pile is frame.aside and later_turns:
+                    return True
+                if pile is frame.committed and this_turn:
+                    return True
     return False
 
 

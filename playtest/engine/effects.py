@@ -46,6 +46,7 @@ from .state import (
     damage_token,
     deal_damage,
     discard_card,
+    discard_committed_card,
     draw,
     move_card,
     record_movement,
@@ -999,7 +1000,7 @@ def _blockers_in_hand(state: GameState, frame: FrameState) -> list[str]:
 
 def _consume_block(state: GameState, frame: FrameState, uid: str) -> None:
     state.note(f"{frame.id} is intimidated and loses {state.card(uid).key}")
-    discard_card(state, uid)
+    discard_committed_card(state, uid)
 
 
 def _intimidate_step(
@@ -1727,7 +1728,7 @@ def _choice_parallel_in(
         state.note(
             f"{frame.id} swaps {state.cards[out].key} for {state.cards[incoming].key}"
         )
-        discard_card(state, out)
+        discard_committed_card(state, out)
         move_card(state, incoming, "committed")
         inst = state.cards[incoming]
         inst.face_down = True
