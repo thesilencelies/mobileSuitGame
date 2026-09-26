@@ -41,33 +41,83 @@
 \usetikzlibrary{decorations.pathmorphing}
 
 % ---- Play-example helpers -------------------------------------------------
-% A standee: a frame's art on a coloured disc, used to mark a frame's position
-% on a terrain card. #1,#2 = centre (in the terrain card's own coordinates),
-% #3 = art, #4 = ring colour identifying the frame.
-\newcommand{\standee}[4]{%
-  \fill[white] (#1,#2) circle (0.60);
-  \fill[#4!22!white] (#1,#2) circle (0.60);
+% Standees and markers on terrain cards.
+% The card geometry is exported from terrain_cards.py via build/card_macros.tex:
+\providecommand{\tcCols}{3}
+\providecommand{\tcRows}{4}
+\providecommand{\tcTileSize}{1.95}
+\providecommand{\tcHOffset}{0.525}
+\providecommand{\tcVOffset}{0.55}
+
+% Standee dimensions: fills 80% of tile width
+\pgfmathsetmacro{\standeeradius}{0.40 * \tcTileSize}
+\pgfmathsetmacro{\standeeclipradius}{\standeeradius - 0.035}
+\pgfmathsetmacro{\standeeimgsize}{1.63}
+\pgfmathsetmacro{\standeeimgyoffset}{-0.39}
+\pgfmathsetmacro{\standeebadgeoffset}{0.7071 * \standeeradius}
+
+% Absolute-coordinate standee (used by board setup and \tilestandee)
+\newcommand{\standee}[4]{% x, y, art, ring colour
+  \fill[white] (#1,#2) circle (\standeeradius);
+  \fill[#4!22!white] (#1,#2) circle (\standeeradius);
   \begin{scope}
-    \clip (#1,#2) circle (0.57);
-    \node at (#1,#2-0.3) {\includegraphics[height=1.25cm]{#3}};
+    \clip (#1,#2) circle (\standeeclipradius);
+    \node at (#1,#2+\standeeimgyoffset) {\includegraphics[height=\standeeimgsize cm]{#3}};
   \end{scope}
-  \draw[line width=3pt, #4] (#1,#2) circle (0.60);
+  \draw[line width=3pt, #4] (#1,#2) circle (\standeeradius);
 }
-\newcommand{\kstandee}[2]{\standee{#1}{#2}{../pictures/foreground/ouwa_kuwagata.png}{purple!55!black}}
-\newcommand{\rstandee}[2]{\standee{#1}{#2}{../pictures/foreground/revolution_ripper.png}{yellow!75!black}}
-% a faded "was here" ghost marker
-\newcommand{\ghost}[3]{\draw[line width=1.2pt, #3, densely dotted, opacity=0.8] (#1,#2) circle (0.60);}
-% an impact / damage burst with a label
+
+% Tile-coordinate standee: #1=col (0..2), #2=row (0..3), #3=art, #4=ring colour
+\newcommand{\tilestandee}[4]{%
+  \pgfmathsetmacro{\tcx}{\tcHOffset + (#1 + 0.5) * \tcTileSize}%
+  \pgfmathsetmacro{\tcy}{\tcVOffset + (#2 + 0.5) * \tcTileSize}%
+  \standee{\tcx}{\tcy}{#3}{#4}%
+}
+
+\newcommand{\kstandee}[2]{\tilestandee{#1}{#2}{../pictures/foreground/ouwa_kuwagata.png}{purple!55!black}}
+\newcommand{\rstandee}[2]{\tilestandee{#1}{#2}{../pictures/foreground/revolution_ripper.png}{yellow!75!black}}
+\newcommand{\otherframe}[2]{\tilestandee{#1}{#2}{../pictures/foreground/guild_salaryman.png}{black!45!white}}
+
+% A faded "was here" ghost marker at tile (col, row)
+\newcommand{\ghost}[3]{% col, row, colour
+  \pgfmathsetmacro{\tcx}{\tcHOffset + (#1 + 0.5) * \tcTileSize}%
+  \pgfmathsetmacro{\tcy}{\tcVOffset + (#2 + 0.5) * \tcTileSize}%
+  \draw[line width=1.4pt, #3, densely dotted, opacity=0.8] (\tcx,\tcy) circle (\standeeradius);%
+}
+
+% An impact / damage burst with a label
 \newcommand{\burst}[3]{% x, y, label
   \node[star, star points=7, star point ratio=0.5, fill=orange!85!red, draw=red!60!black,
-        line width=0.5pt, minimum size=0.6cm, inner sep=0pt] at (#1,#2){};
+        line width=0.5pt, minimum size=0.68cm, inner sep=0pt] at (#1,#2){};
   \node[font=\bfseries\footnotesize] at (#1,#2){#3};
 }
-% a small block-shield marker placed beside a frame that blocked
+\newcommand{\burstat}[2]{% TikZ coord, label
+  \node[star, star points=7, star point ratio=0.5, fill=orange!85!red, draw=red!60!black,
+        line width=0.5pt, minimum size=0.68cm, inner sep=0pt] at (#1){};
+  \node[font=\bfseries\footnotesize] at (#1){#2};
+}
+\newcommand{\tileburst}[3]{% col, row, label
+  \pgfmathsetmacro{\tcx}{\tcHOffset + (#1 + 0.5) * \tcTileSize}%
+  \pgfmathsetmacro{\tcy}{\tcVOffset + (#2 + 0.5) * \tcTileSize}%
+  \burst{\tcx}{\tcy}{#3}%
+}
+
+% A token placed at tile (col, row)
+\newcommand{\tiletoken}[4][1.56cm]{% [height]{col}{row}{image}
+  \pgfmathsetmacro{\tcx}{\tcHOffset + (#2 + 0.5) * \tcTileSize}%
+  \pgfmathsetmacro{\tcy}{\tcVOffset + (#3 + 0.5) * \tcTileSize}%
+  \node at (\tcx,\tcy){\includegraphics[height=#1]{#4}};%
+}
+
+% A small block-shield marker placed beside a frame that blocked
 \newcommand{\blockmark}[3]{% x, y, colour
   \node at (#1,#2){\resizebox{0.65cm}{!}{\begin{tikzpicture}\blockshield{0}{0}{#3}\end{tikzpicture}}};
 }
-% a numbered step / note label pinned to a movement route
+\newcommand{\blockmarkat}[2]{% TikZ coord, colour
+  \node at (#1){\resizebox{0.65cm}{!}{\begin{tikzpicture}\blockshield{0}{0}{#2}\end{tikzpicture}}};
+}
+
+% A numbered step / note label pinned to a movement route
 \newcommand{\steplabel}[3]{% x, y, text
   \node[fill=white, draw=black, rounded corners=1.5pt, font=\scriptsize\bfseries,
         inner sep=2pt, align=center] at (#1,#2){#3};}
@@ -77,22 +127,42 @@
   shotline/.style={line width=1.7pt, red!70!black, densely dotted, -{Latex[length=3mm]}},
 }
 % ---- Line-of-sight diagram helpers ----------------------------------------
-% Attacker / target standees for the line-of-sight figures. A target carries a
-% green tick when it is in sight, a red cross when a blocked shot means it is not.
-\newcommand{\attackerframe}[2]{\standee{#1}{#2}{../pictures/foreground/revolution_ripper.png}{yellow!75!black}%
-  \node[circle, fill=yellow!75!black, text=white, font=\bfseries\footnotesize, inner sep=1.3pt] at (#1+0.42,#2+0.42){A};}
-\newcommand{\losok}[2]{\standee{#1}{#2}{../pictures/foreground/ouwa_kuwagata.png}{purple!55!black}%
-  \node[circle, fill=green!45!black, text=white, font=\bfseries\footnotesize, inner sep=1.1pt] at (#1+0.42,#2+0.42){\checkmark};}
-\newcommand{\losno}[2]{\standee{#1}{#2}{../pictures/foreground/ouwa_kuwagata.png}{purple!55!black}%
-  \node[circle, fill=red!80!black, text=white, font=\bfseries\footnotesize, inner sep=1.5pt] at (#1+0.42,#2+0.42){$\times$};}
-% a neutral third frame that merely sits in the way
-\newcommand{\otherframe}[2]{\standee{#1}{#2}{../pictures/foreground/guild_salaryman.png}{black!45!white}}
-% red marker placed on whatever breaks a line of sight
-\newcommand{\losx}[2]{\node[circle, fill=red!85!black, draw=white, line width=0.7pt,
-  minimum size=0.42cm, inner sep=0pt] at (#1,#2){\textcolor{white}{\footnotesize\bfseries$\times$}};}
-% small caption tag pinned inside a scene
-\newcommand{\lostag}[3]{\node[fill=white, draw=black!55, rounded corners=1.4pt,
-  font=\scriptsize\bfseries, inner sep=2.2pt, align=center] at (#1,#2){#3};}
+% Attacker / target standees for the line-of-sight figures at tile (col, row).
+\newcommand{\attackerframe}[2]{% col, row
+  \tilestandee{#1}{#2}{../pictures/foreground/revolution_ripper.png}{yellow!75!black}%
+  \pgfmathsetmacro{\tcx}{\tcHOffset + (#1 + 0.5) * \tcTileSize}%
+  \pgfmathsetmacro{\tcy}{\tcVOffset + (#2 + 0.5) * \tcTileSize}%
+  \node[circle, fill=yellow!75!black, text=white, font=\bfseries\footnotesize, inner sep=1.3pt]
+    at (\tcx + \standeebadgeoffset, \tcy + \standeebadgeoffset){A};%
+}
+\newcommand{\losok}[2]{% col, row
+  \tilestandee{#1}{#2}{../pictures/foreground/ouwa_kuwagata.png}{purple!55!black}%
+  \pgfmathsetmacro{\tcx}{\tcHOffset + (#1 + 0.5) * \tcTileSize}%
+  \pgfmathsetmacro{\tcy}{\tcVOffset + (#2 + 0.5) * \tcTileSize}%
+  \node[circle, fill=green!45!black, text=white, font=\bfseries\footnotesize, inner sep=1.1pt]
+    at (\tcx + \standeebadgeoffset, \tcy + \standeebadgeoffset){\checkmark};%
+}
+\newcommand{\losno}[2]{% col, row
+  \tilestandee{#1}{#2}{../pictures/foreground/ouwa_kuwagata.png}{purple!55!black}%
+  \pgfmathsetmacro{\tcx}{\tcHOffset + (#1 + 0.5) * \tcTileSize}%
+  \pgfmathsetmacro{\tcy}{\tcVOffset + (#2 + 0.5) * \tcTileSize}%
+  \node[circle, fill=red!80!black, text=white, font=\bfseries\footnotesize, inner sep=1.5pt]
+    at (\tcx + \standeebadgeoffset, \tcy + \standeebadgeoffset){$\times$};%
+}
+% Red marker placed on whatever breaks a line of sight at tile (col, row)
+\newcommand{\losx}[2]{% col, row
+  \pgfmathsetmacro{\tcx}{\tcHOffset + (#1 + 0.5) * \tcTileSize}%
+  \pgfmathsetmacro{\tcy}{\tcVOffset + (#2 + 0.5) * \tcTileSize}%
+  \node[circle, fill=red!85!black, draw=white, line width=0.7pt,
+    minimum size=0.46cm, inner sep=0pt] at (\tcx,\tcy){\textcolor{white}{\footnotesize\bfseries$\times$}};%
+}
+% Small caption tag pinned inside a scene at tile (col, row)
+\newcommand{\lostag}[3]{% col, row, text
+  \pgfmathsetmacro{\tcx}{\tcHOffset + (#1 + 0.5) * \tcTileSize}%
+  \pgfmathsetmacro{\tcy}{\tcVOffset + (#2 + 0.5) * \tcTileSize}%
+  \node[fill=white, draw=black!55, rounded corners=1.4pt,
+    font=\scriptsize\bfseries, inner sep=2.2pt, align=center] at (\tcx,\tcy){#3};%
+}
 \tikzset{
   clearlos/.style={line width=2.0pt, green!50!black, -{Latex[length=3.2mm]}},
   blockedlos/.style={line width=1.9pt, red!75!black, densely dashed, -{Latex[length=2.8mm]}},
@@ -199,20 +269,24 @@
     \node[anchor=south] at ($(cc.north)!0.5!(d.north)+(0,0.18)$) {\frametag{Kuwagata}{purple!55!black}};
   \end{tikzpicture}%
 }
-% Wrap a terrain card so standees / arrows can be drawn on it in the terrain
-% card's own coordinates. #1 is the terrain card .tex. A terrain tikzpicture uses
+% Wrap a terrain card so standees / arrows can be drawn on it using tile
+% coordinates (c, r). #1 is the terrain card .tex. A terrain tikzpicture uses
 % a \maxheight background image, which is shifted out of place if the card is
 % \input directly inside a tikz node. So we first typeset the card into a save box
 % (normal context, where \maxheight resolves correctly) and then place that finished
-% box in the node -- no re-typesetting, no shift. The box carries the card's own
-% coordinates, so terrain-internal coordinates map straight through, offset only by
-% the card's bottom-left corner (0.05, 0.025).
+% box in the node. Named coordinates (tile-\c-\r) are defined for each tile.
 \newsavebox{\terraincardbox}
 \newenvironment{terrainscene}[1]
   {\sbox{\terraincardbox}{\scalebox{0.8}{\input{#1}}}%
    \begin{tikzpicture}[scale=0.8]
      \node[anchor=south west, inner sep=0pt] (T) at (0,0){\usebox{\terraincardbox}};
-     \begin{scope}[shift={($(T.south west)+(-0.05,-0.025)$)}]}
+     \begin{scope}[shift={(T.south west)}]
+       \foreach \c in {0,1,2}{%
+         \foreach \r in {0,1,2,3}{%
+           \coordinate (tile-\c-\r) at ({\tcHOffset + (\c + 0.5)*\tcTileSize}, {\tcVOffset + (\r + 0.5)*\tcTileSize});
+         }%
+       }%
+  }
   {\end{scope}\end{tikzpicture}}
 % ---------------------------------------------------------------------------
 

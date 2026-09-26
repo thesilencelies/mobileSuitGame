@@ -19,8 +19,14 @@ defpointsImg = 'defpoints.png'
 tokensImg = 'token.png'
 
 # ---------------------------------------------------------------------------
-# Types
+# Terrain grid geometry (3x4 tiles on 6.9cm x 9.4cm card with bleed)
 # ---------------------------------------------------------------------------
+TERRAIN_COLS = 3
+TERRAIN_ROWS = 4
+TERRAIN_TILE_SIZE = 1.95  # cm - tile width/height
+TERRAIN_HOFFSET = 0.525    # cm - horizontal margin
+TERRAIN_VOFFSET = 0.55     # cm - vertical margin
+
 TileStyle = Dict[str, Union[str, List[str]]]
 
 # ---------------------------------------------------------------------------
@@ -481,12 +487,11 @@ def create_terrain_card(row):
                 'keepaspectratio]{' + terrain_images_folder + row["CardImg"] + '}};\n'
 
         # terrain card size
-        cols = 3
-        rows = 4
-        tile_size = 1.95 #cm - tile width/height
-
-        hoffset = 0.525
-        voffset = 0.55
+        cols = TERRAIN_COLS
+        rows = TERRAIN_ROWS
+        tile_size = TERRAIN_TILE_SIZE
+        hoffset = TERRAIN_HOFFSET
+        voffset = TERRAIN_VOFFSET
 
         # superimpose the grid
         # put height/terrain information in where relevant (borders?)

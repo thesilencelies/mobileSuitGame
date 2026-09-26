@@ -6,7 +6,10 @@ import math
 import os
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from terrain_cards import terrain_file, terrianoutputfolder, create_terrain_card, ELEVATION_COLORS
+from terrain_cards import (
+    terrain_file, terrianoutputfolder, create_terrain_card, ELEVATION_COLORS,
+    TERRAIN_COLS, TERRAIN_ROWS, TERRAIN_TILE_SIZE, TERRAIN_HOFFSET, TERRAIN_VOFFSET
+)
 
 weapon_actions_file = 'Weapon actions.csv'
 general_action_file = 'Basic actions.csv'
@@ -327,6 +330,16 @@ def createMacros():
 
         for rule, desc in rules_dict.items():
             card_text += "\n\\newcommand{\\" + rule + "text}{\\emph{(" + desc + ")}}"
+
+        # Terrain grid geometry
+        card_text += (
+            f"\n\n% Terrain grid geometry\n"
+            f"\\def\\tcCols{{{TERRAIN_COLS}}}\n"
+            f"\\def\\tcRows{{{TERRAIN_ROWS}}}\n"
+            f"\\def\\tcTileSize{{{TERRAIN_TILE_SIZE}}}\n"
+            f"\\def\\tcHOffset{{{TERRAIN_HOFFSET}}}\n"
+            f"\\def\\tcVOffset{{{TERRAIN_VOFFSET}}}\n"
+        )
 
         ofile.write(card_text)
         return card_text
