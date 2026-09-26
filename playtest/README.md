@@ -227,7 +227,7 @@ with its own camera rather than a table the browser scrolls:
 * **Terrain is drawn the way the card prints it**, so a rooftop or a blocked
   tile looks the same on the phone as on the table. Everything comes from
   `terrain_cards.py` (`TERRAIN_STYLE = "full"`):
-  * **Elevation** — the brown (e1), blue (e2), and whitish (e3) progression laid on at half
+  * **Elevation** — the brown (e1), blue (e2), and whitish steel (e3) progression laid on at half
     opacity, with distinct saturation and grayscale luminance levels so height reads
     clearly in color and monochrome alike; the per-edge **walls**, drawn 3.5 pt wider
     for each level this tile stands above the neighbour across that edge, which is what

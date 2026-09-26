@@ -66,7 +66,7 @@ def _first_valid(val: Union[str, List[str]], default: str = "") -> str:
 ELEVATION_COLORS = {
     1: {"name": "elevbrown", "rgb": (105, 55, 15), "hex": "#69370f"},
     2: {"name": "elevblue",  "rgb": (55, 155, 255), "hex": "#379bff"},
-    3: {"name": "elevwhite", "rgb": (245, 248, 252), "hex": "#f5f8fc"},
+    3: {"name": "elevwhite", "rgb": (180, 190, 205), "hex": "#b4bed0"},
 }
 
 TERRAIN_STYLE = "full"
@@ -157,7 +157,7 @@ elif TERRAIN_STYLE == "corner":
 
 elif TERRAIN_STYLE == "full":
     ## Elevation progression: e1 brown (earthy, lower saturation/luminance),
-    ## e2 blue (vivid, high saturation), e3 whitish (near-neutral, highest luminance).
+    ## e2 blue (vivid, high saturation), e3 whitish steel (silvery, light luminance).
     ## Distinct in hue, saturation, and monochrome luminance for clear reading
     ## in color and grayscale alike.
     ELEVATION_1_STYLE: TileStyle = {
