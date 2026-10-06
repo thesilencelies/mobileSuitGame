@@ -2394,7 +2394,8 @@
       "gm_notes": "defend:1pts\nattack:2pts\ntokens:4\nHere is any special rules that apply to this terrain card (Normally ojectives and scoring).\nThis card gives 1 point to the defenders, 2 to the attackers, and has 4 tokens",
       "tags": {
         "1": "Card",
-        "2": "Objective"
+        "2": "Terrain",
+        "3": "Objective"
       },
       "lua_script": "",
       "face": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Helpcard.png",
@@ -2436,7 +2437,8 @@
       "gm_notes": "defend:2pts\nattack:1pts\ntokens:4\nPower reactors:\nEach power reactor has 2 hitpoints. Attackers score if 3 or more are destroyed, else defenders score.",
       "tags": {
         "1": "Card",
-        "2": "Objective"
+        "2": "Terrain",
+        "3": "Objective"
       },
       "lua_script": "",
       "face": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Power_Reactors.png",
@@ -2478,7 +2480,8 @@
       "gm_notes": "defend:1pts\nattack:2pts\ntokens:1\nShiny thing:\nThe shiny thing token is created on the marked tile. It can be held by either team. Whichever team hold it at the end scores.",
       "tags": {
         "1": "Card",
-        "2": "Objective"
+        "2": "Terrain",
+        "3": "Objective"
       },
       "lua_script": "",
       "face": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Shiny_Thing.png",
@@ -2520,7 +2523,8 @@
       "gm_notes": "{1:height_2}\n{4:height_2}\n{5:height_2}\n{6:height_2}\n{7:height_2}\n{8:height_2}\ndefend:1pts\nattack:1pts\nTriangle:\nIf only one team has a frame on the triangle, they score.",
       "tags": {
         "1": "Card",
-        "2": "Objective"
+        "2": "Terrain",
+        "3": "Objective"
       },
       "lua_script": "",
       "face": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Triangle.png",
@@ -2590,7 +2594,8 @@
       "gm_notes": "{7:height_2}\n{8:height_2}\n{10:height_2}\n{11:height_2}\ndefend:2pts\nattack:1pts\ntokens:1\nExtraction:\nPut a fugitive token anywhere in the enemy back row after deployment. The fugitive token can be held by allies. Defenders score if it reaches the objective point, else attackers score.",
       "tags": {
         "1": "Card",
-        "2": "Objective"
+        "2": "Terrain",
+        "3": "Objective"
       },
       "lua_script": "",
       "face": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Fugitive.png",
@@ -2646,7 +2651,8 @@
       "gm_notes": "{1:height_3}\n{2:height_3}\n{5:height_3}\n{6:height_3}\n{7:height_3}\n{9:height_3}\n{11:height_3}\ndefend:1pts\nattack:1pts\nHolo-spires:\nIf there are any attacking frames on any of the holo spires at the end, attackers score, else defenders score.",
       "tags": {
         "1": "Card",
-        "2": "Objective"
+        "2": "Terrain",
+        "3": "Objective"
       },
       "lua_script": "",
       "face": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Holo_Spires.png",
@@ -2660,7 +2666,8 @@
       "gm_notes": "{1:height_2}\n{2:height_2}\n{5:height_1}\n{9:height_1}\n{12:height_1}\ndefend:1pts\nattack:1pts\nChurch:\nIf only one team has a frame within 2 of the church, they score.",
       "tags": {
         "1": "Card",
-        "2": "Objective"
+        "2": "Terrain",
+        "3": "Objective"
       },
       "lua_script": "",
       "face": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Church.png",
@@ -2772,7 +2779,8 @@
       "gm_notes": "{4:height_1}\n{6:height_3}\n{7:height_1}\n{9:height_1}\ndefend:2pts\nattack:1pts\ntokens:1\nThe Tower:\nThe tower has 4 hitpoints, and takes -1 damage from any attack. If it is destroyed attackers score, else defenders score.",
       "tags": {
         "1": "Card",
-        "2": "Objective"
+        "2": "Terrain",
+        "3": "Objective"
       },
       "lua_script": "",
       "face": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/The_Tower.png",
@@ -2800,7 +2808,8 @@
       "gm_notes": "{4:height_2}\n{5:height_1}\n{7:height_1}\n{9:height_3}\ndefend:1pts\nattack:2pts\nThe Egg:\nThe first frame to end two consecutive turns standing on the Egg scores it.",
       "tags": {
         "1": "Card",
-        "2": "Objective"
+        "2": "Terrain",
+        "3": "Objective"
       },
       "lua_script": "",
       "face": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/The_Egg.png",
@@ -2842,7 +2851,8 @@
       "gm_notes": "{10:height_1}\ndefend:2pts\nattack:1pts\ntokens:3\nGangs:\nAfter deployment your opponent creates 3 gang tokens outside their back row of cards. These are init 1 1hp tokens with 1mv. Defender scores if all gangs are defeated, else attackers score",
       "tags": {
         "1": "Card",
-        "2": "Objective"
+        "2": "Terrain",
+        "3": "Objective"
       },
       "lua_script": "",
       "face": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Riverside.png",
@@ -2856,7 +2866,8 @@
       "gm_notes": "{2:height_2}\n{3:height_2}\n{4:height_2}\n{5:height_1}\n{6:height_1}\n{7:height_1}\n{8:height_1}\n{9:height_1}\n{11:height_2}\n{12:height_2}\ndefend:1pts\nattack:1pts\nSolar Farm:\nFor each frame that ends a turn on the farm, that team gets 1 charge. The team with the most charge scores.",
       "tags": {
         "1": "Card",
-        "2": "Objective"
+        "2": "Terrain",
+        "3": "Objective"
       },
       "lua_script": "",
       "face": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Solar_Farm.png",
@@ -2870,7 +2881,8 @@
       "gm_notes": "defend:2pts\nattack:2pts\ntokens:1\nThe Lake Ritual:\nThe first team to end a turn with a frame on both platforms recieves the relic token, held by one of those frames. Team at the end of the game holding that token scores.",
       "tags": {
         "1": "Card",
-        "2": "Objective"
+        "2": "Terrain",
+        "3": "Objective"
       },
       "lua_script": "",
       "face": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Lake_Crosses.png",
@@ -2884,7 +2896,8 @@
       "gm_notes": "defend:2pts\nattack:1pts\ntokens:3\nProtect the Refugees:\nAt the start of the game create 3 refugee tokens in your opponents half of the map. These are init 1 1hp and 1 mv. Attackers score if they kill all the refugees, else defenders score.",
       "tags": {
         "1": "Card",
-        "2": "Objective"
+        "2": "Terrain",
+        "3": "Objective"
       },
       "lua_script": "",
       "face": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Car_Park.png",
@@ -2898,7 +2911,8 @@
       "gm_notes": "{1:height_2}\n{4:height_2}\n{9:height_1}\n{12:height_1}\ndefend:2pts\nattack:2pts\nStop the bomb:\nAfter deployment the attacker chooses one frame to be the bomb carrier. If this frame ends a turn on the site, attackers score, else defenders score.",
       "tags": {
         "1": "Card",
-        "2": "Objective"
+        "2": "Terrain",
+        "3": "Objective"
       },
       "lua_script": "",
       "face": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Dome_Campus.png",
