@@ -60,11 +60,11 @@ def run(cmd, cwd=None, label=""):
         sys.exit(f"FAILED: {display}")
 
 
-def pdf_to_png(stem, out_dir=TTS_IMAGES, trim=False, out_name=None, background=None):
+def pdf_to_png(stem, out_dir=TTS_IMAGES, trim=False, out_name=None, background=None, density=150):
     out_dir.mkdir(exist_ok=True)
     name = out_name or stem
     out = out_dir / f"{name}.png"
-    cmd = ["convert", "-density", "150", f"{stem}.pdf"]
+    cmd = ["convert", "-density", str(density), f"{stem}.pdf"]
     if background:
         # a PDF page renders transparent; flatten it onto a solid colour first so
         # any later trim crops against that colour rather than the alpha channel
@@ -146,6 +146,22 @@ def process_deck(prefix, print_mode=False):
             label=f"pdflatex {back_tex}")
         if not print_mode:
             pdf_to_png(back_stem)
+            # Also generate single-card back image for json / TTS custom deck objects
+            single_back_stem = f"{prefix}_back"
+            single_back_tex = f"{single_back_stem}.tex"
+            run(
+                [
+                    sys.executable, "generate_card_sheet.py",
+                    f"--csv=back_{prefix}.tex",
+                    f"--output=build/{single_back_tex}",
+                    "--repeat", "--cols=1", "--rows=1",
+                ],
+                cwd=WORKSPACE,
+                label=f"generate_card_sheet  back_{prefix}.tex → {single_back_tex} (single card)",
+            )
+            run(["pdflatex", "-interaction=nonstopmode", single_back_tex], cwd=BUILD,
+                label=f"pdflatex {single_back_tex}")
+            pdf_to_png(single_back_stem, density=300)
 
     print(f"  Done: {prefix}")
 

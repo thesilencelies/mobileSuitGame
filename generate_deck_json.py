@@ -29,6 +29,7 @@ import argparse
 import csv
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 from urllib.parse import quote
@@ -99,6 +100,45 @@ def load_card_display_map() -> dict[str, str]:
     return mapping
 
 
+def ensure_deck_back(prefix: str, quiet: bool = False) -> None:
+    """Ensures TTSImages/<prefix>_back.png exists; renders from build/back_<prefix>.tex if missing."""
+    target_png = TTS_IMAGES_DIR / f"{prefix}_back.png"
+    if target_png.is_file():
+        return
+
+    source_tex = WORKSPACE / "build" / f"back_{prefix}.tex"
+    if not source_tex.is_file():
+        if not quiet:
+            print(f"Warning: source card back not found: {source_tex}", file=sys.stderr)
+        return
+
+    TTS_IMAGES_DIR.mkdir(parents=True, exist_ok=True)
+    build_dir = WORKSPACE / "build"
+    single_back_stem = f"{prefix}_back"
+    single_back_tex = build_dir / f"{single_back_stem}.tex"
+
+    if not quiet:
+        print(f"Rendering missing single-card back: {target_png.name}")
+
+    cmd_sheet = [
+        sys.executable, str(WORKSPACE / "generate_card_sheet.py"),
+        f"--csv=back_{prefix}.tex",
+        f"--output={single_back_tex}",
+        "--repeat", "--cols=1", "--rows=1",
+    ]
+    subprocess.run(cmd_sheet, cwd=WORKSPACE, check=True, capture_output=True)
+
+    subprocess.run(
+        ["pdflatex", "-interaction=nonstopmode", f"{single_back_stem}.tex"],
+        cwd=build_dir, check=True, capture_output=True,
+    )
+
+    subprocess.run(
+        ["convert", "-density", "300", "-compress", "lzw", f"{single_back_stem}.pdf", str(target_png)],
+        cwd=build_dir, check=True, capture_output=True,
+    )
+
+
 def generate_decks_data(card_map: dict[str, str], quiet: bool = False) -> dict[str, dict]:
     if not FRAMES_CSV.is_file():
         sys.exit(f"Error: Frames CSV not found: {FRAMES_CSV}")
@@ -122,7 +162,8 @@ def generate_decks_data(card_map: dict[str, str], quiet: bool = False) -> dict[s
                 print(f"Warning: deck file not found for frame '{frame_name}': {deck_csv_path}", file=sys.stderr)
             continue
 
-        back_image_name = f"{prefix}_back_image.png"
+        ensure_deck_back(prefix, quiet=quiet)
+        back_image_name = f"{prefix}_back.png"
         back_url = TTS_IMAGES_URL + quote(back_image_name)
 
         # Read deck cards

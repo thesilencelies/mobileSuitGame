@@ -1,6 +1,6 @@
 {
   "Percival MkIV": {
-    "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/TTSImages/aegis_percival_back_image.png",
+    "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/TTSImages/aegis_percival_back.png",
     "cards": {
       "1": "Shield Bash",
       "2": "Shield Full Guard",
@@ -26,7 +26,7 @@
     }
   },
   "Kuwagata": {
-    "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/TTSImages/ouwa_kuwagata_back_image.png",
+    "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/TTSImages/ouwa_kuwagata_back.png",
     "cards": {
       "1": "Wunderkid Hyper",
       "2": "Wunderkid Net Speed",
@@ -52,7 +52,7 @@
     }
   },
   "VX4-Nautilus": {
-    "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/TTSImages/guild_nautilus_back_image.png",
+    "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/TTSImages/guild_nautilus_back.png",
     "cards": {
       "1": "Assault Rifle Burst Fire",
       "2": "Assault Rifle Aimed Fire",
@@ -78,7 +78,7 @@
     }
   },
   "Adam": {
-    "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/TTSImages/collective_adam_back_image.png",
+    "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/TTSImages/collective_adam_back.png",
     "cards": {
       "1": "Spear Thrust",
       "2": "Spear Jab",
@@ -97,7 +97,7 @@
     }
   },
   "RipperSmasher": {
-    "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/TTSImages/revolution_ripper_back_image.png",
+    "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/TTSImages/revolution_ripper_back.png",
     "cards": {
       "1": "Chainsaw Disembowel",
       "2": "Chainsaw Rip",
@@ -123,7 +123,7 @@
     }
   },
   "Hannael": {
-    "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/TTSImages/church_hannael_back_image.png",
+    "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/TTSImages/church_hannael_back.png",
     "cards": {
       "1": "Sniper Rifle Headshot",
       "2": "Sniper Rifle Calibrated Hit",
@@ -149,7 +149,7 @@
     }
   },
   "Elemiah": {
-    "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/TTSImages/church_elemiah_back_image.png",
+    "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/TTSImages/church_elemiah_back.png",
     "cards": {
       "1": "Frame Shield",
       "2": "Kinetic Hammer Slam",
@@ -175,7 +175,7 @@
     }
   },
   "J7R-Salaryman": {
-    "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/TTSImages/guild_salaryman_back_image.png",
+    "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/TTSImages/guild_salaryman_back.png",
     "cards": {
       "1": "Cannon Fullbore",
       "2": "Cannon Airburst",
@@ -205,7 +205,7 @@
     }
   },
   "Flamekin": {
-    "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/TTSImages/revolution_flamekin_back_image.png",
+    "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/TTSImages/revolution_flamekin_back.png",
     "cards": {
       "1": "Mystic Ephemeral Images",
       "2": "Mystic Teleport",
@@ -231,7 +231,7 @@
     }
   },
   "Fenrir": {
-    "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/TTSImages/collective_fenrir_back_image.png",
+    "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/TTSImages/collective_fenrir_back.png",
     "cards": {
       "1": "Frame Bio-regen",
       "2": "Frame Call of Nature",
@@ -250,7 +250,7 @@
     }
   },
   "Hector MkI": {
-    "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/TTSImages/aegis_hector_back_image.png",
+    "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/TTSImages/aegis_hector_back.png",
     "cards": {
       "1": "Tactician Tactical broadcast",
       "2": "Tactician Fog of war",
@@ -276,7 +276,7 @@
     }
   },
   "Kamikiri": {
-    "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/TTSImages/ouwa_kamikiri_back_image.png",
+    "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/TTSImages/ouwa_kamikiri_back.png",
     "cards": {
       "1": "Bruiser Suplex",
       "2": "Bruiser Intimidate",
