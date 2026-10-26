@@ -11,12 +11,15 @@ The schema matches:
       "<Name of Frame>": {
         "back": "<raw.githubusercontent URL of frame back in TTSImages/>",
         "cards": {
-          "1": "<Name of Card 1>",
-          "2": "<Name of Card 2>",
+          "<Name of Card 1>": "true",
+          "<Name of Card 2>": "false",
           ...
         }
       }, ...
     }
+
+The "true"/"false" string indicates whether the card is included in the frame's
+starting hand (from decks/hands/deck_<prefix>_hand.csv).
 
 Usage:
     python generate_deck_json.py
@@ -37,6 +40,7 @@ from urllib.parse import quote
 WORKSPACE = Path(__file__).parent
 FRAMES_CSV = WORKSPACE / "Frames.csv"
 DECKS_DIR = WORKSPACE / "decks"
+HANDS_DIR = DECKS_DIR / "hands"
 TTS_IMAGES_DIR = WORKSPACE / "TTSImages"
 DEFAULT_OUTPUT = WORKSPACE / "json" / "decks.json"
 
@@ -166,18 +170,44 @@ def generate_decks_data(card_map: dict[str, str], quiet: bool = False) -> dict[s
         back_image_name = f"{prefix}_back.png"
         back_url = TTS_IMAGES_URL + quote(back_image_name)
 
+        # Read starting hand cards if available
+        hand_csv_path = HANDS_DIR / f"deck_{prefix}_hand.csv"
+        hand_keys: set[str] = set()
+        if hand_csv_path.is_file():
+            with open(hand_csv_path, newline="", encoding="utf-8") as hfh:
+                for line in hfh:
+                    token = line.strip()
+                    if not token or token.startswith("#"):
+                        continue
+                    stripped = token[5:] if token.startswith("card/") else token
+                    hand_keys.add(token)
+                    hand_keys.add(stripped)
+                    disp = card_map.get(token) or card_map.get(stripped)
+                    if disp:
+                        hand_keys.add(disp)
+        elif not quiet:
+            print(f"Warning: hand file not found for frame '{frame_name}': {hand_csv_path}", file=sys.stderr)
+
         # Read deck cards
         with open(deck_csv_path, newline="", encoding="utf-8") as dfh:
             card_lines = [line.strip() for line in dfh if line.strip() and not line.startswith("#")]
 
         cards_dict: dict[str, str] = {}
-        for idx, key in enumerate(card_lines, start=1):
+        for key in card_lines:
             disp_name = card_map.get(key)
             if disp_name is None:
                 # Fallback: if key starts with 'card/', strip it and retry
                 stripped_key = key[5:] if key.startswith("card/") else key
                 disp_name = card_map.get(stripped_key, key)
-            cards_dict[str(idx)] = disp_name
+            else:
+                stripped_key = key[5:] if key.startswith("card/") else key
+
+            is_in_hand = (
+                key in hand_keys
+                or stripped_key in hand_keys
+                or disp_name in hand_keys
+            )
+            cards_dict[disp_name] = "true" if is_in_hand else "false"
 
         decks_data[frame_name] = {
             "back": back_url,
@@ -214,7 +244,13 @@ def main() -> None:
 
     if not args.quiet:
         total_cards = sum(len(d["cards"]) for d in decks.values())
-        print(f"Wrote {len(decks)} decks ({total_cards} cards total) to {args.output.relative_to(WORKSPACE)}")
+        total_starting = sum(
+            sum(1 for v in d["cards"].values() if v == "true")
+            for d in decks.values()
+        )
+        print(
+            f"Wrote {len(decks)} decks ({total_cards} unique cards, {total_starting} in starting hands) to {args.output.relative_to(WORKSPACE)}"
+        )
 
 
 if __name__ == "__main__":

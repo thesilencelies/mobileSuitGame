@@ -51,7 +51,7 @@ Writes `json/cards.json`, one file holding Tabletop Simulator metadata for all c
 Run: `python generate_card_json.py [--output json/cards.json] [--quiet]`
 
 ### generate_deck_json.py
-Writes `json/decks.json`, storing Tabletop Simulator metadata for each playable Frame's action deck from `decks/`. Keyed by frame name with frame sleeve back art URL from `TTSImages/` and a 1-based indexed dictionary of card names matching `json/cards.json`.
+Writes `json/decks.json`, storing Tabletop Simulator metadata for each playable Frame's action deck from `decks/`. Keyed by frame name with frame sleeve back art URL from `TTSImages/` and a dictionary of card display names mapping to `"true"`/`"false"` indicating starting hand inclusion (from `decks/hands/`).
 Run: `python generate_deck_json.py [--output json/decks.json] [--quiet]`
 
 ### upload_rules.py
