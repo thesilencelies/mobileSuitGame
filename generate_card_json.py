@@ -709,7 +709,10 @@ def enumerate_cards() -> list[dict]:
         gm_notes = terrain_gm_notes(row)
         image_name = card_image_name(f"terrain/{_cell(row, 'Name')}.tex")
         is_obj = _int(row, "Defend Points") > 0 or _int(row, "Attack Points") > 0
-        tags = build_tags("Card", "Terrain", "Objective") if is_obj else build_tags("Card", "Terrain")
+        tag_names = ["Card", "Terrain", "Objective"] if is_obj else ["Card", "Terrain"]
+        if _cell(row, "Name") == "Helpcard":
+            tag_names.append("HELPCARD")
+        tags = build_tags(*tag_names)
         entries.append({
             "name": _cell(row, "Name"),
             "description": description_for(gm_notes, row, is_pilot=False),

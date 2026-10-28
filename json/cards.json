@@ -2395,7 +2395,8 @@
       "tags": {
         "1": "Card",
         "2": "Terrain",
-        "3": "Objective"
+        "3": "Objective",
+        "4": "HELPCARD"
       },
       "lua_script": "",
       "face": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Helpcard.png",
