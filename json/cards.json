@@ -1699,7 +1699,7 @@
     "107": {
       "name": "Mystic Psychic Storm",
       "description": "",
-      "gm_notes": "1init\n-2mv\nBlk:1H\nCreate storm token within 5. At the end of each turn, every unit within 3 of that storm token takes energy high",
+      "gm_notes": "1init\n-2mv\nBlk:1H\npersist:permanent\nCreate storm token within 5. At the end of each turn, every unit within 3 of that storm token takes energy high",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -1859,7 +1859,7 @@
     "117": {
       "name": "Wunderkid Portal",
       "description": "",
-      "gm_notes": "3init\n-1mv\nBlk:1H\nCreate two portals within 6. Those tiles are connected.",
+      "gm_notes": "3init\n-1mv\nBlk:1H\npersist:permanent\nCreate two portals within 6. Those tiles are connected.",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -1939,7 +1939,7 @@
     "122": {
       "name": "Engineer Barricade",
       "description": "",
-      "gm_notes": "4init\n-3mv\nBlk:1H\nPut up to 3 barricade tokens on unoccupied locations within 3: those locations becomes impassible",
+      "gm_notes": "4init\n-3mv\nBlk:1H\npersist:permanent\nPut up to 3 barricade tokens on unoccupied locations within 3: those locations becomes impassible",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -1955,7 +1955,7 @@
     "123": {
       "name": "Engineer Gravity Well",
       "description": "",
-      "gm_notes": "3init\n-2mv\nBlk:1H\nCreate a gravity well within 5. Its an obstacle that adds an extra 1 movement penalty to any step away from it within 4",
+      "gm_notes": "3init\n-2mv\nBlk:1H\npersist:permanent\nCreate a gravity well within 5. Its an obstacle that adds an extra 1 movement penalty to any step away from it within 4",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -2083,7 +2083,7 @@
     "131": {
       "name": "Specialist Rebound",
       "description": "",
-      "gm_notes": "3init\n-2mv\nBlk:1H\npersist:1 turn\nCreate a Rebound token within 6. If this frame can see the token, its treated as if it can see every enemy within 4 of that token",
+      "gm_notes": "3init\n-2mv\nBlk:1H\npersist:permanent\nCreate a Rebound token within 6. If this frame can see the token, its treated as if it can see every enemy within 4 of that token",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -2331,7 +2331,7 @@
     "147": {
       "name": "Flamekin",
       "description": "Deathstrike: when this frame would be destroyed it fights on until the end of the next turn, and is only removed if it is still dead",
-      "gm_notes": "4mv\narmour:2H/2M/2L\nweapons:3\nboosters:3\ndeck:21\nfaction:Revolution\nDeathstrike\nAt the end of each turn, repair 2",
+      "gm_notes": "4mv\narmour:2H/2M/2L\nweapons:3\nboosters:3\ndeck:21\nfaction:Revolution\nDeathstrike\nAt the start of each turn, repair 2",
       "tags": {
         "1": "Card",
         "2": "Frame",
@@ -2434,7 +2434,7 @@
     "154": {
       "name": "Power Reactors",
       "description": "",
-      "gm_notes": "defend:2pts\nattack:1pts\ntokens:4\nPower reactors:\nEach power reactor has 2 hitpoints. Attackers score if 3 or more are destroyed, else defenders score.",
+      "gm_notes": "{3:power_plant}\n{5:power_plant}\n{9:power_plant}\n{10:power_plant}\ndefend:2pts\nattack:1pts\ntokens:4\nPower reactors:\nEach power reactor has 2 hitpoints. Attackers score if 3 or more are destroyed, else defenders score.",
       "tags": {
         "1": "Card",
         "2": "Terrain",
@@ -2477,7 +2477,7 @@
     "157": {
       "name": "Shiny Thing",
       "description": "",
-      "gm_notes": "defend:1pts\nattack:2pts\ntokens:1\nShiny thing:\nThe shiny thing token is created on the marked tile. It can be held by either team. Whichever team hold it at the end scores.",
+      "gm_notes": "{5:shiny_thing}\ndefend:1pts\nattack:2pts\ntokens:1\nShiny thing:\nThe shiny thing token is created on the marked tile. It can be held by either team. Whichever team hold it at the end scores.",
       "tags": {
         "1": "Card",
         "2": "Terrain",
@@ -2776,7 +2776,7 @@
     "178": {
       "name": "The Tower",
       "description": "",
-      "gm_notes": "{4:height_1}\n{6:height_3}\n{7:height_1}\n{9:height_1}\ndefend:2pts\nattack:1pts\ntokens:1\nThe Tower:\nThe tower has 4 hitpoints, and takes -1 damage from any attack. If it is destroyed attackers score, else defenders score.",
+      "gm_notes": "{4:height_1}\n{6:height_3}\n{6:the_tower}\n{7:height_1}\n{9:height_1}\ndefend:2pts\nattack:1pts\ntokens:1\nThe Tower:\nThe tower has 4 hitpoints, and takes -1 damage from any attack. If it is destroyed attackers score, else defenders score.",
       "tags": {
         "1": "Card",
         "2": "Terrain",
@@ -2977,7 +2977,7 @@
       "face": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/Image.png",
       "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/Real.png",
       "type": "2",
-      "thickness": "0.5",
+      "thickness": "0.1",
       "stackable": "true"
     },
     "2": {
@@ -2993,7 +2993,7 @@
       "face": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/Image.png",
       "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/Illusion.png",
       "type": "2",
-      "thickness": "0.5",
+      "thickness": "0.1",
       "stackable": "true"
     },
     "3": {
@@ -3009,11 +3009,11 @@
       "face": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/PowerPlant2.png",
       "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/PowerPlant1.png",
       "type": "2",
-      "thickness": "0.5",
+      "thickness": "0.1",
       "stackable": "true"
     },
     "4": {
-      "name": "The Tower (4/3 HP)",
+      "name": "The Tower",
       "description": "Objective structure with 4 HP / 3 HP (damage reduction 1)",
       "gm_notes": "4hp / 3hp damage_reduction:1",
       "tags": {
@@ -3025,7 +3025,7 @@
       "face": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/Tower4.png",
       "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/Tower3.png",
       "type": "2",
-      "thickness": "0.5",
+      "thickness": "0.1",
       "stackable": "true"
     },
     "5": {
@@ -3041,7 +3041,7 @@
       "face": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/Tower2.png",
       "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/Tower1.png",
       "type": "2",
-      "thickness": "0.5",
+      "thickness": "0.1",
       "stackable": "true"
     },
     "6": {
@@ -3057,7 +3057,7 @@
       "face": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/Barricade.png",
       "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/Barricade.png",
       "type": "2",
-      "thickness": "0.5",
+      "thickness": "0.1",
       "stackable": "true"
     },
     "7": {
@@ -3073,7 +3073,7 @@
       "face": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/Cage.png",
       "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/Cage.png",
       "type": "2",
-      "thickness": "0.5",
+      "thickness": "0.1",
       "stackable": "true"
     },
     "8": {
@@ -3089,7 +3089,7 @@
       "face": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/Fugitive.png",
       "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/Fugitive.png",
       "type": "2",
-      "thickness": "0.5",
+      "thickness": "0.1",
       "stackable": "true"
     },
     "9": {
@@ -3105,7 +3105,7 @@
       "face": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/Gangs.png",
       "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/Gangs.png",
       "type": "2",
-      "thickness": "0.5",
+      "thickness": "0.1",
       "stackable": "true"
     },
     "10": {
@@ -3121,7 +3121,7 @@
       "face": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/GravityWell.png",
       "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/GravityWell.png",
       "type": "2",
-      "thickness": "0.5",
+      "thickness": "0.1",
       "stackable": "true"
     },
     "11": {
@@ -3137,7 +3137,7 @@
       "face": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/Portal.png",
       "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/Portal.png",
       "type": "2",
-      "thickness": "0.5",
+      "thickness": "0.1",
       "stackable": "true"
     },
     "12": {
@@ -3153,7 +3153,7 @@
       "face": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/Rebound.png",
       "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/Rebound.png",
       "type": "2",
-      "thickness": "0.5",
+      "thickness": "0.1",
       "stackable": "true"
     },
     "13": {
@@ -3169,7 +3169,7 @@
       "face": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/Refugees.png",
       "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/Refugees.png",
       "type": "2",
-      "thickness": "0.5",
+      "thickness": "0.1",
       "stackable": "true"
     },
     "14": {
@@ -3185,7 +3185,7 @@
       "face": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/Relic.png",
       "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/Relic.png",
       "type": "2",
-      "thickness": "0.5",
+      "thickness": "0.1",
       "stackable": "true"
     },
     "15": {
@@ -3201,7 +3201,7 @@
       "face": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/Shiny.png",
       "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/Shiny.png",
       "type": "2",
-      "thickness": "0.5",
+      "thickness": "0.1",
       "stackable": "true"
     },
     "16": {
@@ -3217,7 +3217,7 @@
       "face": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/Storm.png",
       "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/Storm.png",
       "type": "2",
-      "thickness": "0.5",
+      "thickness": "0.1",
       "stackable": "true"
     },
     "17": {
@@ -3234,7 +3234,7 @@
       "face": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/playtest/server/static/tokens/Swarm.png",
       "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/playtest/server/static/tokens/Swarm.png",
       "type": "2",
-      "thickness": "0.5",
+      "thickness": "0.1",
       "stackable": "true"
     },
     "18": {
@@ -3251,7 +3251,7 @@
       "face": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/playtest/server/static/tokens/Gun_Tower.png",
       "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/playtest/server/static/tokens/Gun_Tower.png",
       "type": "2",
-      "thickness": "0.5",
+      "thickness": "0.1",
       "stackable": "true"
     },
     "19": {
@@ -3268,7 +3268,7 @@
       "face": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/playtest/server/static/tokens/Attack_Dog.png",
       "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/playtest/server/static/tokens/Attack_Dog.png",
       "type": "2",
-      "thickness": "0.5",
+      "thickness": "0.1",
       "stackable": "true"
     }
   },
@@ -3381,7 +3381,7 @@
     "9": {
       "name": "Flamekin",
       "description": "Deathstrike: when this frame would be destroyed it fights on until the end of the next turn, and is only removed if it is still dead",
-      "gm_notes": "4mv\narmour:2H/2M/2L\nweapons:3\nboosters:3\ndeck:21\nfaction:Revolution\nDeathstrike\nAt the end of each turn, repair 2",
+      "gm_notes": "4mv\narmour:2H/2M/2L\nweapons:3\nboosters:3\ndeck:21\nfaction:Revolution\nDeathstrike\nAt the start of each turn, repair 2",
       "tags": {
         "1": "Figurine",
         "2": "Frame",

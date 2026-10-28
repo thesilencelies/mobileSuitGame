@@ -31,7 +31,7 @@ The schema matches the TTS custom-object import format:
           "face":        "<raw.githubusercontent URL of token image>",
           "back":        "<raw.githubusercontent URL of token image>",
           "type":        "2",
-          "thickness":   "0.5",
+          "thickness":   "0.1",
           "stackable":   "true"
         }, ...
       },
@@ -265,7 +265,7 @@ TWO_SIDED_TILES: list[dict] = [
         "back_file": "PowerPlant1.png",
     },
     {
-        "name": "The Tower (4/3 HP)",
+        "name": "The Tower",
         "description": "Objective structure with 4 HP / 3 HP (damage reduction 1)",
         "gm_notes": "4hp / 3hp damage_reduction:1",
         "tags": ("Tile", "Token", "Objective"),
@@ -582,9 +582,26 @@ def frame_gm_notes(row: dict) -> str:
     return "\n".join(lines)
 
 
+#: Objective card name -> token identifier in tiles section (lowercased, spaces to underscores)
+OBJECTIVE_CARD_TOKENS: dict[str, str] = {
+    "Shiny Thing": "shiny_thing",
+    "The Tower": "the_tower",
+    "Power Reactors": "power_plant",
+    "Fugitive": "fugitive",
+    "Riverside": "gangs",
+    "Lake Crosses": "relic",
+    "Car Park": "refugees",
+}
+
+
 def terrain_gm_notes(row: dict) -> str:
     lines = []
     name = _cell(row, "Name")
+    defend = _int(row, "Defend Points")
+    attack = _int(row, "Attack Points")
+    tokens = _int(row, "Tokens")
+    is_obj = defend > 0 or attack > 0
+
     if name != "Helpcard":
         for r_board in range(4):
             for c in range(3):
@@ -593,10 +610,10 @@ def terrain_gm_notes(row: dict) -> str:
                 for code in cell.split():
                     if code in ("e1", "e2", "e3"):
                         lines.append(f"{{{tile_num}:height_{code[1]}}}")
+                    elif code == "tkn" and is_obj:
+                        token_id = OBJECTIVE_CARD_TOKENS.get(name, name.lower().replace(" ", "_"))
+                        lines.append(f"{{{tile_num}:{token_id}}}")
 
-    defend = _int(row, "Defend Points")
-    attack = _int(row, "Attack Points")
-    tokens = _int(row, "Tokens")
     if defend > 0 or attack > 0:
         lines.append(f"defend:{defend}pts")
         lines.append(f"attack:{attack}pts")
@@ -740,7 +757,7 @@ def enumerate_tiles() -> list[dict]:
             "face": front_url,
             "back": back_url,
             "type": "2",
-            "thickness": "0.5",
+            "thickness": "0.1",
             "stackable": "true",
             "_local_images": (TTS_ASSETS_DIR / front_file, TTS_ASSETS_DIR / back_file),
         })
@@ -767,7 +784,7 @@ def enumerate_tiles() -> list[dict]:
                 "face": url,
                 "back": url,
                 "type": "2",
-                "thickness": "0.5",
+                "thickness": "0.1",
                 "stackable": "true",
                 "_local_images": (file_path,),
             })
@@ -820,7 +837,7 @@ def enumerate_tiles() -> list[dict]:
             "face": url,
             "back": url,
             "type": "2",
-            "thickness": "0.5",
+            "thickness": "0.1",
             "stackable": "true",
             "_local_images": (local_img,),
         })
