@@ -42,22 +42,19 @@ Location = str  # "deck" | "hand" | "committed" | "discard" | "aside"
 
 
 # --------------------------------------------------------------------------
-# Durability (see SPEC.md "Open rules question")
+# Durability: debuffs apply when all armour is gone in a zone (damage >= armour).
+# A frame is destroyed if it takes damage in a zone again after losing all armour.
 # --------------------------------------------------------------------------
 
 
 def zone_destroyed(damage: int, armour: int) -> bool:
-    """True when this zone's damage has destroyed the frame."""
-    if ARMOUR_KILLS_AT == "kill_at_armour":
-        return damage >= armour
-    return damage > armour
+    """True when all armour in this zone has been depleted."""
+    return damage >= armour
 
 
 def zone_at_last_hit(damage: int, armour: int) -> bool:
-    """True when this zone is one hit from destruction (rules.tex:583)."""
-    if ARMOUR_KILLS_AT == "kill_at_armour":
-        return damage == armour - 1
-    return damage == armour
+    """True when all armour is gone in this zone and debuff applies."""
+    return damage >= armour
 
 
 # --------------------------------------------------------------------------
@@ -220,6 +217,8 @@ class FrameState:
     moved_this_turn: bool = False
     #: Kuwagata's once-per-game planning mulligan.
     mulligan_used: bool = False
+    #: Weapons revealed before turn 1 via Long distance sensing.
+    sensed_weapons: list[str] = field(default_factory=list)
 
     # -- derived stats ---------------------------------------------------
 
@@ -232,9 +231,7 @@ class FrameState:
 
     @property
     def is_destroyed(self) -> bool:
-        return any(
-            zone_destroyed(self.damage[z], self.spec.armour[z]) for z in ZONES
-        )
+        return not self.alive
 
     def status_mod(self, debuff: StatusKind, buff: StatusKind) -> int:
         """Net modifier from an opposing status pair, in fixed magnitudes."""
@@ -794,6 +791,7 @@ def deal_damage(
         frame.shields -= 1
         state.note(f"{frame.id} loses a shield counter instead of damage")
         return 0
+    already_lost_armour = frame.damage.get(zone, 0) >= frame.spec.armour.get(zone, 1)
     frame.damage[zone] = frame.damage.get(zone, 0) + amount
     state.note(f"{frame.id} takes {amount} {zone} damage")
     # "Frames [...] drop it on damage" -- any damage, from any source.
@@ -804,7 +802,8 @@ def deal_damage(
         source_pos=source_pos if source_pos is not None
         else (source.pos if source is not None else None),
     )
-    check_destruction(state, frame, killer=source)
+    if already_lost_armour:
+        check_destruction(state, frame, killer=source, lethal=True)
     return amount
 
 
@@ -873,20 +872,23 @@ def repair(state: GameState, frame: FrameState, amount: int) -> None:
         left -= 1
     if amount != left:
         state.note(f"{frame.id} repairs {amount - left}")
-    if frame.deathstrike_until is not None and not frame.is_destroyed:
-        frame.deathstrike_until = None
-        state.note(f"{frame.id} is repaired back out of Deathstrike")
 
 
 def check_destruction(
-    state: GameState, frame: FrameState, *, killer: Optional[FrameState] = None
+    state: GameState,
+    frame: FrameState,
+    *,
+    killer: Optional[FrameState] = None,
+    lethal: bool = False,
 ) -> bool:
-    """Destroy the frame if any zone is over its armour. Honours Deathstrike."""
-    if not frame.alive or not frame.is_destroyed:
+    """Destroy the frame if lethal damage was dealt or called directly. Honours Deathstrike."""
+    if not frame.alive:
+        return False
+    if not lethal and not any(frame.damage[z] >= frame.spec.armour[z] for z in ZONES):
         return False
     if "deathstrike" in frame.spec.keywords and frame.deathstrike_until is None:
-        # Fights on until the end of the *next* turn (rules.tex Frame Keywords).
-        frame.deathstrike_until = state.turn + 1
+        # Fights on until the end of the turn that it is killed (rules.tex Frame Keywords).
+        frame.deathstrike_until = state.turn
         state.note(f"{frame.id} would be destroyed -- Deathstrike holds it")
         return False
     if frame.deathstrike_until is not None:

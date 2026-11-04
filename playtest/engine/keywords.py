@@ -309,17 +309,25 @@ def block_is_kept(state: GameState, defender: FrameState, block_card: Card,
 # --------------------------------------------------------------------------
 
 
-#: "At the end of each turn, repair N" -- Flamekin's line in `Frames.csv`.
+#: "At the end of each turn, repair N" / "At the start of each turn, repair N"
 _END_REPAIR_RE = re.compile(r"at the end of each turn,?\s*repair\s+(\d+)", re.I)
+_START_REPAIR_RE = re.compile(r"at the start of each turn,?\s*repair\s+(\d+)", re.I)
+
+
+def start_of_turn(state: GameState) -> None:
+    """Frame abilities that fire at the start of every turn (Flamekin)."""
+    from .state import repair
+
+    for frame in state.frames.values():
+        if not frame.alive:
+            continue
+        match = _START_REPAIR_RE.search(frame.spec.ability_text or "")
+        if match:
+            repair(state, frame, int(match.group(1)))
 
 
 def end_of_turn(state: GameState) -> None:
-    """Frame abilities that fire at the end of every turn.
-
-    The amount is read off the frame's printed ability rather than keyed to
-    the frame's name, so a balance pass in `Frames.csv` -- Flamekin went from
-    1 to 2 -- needs no engine change.
-    """
+    """Frame abilities that fire at the end of every turn."""
     from .state import repair
 
     for frame in state.frames.values():

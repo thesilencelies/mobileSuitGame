@@ -451,9 +451,34 @@ def _deploy_decision(state: GameState) -> bool:
     return False
 
 
+def perform_long_distance_sensing(state: GameState) -> None:
+    """Before the first turn, each player reveals all weapons in each of
+    their decks by showing one card from each weapon to their opponent
+    (rules.tex "Long distance sensing")."""
+    state.note("--- Long distance sensing ---")
+    for frame in state.frames.values():
+        if frame.sensed_weapons:
+            continue
+        frame_cards = [
+            state.catalogue[c.key]
+            for c in state.cards.values()
+            if c.owner == frame.id and c.key in state.catalogue
+        ]
+        weapons: dict[str, str] = {}
+        for card in frame_cards:
+            if card.card_type in ("weapon", "drone") and card.group:
+                if card.group not in weapons:
+                    weapons[card.group] = card.key
+        revealed_keys = [weapons[g] for g in sorted(weapons.keys())]
+        frame.sensed_weapons = revealed_keys
+        group_list = ", ".join(f"{g} ({weapons[g]})" for g in sorted(weapons.keys()))
+        state.note(f"{frame.id} reveals weapons: {group_list}")
+
+
 def _finish_setup(state: GameState) -> None:
     state.queue = []
     state.note("deployment complete")
+    perform_long_distance_sensing(state)
     _begin_planning(state)
 
 
@@ -463,11 +488,14 @@ def _finish_setup(state: GameState) -> None:
 
 
 def _begin_planning(state: GameState) -> None:
+    if state.turn == 1 and any(not f.sensed_weapons for f in state.frames.values()):
+        perform_long_distance_sensing(state)
     state.phase = "planning"
     state.resolution = None
     for frame in state.frames.values():
         frame.turn_flags = {}
         frame.moved_this_turn = False
+    kw.start_of_turn(state)
     for frame in state.frames.values():
         if not frame.alive:
             continue
@@ -1040,9 +1068,13 @@ def cleanup_phase(state: GameState) -> None:
     for frame in state.frames.values():
         if frame.alive and frame.deathstrike_until is not None:
             if state.turn >= frame.deathstrike_until:
-                state.note(f"{frame.id}'s Deathstrike runs out")
-                frame.deathstrike_until = None
-                destroy_frame(state, frame)
+                if all(frame.damage[z] < frame.spec.armour[z] for z in ZONES):
+                    frame.deathstrike_until = None
+                    state.note(f"{frame.id} healed back all armour and survives Deathstrike")
+                else:
+                    state.note(f"{frame.id}'s Deathstrike runs out")
+                    frame.deathstrike_until = None
+                    destroy_frame(state, frame)
     _terrain_hazards(state)
     effects.end_of_turn(state)
     objectivelib.end_of_turn(state)

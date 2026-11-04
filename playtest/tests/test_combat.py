@@ -507,6 +507,12 @@ def test_damage_accumulates_and_destroys_at_armour():
     uid = give(state, atk, "Basic_Punch")
     run_attack(state, atk, uid, dfn)
     assert dfn.damage["Mid"] == 2
+    # At 2 damage, all Mid armour is gone (debuff active), but not yet destroyed
+    assert dfn.alive and dfn.deathstrike_until is None
+    # Hit in Mid again after losing all armour -> triggers Deathstrike
+    uid2 = give(state, atk, "Basic_Punch")
+    run_attack(state, atk, uid2, dfn)
+    assert dfn.damage["Mid"] == 3
     assert dfn.deathstrike_until is not None, "Flamekin has Deathstrike"
 
 

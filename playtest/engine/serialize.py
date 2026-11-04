@@ -94,6 +94,15 @@ def _frame_json(state: GameState, frame: FrameState, seat: Team) -> dict[str, An
         "deckCount": len(frame.deck),
         "discardCount": len(frame.discard),
         "deathstrike": frame.deathstrike_until is not None,
+        "sensedWeapons": [
+            {
+                "key": key,
+                "group": state.catalogue[key].group,
+                "name": state.catalogue[key].name,
+            }
+            for key in frame.sensed_weapons
+            if key in state.catalogue
+        ],
     }
     if cloaked:
         view["cloaked"] = True

@@ -39,51 +39,56 @@ from ._helpers import add_frame, give, make_state
 # --------------------------------------------------------------------------
 
 
-def test_durability_follows_the_worked_example_at_rules_591():
-    """A Kuwagata (armour 4/4/4) on 3/3/1 draws 6 and is at -1 initiative,
-    and *one more hit* High or Mid destroys it."""
-    assert ARMOUR_KILLS_AT == "kill_at_armour"
+def test_fenrir_armour_depletion_and_destruction():
+    """Fenrir (3/4/3) takes 4 High damage -> survives at -1 init (all armour gone).
+    A subsequent hit in High destroys him."""
     state = make_state()
-    frame = add_frame(state, 0, "Kuwagata", Pos(1, 1))
-    frame.damage.update({"High": 3, "Mid": 3, "Low": 1})
+    frame = add_frame(state, 0, "Fenrir", Pos(1, 1))
 
-    assert frame.zone_last_hit("High") and frame.zone_last_hit("Mid")
-    assert not frame.zone_last_hit("Low")
-    assert frame.draw_count == BASE_DRAW - 1 == 6
+    deal_damage(state, frame, "High", 4)
+    assert frame.alive
+    assert frame.zone_last_hit("High")
+    assert not frame.zone_last_hit("Mid")
     assert frame.initiative_mod == -1
-    assert not frame.is_destroyed
 
+    # Taking damage in High again destroys him
     deal_damage(state, frame, "High", 1)
-    assert frame.is_destroyed is False or not frame.alive
-    assert not frame.alive, "damage == armour destroys (rules.tex:591)"
+    assert not frame.alive
 
 
-def test_an_armour_four_zone_takes_three_hits_and_dies_on_the_fourth():
-    """Asserted as literal behaviour, not read off ARMOUR_KILLS_AT."""
+def test_an_armour_four_zone_loses_armour_on_fourth_hit_and_dies_on_fifth():
     state = make_state()
     frame = add_frame(state, 0, "Kuwagata", Pos(1, 1))   # armour 4/4/4
     for hit in range(1, 4):
         deal_damage(state, frame, "Mid", 1)
-        assert frame.alive, f"hit {hit} of 4 should not be lethal"
-    assert frame.zone_last_hit("Mid"), "at 3 damage it is one hit from death"
+        assert frame.alive, f"hit {hit} of 5 should not be lethal"
+        assert not frame.zone_last_hit("Mid")
+
+    # 4th hit depletes all armour in Mid
     deal_damage(state, frame, "Mid", 1)
-    assert not frame.alive, "the fourth hit destroys it"
+    assert frame.alive, "losing all armour does not destroy"
+    assert frame.zone_last_hit("Mid"), "at 4 damage all armour is gone"
+    assert frame.draw_count == BASE_DRAW - 1 == 6
+
+    # 5th hit (damage taken again after losing all armour) destroys
+    deal_damage(state, frame, "Mid", 1)
+    assert not frame.alive, "the fifth hit destroys it"
 
 
 def test_zone_helpers_at_the_boundary():
     assert not zone_destroyed(3, 4)
     assert zone_destroyed(4, 4)
     assert zone_destroyed(5, 4)
-    assert zone_at_last_hit(3, 4)
-    assert not zone_at_last_hit(2, 4)
-    assert not zone_at_last_hit(4, 4)
+    assert not zone_at_last_hit(3, 4)
+    assert zone_at_last_hit(4, 4)
+    assert zone_at_last_hit(5, 4)
 
 
 def test_low_zone_last_hit_costs_a_point_of_movement():
     state = make_state()
     frame = add_frame(state, 0, "Kuwagata", Pos(1, 1))
     assert frame.base_movement == 4
-    frame.damage["Low"] = 3
+    frame.damage["Low"] = 4                              # armour 4 -> debuff at 4
     assert frame.base_movement == 3
 
 
@@ -201,16 +206,21 @@ def test_deathstrike_frames_keep_fighting_when_destroyed():
     frame = add_frame(state, 0, "Flamekin", Pos(1, 1))
     frame.damage["Mid"] = 2                      # armour 2 -> destroyed
     assert check_destruction(state, frame) is False
-    assert frame.alive and frame.deathstrike_until == state.turn + 1
+    assert frame.alive and frame.deathstrike_until == state.turn
 
 
-def test_repairing_a_deathstruck_frame_saves_it():
+def test_repairing_a_deathstruck_frame_restores_armour():
     state = make_state()
     frame = add_frame(state, 0, "Flamekin", Pos(1, 1))
     frame.damage["Mid"] = 2
     check_destruction(state, frame)
+    assert frame.deathstrike_until == state.turn
+    # Repair restores damage below armour (checked at end of turn)
     repair(state, frame, 1)
-    assert frame.deathstrike_until is None and frame.alive
+    assert frame.damage["Mid"] == 1
+    assert frame.alive
+    # Deathstrike check is only made at the end of the turn
+    assert frame.deathstrike_until == state.turn
 
 
 # --------------------------------------------------------------------------

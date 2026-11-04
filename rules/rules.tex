@@ -433,6 +433,9 @@ For each frame the players choose their starting hand of 7, shuffle the deck the
 Each player takes it in turns to put one of their frames on nearest edge of their terrain cards.
 After all frames are deployed this way the player who deployed first receives the priority marker.
 
+\subsection{Long distance sensing}
+Before the first turn each player reveals all weapons in each of their decks by showing one card from each weapon to their opponent.
+
 % Pre-typeset every terrain card (normal context; see \prepcard).
 \prepcard{r0c0}{../build/terrain/Church.tex}
 \prepcard{r0c1}{../build/terrain/U homes.tex}
@@ -756,10 +759,11 @@ Ranged attacks are not affected by elevation in this way.
 
 
 \subsubsection{Damage}
-If a frame takes more damage in any zone than the number indicated on the frame card for that zone they are destroyed.
+When a frame takes damage in a zone equal to or exceeding the armour value indicated on the frame card for that zone, it has lost all its armour in that zone.
+A frame is destroyed if it takes damage in a zone again after it has lost all its armour in that zone.
 Destroyed frames are removed from the battlefield and can no longer contribute to the fight. Their remaining actions and abilities are discarded.
 Damage persists unless repaired using special frame actions.
-Additionally any frame that has one hit left in any zone faces the following penalty corresponding to the zone: 
+Additionally, any frame that has lost all its armour in a zone faces the following penalty corresponding to that zone:
 
 \begin{tabular}{c p{4cm}}
 High &
@@ -769,8 +773,8 @@ Mid &
 Low &
 -1 movement (reduce base movement by 1) \\
 \end{tabular}
-For example a \emph{Kuwagata} ( Armor 4 4 4) that has taken 3 damage high, 3 damage mid and 1 low draws 6 cards a turn and it's actions resolve
-at -1 initiative. If it took one more damage high or mid, or 3 more damage low it would be destroyed. 
+
+For example, \emph{Fenrir} (Armour 3 4 3) has 3 High armour. If he takes 4 damage High, he has lost all his armour in the High zone and now suffers the High zone penalty (-1 initiative). If he is hit for any amount of damage High after that, he is destroyed.
 
 
 \section{Cleanup}
@@ -1122,8 +1126,8 @@ count & type & group & cards \\
     Whenever a frame with a shield counter would take any amount of damage, instead remove one shield counter from the frame.
     One counter stops the whole attack, however many zones it landed in --- so a single counter absorbs
     a \guardbreak\ attack that got through in all three zones just as it absorbs one mark. \\
-  Deathstrike & When this frame would be destroyed, they continue to fight until the end of the next turn,
-  after which they are removed from play if they are still dead\\
+  Deathstrike & When this frame would be destroyed, they continue to fight until the end of the turn that they are killed,
+  after which they are removed from play if they have not been healed\\
 \end{tabular}
 
 \subsection{Damage reduction and increases}
@@ -1178,10 +1182,8 @@ any attack hits then the identity of the source is immediately revealed, and if 
 no damage is dealt.
 
 \subsection{Deathstrike}
-A unit with Deathstrike that has taken lethal damage continues to suffer the penalties for each zone it has
-with 1 or fewer hits left. If it is repaired, and at the end of the turn where it would be removed it no longer
-has lethal damage anywhere it is not removed. However, if it is repaired, then subsequently takes lethal damage again, 
-it is removed at the end of that turn. The only check for if it is no longer dead is at the end of that turn.
+A unit with Deathstrike that would be destroyed continues to fight until the end of the turn that it is killed.
+At that point, it checks whether it has been healed. If it has been repaired so that all its armour values are non-zero (i.e. every zone has remaining armour), it is not removed. If it has not been repaired enough to restore armour in all zones, it is removed at the end of that turn. The check for whether it is no longer dead is made only at the end of that turn.
 
 
 \section{Acknowledgments}

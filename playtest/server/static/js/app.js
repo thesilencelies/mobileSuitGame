@@ -911,8 +911,8 @@ function renderFramePanel() {
       const dmg = frame.damage[z] || 0;
       const last = frame.lastHit && frame.lastHit[z];
       return `<span class="zb"${last ? ' data-last="1"' : ''}${
-        armour && dmg >= armour - 1 ? ' data-open="1"' : ''}>
-        <u>${z}${last ? ' · last hit' : ''}</u><b>${dmg}/${armour}</b></span>`;
+        armour && dmg >= armour ? ' data-open="1"' : ''}>
+        <u>${z}${last ? ' · armour gone' : ''}</u><b>${dmg}/${armour}</b></span>`;
     }).join('')}</div>
     <div class="fp-stats">
       <span>move <b>${frame.movement}</b></span>
@@ -927,6 +927,21 @@ function renderFramePanel() {
 
   const cards = cardRow(frame);
   if (cards) main.appendChild(cards);
+
+  if (frame.sensedWeapons && frame.sensedWeapons.length) {
+    const sensedDiv = document.createElement('div');
+    sensedDiv.className = 'fp-sensed';
+    sensedDiv.innerHTML = '<div class="fp-sensed-title">Long distance sensing</div>';
+    const sensedRow = document.createElement('div');
+    sensedRow.className = 'cardrow';
+    for (const w of frame.sensedWeapons) {
+      const el = C.thumb(w.key, { width: 100, showName: false, tag: w.group });
+      el.addEventListener('click', () => C.showCard(w.key));
+      sensedRow.appendChild(el);
+    }
+    sensedDiv.appendChild(sensedRow);
+    main.appendChild(sensedDiv);
+  }
 
   const close = document.createElement('button');
   close.className = 'icon-btn fp-close';

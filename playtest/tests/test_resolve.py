@@ -429,30 +429,32 @@ def test_cleanup_advances_the_turn_and_ends_the_game_after_five():
     assert is_over(state)
 
 
-def test_a_deathstruck_frame_dies_at_the_end_of_the_next_turn():
+def test_a_deathstruck_frame_dies_at_the_end_of_the_turn_it_is_killed():
     state, frame = _cleanup_state()
     ripper = add_frame(state, 0, "RipperSmasher", Pos(2, 2))   # Deathstrike
     ripper.damage["Mid"] = 3                                   # Mid armour 3
     from playtest.engine.state import check_destruction
     check_destruction(state, ripper)
-    assert ripper.alive and ripper.deathstrike_until == state.turn + 1
+    assert ripper.alive and ripper.deathstrike_until == state.turn
 
-    R.cleanup_phase(state)                    # end of this turn -- still fighting
-    assert ripper.alive
-    state.turn += 1
-    R.cleanup_phase(state)                    # end of the next turn
+    R.cleanup_phase(state)                    # end of this turn -- Deathstrike runs out without heal
     assert not ripper.alive
 
 
-def test_flamekins_end_of_turn_repair_can_pull_it_out_of_deathstrike():
-    """"they can be repaired" -- Flamekin repairs itself every turn."""
+def test_healing_pulls_frame_out_of_deathstrike_at_end_of_turn():
+    """"they can be repaired" -- repair restores armour so all armour > 0 at end of turn."""
     state, frame = _cleanup_state()
-    flamekin = add_frame(state, 0, "Flamekin", Pos(2, 2))
-    flamekin.damage["Mid"] = 2
-    from playtest.engine.state import check_destruction
-    check_destruction(state, flamekin)
+    ripper = add_frame(state, 0, "RipperSmasher", Pos(2, 2))   # Mid armour 3
+    ripper.damage["Mid"] = 3
+    from playtest.engine.state import check_destruction, repair
+    check_destruction(state, ripper)
+    assert ripper.alive and ripper.deathstrike_until == state.turn
+    # Repair mid-turn restores armour so all armour > 0
+    repair(state, ripper, 1)
+    assert ripper.damage["Mid"] == 2  # armour is 3, so damage < armour now
+    assert ripper.deathstrike_until == state.turn  # checked only at end of turn
     R.cleanup_phase(state)
-    assert flamekin.alive and flamekin.deathstrike_until is None
+    assert ripper.alive and ripper.deathstrike_until is None  # survived!
 
 
 # --------------------------------------------------------------------------
@@ -1322,7 +1324,17 @@ def test_the_rails_can_finish_a_frame_off():
     state.phase = "action"
     _rails(state, Pos(5, 5))
     frame = add_frame(state, 0, "Kuwagata", Pos(5, 5))
-    frame.damage["Low"] = frame.spec.armour["Low"] - 1          # one hit left
+    frame.damage["Low"] = frame.spec.armour["Low"]              # all armour gone in Low
     R.cleanup_phase(state)
     assert not frame.alive
     assert state.kills.get(1) == 1, "the other side still scores the frame"
+
+
+def test_long_distance_sensing_reveals_one_card_per_weapon():
+    state = start(seed=1, frames=1, deploy=True)
+    for frame in state.frames.values():
+        assert len(frame.sensed_weapons) > 0
+        groups = [state.catalogue[k].group for k in frame.sensed_weapons]
+        assert len(groups) == len(set(groups))
+        for k in frame.sensed_weapons:
+            assert state.catalogue[k].card_type in ("weapon", "drone")

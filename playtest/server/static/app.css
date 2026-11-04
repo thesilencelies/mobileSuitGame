@@ -212,8 +212,8 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width:
   scrollbar-width: none; }
 .cardrow::-webkit-scrollbar { display: none; }
 .cardrow .cardt { flex: 0 0 44px; width: 44px; }
-.tableau .cardrow .cardt { flex: 0 0 54px; width: 54px; }
 .cardrow .mini-tag { font-size: 9px; color: var(--muted); text-align: center; }
+.fp-sensed-title { font-size: 10px; font-weight: bold; color: var(--muted); margin-top: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
 
 /* ---------------------------------------------------------------- stage */
 

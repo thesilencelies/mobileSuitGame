@@ -278,7 +278,7 @@ def test_adam_pierce_attacks_get_plus_two_initiative():
 def test_initiative_falls_by_one_when_the_high_zone_is_at_its_last_hit():
     state = make_state()
     frame = add_frame(state, 0, "Kuwagata", Pos(1, 1))
-    frame.damage["High"] = 3                             # armour 4
+    frame.damage["High"] = 4                             # armour 4 -> debuff applies when all armour gone
     assert kw.effective_initiative(state, frame, CATALOGUE["Spear_Thrust"]) == 6
 
 
@@ -387,11 +387,11 @@ def test_elemiah_leaves_non_impact_attacks_alone():
     assert kw.knockback_amount(state, elemiah, CATALOGUE["Sword_Slice"]) == 0
 
 
-def test_flamekin_repairs_one_at_the_end_of_every_turn():
+def test_flamekin_repairs_at_the_start_of_every_turn():
     state = make_state()
     flamekin = add_frame(state, 0, "Flamekin", Pos(1, 1))
-    flamekin.damage["Mid"] = 1
-    kw.end_of_turn(state)
+    flamekin.damage["Mid"] = 2
+    kw.start_of_turn(state)
     assert flamekin.damage["Mid"] == 0
 
 
