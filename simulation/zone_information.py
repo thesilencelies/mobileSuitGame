@@ -207,12 +207,46 @@ def analyze_stripped_zone(deck: list[Card], stripped_zone: str) -> dict:
     }
 
 
+def is_heavy_melee_attack(card: Card) -> bool:
+    """True if card is a heavy melee attack (deals 3+ in one zone or 4+ total damage)."""
+    return card.is_attack and not card.feint and not card.ranged and (max(card.attacks) >= 3 or sum(card.attacks) >= 4)
+
+
+def analyze_attack_type_blocks(deck: list[Card]) -> dict:
+    """Analyze the block distribution of Heavy Melee vs Ranged vs Light Melee attacks."""
+    categories = {"heavy_melee": [], "ranged": [], "light_melee": []}
+    for c in deck:
+        if not c.is_attack or c.feint:
+            continue
+        if c.ranged:
+            categories["ranged"].append(c)
+        elif is_heavy_melee_attack(c):
+            categories["heavy_melee"].append(c)
+        else:
+            categories["light_melee"].append(c)
+
+    res = {}
+    for cat, clist in categories.items():
+        blk = {z: 0 for z in ZONES}
+        for c in clist:
+            for z in c.blocks:
+                blk[z] += 1
+        res[cat] = {
+            "count": len(clist),
+            "blocks": blk,
+            "entropy": entropy(blk),
+            "info_gain": (MAX_ENTROPY - entropy(blk)) if len(clist) > 0 else 0.0,
+        }
+    return res
+
+
 def analyze_deck_full(deck_name: str, deck: list[Card], base_mv: int = 4) -> dict:
     """Comprehensive information profile for a single deck."""
     prior = deck_zone_profile(deck)
     dist_spread = analyze_distance_spread(deck, list(range(1, 9)), base_mv)
     elev = analyze_elevation(deck)
     stripped = {z: analyze_stripped_zone(deck, z) for z in ZONES}
+    atk_types = analyze_attack_type_blocks(deck)
 
     return {
         "name": deck_name,
@@ -221,6 +255,7 @@ def analyze_deck_full(deck_name: str, deck: list[Card], base_mv: int = 4) -> dic
         "dist_spread": dist_spread,
         "elevation": elev,
         "stripped": stripped,
+        "attack_types": atk_types,
     }
 
 
@@ -301,6 +336,22 @@ def print_fleet_summary(profiles: list[dict], markdown: bool = False) -> None:
         tot_l = sum(p["elevation"][delta]["dmg"]["Low"] for p in profiles)
         tot = tot_h + tot_m + tot_l or 1
         print(f"  {label:<38}: High={100*tot_h/tot:4.1f}%  Mid={100*tot_m/tot:4.1f}%  Low={100*tot_l/tot:4.1f}%  |  Avg H={avg_ent:.3f} bits")
+    print()
+
+    print("Block Distribution by Attack Category (Design Rules & Heuristics):")
+    print(f"{'Attack Category':<22}{'Cards':>7}{'Blk High':>10}{'Blk Mid':>10}{'Blk Low':>10}{'H(Block)':>10}{'InfoGain':>12}")
+    print("-" * 80)
+    for cat, label in [("heavy_melee", "Heavy Melee (3+ dmg)"),
+                       ("ranged", "Ranged Attacks"),
+                       ("light_melee", "Light Melee (<3 dmg)")]:
+        cnt = sum(p["attack_types"][cat]["count"] for p in profiles)
+        bh = sum(p["attack_types"][cat]["blocks"]["High"] for p in profiles)
+        bm = sum(p["attack_types"][cat]["blocks"]["Mid"] for p in profiles)
+        bl = sum(p["attack_types"][cat]["blocks"]["Low"] for p in profiles)
+        tot_b = bh + bm + bl or 1
+        h = entropy({"High": bh, "Mid": bm, "Low": bl})
+        ig = MAX_ENTROPY - h
+        print(f"{label:<22}{cnt:>7}{100*bh/tot_b:>9.1f}%{100*bm/tot_b:>9.1f}%{100*bl/tot_b:>9.1f}%{h:>10.3f}{ig:>11.3f} bits")
     print()
 
 

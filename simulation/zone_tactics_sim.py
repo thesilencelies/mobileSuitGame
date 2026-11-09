@@ -244,23 +244,57 @@ def score_hand_heuristic(
     opp_stripped = {z: target.damage[z] >= health for z in ZONES}
     self_stripped = {z: actor.damage[z] >= health for z in ZONES}
 
-    # Inferred opponent defense expectation
-    # If opponent cannot melee, they MUST attack with ranged -> 100% MID BLOCK!
-    opp_expected_block = {z: 0.33 for z in ZONES}
+    # Inferred opponent attack and block expectations
+    # 1. Distance & Reach constraints coupled with "Heavy attacks block low, Ranged block mid":
     if not opp_can_melee:
-        opp_expected_block = {"High": 0.05, "Mid": 0.90, "Low": 0.05}
+        # Opponent cannot melee -> MUST use ranged -> RANGED BLOCKS MID (96.4%)!
+        opp_expected_block = {"High": 0.02, "Mid": 0.95, "Low": 0.03}
+        opp_expected_atk = {"High": 0.35, "Mid": 0.45, "Low": 0.20}
+    else:
+        # In melee:
+        # Heavy melee attacks (Hammer, Chainsaw, Halberd, Great Axe, Mace) deal 3-4 dmg and BLOCK LOW (93.9%, 0% High)!
+        # Distance determines reachability of heavy melee (movement penalties -2 to -4):
+        if cur_dist == 1:
+            # Point blank: full heavy melee repertoire active -> heavy attacks block LOW!
+            opp_expected_block = {"High": 0.15, "Mid": 0.25, "Low": 0.60}
+            opp_expected_atk = {"High": 0.45, "Mid": 0.40, "Low": 0.15}
+        elif cur_dist <= 2:
+            # -2 mv heavy attacks can reach (Halberd, Mace, Great Axe)
+            opp_expected_block = {"High": 0.20, "Mid": 0.35, "Low": 0.45}
+            opp_expected_atk = {"High": 0.40, "Mid": 0.40, "Low": 0.20}
+        else:
+            # D >= 3: heavy melee (-3, -4) cannot reach! Ranged & light melee take over
+            opp_expected_block = {"High": 0.15, "Mid": 0.60, "Low": 0.25}
+            opp_expected_atk = {"High": 0.30, "Mid": 0.50, "Low": 0.20}
 
-    # Inferred opponent attack expectation
-    opp_expected_atk = {z: 0.33 for z in ZONES}
-    if delta_elev > 0:
-        # We are higher than target! Target's melee shifts down (High -> Mid, Mid -> Low, Low whiffs)
-        # Target cannot hit High with melee!
-        if opp_can_melee:
+        # Apply Elevation Shift on top of melee expectations:
+        if delta_elev > 0:
+            # We are higher! Opponent melee shifts down (High -> Mid, Mid -> Low, Low whiffs)
+            # Opponent hits Mid and Low, zero High!
             opp_expected_atk = {"High": 0.05, "Mid": 0.55, "Low": 0.40}
-    elif delta_elev < 0:
-        # We are lower than target! Target's melee shifts up (Low -> Mid, Mid -> High, High whiffs)
-        if opp_can_melee:
-            opp_expected_atk = {"High": 0.45, "Mid": 0.50, "Low": 0.05}
+        elif delta_elev < 0:
+            # We are lower! Opponent melee shifts up (Low -> Mid, Mid -> High, High whiffs)
+            # Opponent hits High and Mid, zero Low!
+            opp_expected_atk = {"High": 0.55, "Mid": 0.40, "Low": 0.05}
+
+    # 2. Stripped Armor / Lethal State coupling with "Heavy attacks block low":
+    # If self has ANY stripped zone, opponent seeks a lethal finish.
+    # In melee, finishing blows are Heavy Attacks -> which BLOCK LOW and NEVER High!
+    # Therefore, counter-attacks should exploit their exposed High and Mid zones!
+    if any(self_stripped.values()) and opp_can_melee:
+        opp_expected_block["Low"] = max(opp_expected_block["Low"], 0.65)
+        opp_expected_block["High"] = min(opp_expected_block["High"], 0.15)
+        for z in ZONES:
+            if self_stripped[z]:
+                opp_expected_atk[z] = 0.65
+
+    # If opponent's Low zone is stripped, they MUST hold a Low block to survive.
+    # What cards block Low? HEAVY MELEE ATTACKS! (Chainsaw Rip, Halberd Crush, Mace Crush).
+    # Those heavy cards attack High and Mid -> expect incoming High/Mid attack!
+    if opp_stripped["Low"] and opp_can_melee:
+        opp_expected_atk["High"] = max(opp_expected_atk["High"], 0.50)
+        opp_expected_atk["Mid"] = max(opp_expected_atk["Mid"], 0.40)
+        opp_expected_atk["Low"] = 0.10
 
     score = 0.0
     landing_dmg = {z: 0 for z in ZONES}
