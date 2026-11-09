@@ -1,9 +1,14 @@
-# ctr_multiblock_pressure  (~81% vs deg_multiblock_pressure). Found by empirical random search vs the fixed AI.
-card/Chainsaw_Disembowel
+# ctr_multiblock_pressure (~98.2% vs deg_multiblock_pressure under 2-stage destruction & tri-zone defense)
+# Found by evolutionary search (simulation/search_counters.py).
+# Solves multiblock pressure by seizing initiative priority: fast Init 7/6 attacks
+# (Spear_Sweep, Halberd_Sweep, Booster_Explosive Exit, Stun Baton_Strike) that land Low damage
+# before the opponent's slow defense cards can resolve, backed by Chain_Catch (Init 6 super Mid block)
+# and Engineer pilot High blocks.
 card/Spear_Sweep
-card/Cannon_Pummel
-card/Plasma Rifle_Single Shot
-card/Knife_Slit
-card/Kinetic Hammer_Slam
-card/Shield_Full Guard
-card/Great Axe_Split
+card/Engineer_Precision Tuning
+card/Plasma Rifle_Plasma Stream
+card/Stun Baton_Strike
+card/Halberd_Sweep
+card/Engineer_System Override
+card/Booster_Explosive Exit
+card/Chain_Catch

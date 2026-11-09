@@ -1994,7 +1994,7 @@ def main() -> None:
     c.set_defaults(func=cmd_cards)
 
     p = sub.add_parser("pool",
-                       help="marginal win% each card adds to a base deck vs the chosen decks -> table")
+                       help="marginal win%% each card adds to a base deck vs the chosen decks -> table")
     p.add_argument("--base", required=True,
                    help="base deck CSV; every card is tried added to this pool")
     p.add_argument("--decks", nargs="*", default=[],

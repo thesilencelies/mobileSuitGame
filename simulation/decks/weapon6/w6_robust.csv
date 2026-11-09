@@ -1,28 +1,31 @@
 # w6_robust
-# Best all-round 6-group deck vs the clean sim field: no gimmick, just strong groups.
-# 6 weapon groups (repeats allowed): Assault Rifle, Chainsaw, Halberd x2, Spear, Stun Baton.
-# Found by 6-group empirical search vs the clean sim field (~79% mean win-ratio).
+# Best all-round 6-group deck vs the clean sim field under the tri-zone defense framework
+# and 2-stage destruction rules.
+# 6 weapon groups (repeats allowed): Great Axe x2, Shield x2, Mace, Stun Baton.
+# Found by 6-group empirical search vs the clean sim field (~86.4% mean win-ratio).
+# Combines Heavy Low defense (Great Axe), High/Mid super defense (Shield),
+# and Mid volume/initiative (Mace, Stun Baton) to cover all 3 defensive zones.
 
-card/Assault Rifle_Burst Fire
-card/Assault Rifle_Aimed Fire
-card/Assault Rifle_From the hip
-card/Assault Rifle_Covering Fire
-card/Chainsaw_Disembowel
-card/Chainsaw_Rip
-card/Chainsaw_Grind
-card/Chainsaw_Tear
-card/Halberd_Crush
-card/Halberd_Eviscerate
-card/Halberd_Thrust
-card/Halberd_Sweep
-card/Halberd_Crush
-card/Halberd_Eviscerate
-card/Halberd_Thrust
-card/Halberd_Sweep
-card/Spear_Thrust
-card/Spear_Jab
-card/Spear_Impale
-card/Spear_Sweep
+card/Great Axe_Cleave
+card/Great Axe_Split
+card/Great Axe_Whirl
+card/Great Axe_Eviscerate
+card/Great Axe_Cleave
+card/Great Axe_Split
+card/Great Axe_Whirl
+card/Great Axe_Eviscerate
+card/Shield_Bash
+card/Shield_Full Guard
+card/Shield_Push on
+card/Shield_Lock down
+card/Shield_Bash
+card/Shield_Full Guard
+card/Shield_Push on
+card/Shield_Lock down
+card/Mace_Crush
+card/Mace_Beat
+card/Mace_Break
+card/Mace_Batter
 card/Stun Baton_Overcharge
 card/Stun Baton_Shock
 card/Stun Baton_Zap

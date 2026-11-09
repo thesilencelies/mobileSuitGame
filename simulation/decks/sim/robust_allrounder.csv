@@ -1,16 +1,19 @@
 # robust_allrounder
-# Highest MEAN win-ratio vs the whole surviving field, found by evolutionary search
-# (scratchpad/robust.py) under the fixed AI (~75% at search fitness). A spread of
-# guaranteed-damage attackers across all three zones (no gimmick) that punishes
-# narrow decks without a hard weakness of its own.
-card/Spear_Impale
-card/Chainsaw_Disembowel
-card/Chainsaw_Grind
-card/Great Axe_Split
-card/Cannon_Pummel
-card/Plasma Rifle_Single Shot
-card/Kinetic Hammer_Slam
+# Highest MEAN win-ratio vs the whole field under the tri-zone defense framework
+# (Pilot=High, Ranged=Mid, Heavy=Low) and 2-stage destruction rules.
+# Found by evolutionary search (simulation/search_allrounder.py) verified at 200 games.
+# Mean win rate across the field: 96.6% (Min: 91.0% vs deg_guardbreak_flood, NO losing matchups).
+# Features balanced High/Mid/Low defense:
+#   High blocks (3): Axe_Hook, Shield_Lock down (Super High), Sword_Slice
+#   Mid blocks (4): Stun Bow_Straight shot, Knife_Cut, Missile Rack 1, Shield_Lock down
+#   Low blocks (4): Great Axe_Eviscerate, Sword_Slice, Spear_Sweep, Great Axe_Cleave
+# Initiative spread: 7 (Spear), 6 (Shield), 5 (Stun Bow, Knife, Sword), 4 (Axe), 3 (Great Axe x2), 2 (Missile Rack).
+card/Stun Bow_Straight shot
+card/Knife_Cut
+card/Missile Rack_Missile Rack 1
+card/Axe_Hook
+card/Shield_Lock down
+card/Great Axe_Eviscerate
 card/Sword_Slice
-card/Knife_Slit
-card/Halberd_Sweep
-card/Spear_Thrust
+card/Spear_Sweep
+card/Great Axe_Cleave

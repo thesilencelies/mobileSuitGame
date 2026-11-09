@@ -1,10 +1,12 @@
-# ctr_two_damage  (~82% vs deg_two_damage). Found by empirical random search vs the fixed AI.
-card/Knife_Stab
-card/Assault Rifle_Aimed Fire
-card/Kinetic Hammer_Strike
-card/Chainsaw_Disembowel
-card/Stun Baton_Shock
-card/Plasma Rifle_Charged Shot
-card/Chain_Throttle
-card/Sword_Parry
-card/Railgun_Snipe
+# ctr_two_damage (~99.5% vs deg_two_damage under 2-stage destruction & tri-zone defense)
+# Found by evolutionary search (simulation/search_counters.py).
+# Shuts down two-damage spread using Chain_Catch (super Mid block), High blocks from Mystic/Tactician pilots,
+# and heavy Low punishment (Great Axe_Eviscerate).
+card/Great Axe_Eviscerate
+card/Mystic_Doom
+card/Booster_Shoulder barge
+card/Tactician_Fog of war
+card/Sword_Slice
+card/Chain_Catch
+card/Chain_Tangle
+card/Mystic_Utter darkness
