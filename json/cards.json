@@ -35,7 +35,7 @@
     "3": {
       "name": "Spear Impale",
       "description": "",
-      "gm_notes": "5init\n-2mv\natk:1H,2L pierce\nBlk:1H",
+      "gm_notes": "5init\n-2mv\natk:1H,2L pierce\nBlk:1L",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -195,7 +195,7 @@
     "13": {
       "name": "Stun Baton Overcharge",
       "description": "Guard Break: this attack consumes one block per zone; zones that are not blocked still deal damage\nOn Hit: the text after the colon only applies if the attack hits (that is, is not blocked)\nStunned: while stunned a frame gets -2 init\nReload: this card persists until this frame next resolves an attack from this weapon; that card deals no damage and triggers no abilities, then both are discarded",
-      "gm_notes": "3init\n-2mv\natk:1H,1M,1L energy\nBlk:1H\npersist:permanent\nGuard Break\nOn Hit: target gets 2 Stunned (-2 init)\nReload (This frames next action from this weapon has no effect or attack.)",
+      "gm_notes": "3init\n-2mv\natk:1H,1M,1L energy\nBlk:1L\npersist:permanent\nGuard Break\nOn Hit: target gets 2 Stunned (-2 init)\nReload (This frames next action from this weapon has no effect or attack.)",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -211,7 +211,7 @@
     "14": {
       "name": "Stun Baton Shock",
       "description": "On Hit: the text after the colon only applies if the attack hits (that is, is not blocked)\nStunned: while stunned a frame gets -2 init",
-      "gm_notes": "6init\n0mv\natk:1M energy\nBlk:1L\nOn Hit: target gets 2 Stunned (-2 init)",
+      "gm_notes": "6init\n0mv\natk:1M energy\nBlk:1H\nOn Hit: target gets 2 Stunned (-2 init)",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -451,7 +451,7 @@
     "29": {
       "name": "Halberd Crush",
       "description": "",
-      "gm_notes": "4init\n-2mv\natk:3H impact\nBlk:1M",
+      "gm_notes": "4init\n-2mv\natk:3H impact\nBlk:1L",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -467,7 +467,7 @@
     "30": {
       "name": "Halberd Eviscerate",
       "description": "",
-      "gm_notes": "4init\n-2mv\natk:2H,2L cut\nBlk:1H",
+      "gm_notes": "4init\n-2mv\natk:2H,2L cut\nBlk:1L",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -499,7 +499,7 @@
     "32": {
       "name": "Halberd Sweep",
       "description": "On Hit: the text after the colon only applies if the attack hits (that is, is not blocked)\nSlowed: while slowed a frame gets -2 mv",
-      "gm_notes": "7init\n0mv\natk:1L cut\nBlk:1H\nOn Hit: target gets 2 Slowed (-2 mv)",
+      "gm_notes": "7init\n0mv\natk:1L cut\nBlk:1L\nOn Hit: target gets 2 Slowed (-2 mv)",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -515,7 +515,7 @@
     "33": {
       "name": "Chainsaw Disembowel",
       "description": "",
-      "gm_notes": "3init\n-4mv\natk:4M cut\nBlk:1M",
+      "gm_notes": "3init\n-4mv\natk:4M cut\nBlk:1L",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -531,7 +531,7 @@
     "34": {
       "name": "Chainsaw Rip",
       "description": "",
-      "gm_notes": "3init\n-4mv\natk:4H cut\nBlk:1M",
+      "gm_notes": "3init\n-4mv\natk:4H cut\nBlk:1L",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -547,7 +547,7 @@
     "35": {
       "name": "Chainsaw Grind",
       "description": "",
-      "gm_notes": "5init\n0mv\natk:1H,1M cut\nBlk:1M",
+      "gm_notes": "5init\n0mv\natk:1H,1M cut\nBlk:1L",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -563,7 +563,7 @@
     "36": {
       "name": "Chainsaw Tear",
       "description": "",
-      "gm_notes": "3init\n-3mv\natk:3H,3M cut\nBlk:1M",
+      "gm_notes": "3init\n-3mv\natk:3H,3M cut\nBlk:1L",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -627,7 +627,7 @@
     "40": {
       "name": "Chain Catch",
       "description": "On Block: the text after the colon only applies if this card blocks an attack\nDazed: while dazed a frame gets -2 cards\nSuper block: a block value above 1; a zone blocked by a super block is not discarded, the card stays on the field revealed",
-      "gm_notes": "6init\n0mv\nBlk:2H,1M\nOn Block: attacker gets Dazed (-2 card)",
+      "gm_notes": "6init\n0mv\nBlk:1H,2M\nOn Block: attacker gets Dazed (-2 card)",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -691,7 +691,7 @@
     "44": {
       "name": "Knife Lunge",
       "description": "Close Quarters: this attack cannot be blocked by attacks that have already resolved\nCommitted: this attack is discarded after it resolves",
-      "gm_notes": "5init\n+1mv\natk:1M cut\nBlk:1H\nClose Quarters (Cannot be blocked by higher initiative attacks)\nCommitted (this attack is discarded after resolving)",
+      "gm_notes": "5init\n+1mv\natk:1M cut\nBlk:1L\nClose Quarters (Cannot be blocked by higher initiative attacks)\nCommitted (this attack is discarded after resolving)",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -755,7 +755,7 @@
     "48": {
       "name": "Greatsword Cleave",
       "description": "",
-      "gm_notes": "4init\n-2mv\natk:2H,2M cut\nBlk:1H",
+      "gm_notes": "4init\n-2mv\natk:2H,2M cut\nBlk:1L",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -1155,7 +1155,7 @@
     "73": {
       "name": "Great Axe Split",
       "description": "Guard Break: this attack consumes one block per zone; zones that are not blocked still deal damage",
-      "gm_notes": "3init\n-2mv\natk:2M,2L cut\nBlk:1M\nGuard Break (This attack consumes one block per zone)",
+      "gm_notes": "3init\n-2mv\natk:2M,2L cut\nBlk:1L\nGuard Break (This attack consumes one block per zone)",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -1171,7 +1171,7 @@
     "74": {
       "name": "Great Axe Whirl",
       "description": "",
-      "gm_notes": "4init\n-2mv\natk:2L cut\nBlk:1M\nHits all adjacent enemies",
+      "gm_notes": "4init\n-2mv\natk:2L cut\nBlk:1L\nHits all adjacent enemies",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -1219,7 +1219,7 @@
     "77": {
       "name": "Mace Beat",
       "description": "Knockback X: move the target frame X steps in any direction away from the source (it cannot move up elevation)",
-      "gm_notes": "7init\n0mv\natk:1M impact\nBlk:1L\nKnockback 2 (Move the target frame 2 steps in any direction away from the source)",
+      "gm_notes": "7init\n0mv\natk:1M impact\nBlk:1M\nKnockback 2 (Move the target frame 2 steps in any direction away from the source)",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -1235,7 +1235,7 @@
     "78": {
       "name": "Mace Break",
       "description": "",
-      "gm_notes": "6init\n-1mv\natk:1H,1M impact\nBlk:1L",
+      "gm_notes": "6init\n-1mv\natk:1H,1M impact\nBlk:1M",
       "tags": {
         "1": "Card",
         "2": "Action",
