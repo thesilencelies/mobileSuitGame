@@ -165,17 +165,50 @@ def _cell_worker(arg):
 
 def fit_weights(feats: dict, wins: dict) -> tuple:
     """Least-squares fit of win% ~ intercept + features. Returns (weights, R^2)."""
-    import numpy as np
-    names = list(feats)
-    X = np.array([[1.0] + [feats[g][k] for k in FEATURES] for g in names])
-    y = np.array([wins[g] for g in names])
-    coef, *_ = np.linalg.lstsq(X, y, rcond=None)
-    pred = X @ coef
-    ss_res = float(((y - pred) ** 2).sum())
-    ss_tot = float(((y - y.mean()) ** 2).sum())
-    r2 = 1 - ss_res / ss_tot if ss_tot else 0.0
-    weights = {"intercept": coef[0], **{k: coef[i + 1] for i, k in enumerate(FEATURES)}}
-    return weights, r2
+    try:
+        import numpy as np
+        names = list(feats)
+        X = np.array([[1.0] + [feats[g][k] for k in FEATURES] for g in names])
+        y = np.array([wins[g] for g in names])
+        coef, *_ = np.linalg.lstsq(X, y, rcond=None)
+        pred = X @ coef
+        ss_res = float(((y - pred) ** 2).sum())
+        ss_tot = float(((y - y.mean()) ** 2).sum())
+        r2 = 1 - ss_res / ss_tot if ss_tot else 0.0
+        weights = {"intercept": coef[0], **{k: coef[i + 1] for i, k in enumerate(FEATURES)}}
+        return weights, r2
+    except ImportError:
+        names = list(feats)
+        X = [[1.0] + [feats[g][k] for k in FEATURES] for g in names]
+        y = [wins[g] for g in names]
+        n_rows = len(X)
+        n_cols = len(FEATURES) + 1
+        # Normal equations: (X^T X) b = X^T y
+        XtX = [[sum(X[r][i] * X[r][j] for r in range(n_rows)) for j in range(n_cols)] for i in range(n_cols)]
+        Xty = [sum(X[r][i] * y[r] for r in range(n_rows)) for i in range(n_cols)]
+        # Gauss-Jordan elimination on [XtX | Xty]
+        A = [row[:] + [Xty[i]] for i, row in enumerate(XtX)]
+        for i in range(n_cols):
+            max_r = max(range(i, n_cols), key=lambda r: abs(A[r][i]))
+            A[i], A[max_r] = A[max_r], A[i]
+            pivot = A[i][i]
+            if abs(pivot) > 1e-12:
+                for j in range(i, n_cols + 1):
+                    A[i][j] /= pivot
+                for r in range(n_cols):
+                    if r != i:
+                        factor = A[r][i]
+                        for j in range(i, n_cols + 1):
+                            A[r][j] -= factor * A[i][j]
+        coef = [A[i][-1] for i in range(n_cols)]
+        pred = [sum(X[r][c] * coef[c] for c in range(n_cols)) for r in range(n_rows)]
+        y_mean = sum(y) / len(y)
+        ss_res = sum((y[r] - pred[r]) ** 2 for r in range(n_rows))
+        ss_tot = sum((y[r] - y_mean) ** 2 for r in range(n_rows))
+        r2 = 1.0 - ss_res / ss_tot if ss_tot else 0.0
+        weights = {"intercept": coef[0], **{k: coef[i + 1] for i, k in enumerate(FEATURES)}}
+        return weights, r2
+
 
 
 def main() -> None:

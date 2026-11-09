@@ -590,20 +590,27 @@ def zone_attack_value(
             remaining = target.remaining(zone)
             if remaining > 0:
                 finishing += damage * min(1.0, damage / remaining)
+            elif target.last_hit.get(zone) or remaining <= 0:
+                finishing += damage * 2.0
         value += (
             params.aggression * params.lethality * finishing * (landed / total)
         )
 
     # Killing blows and last hits.
+    # Under the destruction rule:
+    # - If a zone is already stripped of all armour, any hit is a Killing Blow.
+    # - If a zone still has armour, taking all remaining armour puts it at Last Hit.
     for zone, damage in zones.items():
-        remaining = target.remaining(zone)
-        if remaining <= 0:
+        if damage <= 0:
             continue
+        remaining = target.remaining(zone)
         share = landed / total if total else 0.0
-        if damage >= remaining:
+        if target.last_hit.get(zone) or remaining <= 0:
             value += KILL_VALUE * params.aggression * share
-        elif damage >= remaining - 1:
+        elif damage >= remaining:
             value += LAST_HIT_VALUE * share
+        elif damage >= remaining - 1:
+            value += (LAST_HIT_VALUE * 0.5) * share
 
     # Focus fire: finish what is already hurt.
     hurt = 1.0 - (target.total_remaining / max(1, sum(target.armour.values())))
@@ -716,12 +723,16 @@ def token_value(
 
 
 def one_shot_risk(
-    prof: Profile, health: Mapping[str, int], hand_len: int
+    prof: Profile,
+    health: Mapping[str, int],
+    hand_len: int,
+    *,
+    last_hit: Optional[Mapping[str, bool]] = None,
 ) -> dict[str, float]:
-    """Chance at least one card they play this turn destroys that zone outright.
+    """Chance at least one card they play this turn strips all armour or destroys that zone outright.
 
     Read off the profile as a rate rather than a threshold: what share of the
-    cards they could be holding would take a zone from `health` to dead in one
+    cards they could be holding would take a zone from `health` to depleted/dead in one
     hit, compounded over the number of cards they are about to play. The
     binomial form matters for the same reason it does in `block_probability` --
     two cards at a 10% rate is 19%, not 20%, and over a whole game the linear
@@ -730,8 +741,9 @@ def one_shot_risk(
     out: dict[str, float] = {}
     total = max(1, prof.n)
     for zone in ZONES:
+        is_stripped = bool((last_hit and last_hit.get(zone)) or health.get(zone, 1) <= 0)
+        need = 1 if is_stripped else max(1, health.get(zone, 99))
         values = prof.atk_vals[zone]
-        need = max(1, health.get(zone, 99))
         lethal = len(values) - bisect_left(values, need)
         rate = min(1.0, lethal / total)
         out[zone] = 1.0 - (1.0 - rate) ** max(1, hand_len)
@@ -744,41 +756,35 @@ def threat_profile(
     hand_len: int,
     *,
     caution: float = 0.0,
+    last_hit: Optional[Mapping[str, bool]] = None,
 ) -> tuple[dict[str, bool], dict[str, bool], dict[str, int]]:
     """`(kill_risk, one_shot, need)` per zone for a defender with `health`.
 
-    `caution` is how small a chance of being destroyed outright is still worth
+    `caution` is how small a chance of being depleted or destroyed outright is still worth
     covering: a zone counts as one-shot-able when that chance reaches
     `1 - caution`. At 0 the only test is the old one -- the profile's damped
     peak hit -- which is what this shipped with.
 
-    That peak is a quantile of the pool (`PRIOR_PEAK_QUANTILE`), and the
-    quantile turns out to be the wrong shape of question. Read against two
-    real games a human won 8-0 and 4-2: every one of the four frames that died
-    was killed by **one card, from full health on that zone**, and in the 8-0
-    the AI's Mid armour of 3 was one-shot by 12 of the 127 Mid-attacking cards
-    in the pool it was facing -- while the 0.9 quantile read 2, so `one_shot`
-    was False, `need` was 0, and the survival term contributed nothing at all
-    to the zone the frame actually died on. A rate answers "how likely is it
-    that one of the cards they are about to play kills me here"; a quantile
-    answers "is the typical card lethal", which nothing in this game ever is.
+    Under the destruction rule, a zone counts as `one_shot` if a single card can
+    deplete all remaining armour (need = health[zone]) or, if already stripped,
+    land the fatal blow (need = 1).
     """
     press = {z: prof.atk_weight[z] * hand_len for z in ZONES}
-    one_shot = {z: prof.peak_atk[z] >= max(1, health.get(z, 99)) for z in ZONES}
+    stripped = {
+        z: bool((last_hit and last_hit.get(z)) or health.get(z, 1) <= 0)
+        for z in ZONES
+    }
+    need_dmg = {z: 1 if stripped[z] else max(1, health.get(z, 99)) for z in ZONES}
+    one_shot = {z: prof.peak_atk[z] >= need_dmg[z] for z in ZONES}
     if caution > 0.0:
         floor = CAUTION_SPAN * (1.0 - min(1.0, caution))
-        risk = one_shot_risk(prof, health, hand_len)
+        risk = one_shot_risk(prof, health, hand_len, last_hit=last_hit)
         for zone in ZONES:
-            # `risk > 0` is not redundant with the floor: at `caution` 1.0 the
-            # floor is 0, and without this a zone nothing in their whole pool
-            # can destroy in one hit would be guarded as though something
-            # could. The lever is meant to say "guard what can actually be
-            # one-shot", not "guard everything".
             one_shot[zone] = one_shot[zone] or (
                 risk[zone] > 0.0 and risk[zone] >= floor
             )
     kill_risk = {
-        z: one_shot[z] or (press[z] > 0 and press[z] * 2 >= max(1, health.get(z, 99)))
+        z: one_shot[z] or (press[z] > 0 and press[z] * 2 >= need_dmg[z])
         for z in ZONES
     }
     n_atk = {
@@ -787,7 +793,7 @@ def threat_profile(
     n_one = {
         z: (
             len(prof.atk_vals[z])
-            - bisect_left(prof.atk_vals[z], max(1, health.get(z, 99)))
+            - bisect_left(prof.atk_vals[z], need_dmg[z])
             if one_shot[z]
             else 0
         )
@@ -806,10 +812,11 @@ def survival_deficit(
     health: Mapping[str, int],
     *,
     caution: float = 0.0,
+    last_hit: Optional[Mapping[str, bool]] = None,
 ) -> float:
     """How badly this hand fails to cover the coverable lethal threats."""
     kill_risk, one_shot, need = threat_profile(
-        prof, health, len(cards), caution=caution
+        prof, health, len(cards), caution=caution, last_hit=last_hit
     )
     if not any(kill_risk.values()):
         return 0.0
@@ -841,6 +848,7 @@ def score_hand(
     params: AIParams,
     health: Mapping[str, int],
     *,
+    last_hit: Optional[Mapping[str, bool]] = None,
     reloading: Iterable[str] = (),
     opportunity: Optional[Mapping[int, float]] = None,
     board_value: Optional[Mapping[int, float]] = None,
@@ -889,7 +897,7 @@ def score_hand(
                 reload_state.add(group)
 
     kill_risk, one_shot, need_lethal = threat_profile(
-        prof, health, n, caution=params.caution
+        prof, health, n, caution=params.caution, last_hit=last_hit
     )
     under_alpha = any(kill_risk.values()) and pressure > 0.3
 

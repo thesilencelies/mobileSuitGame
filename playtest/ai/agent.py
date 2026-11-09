@@ -438,12 +438,23 @@ class Agent:
             # the kill actually comes through.
             soft = min(ZONES, key=lambda z: enemy.remaining(z))
             weakest = enemy.remaining(soft)
+            is_stripped = enemy.is_stripped(soft)
             score = FOCUS_CONVERGENCE * max(0, converging - 1) + score_closing
             softness = 0.0
-            if weakest > 0 and damage >= weakest:
-                softness += FOCUS_LETHAL
-            if enemy.last_hit.get(soft) or weakest <= 1:
+            if is_stripped:
+                # Armour in this zone is already gone: any hit here kills the target!
+                if damage >= 1:
+                    softness += FOCUS_LETHAL
                 softness += FOCUS_LAST_HIT
+            else:
+                # Still has armour: depleting all armour puts it at last hit
+                if damage >= weakest:
+                    softness += FOCUS_LAST_HIT
+                # If we have multiple attacks and enough damage to de-armour and strike again
+                if damage > weakest and len(inits) >= 2:
+                    softness += FOCUS_LETHAL
+                elif weakest <= 1:
+                    softness += 0.5 * FOCUS_LAST_HIT
 
             # Card exhaustion: a frame that has already spent its cards
             # blocking is close to defenceless, which is exactly when to pile on.
@@ -815,6 +826,7 @@ class Agent:
         singles = {
             i: S.score_hand(
                 [cards[i]], prof, params, health,
+                last_hit=frame.last_hit,
                 reloading=reloading,
                 opportunity={0: opp_scale[i]},
                 board_value={0: board_value[i]},
@@ -837,6 +849,7 @@ class Agent:
             scores.append(
                 S.score_hand(
                     hand, prof, params, health,
+                    last_hit=frame.last_hit,
                     reloading=reloading,
                     opportunity={k: opp_scale[i] for k, i in enumerate(combo)},
                     board_value={k: board_value[i] for k, i in enumerate(combo)},
@@ -845,7 +858,9 @@ class Agent:
                 )
             )
             deficits.append(
-                S.survival_deficit(hand, prof, health, caution=params.caution)
+                S.survival_deficit(
+                    hand, prof, health, caution=params.caution, last_hit=frame.last_hit
+                )
             )
 
         # Never gamble with survival: mix only among the survival-safest hands.
@@ -1437,7 +1452,8 @@ class Agent:
         best_pair = min(
             (
                 S.survival_deficit(
-                    [a, b], prof, frame.health, caution=self.params.caution
+                    [a, b], prof, frame.health,
+                    caution=self.params.caution, last_hit=frame.last_hit
                 )
                 for a, b in combinations(cards, 2)
             ),

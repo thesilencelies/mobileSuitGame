@@ -94,6 +94,23 @@ def main():
     expect("High+Low attack vs pure Low block (overlap -> blocked)",
            outcome(hi_low_atk, low_block), "draw")
 
+    # 4. Destruction rule: damage >= health strips armour but does not destroy;
+    #    subsequent damage in the stripped zone destroys the target.
+    from simulate import _apply_damage
+    t_test = frame("T", "B", mid_block, target=True)
+    _apply_damage(t_test, "High", 4, health=4)
+    assert not t_test.destroyed, "taking 4 damage to a 4-HP zone should only strip armour, not destroy"
+    assert t_test.damage["High"] == 4
+
+    # Damage to a different zone with intact armour does not destroy
+    _apply_damage(t_test, "Mid", 2, health=4)
+    assert not t_test.destroyed, "damage to another zone with armour should not destroy"
+
+    # Taking damage in High again destroys the target
+    _apply_damage(t_test, "High", 1, health=4)
+    assert t_test.destroyed, "taking damage again after armour is stripped should destroy"
+    print("  [PASS] destruction rule: armour depletion then subsequent damage")
+
     print("-" * 60)
     print("all tests passed")
 

@@ -355,10 +355,11 @@ class BaiterAgent:
                 return (0, sum(zones.values()))
             armour = frame.get("armour") or {}
             damage = frame.get("damage") or {}
+            last_hit = frame.get("lastHit") or {}
             kills = 0
             for zone, hit in zones.items():
                 left = int(armour.get(zone, 0)) - int(damage.get(zone, 0))
-                if left > 0 and hit >= left:
+                if (left <= 0 or last_hit.get(zone)) and hit > 0:
                     kills = 1
             return (kills, sum(zones.values()))
 

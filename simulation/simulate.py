@@ -49,8 +49,9 @@ Modelled faithfully (the parts that matter for balance):
     not-yet-resolved card (which forfeits its own action) can block it, which is
     what stops fast attackers from resolving and then blocking it for free.
 
-Lethal: damage accumulates across rounds within a game. A frame is destroyed the
-moment any single zone takes *more than or equal* than HEALTH damage ( greater than or equak).
+Lethal: damage accumulates across rounds within a game. When a zone takes damage
+>= HEALTH, all armour in that zone is removed. A frame is destroyed when it takes
+damage in a zone again after all armour in that zone has already been removed.
 
 Decks are the same one-`card/{Group}_{Name}`-per-line CSVs used elsewhere.
 Balance-test (SIM) decks live in simulation/decks/sim/ and can be named by basename;
@@ -336,6 +337,7 @@ class Frame:
     team: str
     pile: Pile
     damage: dict = field(default_factory=lambda: {z: 0 for z in ZONES})
+    destroyed: bool = False
     is_target: bool = False
     opp_profile: dict = None  # opposing team's aggregate profile (intelligent mode)
     strategy: tuple = None    # (defense_weight, concentration_weight); None = defaults
@@ -343,6 +345,7 @@ class Frame:
 
     def reset(self) -> None:
         self.damage = {z: 0 for z in ZONES}
+        self.destroyed = False
         self.reloading = set()
         self.pile.reset()
 
@@ -452,22 +455,46 @@ def _softmax_pick(scores: list, temperature: float, rng: random.Random) -> int:
     return len(scores) - 1
 
 
-def _threat_profile(prof: dict, health: int, hand_len: int) -> tuple:
+def _threat_profile(prof: dict, health: int, hand_len: int,
+                    current_damage: dict = None) -> tuple:
     """Per-zone threat the opponent `prof` poses to a defender playing `hand_len`
-    cards: (kill_risk, one_shot, need). A zone is a KILL RISK if leaving it open
-    loses before we can out-race it -- a one-shot (peak >= HP) or sustained focused
-    fire that kills within two turns (`press` = damage/turn if unblocked). `need` is
-    how many blocks neutralise it (one per incoming attack; a super covers them all)."""
+    cards: (kill_risk, one_shot, need).
+
+    Under the destruction rule:
+    - If a zone has already lost all armour (damage >= health), ANY attack that
+      lands is an immediate one-shot kill.
+    - If a zone still has armour (damage < health), no single card can one-shot
+      kill; a kill requires either sustained 2-turn pressure or a 2-card combo.
+    """
     aw, af = prof["atk_weight"], prof["atk_freq"]
     peak = prof.get("peak_atk", {z: 0 for z in ZONES})
     atk_vals = prof.get("atk_vals", {z: [] for z in ZONES})
     press = {z: aw[z] * hand_len for z in ZONES}
-    one_shot = {z: (health is not None and peak[z] >= health) for z in ZONES}
-    kill_risk = {z: (health is not None and (one_shot[z]
-                     or (press[z] > 0 and press[z] * 2 >= health))) for z in ZONES}
+    cur_dmg = current_damage or {z: 0 for z in ZONES}
+
+    # A zone is stripped of armour if its current damage >= health
+    stripped = {z: (health is not None and cur_dmg.get(z, 0) >= health) for z in ZONES}
+    rem = {z: max(0, health - cur_dmg.get(z, 0)) if health is not None else 99 for z in ZONES}
+
+    # One-shot: only possible if all armour is already removed!
+    one_shot = {z: (health is not None and stripped[z] and (peak[z] >= 1 or len(atk_vals[z]) > 0))
+                for z in ZONES}
+
+    # Kill risk: either immediate one-shot (stripped zone), or sustained pressure that can
+    # deplete remaining armour + 1 extra hit over 2 turns, or a 2-hit combo in one turn
+    kill_risk = {
+        z: (health is not None and (
+            one_shot[z]
+            or (press[z] > 0 and press[z] * 2 >= rem[z] + 1)
+            or (hand_len >= 2 and peak[z] >= rem[z] and af[z] * hand_len >= 1.2)
+        ))
+        for z in ZONES
+    }
     n_atk_z = {z: min(hand_len, max(0, round(af[z] * hand_len))) for z in ZONES}
-    n_oneshot = {z: (sum(1 for v in atk_vals[z] if v >= health) if one_shot[z] else 0)
-                 for z in ZONES}
+    n_oneshot = {
+        z: (sum(1 for v in atk_vals[z] if v >= (1 if stripped[z] else rem[z])) if one_shot[z] else 0)
+        for z in ZONES
+    }
     need = {z: min(hand_len, max(n_atk_z[z] if kill_risk[z] else 0, n_oneshot[z]))
             for z in ZONES}
     return kill_risk, one_shot, need
@@ -496,7 +523,8 @@ def _dominates(a: "Card", b: "Card") -> bool:
             or a.blocks > b.blocks or a.super_blocks > b.super_blocks)
 
 
-def _survival_deficit(cards: list, prof: dict, health: int) -> float:
+def _survival_deficit(cards: list, prof: dict, health: int,
+                      current_damage: dict = None) -> float:
     """How badly a hand FAILS to cover the opponent's coverable lethal threats: the
     (weighted) shortfall of blocks vs `need` on every kill-risk zone. 0 = every
     lethal threat is fully covered. Used to keep the mixed action policy from ever
@@ -505,7 +533,7 @@ def _survival_deficit(cards: list, prof: dict, health: int) -> float:
     ones (a turn of slack)."""
     if prof is None or health is None:
         return 0.0
-    kill_risk, one_shot, need = _threat_profile(prof, health, len(cards))
+    kill_risk, one_shot, need = _threat_profile(prof, health, len(cards), current_damage)
     if not any(kill_risk.values()):
         return 0.0
     has_super = {z: False for z in ZONES}
@@ -527,7 +555,8 @@ def _survival_deficit(cards: list, prof: dict, health: int) -> float:
 
 def score_hand(cards: list, prof: dict, defense_weight: float = None,
                concentration_weight: float = None, health: int = None,
-               reloading: set = None) -> float:
+               reloading: set = None, current_damage: dict = None,
+               target_damage: dict = None) -> float:
     """Rate a *combination* of cards chosen as one turn's actions, against the
     opponent's profile. `defense_weight` / `concentration_weight` override the
     module defaults (used for per-team strategy); `health` (HP per zone) turns on
@@ -562,7 +591,7 @@ def score_hand(cards: list, prof: dict, defense_weight: float = None,
     atk_vals = prof.get("atk_vals", {z: [] for z in ZONES})
     # Per-zone lethal threat (one-shot OR sustained focused fire) -- see
     # _threat_profile. `lethal`/`under_alpha` names kept for the terms below.
-    kill_risk, one_shot, need_lethal = _threat_profile(prof, health, len(cards))
+    kill_risk, one_shot, need_lethal = _threat_profile(prof, health, len(cards), current_damage)
     lethal = kill_risk
     under_alpha = any(kill_risk.values())
 
@@ -679,13 +708,21 @@ def score_hand(cards: list, prof: dict, defense_weight: float = None,
         w = SURVIVAL_WEIGHT if one_shot[z] else SURVIVAL_WEIGHT * 0.5
         survival += w * min(held, need_lethal[z])
 
+    # Killing blow against an already-stripped zone
+    tgt_dmg = target_damage or {z: 0 for z in ZONES}
+    finish_bonus = 0.0
+    for z in ZONES:
+        if landing[z] > 0 and health is not None and tgt_dmg.get(z, 0) >= health:
+            finish_bonus += 5.0 * landing[z]
+
     concentration = cw * sum(landing[z] for z in ZONES if hitters[z] >= 2)
-    return offense + defense + concentration + survival
+    return offense + defense + concentration + survival + finish_bonus
 
 
 def _choose_hand(frame: Frame, hand_size: int, intelligent: bool, pool: int,
                  rng: random.Random, health: int = None,
-                 temperature: float = CHOICE_TEMPERATURE) -> list:
+                 temperature: float = CHOICE_TEMPERATURE,
+                 target_damage: dict = None) -> list:
     """The cards a frame commits as actions this turn. Random by default; in
     intelligent mode, draw a pool and score every COMBINATION of size hand_size (so
     synergy between the chosen cards counts), then SAMPLE one ~ softmax(score /
@@ -697,14 +734,16 @@ def _choose_hand(frame: Frame, hand_size: int, intelligent: bool, pool: int,
         k = min(hand_size, len(drawn))
         combos = list(combinations(range(len(drawn)), k))
         hands = [[drawn[i] for i in idx] for idx in combos]
-        scores = [score_hand(h, frame.opp_profile, dw, cw, health, frame.reloading)
+        scores = [score_hand(h, frame.opp_profile, dw, cw, health, frame.reloading,
+                             current_damage=frame.damage, target_damage=target_damage)
                   for h in hands]
         # Never GAMBLE with survival: the softmax exists to make our OFFENCE an
         # unexploitable mixed policy, but covering a coverable lethal threat is
         # strictly dominant -- randomising it away just leaks damage that accumulates
         # against a relentless focused attacker. So restrict the sampling to the
         # survival-safest hands available, then mix on score among those.
-        deficits = [_survival_deficit(h, frame.opp_profile, health) for h in hands]
+        deficits = [_survival_deficit(h, frame.opp_profile, health,
+                                      current_damage=frame.damage) for h in hands]
         best = min(deficits)
         safe = [i for i, d in enumerate(deficits) if d <= best + 1e-9]
         # Don't spend an action on a DOMINATED card. A card another DRAWN card strictly
@@ -751,7 +790,8 @@ def play_game(team_a: list, team_b: list, target_a: Frame, target_b: Frame,
     for rnd in range(1, max_rounds + 1):
         # Everyone chooses their actions for the turn.
         hands = {f: [Play(card, f) for card in
-                     _choose_hand(f, hand_size, intelligent, pool, rng, health, temperature)]
+                     _choose_hand(f, hand_size, intelligent, pool, rng, health, temperature,
+                                  target_damage=enemy_target[f.team].damage)]
                  for f in all_frames}
         # Resolve highest initiative first; random tiebreak.
         events = sorted(
@@ -792,7 +832,7 @@ def play_game(team_a: list, team_b: list, target_a: Frame, target_b: Frame,
                         block = _choose_block(hands[tgt], frozenset((z,)), cq)
                         if block is None:
                             if lands:
-                                tgt.damage[z] += dmg
+                                _apply_damage(tgt, z, dmg, health)
                         elif z not in block.card.super_blocks:
                             block.consumed = True  # ordinary block: spent (super kept)
                 else:
@@ -805,7 +845,7 @@ def play_game(team_a: list, team_b: list, target_a: Frame, target_b: Frame,
                     elif lands:
                         for z, dmg in zip(ZONES, card.attacks):
                             if dmg:
-                                tgt.damage[z] += dmg
+                                _apply_damage(tgt, z, dmg, health)
 
                 # A reload attack that fired now leaves the weapon needing a reload, so
                 # this group's next attack will dud.
@@ -848,8 +888,23 @@ def _choose_block(plays: list, attack_zones: frozenset, close_quarters: bool = F
     return candidates[0]
 
 
-def _dead(frame: Frame, health: int) -> bool:
-    return any(v >= health for v in frame.damage.values())
+def _apply_damage(tgt: Frame, zone: str, dmg: int, health: int) -> None:
+    """Apply damage to one zone of `tgt`.
+
+    Destruction rule: when a zone takes damage equal to or exceeding `health`,
+    all armour in that zone is removed. If the zone takes damage AGAIN after all
+    its armour is already removed, the frame is destroyed.
+    """
+    if dmg <= 0 or tgt.destroyed:
+        return
+    already_lost_armour = tgt.damage[zone] >= health
+    tgt.damage[zone] += dmg
+    if already_lost_armour:
+        tgt.destroyed = True
+
+
+def _dead(frame: Frame, health: int = None) -> bool:
+    return frame.destroyed
 
 
 def build_team(deck_paths: list, team_name: str, cards: dict, target_index: int,

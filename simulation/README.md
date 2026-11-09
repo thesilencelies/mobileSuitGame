@@ -114,8 +114,10 @@ can never cover a high attack).
   sacrifice its attack to block. The higher-initiative side attacks first and can
   then still block with those spent-but-resolved cards; the lower-initiative side
   must give up attacks to defend.
-* **Lethal.** Damage accumulates across rounds within a game. A frame dies the
-  moment any one zone takes *more* than `--health` (default 4) damage.
+* **Lethal.** Damage accumulates across rounds within a game. When a zone takes
+  damage >= `--health` (default 4), all armour in that zone is depleted. A frame is
+  destroyed when it takes damage in a zone again after all armour in that zone has
+  already been removed.
 * **Focus fire.** Every frame on a team funnels all attacks onto one designated
   target frame on the other team (`--target-a` / `--target-b`, default index 0).
 * **Keywords.** guard break, super block, feint, committed, close quarters, and

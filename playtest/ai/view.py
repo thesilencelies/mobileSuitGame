@@ -233,8 +233,12 @@ class FrameView:
     cloaked: bool = False
 
     def remaining(self, zone: str) -> int:
-        """Hits this zone can still take before the frame dies."""
+        """Armour points remaining in this zone before all armour is depleted."""
         return max(0, int(self.armour.get(zone, 0)) - int(self.damage.get(zone, 0)))
+
+    def is_stripped(self, zone: str) -> bool:
+        """True if all armour in this zone is depleted (one hit from destruction)."""
+        return bool(self.last_hit.get(zone)) or self.remaining(zone) <= 0
 
     @property
     def health(self) -> Mapping[str, int]:

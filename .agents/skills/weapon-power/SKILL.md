@@ -27,8 +27,9 @@ every weak-weapon verdict:
 - **Landing.** A low-initiative attack resolves last, so the opponent blocks it with an
   *already-resolved* (free) card. Low init + no way to force a block = damage that never
   lands, however big the number.
-- **Conversion.** Damage must exceed 4 in one zone to kill. A weapon that only ever
-  deals 1s can't concentrate a kill before the game ends — it chips.
+- **Conversion.** Damage must deplete a zone's armour (>= 4) and then land again in
+  that zone to destroy. A weapon that only ever deals 1s or cannot follow up with a
+  second strike can't convert before the game ends.
 - **Coverage.** A weapon that blocks only one zone (many ranged weapons block only Mid)
   forces its partner to defend the other two, which is why it drags a deck down even
   when its own attacks are fine.
