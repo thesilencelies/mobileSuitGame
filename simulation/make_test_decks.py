@@ -15,7 +15,7 @@ from pathlib import Path
 
 ZONES = ("High", "Mid", "Low")
 ROOT = Path(__file__).resolve().parent.parent
-OUT = Path(__file__).resolve().parent / "decks"
+OUT = Path(__file__).resolve().parent / "decks" / "sim"
 CARD_CSVS = ["Weapon actions.csv", "Basic actions.csv", "Booster actions.csv",
              "Drone actions.csv", "Pilot actions.csv"]
 DECK_SIZE = 12
