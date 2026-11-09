@@ -153,9 +153,9 @@ def weapon_groups() -> list:
 
 
 def real_deck_paths() -> list:
-    """The real combat decks (exclude terrain tile lists; frames_deck is not a hand)."""
+    """The real combat decks (exclude terrain and objective lists; frames_deck is not a hand)."""
     return sorted(p for p in REAL_DECKS_DIR.glob("deck_*.csv")
-                  if not p.stem.startswith("deck_terrain"))
+                  if not p.stem.startswith("deck_terrain") and not p.stem.startswith("deck_objective"))
 
 
 def _to_int(value: str) -> int:
@@ -204,6 +204,10 @@ class Card:
     # consumes no block. Cannon has it on every card (so ~half its shots dud); Plasma
     # Rifle only on Charged Shot. Ignoring it overstates those weapons.
     reload: bool = False
+    # Movement penalty or bonus printed on card (e.g. -4 to +4)
+    movement: int = 0
+    # Range per zone (high, mid, low)
+    ranges: tuple = (0, 0, 0)
 
     @property
     def attack_zones(self) -> frozenset:
@@ -212,6 +216,10 @@ class Card:
     @property
     def is_attack(self) -> bool:
         return any(a > 0 for a in self.attacks)
+
+    @property
+    def max_range(self) -> int:
+        return max(self.ranges) if self.ranges else 0
 
 
 def load_cards() -> dict:
@@ -238,9 +246,9 @@ def load_cards() -> dict:
                 if fname == PILOT_CSV:
                     blocks.add("High")
                 blocks = frozenset(blocks)
+                ranges = tuple(_to_int(row.get(f"{z}Range", "")) for z in ZONES)
                 # Ranged if any attacked zone carries a Range value.
-                ranged = any(_to_int(row.get(f"{z}Range", "")) > 0
-                             for z, a in zip(ZONES, attacks) if a > 0)
+                ranged = any(r > 0 for z, r in zip(attacks, ranges) if z > 0)
                 # Keyword flags parsed from the Text column (\kw and \fullkw both
                 # contain the bare keyword, so a substring test catches either).
                 text = (row.get("Text") or "").lower()
@@ -258,6 +266,8 @@ def load_cards() -> dict:
                     close_quarters="closequarters" in text,
                     ranged=ranged,
                     reload="reload" in text,
+                    movement=_to_int(row.get("Movement", "")),
+                    ranges=ranges,
                 )
     return cards
 
