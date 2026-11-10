@@ -451,18 +451,104 @@ def has_los(
 # --------------------------------------------------------------------------
 
 
+def inferred_tactical_expectations(
+    actor: Optional[FrameView],
+    target: Optional[FrameView],
+    cur_dist: Optional[int] = None,
+    delta_elev: int = 0,
+) -> tuple[dict[str, float], dict[str, float]]:
+    """Inferred opponent block and attack expectations based on tactical state.
+
+    Ported from `simulation/zone_tactics_sim.py` and `simulation/zone_information.py`:
+      1. Ranged Mid-Block Lock: If opponent cannot melee, they must use ranged;
+         ranged cards block Mid (96.4%). Attacks targeting High/Low bypass blocks.
+      2. Heavy Melee Low-Block: In melee (distance 1), heavy melee attacks (3+ dmg)
+         block Low (93.9%, 0% High), and attack High/Mid.
+      3. Elevation Shift: If defender is higher, incoming melee cannot hit High (shifts to Mid/Low).
+         If defender is lower, incoming melee cannot hit Low (shifts to High/Mid).
+      4. Stripped Armour: Attack opponent's stripped zones (lethal!); defend own stripped zones (survival!).
+         If self has a stripped zone, opponent seeks a lethal finish with heavy melee (blocks Low).
+         If opponent's Low is stripped, opponent holds Low block (heavy melee attack High/Mid).
+    """
+    if target is None:
+        return {z: 0.33 for z in ZONES}, {z: 0.33 for z in ZONES}
+
+    if cur_dist is None:
+        if actor is not None and actor.pos is not None and target.pos is not None:
+            cur_dist = max(abs(actor.pos.x - target.pos.x), abs(actor.pos.y - target.pos.y))
+        else:
+            cur_dist = 1
+
+    if delta_elev is None:
+        if actor is not None and actor.pos is not None and target.pos is not None:
+            delta_elev = actor.elev - target.elev
+        else:
+            delta_elev = 0
+
+    opp_max_melee_reach = target.movement + 1
+    opp_can_melee = (cur_dist - 1) <= opp_max_melee_reach
+
+    opp_stripped = {z: target.is_stripped(z) for z in ZONES}
+    self_stripped = {z: actor.is_stripped(z) for z in ZONES} if actor is not None else {z: False for z in ZONES}
+
+    if not opp_can_melee:
+        # Opponent cannot melee -> MUST use ranged -> RANGED BLOCKS MID (96.4%)!
+        opp_expected_block = {"High": 0.02, "Mid": 0.95, "Low": 0.03}
+        opp_expected_atk = {"High": 0.35, "Mid": 0.45, "Low": 0.20}
+    else:
+        # In melee:
+        # Heavy melee attacks deal 3-4 dmg and BLOCK LOW (60% Low, 25% Mid, 15% High)!
+        if cur_dist == 1:
+            opp_expected_block = {"High": 0.15, "Mid": 0.25, "Low": 0.60}
+            opp_expected_atk = {"High": 0.45, "Mid": 0.40, "Low": 0.15}
+        elif cur_dist <= 2:
+            opp_expected_block = {"High": 0.20, "Mid": 0.35, "Low": 0.45}
+            opp_expected_atk = {"High": 0.40, "Mid": 0.40, "Low": 0.20}
+        else:
+            opp_expected_block = {"High": 0.15, "Mid": 0.60, "Low": 0.25}
+            opp_expected_atk = {"High": 0.30, "Mid": 0.50, "Low": 0.20}
+
+        # Apply Elevation Shift on top of melee expectations:
+        if delta_elev > 0:
+            # We are higher! Opponent melee shifts down (High -> Mid, Mid -> Low, Low whiffs)
+            opp_expected_atk = {"High": 0.05, "Mid": 0.55, "Low": 0.40}
+        elif delta_elev < 0:
+            # We are lower! Opponent melee shifts up (Low -> Mid, Mid -> High, High whiffs)
+            opp_expected_atk = {"High": 0.55, "Mid": 0.40, "Low": 0.05}
+
+    # Stripped Armour coupling:
+    # If self has ANY stripped zone, opponent seeks a lethal finish with heavy melee (blocks Low).
+    if any(self_stripped.values()) and opp_can_melee:
+        opp_expected_block["Low"] = max(opp_expected_block["Low"], 0.65)
+        opp_expected_block["High"] = min(opp_expected_block["High"], 0.15)
+        for z in ZONES:
+            if self_stripped[z]:
+                opp_expected_atk[z] = 0.65
+
+    # If opponent's Low zone is stripped, they MUST hold a Low block to survive (heavy melee attacks High/Mid).
+    if opp_stripped.get("Low") and opp_can_melee:
+        opp_expected_atk["High"] = max(opp_expected_atk["High"], 0.50)
+        opp_expected_atk["Mid"] = max(opp_expected_atk["Mid"], 0.40)
+        opp_expected_atk["Low"] = 0.10
+
+    return opp_expected_block, opp_expected_atk
+
+
 def block_probability(
     target: FrameView,
     zones: Iterable[str],
     card: CardInfo,
     prof: Profile,
+    *,
+    expected_block: Optional[Mapping[str, float]] = None,
+    actor: Optional[FrameView] = None,
 ) -> float:
     """Chance the defender stops the zones in `zones`.
 
     Two sources, and the known one dominates: a card already face up in front
     of the target (resolved, or revealed while resolving) is a *fact*, and it
     blocks whatever it prints. Anything still face down is modelled from the
-    opponent profile.
+    tactical context (expected block) and opponent profile.
 
     For the hidden cards this asks "does *any* of them cover this", which is
     `1 - (1 - coverage) ** hidden`, not `coverage * hidden`. The linear form
@@ -489,7 +575,10 @@ def block_probability(
         return MAX_BLOCK_PROB
     if hidden <= 0:
         return 0.0
-    coverage = min(1.0, max(prof.block_freq.get(z, 0.0) for z in zones))
+    if expected_block is not None:
+        coverage = min(1.0, max(expected_block.get(z, prof.block_freq.get(z, 0.0)) for z in zones))
+    else:
+        coverage = min(1.0, max(prof.block_freq.get(z, 0.0) for z in zones))
     return min(MAX_BLOCK_PROB, 1.0 - (1.0 - coverage) ** hidden)
 
 
@@ -526,7 +615,13 @@ def attack_value(
 ) -> float:
     """Expected worth of pointing `card` at `target` from `from_pos`."""
     zones = landing_zones(snap, attacker, card, from_pos, target)
-    return zone_attack_value(card, zones, target, prof, params, dud=dud)
+    distance = snap.distance(from_pos, target.pos) if target.pos else None
+    delta_elev = (snap.elevation(from_pos) - snap.elevation(target.pos)) if target.pos else 0
+    exp_blk, _ = inferred_tactical_expectations(attacker, target, cur_dist=distance, delta_elev=delta_elev)
+    return zone_attack_value(
+        card, zones, target, prof, params,
+        dud=dud, expected_block=exp_blk, actor=attacker,
+    )
 
 
 def zone_attack_value(
@@ -537,6 +632,8 @@ def zone_attack_value(
     params: AIParams,
     *,
     dud: bool = False,
+    expected_block: Optional[Mapping[str, float]] = None,
+    actor: Optional[FrameView] = None,
 ) -> float:
     """Worth of an attack that lands `zones` on `target`.
 
@@ -551,7 +648,7 @@ def zone_attack_value(
         return 0.0
     if card.feint:
         # A feint deals nothing but still forces a block -- pure tempo.
-        blocked = block_probability(target, zones.keys(), card, prof)
+        blocked = block_probability(target, zones.keys(), card, prof, expected_block=expected_block, actor=actor)
         return FORCE_WEIGHT * total * blocked
 
     if card.guard_break:
@@ -569,11 +666,11 @@ def zone_attack_value(
         landed = 0.0
         forced = 0.0
         for zone, damage in zones.items():
-            blocked = block_probability(target, [zone], card, prof)
+            blocked = block_probability(target, [zone], card, prof, expected_block=expected_block, actor=actor)
             landed += damage * (1 - blocked)
             forced += FORCE_WEIGHT * damage * blocked
     else:
-        blocked = block_probability(target, zones.keys(), card, prof)
+        blocked = block_probability(target, zones.keys(), card, prof, expected_block=expected_block, actor=actor)
         landed = total * (1 - blocked)
         forced = FORCE_WEIGHT * total * blocked
 
@@ -854,6 +951,8 @@ def score_hand(
     board_value: Optional[Mapping[int, float]] = None,
     pressure: float = 1.0,
     turn: int = 1,
+    expected_block: Optional[Mapping[str, float]] = None,
+    expected_atk: Optional[Mapping[str, float]] = None,
 ) -> float:
     """Rate a combination of cards as one turn's actions.
 
@@ -866,7 +965,8 @@ def score_hand(
     it scales the defensive terms, so the AI does not sit behind a wall of
     blocks while nothing can reach it. `turn` is which turn it is, which only
     the tempo term needs: a card that pays next turn pays nothing on the last
-    one.
+    one. `expected_block` and `expected_atk` supply context-aware tactical
+    expectations ported from `simulation/zone_tactics_sim.py`.
     """
     if not cards:
         return 0.0
@@ -926,7 +1026,10 @@ def score_hand(
     # -- offence -----------------------------------------------------------
     offense = 0.0
     landing = {z: 0.0 for z in ZONES}
-    budget = {z: prof.block_freq[z] * n for z in ZONES}
+    budget = {
+        z: (expected_block[z] if expected_block is not None else prof.block_freq[z]) * n
+        for z in ZONES
+    }
     forced = {z: 0 for z in ZONES}
     # Initiative order, because that is the order the engine resolves in and
     # blocking is compulsory: the attack that lands first is the one that eats
@@ -980,12 +1083,14 @@ def score_hand(
     # -- defence -----------------------------------------------------------
     defense = 0.0
     for zone in ZONES:
-        want = max(1, round(prof.atk_freq[zone] * n))
+        freq = expected_atk[zone] if expected_atk is not None else prof.atk_freq[zone]
+        want = max(1, round(freq * n))
         if has_super[zone]:
             covered = float(want)
         else:
             covered = sum(sorted(block_avail[zone], reverse=True)[:want])
-        defense += prof.atk_weight[zone] * covered
+        weight = expected_atk[zone] if expected_atk is not None else prof.atk_weight[zone]
+        defense += weight * covered
     defense *= params.defense * pressure
 
     # -- survival ----------------------------------------------------------
@@ -996,6 +1101,13 @@ def score_hand(
         held = need_lethal[zone] if has_super[zone] else len(block_avail[zone])
         weight = params.survival if one_shot[zone] else params.survival * 0.5
         survival += weight * pressure * min(held, need_lethal[zone])
+        # SURVIVAL IMPERATIVE: If self has stripped zone, MUST block it!
+        is_zone_stripped = bool((last_hit and last_hit.get(zone)) or health.get(zone, 1) <= 0)
+        if is_zone_stripped and pressure > 0.3:
+            if held > 0:
+                survival += 4.0 * weight * pressure
+            else:
+                survival -= 4.0 * weight * pressure
 
     # -- what the compulsory block is going to cost ------------------------
     # Blocking is not optional: if a card in front of the frame covers the
@@ -1385,13 +1497,30 @@ def objective_value(
         distance = min(snap.distance(pos, t) for t in obj.tiles)
         if obj.name == "The Egg":
             # Latches after two consecutive turns standing on it.
-            total += stake * (2.2 if distance == 0 else 0.55 * _falloff(distance, 6))
+            enemy_on_egg = any(
+                e.pos is not None and e.pos in obj.tiles for e in snap.enemies()
+            )
+            mate_on_egg = any(
+                f.id != frame.id and f.pos is not None and f.pos in obj.tiles
+                for f in snap.mine()
+            )
+            egg_mult = 1.0
+            if enemy_on_egg:
+                egg_mult = 1.6
+            elif mate_on_egg:
+                egg_mult = 0.35
+            total += stake * egg_mult * (2.2 if distance == 0 else 0.55 * _falloff(distance, 6))
         elif obj.name in _STAND_ON:
+            mate_on_obj = any(
+                f.id != frame.id and f.pos is not None and f.pos in obj.tiles
+                for f in snap.mine()
+            )
+            stand_mult = 0.15 if mate_on_obj else 1.0
             if obj.name == "Holo Spires" and obj.owner == snap.seat:
                 # Defender scores by denying: standing there is still the way.
-                total += late * stake * (1.0 if distance == 0 else 0.3 * _falloff(distance, 6))
+                total += late * stake * stand_mult * (1.0 if distance == 0 else 0.3 * _falloff(distance, 6))
             else:
-                total += late * stake * (
+                total += late * stake * stand_mult * (
                     1.4 if distance == 0 else 0.45 * _falloff(distance, 6)
                 )
         elif obj.name in _WITHIN_TWO:
@@ -1400,9 +1529,46 @@ def objective_value(
         elif obj.name == "Fugitive":
             total += _fugitive_value(snap, frame, pos, obj, stake)
         elif obj.name == "Solar Farm":
-            # A charge per frame per turn, so a turn spent walking there is a
-            # charge nobody banked -- this one does not wait for the endgame.
-            total += stake * (1.5 if distance == 0 else 0.5 * _falloff(distance, 7))
+            # A charge per frame per turn: most charge at game end scores.
+            our_charge = obj.tally.get(snap.seat, 0)
+            opp_charge = max((v for s, v in obj.tally.items() if s != snap.seat), default=0)
+            margin = our_charge - opp_charge
+            cleanups_left = max(0, TURNS_PER_GAME - snap.turn + 1)
+            max_opp_possible = cleanups_left * max(1, len(snap.enemies()))
+            if our_charge > opp_charge + max_opp_possible:
+                # Clinched: mathematically impossible for opponent to overtake us.
+                farm_mult = 0.0
+            else:
+                mates_on_farm = sum(
+                    1 for f in snap.mine()
+                    if f.id != frame.id and f.pos is not None and f.pos in obj.tiles
+                )
+                if mates_on_farm >= 2:
+                    farm_mult = 0.0
+                elif mates_on_farm >= 1:
+                    if margin >= 1:
+                        farm_mult = 0.0
+                    elif margin == 0:
+                        farm_mult = 0.2
+                    else:
+                        farm_mult = 0.5
+                else:
+                    other_mine = [
+                        f for f in snap.mine()
+                        if f.id != frame.id and f.pos is not None
+                    ]
+                    my_dist = min(snap.distance(frame.pos, t) for t in obj.tiles) if frame.pos else 99
+                    best_other_dist = min(
+                        (min(snap.distance(f.pos, t) for t in obj.tiles) for f in other_mine),
+                        default=99,
+                    )
+                    if best_other_dist < my_dist:
+                        farm_mult = 0.35
+                    else:
+                        farm_mult = 1.0
+                    if snap.turn == 1:
+                        farm_mult *= 0.6
+            total += stake * farm_mult * (1.5 if distance == 0 else 0.5 * _falloff(distance, 7))
         elif obj.name == "Lake Crosses":
             total += _relic_value(snap, frame, pos, obj, stake, distance, late)
         elif obj.name == "Dome Campus":
@@ -1815,10 +1981,11 @@ def _best_attack_from(
             )
         elif approach > 0:
             gap = reach_gap(snap, frame, card, pos, enemy.pos)
-            if gap <= 0:
-                continue                # in range but blocked LoS: no free lunch
+            delta_e = (snap.elevation(pos) - snap.elevation(enemy.pos)) if snap.board is not None else 0
+            exp_blk, _ = inferred_tactical_expectations(frame, enemy, cur_dist=gap, delta_elev=delta_e)
             potential = zone_attack_value(
-                card, _reference_zones(frame, card), enemy, prof, params
+                card, _reference_zones(frame, card), enemy, prof, params,
+                expected_block=exp_blk, actor=frame,
             )
             best = max(best, weight * approach * potential * falloff ** gap)
     for token in snap.tokens:

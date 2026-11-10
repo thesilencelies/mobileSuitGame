@@ -1665,3 +1665,160 @@ def test_every_card_text_is_implemented(cat):
     params = AIParams()
     health = {z: 4 for z in ZONES}
     assert S.score_hand([pilot], prof, params, health, pressure=0.0) >= 0.0
+
+
+def test_objective_view_parses_tally(cat, catalogue):
+    """Snapshot parses tally dict and tally_label on objectives."""
+    view = _flat_view(catalogue, next(iter(cat.cards)))
+    view["board"]["objectives"] = [{
+        "name": "Solar Farm", "owner": None, "defend": 3, "attack": 3,
+        "tiles": [[5, 5]], "status": "unscored", "value": 3,
+        "tally": {"0": 4, "1": 2}, "tally_label": "charge",
+    }]
+    snap = Snapshot(view)
+    assert len(snap.objectives) == 1
+    assert snap.objectives[0].tally == {0: 4, 1: 2}
+    assert snap.objectives[0].tally_label == "charge"
+
+
+def test_solar_farm_tally_and_clinch(cat, catalogue):
+    """Solar Farm value drops to 0 when charge lead exceeds max possible opponent gain."""
+    from playtest.engine.types import Pos
+
+    view = _flat_view(catalogue, next(iter(cat.cards)))
+    view["turn"] = 4
+    # On turn 4, cleanups_left = 6 - 4 + 1 = 3.
+    # With 1 enemy frame, max opponent possible gain is 3 * 1 = 3.
+    # Case 1: Clinched: our charge = 10, opp charge = 1 (10 > 1 + 3).
+    view["board"]["objectives"] = [{
+        "name": "Solar Farm", "owner": None, "defend": 3, "attack": 3,
+        "tiles": [[5, 5]], "status": "unscored", "value": 3,
+        "tally": {"0": 10, "1": 1},
+    }]
+    snap_clinched = Snapshot(view)
+    me = snap_clinched.frames["a0"]
+    params = AIParams()
+    assert S.objective_value(snap_clinched, me, Pos(5, 5), params) == 0.0
+
+    # Case 2: Not clinched: our charge = 2, opp charge = 1 (2 <= 1 + 3).
+    view["board"]["objectives"][0]["tally"] = {"0": 2, "1": 1}
+    snap_open = Snapshot(view)
+    assert S.objective_value(snap_open, me, Pos(5, 5), params) > 0.0
+
+
+def test_solar_farm_multi_frame_diminishing_returns(cat, catalogue):
+    """Multiple frames huddling on Solar Farm receive diminishing or zero value."""
+    from playtest.engine.types import Pos
+
+    view = _flat_view(catalogue, next(iter(cat.cards)))
+    view["turn"] = 2
+    # Add a second and third teammate
+    a1 = dict(view["frames"][0], id="a1", name="Fa1", pos={"x": 5, "y": 5})
+    a2 = dict(view["frames"][0], id="a2", name="Fa2", pos={"x": 5, "y": 5})
+    view["frames"].extend([a1, a2])
+
+    view["board"]["objectives"] = [{
+        "name": "Solar Farm", "owner": None, "defend": 3, "attack": 3,
+        "tiles": [[5, 5]], "status": "unscored", "value": 3,
+        "tally": {"0": 2, "1": 1},
+    }]
+
+    # Case A: 2 teammates already on Solar Farm -> value for a0 is 0.0
+    snap_two_mates = Snapshot(view)
+    a0 = snap_two_mates.frames["a0"]
+    params = AIParams()
+    assert S.objective_value(snap_two_mates, a0, Pos(5, 5), params) == 0.0
+
+    # Case B: 1 teammate on Solar Farm, but our team is ahead (margin >= 1) -> 0.0
+    view["frames"] = [view["frames"][0], view["frames"][1], a1]  # only a1 on farm
+    view["board"]["objectives"][0]["tally"] = {"0": 3, "1": 1}
+    snap_one_mate_ahead = Snapshot(view)
+    assert S.objective_value(snap_one_mate_ahead, snap_one_mate_ahead.frames["a0"], Pos(5, 5), params) == 0.0
+
+    # Case C: 1 teammate on Solar Farm, tied (margin == 0) -> small value (0.2x)
+    view["board"]["objectives"][0]["tally"] = {"0": 1, "1": 1}
+    snap_one_mate_tied = Snapshot(view)
+    val_tied = S.objective_value(snap_one_mate_tied, snap_one_mate_tied.frames["a0"], Pos(5, 5), params)
+    assert val_tied > 0.0
+
+    # Case D: No teammates on Solar Farm -> full value (1.0x) > tied (0.2x)
+    view["frames"] = [view["frames"][0], view["frames"][1]]  # remove a1
+    snap_no_mates = Snapshot(view)
+    val_none = S.objective_value(snap_no_mates, snap_no_mates.frames["a0"], Pos(5, 5), params)
+    assert val_none > val_tied
+
+
+def test_the_egg_camping_enemy_and_ally_priority(cat, catalogue):
+    """Standing on The Egg is boosted when contesting an enemy, discounted if ally already there."""
+    from playtest.engine.types import Pos
+
+    view = _flat_view(catalogue, next(iter(cat.cards)))
+    view["turn"] = 3
+    egg_tile = [6, 5]
+    view["board"]["objectives"] = [{
+        "name": "The Egg", "owner": 1, "defend": 1, "attack": 2,
+        "tiles": [egg_tile], "status": "unscored", "value": 0,
+    }]
+    # Case 1: Enemy is on egg_tile
+    view["frames"][1]["pos"] = {"x": 6, "y": 5}
+    snap_contested = Snapshot(view)
+    me = snap_contested.frames["a0"]
+    params = AIParams()
+    val_contested = S.objective_value(snap_contested, me, Pos(6, 5), params)
+
+    # Case 2: Enemy is elsewhere
+    view["frames"][1]["pos"] = {"x": 0, "y": 0}
+    snap_uncontested = Snapshot(view)
+    val_uncontested = S.objective_value(snap_uncontested, snap_uncontested.frames["a0"], Pos(6, 5), params)
+    assert val_contested > val_uncontested
+
+    # Case 3: Teammate is already on The Egg
+    a1 = dict(view["frames"][0], id="a1", name="Fa1", pos={"x": 6, "y": 5})
+    view["frames"].append(a1)
+    snap_ally_on_egg = Snapshot(view)
+    val_ally_on_egg = S.objective_value(snap_ally_on_egg, snap_ally_on_egg.frames["a0"], Pos(6, 5), params)
+    assert val_uncontested > val_ally_on_egg
+
+
+def test_inferred_tactical_expectations_ranged_and_melee(cat, catalogue):
+    """Inferred tactical expectations accurately reflect distance and elevation."""
+    view = _flat_view(catalogue, next(iter(cat.cards)))
+    snap = Snapshot(view)
+    me = snap.frames["a0"]
+    them = snap.frames["b0"]
+
+    # At range 7 (out of melee reach since movement is 4): opponent MUST use ranged, blocking Mid 95%
+    exp_blk_ranged, exp_atk_ranged = S.inferred_tactical_expectations(me, them, cur_dist=7)
+    assert exp_blk_ranged["Mid"] >= 0.90
+    assert exp_blk_ranged["Low"] <= 0.05
+
+    # At distance 1 (melee range): heavy melee attacks bias Low blocks to 60%
+    exp_blk_melee, exp_atk_melee = S.inferred_tactical_expectations(me, them, cur_dist=1)
+    assert exp_blk_melee["Low"] >= 0.55
+
+    # Elevation shift: when actor is higher (delta_elev > 0), opponent melee shifts down,
+    # so incoming High attack is pruned and Mid/Low are primary.
+    _, exp_atk_uphill = S.inferred_tactical_expectations(me, them, cur_dist=1, delta_elev=1)
+    assert exp_atk_uphill["High"] <= 0.10
+    assert exp_atk_uphill["Mid"] >= 0.50
+
+
+def test_stripped_armor_survival_imperative(cat):
+    """A frame with a stripped zone prioritizes holding blocks on that zone."""
+    prof = S.profile(list(cat.cards.values())[:60])
+    params = AIParams()
+
+    low_blocker = _mk("ZZ_LowBlock", {"Mid": 2}, {"Low": 1})
+    high_blocker = _mk("ZZ_HighBlock", {"Mid": 2}, {"High": 1})
+
+    # Stripped Low zone under pressure
+    health = {"High": 4, "Mid": 4, "Low": 0}
+    last_hit = {"High": False, "Mid": False, "Low": True}
+
+    score_low = S.score_hand([low_blocker], prof, params, health, pressure=1.0, last_hit=last_hit)
+    score_high = S.score_hand([high_blocker], prof, params, health, pressure=1.0, last_hit=last_hit)
+
+    assert score_low > score_high + 2.0, (
+        f"Holding a block for a stripped zone must score significantly higher: "
+        f"got {score_low} vs {score_high}"
+    )

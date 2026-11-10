@@ -470,6 +470,20 @@ class Agent:
             softness += 2.0 * (
                 1.0 - enemy.total_remaining / max(1, sum(enemy.armour.values()))
             )
+
+            # Objective threat: an enemy holding a carried token, or standing on The Egg
+            # or a latching site, is an immediate VP threat that must be contested.
+            for obj in snap.objectives:
+                if obj.settled:
+                    continue
+                if obj.name == "The Egg" and enemy.pos in obj.tiles:
+                    softness += 5.0
+                elif obj.name == "Dome Campus" and obj.carrier == enemy.id:
+                    softness += 6.0
+            for t in snap.tokens:
+                if t.alive and t.carrier == enemy.id and t.kind in ("shiny", "relic", "fugitive"):
+                    softness += 5.0
+
             score += reach * softness
             if best is None or score > best.score:
                 best = TeamPlan(
@@ -704,6 +718,31 @@ class Agent:
         reloading = self._reloading(frame)
         pressure = self._pressure(snap, frame, prof)
 
+        # Tactical expectations based on primary target / nearest threat:
+        plan = self.team_plan(snap)
+        focus_target = snap.frame(plan.target_id) if (plan is not None and plan.target_id) else None
+        target = focus_target if (focus_target is not None and focus_target.alive and focus_target.pos is not None) else None
+        if target is None:
+            enemies_with_pos = [e for e in snap.enemies() if e.pos is not None]
+            if enemies_with_pos and frame.pos is not None:
+                target = min(enemies_with_pos, key=lambda e: snap.distance(frame.pos, e.pos))
+            elif enemies_with_pos:
+                target = enemies_with_pos[0]
+
+        cur_dist = (
+            snap.distance(frame.pos, target.pos)
+            if (frame.pos is not None and target is not None and target.pos is not None)
+            else None
+        )
+        delta_elev = (
+            (snap.elevation(frame.pos) - snap.elevation(target.pos))
+            if (snap.board is not None and frame.pos is not None and target is not None and target.pos is not None)
+            else 0
+        )
+        expected_block, expected_atk = S.inferred_tactical_expectations(
+            frame, target, cur_dist=cur_dist, delta_elev=delta_elev
+        )
+
         budgets = {i: S.movement_budget(frame, cards[i]) for i in live}
         reach_cache: dict[int, Mapping[Pos, int]] = {}
 
@@ -806,15 +845,14 @@ class Agent:
         # A preference, not a rule: a card that cannot reach the focus target
         # simply misses this bonus rather than being ruled out, so a frame with
         # a clearly better local option still takes it.
-        plan = self.team_plan(snap)
         if plan is not None and plan.target_id and params.focus_fire > 0:
-            target = snap.frame(plan.target_id)
-            if target is not None and target.alive:
+            focus_frame = snap.frame(plan.target_id)
+            if focus_frame is not None and focus_frame.alive:
                 for i in live:
                     card = cards[i]
                     if card is None or not card.is_attack:
                         continue
-                    if not self._can_threaten(snap, frame, card, target):
+                    if not self._can_threaten(snap, frame, card, focus_frame):
                         continue
                     board_value[i] += params.focus_fire * FOCUS_COMMIT_BONUS
                     if plan.zone and card.attacks.get(plan.zone, 0) > 0:
@@ -832,6 +870,8 @@ class Agent:
                 board_value={0: board_value[i]},
                 pressure=pressure,
                 turn=snap.turn,
+                expected_block=expected_block,
+                expected_atk=expected_atk,
             )
             for i in live
         }
@@ -855,6 +895,8 @@ class Agent:
                     board_value={k: board_value[i] for k, i in enumerate(combo)},
                     pressure=pressure,
                     turn=snap.turn,
+                    expected_block=expected_block,
+                    expected_atk=expected_atk,
                 )
             )
             deficits.append(
@@ -1132,7 +1174,13 @@ class Agent:
                 if target is None:
                     values.append(0.0)
                     continue
-                value = S.zone_attack_value(card, zones, target, prof, self.params)
+                distance = snap.distance(frame.pos, target.pos) if (frame.pos and target.pos) else None
+                delta_elev = (snap.elevation(frame.pos) - snap.elevation(target.pos)) if (frame.pos and target.pos) else 0
+                exp_blk, _ = S.inferred_tactical_expectations(frame, target, cur_dist=distance, delta_elev=delta_elev)
+                value = S.zone_attack_value(
+                    card, zones, target, prof, self.params,
+                    expected_block=exp_blk, actor=frame,
+                )
                 if target.id == focus_id:
                     value *= 1.0 + focus_weight
                 values.append(value)

@@ -304,6 +304,9 @@ class ObjectiveView:
     card_tiles: tuple[Pos, ...] = ()
     #: The frame this objective has attached itself to (the bomb carrier).
     carrier: Optional[str] = None
+    #: A running count the objective keeps (e.g. Solar Farm's seat -> charge).
+    tally: dict[int, int] = field(default_factory=dict)
+    tally_label: Optional[str] = None
 
     def value_for(self, seat: int) -> int:
         return self.defend if seat == self.owner else self.attack
@@ -356,7 +359,7 @@ class Snapshot:
         self.objectives = [
             ObjectiveView(
                 name=str(o.get("name", "")),
-                owner=int(o.get("owner", 0)),
+                owner=int(o["owner"]) if o.get("owner") is not None else 0,
                 defend=int(o.get("defend", 0)),
                 attack=int(o.get("attack", 0)),
                 tiles=tuple(Pos(int(t[0]), int(t[1])) for t in (o.get("tiles") or ())),
@@ -367,6 +370,11 @@ class Snapshot:
                     Pos(int(t[0]), int(t[1])) for t in (o.get("cardTiles") or ())
                 ),
                 carrier=(str(o["carrier"]) if o.get("carrier") else None),
+                tally={int(k): int(v) for k, v in (o.get("tally") or {}).items()},
+                tally_label=(
+                    str(o["tallyLabel"]) if o.get("tallyLabel")
+                    else (str(o["tally_label"]) if o.get("tally_label") else None)
+                ),
             )
             for o in (board_json.get("objectives") or ())
         ]
