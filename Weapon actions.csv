@@ -6,7 +6,7 @@ Sweep,,Spear,7,0,0,0,1,pierce,pierce,impact,0,0,0,0,1,0,"On Hit: target gets 2 \
 Lunge,,Sword,7,+1,0,0,1,cut,cut,cut,0,0,1,0,0,0,\fullcommitted,0,weapon_pictures/Sword_Lunge_t.png,backgrounds/Sword_bg.png,,,1,Stephen Lilico
 Feint,,Sword,7,+1,0,1,0,cut,cut,cut,1,0,1,0,0,0,\fullfeint,0,weapon_pictures/Sword_Feint_t.png,backgrounds/Sword_bg.png,,,1,Stephen Lilico
 Slice,,Sword,5,-2,1,0,1,cut,cut,cut,1,0,1,0,0,0,,0,weapon_pictures/Sword_Slice_t.png,backgrounds/Sword_bg.png,,,1,Stephen Lilico
-Parry,,Sword,3,0,1,2,0,cut,cut,cut,0,0,0,0,0,0,On Block: deals mid \smallcut,0,weapon_pictures/Sword_Parry_t.png,backgrounds/Sword_bg.png,,,1,Stephen Lilico
+Parry,,Sword,3,0,1,2,0,cut,cut,cut,0,0,0,0,0,0,On Melee Block: deals mid \smallcut,0,weapon_pictures/Sword_Parry_t.png,backgrounds/Sword_bg.png,,,1,Stephen Lilico
 Bash,,Shield,5,-1,0,2,0,impact,impact,impact,1,0,0,0,0,0,On Hit: target gets 2 \fulldazed,0,weapon_pictures/Shield_Bash_t.png,backgrounds/Shield_bg.png,,,1,Stephen Lilico
 Full Guard,,Shield,4,-2,2,1,1,,,,0,0,0,0,0,0,,0,weapon_pictures/Shield_Full_Guard_t.png,backgrounds/Shield_bg.png,,,1,Stephen Lilico
 Push on,,Shield,8,-1,0,1,2,,,,0,0,0,0,0,0,,0,weapon_pictures/Shield_Push_on_t.png,backgrounds/Shield_bg.png,,,1,Stephen Lilico
@@ -18,11 +18,11 @@ Strike,,Stun Baton,6,0,1,0,0,energy,energy,energy,0,0,0,0,1,0,On Hit: target get
 Burst Fire,,Assault Rifle,4,-2,0,1,0,projectile,projectile,projectile,0,0,1,7,1,7,,0,weapon_pictures/Assault_Rifle_Burst_Fire_t.png,backgrounds/Assault_Rifle_bg.png,,,1,Stephen Lilico
 Aimed Fire,,Assault Rifle,3,-2,0,1,0,projectile,projectile,projectile,2,7,0,0,0,0,,0,weapon_pictures/Assault_Rifle_Aimed_Fire_t.png,backgrounds/Assault_Rifle_bg.png,,,1,Stephen Lilico
 From the hip,,Assault Rifle,5,-1,0,1,0,projectile,projectile,projectile,0,0,1,6,0,0,,0,weapon_pictures/Assault_Rifle_From_the_hip_t.png,backgrounds/Assault_Rifle_bg.png,,,1,Stephen Lilico
-Covering Fire,,Assault Rifle,6,-2,0,1,0,projectile,projectile,projectile,1,6,1,6,1,6,\fullfeint,0,weapon_pictures/Assault_Rifle_Covering_Fire_t.png,backgrounds/Assault_Rifle_bg.png,,,1,Stephen Lilico
+Covering Fire,,Assault Rifle,6,-2,0,1,0,projectile,projectile,projectile,1,5,1,5,1,5,\fullfeint,0,weapon_pictures/Assault_Rifle_Covering_Fire_t.png,backgrounds/Assault_Rifle_bg.png,,,1,Stephen Lilico
 Rapid fire,,Stun Bow,3,-3,0,1,0,pierce,pierce,pierce,1,5,1,5,0,0,On Hit: target gets 2 \fullstunned \\ \guardbreak,0,weapon_pictures/Stun_Bow_Rapid_fire_t.png,backgrounds/Stun_Bow_bg.png,,,1,Stephen Lilico
-Arc shot,,Stun Bow,3,-2,0,1,0,pierce,pierce,pierce,2,7,0,0,0,0,On Hit: target gets 2 \fullstunned,0,weapon_pictures/Stun_Bow_Arc_shot_t.png,backgrounds/Stun_Bow_bg.png,,,1,Stephen Lilico
-Straight shot,,Stun Bow,5,-1,0,1,0,pierce,pierce,pierce,0,0,1,7,0,0,On Hit: target gets 2 \fullstunned,0,weapon_pictures/Stun_Bow_Straight_shot_t.png,backgrounds/Stun_Bow_bg.png,,,1,Stephen Lilico
-Low blow,,Stun Bow,5,-1,0,1,0,pierce,pierce,pierce,0,0,0,0,1,7,On Hit: target gets 2 \fullstunned,0,weapon_pictures/Stun_Bow_Low_blow_t.png,backgrounds/Stun_Bow_bg.png,,,1,Stephen Lilico
+Arc shot,,Stun Bow,3,-2,0,1,0,pierce,pierce,pierce,2,6,0,0,0,0,On Hit: target gets 2 \fullstunned,0,weapon_pictures/Stun_Bow_Arc_shot_t.png,backgrounds/Stun_Bow_bg.png,,,1,Stephen Lilico
+Straight shot,,Stun Bow,5,-1,0,1,0,pierce,pierce,pierce,0,0,1,6,0,0,On Hit: target gets 2 \fullstunned,0,weapon_pictures/Stun_Bow_Straight_shot_t.png,backgrounds/Stun_Bow_bg.png,,,1,Stephen Lilico
+Low blow,,Stun Bow,5,-1,0,1,0,pierce,pierce,pierce,0,0,0,0,1,6,On Hit: target gets 2 \fullstunned,0,weapon_pictures/Stun_Bow_Low_blow_t.png,backgrounds/Stun_Bow_bg.png,,,1,Stephen Lilico
 Fullbore,,Cannon,2,-3,0,1,0,projectile,projectile,projectile,0,0,3,10,0,0,\fullreload,\infty,weapon_pictures/Cannon_Fullbore_t.png,backgrounds/Cannon_bg.png,,,1,Stephen Lilico
 Airburst,,Cannon,2,-2,0,1,0,projectile,projectile,projectile,1,10,1,10,2,6,\fullguardbreak \\ \fullreload,\infty,weapon_pictures/Cannon_Airburst_t.png,backgrounds/Cannon_bg.png,,,1,Stephen Lilico
 Cannon,,Cannon,2,-3,0,1,0,projectile,projectile,projectile,1,6,2,10,2,10,\fullguardbreak \\ \fullreload,\infty,weapon_pictures/Cannon_Cannon_t.png,backgrounds/Cannon_bg.png,,,1,Stephen Lilico
@@ -35,19 +35,19 @@ Disembowel,,Chainsaw,3,-4,0,0,1,cut,cut,cut,0,0,4,0,0,0,,0,weapon_pictures/Chain
 Rip,,Chainsaw,3,-4,0,0,1,cut,cut,cut,4,0,0,0,0,0,,0,weapon_pictures/Chainsaw_Rip_t.png,backgrounds/Chainsaw_bg.png,,,1,Stephen Lilico
 Grind,,Chainsaw,5,0,0,0,1,cut,cut,cut,1,0,1,0,0,0,,0,weapon_pictures/Chainsaw_Grind_t.png,backgrounds/Chainsaw_bg.png,,,1,Stephen Lilico
 Tear,,Chainsaw,3,-3,0,0,1,cut,cut,cut,3,0,3,0,0,0,,0,weapon_pictures/Chainsaw_Tear_t.png,backgrounds/Chainsaw_bg.png,,,1,Stephen Lilico
-Whip,,Chain,6,-1,0,1,0,impact,impact,impact,0,0,1,3,0,0,On Hit: target gets 2 \fullslowed,0,weapon_pictures/Chain_Whip_t.png,backgrounds/Chain_bg.png,,,1,Stephen Lilico
-Tangle,,Chain,6,0,0,1,0,impact,impact,impact,0,0,0,0,1,3,Hits all targets in range,0,weapon_pictures/Chain_Tangle_t.png,backgrounds/Chain_bg.png,,,1,Stephen Lilico
-Throttle,,Chain,4,-1,1,0,0,impact,impact,impact,2,0,0,0,0,0,On Hit: target gets 2 \fulldazed,0,weapon_pictures/Chain_Throttle_t.png,backgrounds/Chain_bg.png,,,1,Stephen Lilico
-Catch,,Chain,6,0,1,2,0,,,,0,0,0,0,0,0,On Block: attacker gets \fulldazed,0,weapon_pictures/Chain_Catch_t.png,backgrounds/Chain_bg.png,,,1,Stephen Lilico
+Whip,,Chain,6,-1,0,1,0,impact,impact,impact,0,0,1,2,0,0,On Hit: target gets 2 \fullslowed,0,weapon_pictures/Chain_Whip_t.png,backgrounds/Chain_bg.png,,,1,Stephen Lilico
+Tangle,,Chain,6,0,0,1,0,impact,impact,impact,0,0,0,0,1,2,Hits all targets in range,0,weapon_pictures/Chain_Tangle_t.png,backgrounds/Chain_bg.png,,,1,Stephen Lilico
+Throttle,,Chain,4,-1,1,0,0,impact,impact,impact,2,0,0,0,0,0,On Hit: target gets 2 \fullstunned,0,weapon_pictures/Chain_Throttle_t.png,backgrounds/Chain_bg.png,,,1,Stephen Lilico
+Catch,,Chain,6,0,1,2,0,,,,0,0,0,0,0,0,On Melee Block: attacker gets \fulldazed,0,weapon_pictures/Chain_Catch_t.png,backgrounds/Chain_bg.png,,,1,Stephen Lilico
 Stab,,Knife,5,0,1,0,0,cut,cut,cut,1,0,0,0,0,0,\fullclosequarters,0,weapon_pictures/Knife_Stab_t.png,backgrounds/Knife_bg.png,,,1,Stephen Lilico
 Cut,,Knife,5,0,0,1,0,cut,cut,cut,0,0,1,0,0,0,\fullclosequarters,0,weapon_pictures/Knife_Cut_t.png,backgrounds/Knife_bg.png,,,1,Stephen Lilico
 Slit,,Knife,5,0,0,0,1,cut,cut,cut,0,0,0,0,1,0,\fullclosequarters,0,weapon_pictures/Knife_Slit_t.png,backgrounds/Knife_bg.png,,,1,Stephen Lilico
 Lunge,,Knife,5,+1,0,0,1,cut,cut,cut,0,0,1,0,0,0,\fullclosequarters\\\fullcommitted,0,weapon_pictures/Knife_Lunge_t.png,backgrounds/Knife_bg.png,,,1,Stephen Lilico
-Missile Rack 1,Guild,Missile Rack,1,-3,0,1,0,projectile,projectile,projectile,2,6,2,6,0,0,doesnt need line of sight \\ Can only be used by J7R-Salryman,0,weapon_pictures/Missile_Rack_Missile_Rack_1_t.png,backgrounds/Missile_Rack_bg.png,,,1,Stephen Lilico
-Missile Rack 2,Guild,Missile Rack,1,-3,0,1,0,projectile,projectile,projectile,0,0,2,6,2,6,doesnt need line of sight \\ Can only be used by J7R-Salryman,0,weapon_pictures/Missile_Rack_Missile_Rack_2_t.png,backgrounds/Missile_Rack_bg.png,,,1,Stephen Lilico
-Missile Rack 3,Guild,Missile Rack,1,-3,0,1,0,projectile,projectile,projectile,2,6,0,0,2,6,doesnt need line of sight \\ Can only be used by J7R-Salryman,0,weapon_pictures/Missile_Rack_Missile_Rack_3_t.png,backgrounds/Missile_Rack_bg.png,,,1,Stephen Lilico
+Missile Rack 1,Guild,Missile Rack,1,-3,0,1,0,projectile,projectile,projectile,2,6,2,6,0,0,Ignores line of sight \\ Can only be used by J7R-Salryman,0,weapon_pictures/Missile_Rack_Missile_Rack_1_t.png,backgrounds/Missile_Rack_bg.png,,,1,Stephen Lilico
+Missile Rack 2,Guild,Missile Rack,1,-3,0,1,0,projectile,projectile,projectile,0,0,2,6,2,6,Ignores line of sight \\ Can only be used by J7R-Salryman,0,weapon_pictures/Missile_Rack_Missile_Rack_2_t.png,backgrounds/Missile_Rack_bg.png,,,1,Stephen Lilico
+Missile Rack 3,Guild,Missile Rack,1,-3,0,1,0,projectile,projectile,projectile,2,6,0,0,2,6,Ignores line of sight \\ Can only be used by J7R-Salryman,0,weapon_pictures/Missile_Rack_Missile_Rack_3_t.png,backgrounds/Missile_Rack_bg.png,,,1,Stephen Lilico
 Cleave,,Greatsword,4,-2,0,0,1,cut,cut,cut,2,0,2,0,0,0,,0,weapon_pictures/Greatsword_Cleave_t.png,backgrounds/Greatsword_bg.png,,,1,Stephen Lilico
-Parry,,Greatsword,3,0,0,1,2,cut,cut,cut,0,0,0,0,0,0,On Block:  deals mid \smallcut,0,weapon_pictures/Greatsword_Parry_t.png,backgrounds/Greatsword_bg.png,,,1,Stephen Lilico
+Parry,,Greatsword,3,0,0,1,2,cut,cut,cut,0,0,0,0,0,0,On Melee Block:  deals mid \smallcut,0,weapon_pictures/Greatsword_Parry_t.png,backgrounds/Greatsword_bg.png,,,1,Stephen Lilico
 Grand Sweep,,Greatsword,4,-2,0,0,1,cut,cut,cut,0,0,2,0,0,0,Hits all adjacent enemies,0,weapon_pictures/Greatsword_Grand_Sweep_t.png,backgrounds/Greatsword_bg.png,,,1,Stephen Lilico
 Rising Cut,,Greatsword,4,-1,1,1,0,cut,cut,cut,0,0,0,0,2,0,,0,weapon_pictures/Greatsword_Rising_Cut_t.png,backgrounds/Greatsword_bg.png,,,1,Stephen Lilico
 Slam,,Kinetic Hammer,4,-3,0,0,1,impact,impact,impact,0,0,0,0,2,0,Also hits any enemies adjacent to the target,0,weapon_pictures/Kinetic_Hammer_Slam_t.png,backgrounds/Kinetic_Hammer_bg.png,,,1,Stephen Lilico

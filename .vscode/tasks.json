@@ -200,6 +200,59 @@
         "create rules",
         "create cards"
       ]
+    },
+    {
+      "label": "generate all card images",
+      "command": "python3",
+      "type": "shell",
+      "args": [
+        "generate_card_images.py",
+        "--all"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": "build"
+    },
+    {
+      "label": "create playtest card bundle",
+      "command": "python3",
+      "type": "shell",
+      "args": [
+        "-m",
+        "playtest.server.images",
+        "--force"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": "build"
+    },
+    {
+      "label": "create playtest board assets",
+      "command": "python3",
+      "type": "shell",
+      "args": [
+        "-m",
+        "playtest.server.assets",
+        "--force"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": "build"
+    },
+    {
+      "label": "create playtest assets",
+      "type": "shell",
+      "command": "echo playtest assets created",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "generate all card images",
+        "create playtest card bundle",
+        "create playtest board assets"
+      ],
+      "group": "build"
     }
   ]
 }
