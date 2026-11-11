@@ -10,6 +10,7 @@ from terrain_cards import (
     terrain_file, terrianoutputfolder, create_terrain_card, ELEVATION_COLORS,
     TERRAIN_COLS, TERRAIN_ROWS, TERRAIN_TILE_SIZE, TERRAIN_HOFFSET, TERRAIN_VOFFSET
 )
+from helpcard import create_helpcards
 
 weapon_actions_file = 'Weapon actions.csv'
 general_action_file = 'Basic actions.csv'
@@ -1489,3 +1490,6 @@ if __name__ == "__main__":
     # Rules reference: one annotated \input-able fragment per card type
     # (melee weapon, ranged weapon, drone, pilot, frame).
     create_rules_fragments(weapon_rows, weapon_group_caps, pilot_rows, drone_rows, rules_frame_row)
+
+    # Rules reference helpcards (symbols, keywords, compact reference).
+    create_helpcards(cardoutputfolder)

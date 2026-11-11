@@ -2962,6 +2962,34 @@
       "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/tts_assets/terrain_back.png",
       "type": "0",
       "sideways": "false"
+    },
+    "191": {
+      "name": "Helpcard - Symbols & Combat",
+      "description": "Rules reference: common symbols, stats, damage types, status effects",
+      "gm_notes": "Reference helpcard: common symbols, stats, damage types, status effects",
+      "tags": {
+        "1": "Card",
+        "2": "HELPCARD"
+      },
+      "lua_script": "",
+      "face": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Helpcard_Symbols.png",
+      "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Helpcard_Keywords.png",
+      "type": "0",
+      "sideways": "false"
+    },
+    "192": {
+      "name": "Helpcard - Keywords Glossary",
+      "description": "Rules reference: keyword definitions and simplified summaries",
+      "gm_notes": "Reference helpcard: keyword definitions and simplified summaries",
+      "tags": {
+        "1": "Card",
+        "2": "HELPCARD"
+      },
+      "lua_script": "",
+      "face": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Helpcard_Keywords.png",
+      "back": "https://raw.githubusercontent.com/thesilencelies/mobileSuitGame/refs/heads/master/AllCardImages/Helpcard_Symbols.png",
+      "type": "0",
+      "sideways": "false"
     }
   },
   "Tile": {
