@@ -264,14 +264,16 @@ def test_a_blocked_attack_does_not_knock_back():
 # --------------------------------------------------------------------------
 
 
-def test_adam_pierce_attacks_get_plus_two_initiative():
+def test_adam_actions_get_plus_one_initiative():
     state = make_state()
     adam = add_frame(state, 0, "Adam", Pos(1, 1))
     other = add_frame(state, 1, "Kuwagata", Pos(5, 5))
     pierce = CATALOGUE["Spear_Thrust"]                   # initiative 7, pierce
     cut = CATALOGUE["Sword_Slice"]                       # initiative 5, cut
-    assert kw.effective_initiative(state, adam, pierce) == 9
-    assert kw.effective_initiative(state, adam, cut) == 5
+    basic = CATALOGUE["Basic_Punch"]
+    assert kw.effective_initiative(state, adam, pierce) == 8
+    assert kw.effective_initiative(state, adam, cut) == 6
+    assert kw.effective_initiative(state, adam, basic) == basic.initiative[0] + 1
     assert kw.effective_initiative(state, other, pierce) == 7
 
 
@@ -305,10 +307,10 @@ def test_nautilus_softens_ranged_movement_and_salaryman_extends_range():
     salaryman = add_frame(state, 0, "J7R-Salaryman", Pos(2, 1))
     card = CATALOGUE["Assault Rifle_Aimed Fire"]         # mv -2, ranged
     assert kw.card_movement_modifier(state, nautilus, card) == 0
-    assert kw.range_bonus(state, salaryman, card) == 4
+    assert kw.range_bonus(state, salaryman, card) == 2
     assert kw.range_bonus(state, nautilus, card) == 0
     assert (combat.effective_range(state, salaryman, card, "High")
-            == card.ranges["High"] + 4)
+            == card.ranges["High"] + 2)
 
 
 def test_rippersmasher_caps_every_movement_penalty_at_one():
@@ -478,33 +480,20 @@ def test_implemented_card_text_is_marked_handled():
 
 
 def test_accelerate_gives_later_actions_extra_movement():
-    """"*Other* actions this turn get +N mv" -- so not Accelerate's own move.
-
-    Which matters because the controller orders a card's steps, and putting
-    the effect step first would otherwise hand Accelerate its own bonus.
-    """
-    import re
-
+    """Accelerate gives 2 boosted counters, raising the frame's movement budget."""
     from playtest.engine import effects
 
     state = make_state()
     frame = add_frame(state, 0, "Kuwagata", Pos(1, 1))
     uid = give(state, frame, "Booster_Accelerate")
     before = kw.movement_budget(state, frame, CATALOGUE["Spear_Thrust"])
-    accelerate = CATALOGUE["Booster_Accelerate"]
-    own = kw.movement_budget(state, frame, accelerate)
-    granted = int(re.search(r"\+(\d+)\s*mv", accelerate.text).group(1))
+    assert frame.statuses["boosted"] == 0
 
     effects.resolve_effect(state, frame, uid)
-    assert kw.movement_budget(state, frame, accelerate) == own, (
-        "its own movement step is untouched, whichever order the steps run in"
-    )
-    assert kw.movement_budget(state, frame, CATALOGUE["Spear_Thrust"]) == before
-
-    effects.after_card_resolved(state, frame, uid)     # the card finishes
+    assert frame.statuses["boosted"] == 2
     assert (
         kw.movement_budget(state, frame, CATALOGUE["Spear_Thrust"])
-        == before + granted
+        == before + 2
     )
 
 

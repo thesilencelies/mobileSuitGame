@@ -1279,8 +1279,8 @@ def test_outfox_reveals_and_dazes_a_frame_in_range():
     assert far.statuses["dazed"] == 0
 
 
-def test_displace_reaches_five_and_throws_eight():
-    """The two distances on the card are different and both are read."""
+def test_displace_reaches_from_text():
+    """The two distances on the card are read dynamically from text (e.g. 4 and 6)."""
     state = make_state(width=20, height=20)
     tac = add_frame(state, 0, "Hector MkI", Pos(10, 10))
     enemy = add_frame(state, 1, "Fenrir", Pos(12, 10))
@@ -1288,20 +1288,22 @@ def test_displace_reaches_five_and_throws_eight():
     out_of_reach = add_frame(state, 1, "Adam", Pos(17, 10))   # seven away
     state.board.set_tile(Pos(11, 10), impassable=True)   # a wall between them
 
+    reach, thrown = effects._reaches_from_text(CATALOGUE[effects.DISPLACE].text, 4, 6)
+
     _uid, who = play(state, tac, effects.DISPLACE)
     assert who is not None and who.pick_kind == "frame"
     assert {o["frame"] for o in who.options} == {enemy.id, near.id}, (
-        "it can only grab what is within five"
+        f"it can only grab what is within {reach}"
     )
     where = answer(state, who, {"frame": enemy.id, "name": enemy.spec.name})
     assert where.pick_kind == "place", "it is put down, not walked"
     tiles = {Pos(o["x"], o["y"]) for o in where.options}
-    assert Pos(2, 10) in tiles, "eight from the Tactician, wall or no wall"
-    assert Pos(1, 10) not in tiles, "and no further"
+    assert Pos(10 - thrown, 10) in tiles, f"{thrown} from the Tactician, wall or no wall"
+    assert Pos(10 - thrown - 1, 10) not in tiles, "and no further"
     assert out_of_reach.pos not in tiles, "nor onto another frame"
 
-    assert answer(state, where, {"x": 2, "y": 10}) is None
-    assert enemy.pos == Pos(2, 10)
+    assert answer(state, where, {"x": 10 - thrown, "y": 10}) is None
+    assert enemy.pos == Pos(10 - thrown, 10)
 
 
 def test_ennervate_stims_every_ally_in_range():
@@ -1742,7 +1744,8 @@ def test_sensory_overload_dazes_stuns_and_shortens_the_targets_range():
 
 def test_combo_strike_adds_a_second_attack_from_the_same_weapon():
     state, attacker, defender = duel()
-    play(state, attacker, effects.COMBO_STRIKE)
+    uid, _ = play(state, attacker, effects.COMBO_STRIKE)
+    carry_over(state, uid)
 
     spare = give(state, attacker, "Halberd_Crush", location="deck")
     give(state, attacker, "Spear_Thrust", location="deck")      # wrong weapon
@@ -1770,7 +1773,8 @@ def test_combo_strike_adds_a_second_attack_from_the_same_weapon():
 
 def test_combo_strike_follow_up_attacks_after_blocked_first_attack():
     state, attacker, defender = duel()
-    play(state, attacker, effects.COMBO_STRIKE)
+    uid, _ = play(state, attacker, effects.COMBO_STRIKE)
+    carry_over(state, uid)
     defender.turn_flags["hector_block_used"] = True
 
     spare = give(state, attacker, "Halberd_Crush", location="deck")
@@ -1800,11 +1804,10 @@ def test_combo_strike_follow_up_attacks_after_blocked_first_attack():
 
 
 def test_combo_strike_rides_every_attack_until_the_end_of_next_turn():
-    """"Until the end of next turn: when resolving attacks from this frame..."
+    """"Next turn: On a weapon attack..."
 
-    The card in play is the whole state, so it rides each attack in turn --
-    including one whose attack step the controller already ran, which simply
-    has nothing to add to and does not spend the card.
+    The card in play has Next turn:, so it does not trigger on the turn played,
+    and rides attacks next turn after carry_over.
     """
     state, attacker, _ = duel()
     uid, _ = play(state, attacker, effects.COMBO_STRIKE)
@@ -1818,13 +1821,15 @@ def test_combo_strike_rides_every_attack_until_the_end_of_next_turn():
 
     first = give(state, attacker, "Halberd_Sweep")
     state.resolution = Resolution(frame_id=attacker.id, uid=first, steps=["attack"])
-    assert effects.resolve_effect(state, attacker, first) is not None
+    assert effects.resolve_effect(state, attacker, first) is None, (
+        "Combo Strike has Next turn: so it does not trigger on the turn played"
+    )
 
     carry_over(state, uid)
     give(state, attacker, "Halberd_Crush", location="deck")
     later = give(state, attacker, "Halberd_Sweep")
     state.resolution = Resolution(frame_id=attacker.id, uid=later, steps=["attack"])
-    assert effects.resolve_effect(state, attacker, later) is not None, "next turn too"
+    assert effects.resolve_effect(state, attacker, later) is not None, "next turn it triggers"
 
 
 def test_snipers_aim_extends_range_ignores_obstacles_and_adds_damage():
@@ -1836,8 +1841,10 @@ def test_snipers_aim_extends_range_ignores_obstacles_and_adds_damage():
 
     before = combat.effective_range(state, sniper, card, "Mid", target)
     assert not effects.ignores_obstacles(state, sniper)
-    play(state, sniper, effects.SNIPERS_AIM)
+    uid, _ = play(state, sniper, effects.SNIPERS_AIM)
+    assert not effects.ignores_obstacles(state, sniper), "Next turn: does not apply this turn"
 
+    carry_over(state, uid)
     assert combat.effective_range(state, sniper, card, "Mid", target) == before + 4
     assert effects.ignores_obstacles(state, sniper)
     assert effects.attack_damage_bonus(state, sniper, card, target.id) == ({}, 1), (
@@ -1856,10 +1863,14 @@ def test_snipers_aim_committed_with_persistence_moves_to_aside_and_persists():
     from playtest.engine.state import Resolution
     state.resolution = Resolution(frame_id=sniper.id, uid=uid, steps=["effect"])
     R._finish_card(state)
+    assert state.cards[uid].location == "committed"
+    R.cleanup_phase(state)
     assert state.cards[uid].location == "aside"
     assert uid in sniper.aside
     assert uid not in sniper.committed
-    assert effects.ignores_obstacles(state, sniper)
+    assert not effects.ignores_obstacles(state, sniper), "still current turn"
+    state.turn += 1
+    assert effects.ignores_obstacles(state, sniper), "active on next turn"
 
 
 def test_master_duelist_reveals_melee_targets_and_takes_over_their_blocks():
@@ -1887,11 +1898,12 @@ def test_master_duelist_reveals_melee_targets_and_takes_over_their_blocks():
 
 
 def test_practiced_technique_stacks_damage_across_one_weapon_next_turn():
+    from playtest.engine import keywords as kw
+
     state, attacker, defender = duel()
     uid, _ = play(state, attacker, effects.PRACTICED)
     assert attacker.statuses["lucid"] == 1, "1 lucid applied"
-    assert attacker.statuses["revealed"] == 1, "1 revealed applied"
-    assert attacker.statuses["stimmed"] == 2, "2 stimmed applied"
+    assert attacker.statuses["revealed"] == 2, "2 revealed applied"
 
     card = CATALOGUE["Halberd_Eviscerate"]
     give(state, attacker, "Halberd_Eviscerate")
@@ -1903,11 +1915,12 @@ def test_practiced_technique_stacks_damage_across_one_weapon_next_turn():
     carry_over(state, uid)
 
     # Next turn: if all actions chosen this turn are from the same weapon,
-    # those attacks deal 1 extra damage and gain guardbreak.
+    # those attacks deal 1 extra damage, gain +2 init and gain guardbreak.
     give(state, attacker, "Halberd_Crush")
     assert effects.practiced_technique_active(state, attacker, card)
     assert effects.attack_damage_bonus(state, attacker, card, defender.id) == ({}, 1)
     assert effects.grants_guard_break(state, attacker, card)
+    assert kw.effective_initiative(state, attacker, card) == card.initiative[0] + 2
 
     # Another weapon breaks the condition:
     give(state, attacker, "Spear_Thrust")
@@ -1952,18 +1965,18 @@ def test_cage_fight_walls_both_fighters_in_and_pushes_bystanders_out():
     state = make_state()
     spec = add_frame(state, 0, "Kamikiri", Pos(5, 5))
     foe = add_frame(state, 1, "Hector MkI", Pos(6, 5))
-    bystander = add_frame(state, 0, "Adam", Pos(3, 5))       # on the wall line
+    bystander = add_frame(state, 0, "Adam", Pos(4, 5))       # on the 4x4 wall line
 
     _uid, decision = play(state, spec, effects.CAGE_FIGHT)
-    assert decision is None, "only one enemy is within 2"
+    assert decision is None, "only one enemy is adjacent"
 
     walls = {t.pos for t in state.tokens.values()
              if t.kind == fx.CAGE and t.alive}
-    assert Pos(3, 5) in walls or bystander.pos != Pos(3, 5)
+    assert Pos(4, 5) in walls
+    assert bystander.pos != Pos(4, 5), "it was pushed off the wall"
     assert bystander.pos not in walls, "it was pushed outside"
-    assert state.board.distance(Pos(5, 5), bystander.pos) > 2
-    assert spec.pos in {Pos(5, 5)} and foe.pos == Pos(6, 5), "the fighters stay"
-    assert all(state.board.distance(Pos(5, 5), p) == 2 for p in walls)
+    assert not (4 <= bystander.pos.x <= 7 and 4 <= bystander.pos.y <= 7), "pushed outside the 4x4 box"
+    assert spec.pos == Pos(5, 5) and foe.pos == Pos(6, 5), "the fighters stay"
     assert Pos(5, 5) in state.occupied() and next(iter(walls)) in state.occupied()
 
 
@@ -2554,7 +2567,8 @@ def _strings_in(blob):
 def test_the_combo_strike_deck_peek_reaches_only_its_own_seat():
     """Revealing the top 4 of a deck must not reveal them to the opponent."""
     state, attacker, _defender = duel()
-    play(state, attacker, effects.COMBO_STRIKE)
+    uid, _ = play(state, attacker, effects.COMBO_STRIKE)
+    carry_over(state, uid)
     spare = give(state, attacker, "Halberd_Crush", location="deck")
     swing = give(state, attacker, "Halberd_Eviscerate")
     state.resolution = Resolution(frame_id=attacker.id, uid=swing, steps=["attack"])

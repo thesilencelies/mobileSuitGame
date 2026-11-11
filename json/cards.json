@@ -707,7 +707,7 @@
     "45": {
       "name": "Missile Rack 1",
       "description": "",
-      "gm_notes": "1init\n-3mv\natk:2H@6,2M@6 projectile\nBlk:1M\nfaction:Guild\ndoesnt need line of sight\nCan only be used by J7R-Salryman",
+      "gm_notes": "1init\n-3mv\natk:2H@6,2M@6 projectile\nBlk:1M\nfaction:Guild\nIgnores line of sight\nCan only be used by J7R-Salryman",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -723,7 +723,7 @@
     "46": {
       "name": "Missile Rack 2",
       "description": "",
-      "gm_notes": "1init\n-3mv\natk:2M@6,2L@6 projectile\nBlk:1M\nfaction:Guild\ndoesnt need line of sight\nCan only be used by J7R-Salryman",
+      "gm_notes": "1init\n-3mv\natk:2M@6,2L@6 projectile\nBlk:1M\nfaction:Guild\nIgnores line of sight\nCan only be used by J7R-Salryman",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -739,7 +739,7 @@
     "47": {
       "name": "Missile Rack 3",
       "description": "",
-      "gm_notes": "1init\n-3mv\natk:2H@6,2L@6 projectile\nBlk:1M\nfaction:Guild\ndoesnt need line of sight\nCan only be used by J7R-Salryman",
+      "gm_notes": "1init\n-3mv\natk:2H@6,2L@6 projectile\nBlk:1M\nfaction:Guild\nIgnores line of sight\nCan only be used by J7R-Salryman",
       "tags": {
         "1": "Card",
         "2": "Action",

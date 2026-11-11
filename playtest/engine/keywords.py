@@ -54,6 +54,10 @@ def is_flying(frame: FrameState) -> bool:
     return "flying" in frame.spec.keywords
 
 
+def ignores_line_of_sight(card: Card) -> bool:
+    return "ignores line of sight" in (card.text or "").lower()
+
+
 # --------------------------------------------------------------------------
 # Frame abilities (Frames.csv `Abilities`)
 # --------------------------------------------------------------------------
@@ -65,11 +69,11 @@ FRAME_ABILITIES: Mapping[str, str] = {
     "Percival MkIV": "attacks with 2+ block zones lose 2 less movement",
     "Kuwagata": "once per game, mulligan the planning hand",
     "VX4-Nautilus": "ranged attacks lose 2 less movement",
-    "Adam": "pierce attacks get +2 initiative",
+    "Adam": "actions get +1 initiative",
     "RipperSmasher": "deathstrike; actions lose at most 1 movement",
     "Hannael": "flying; shield 1",
     "Elemiah": "shield 2; impact attacks gain knockback(1)",
-    "J7R-Salaryman": "ranged attacks get +4 range",
+    "J7R-Salaryman": "ranged attacks get +2 range",
     "Flamekin": "deathstrike; repairs at the end of each turn",
     "Fenrir": "cannot use ranged weapons",
     "Hector MkI": "the first block each turn is not discarded",
@@ -90,9 +94,13 @@ def effective_initiative(
     state: GameState, frame: FrameState, card: Card, index: int = 0
 ) -> int:
     """A card's initiative right now: printed + statuses + damage + abilities."""
+    from . import effects
+
     printed = card.initiative[min(index, len(card.initiative) - 1)]
     value = printed + frame.initiative_mod
-    if frame.spec.name == "Adam" and "pierce" in _card_dtypes(card):
+    if frame.spec.name == "Adam":
+        value += 1
+    if effects.practiced_technique_active(state, frame, card):
         value += 2
     return value
 
@@ -144,7 +152,7 @@ def range_bonus(state: GameState, frame: FrameState, card: Card) -> int:
 
     bonus = 0
     if frame.spec.name == "J7R-Salaryman" and card.is_ranged:
-        bonus += 4
+        bonus += 2
     bonus += int(frame.turn_flags.get("range_bonus", 0))
     bonus += effects.snipers_range_bonus(state, frame, card)
     return bonus

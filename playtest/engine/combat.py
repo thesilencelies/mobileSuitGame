@@ -278,7 +278,9 @@ def can_target(
             continue
         if distance <= 1:
             continue               # ranged attacks may not target adjacent
-        if _line_of_sight(state, attacker, target_pos, defender, origin=spot):
+        if kw.ignores_line_of_sight(card) or _line_of_sight(
+            state, attacker, target_pos, defender, origin=spot
+        ):
             return True
     return False
 

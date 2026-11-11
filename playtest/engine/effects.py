@@ -69,9 +69,10 @@ from .types import (
 _STATUSES = ("stunned", "stimmed", "dazed", "lucid", "slowed", "boosted", "revealed")
 
 _ON_HIT_RE = re.compile(r"on hit:(.*?)(?:\\\\|$)", re.I | re.S)
-_ON_BLOCK_RE = re.compile(r"on block:(.*?)(?:\\\\|$)", re.I | re.S)
+_ON_BLOCK_RE = re.compile(r"on (?:(melee) )?block:(.*?)(?:\\\\|$)", re.I | re.S)
 _STATUS_RE = re.compile(
-    r"(\d+)?\s*\\?(?:full|small)?(" + "|".join(_STATUSES) + r")\b", re.I
+    r"(?:(\d+)\s+)?\\?(?:full|small)?(" + "|".join(_STATUSES) + r")\b(?:\s+(\d+)(?!\s*\\?(?:full|small)?(?:" + "|".join(_STATUSES) + r")))?",
+    re.I,
 )
 _REPAIR_RE = re.compile(r"repair\s+(\d+)", re.I)
 _MV_BONUS_RE = re.compile(r"other actions this turn get\s*\+?(\d+)\s*mv", re.I)
@@ -105,13 +106,15 @@ _HANDLED_PHRASES = (
     re.compile(r"must (attack|move) before (attack|mov)\w*", re.I),
     re.compile(r"acts twice[^\\]*", re.I),
     re.compile(r"can only be used by[^\\]*", re.I),
+    re.compile(r"ignores line of sight", re.I),
 )
 
 
 def _parse_statuses(text: str) -> list[tuple[StatusKind, int]]:
     out: list[tuple[StatusKind, int]] = []
-    for count, kind in _STATUS_RE.findall(text or ""):
-        out.append((kind.lower(), int(count) if count else 1))
+    for pre, kind, post in _STATUS_RE.findall(text or ""):
+        count = int(pre) if pre else (int(post) if post else 1)
+        out.append((kind.lower(), count))
     return out
 
 
@@ -360,7 +363,7 @@ def step_orders(
         state is not None
         and frame is not None
         and card.card_type == "weapon"
-        and fx.card_active(state, frame, COMBO_STRIKE)
+        and fx.card_active(state, frame, COMBO_STRIKE, this_turn=False)
     ):
         rules.append(("effect", "attack"))
 
@@ -553,10 +556,14 @@ def _effect_shield(state: GameState, frame: FrameState, uid: str):
 
 def _effect_accelerate(state: GameState, frame: FrameState, uid: str):
     card = state.card(uid)
-    match = _MV_BONUS_RE.search(card.text)
-    bonus = int(match.group(1)) if match else 0
-    _owe_movement(state, frame, bonus)
-    state.note(f"{frame.id}'s other actions this turn get +{bonus} movement")
+    statuses = _parse_statuses(card.text)
+    if statuses:
+        _apply_statuses(state, frame, statuses)
+    else:
+        match = _MV_BONUS_RE.search(card.text)
+        bonus = int(match.group(1)) if match else 0
+        _owe_movement(state, frame, bonus)
+        state.note(f"{frame.id}'s other actions this turn get +{bonus} movement")
     return None
 
 
@@ -1994,14 +2001,10 @@ def _range_cap(state: GameState, target: FrameState, cap: int) -> None:
 
 
 def _effect_combo_strike(state: GameState, frame: FrameState, uid: str):
-    """"Until the end of next turn: When this frame takes a weapon action..."
-
-    Nothing is armed. Like Snipers aim, the card in front of the frame *is*
-    the state -- `fx.card_active` covers the turn it resolved and, at
-    persistence 1, the turn after -- so it now rides every weapon action in that
-    window.
+    """"Next turn: On a weapon attack, draw 4 cards, choose up to 1 from the same
+    weapon and put the rest to the bottom: resolve that attack after the current attack"
     """
-    state.note(f"{frame.id} lines up combos on its weapon actions this turn and next")
+    state.note(f"{frame.id} lines up combos on its weapon actions next turn")
     return None
 
 
@@ -2013,7 +2016,7 @@ def _armed_rider(
         card.card_type == "weapon"
         and card.is_attack
         and not delegates_attack(card)
-        and fx.card_active(state, frame, COMBO_STRIKE)
+        and fx.card_active(state, frame, COMBO_STRIKE, this_turn=False)
     ):
         return "combo"
     return None
@@ -2045,7 +2048,9 @@ def _combo_decision(
     card = state.card(uid)
     options = _combo_options(state, frame, card)
     if not options:
-        state.note(f"Combo strike: no {card.group} attack in the top 4 cards")
+        top4 = list(frame.deck[:4])
+        frame.deck = frame.deck[len(top4):] + top4
+        state.note(f"Combo strike: no {card.group} attack in the top 4 cards; put on bottom of deck")
         return None
     options.append({"skip": True})
     return _ask(
@@ -2061,34 +2066,30 @@ def _combo_decision(
 def _choice_combo(
     state: GameState, frame: FrameState, choice: Mapping, ctx: Mapping
 ) -> None:
+    top4 = list(frame.deck[:4])
     if choice.get("skip"):
-        state.note("Combo strike skipped")
+        frame.deck = frame.deck[len(top4):] + top4
+        state.note("Combo strike skipped; cards put on bottom of deck")
         return
     uid = str(choice.get("uid"))
     if uid not in state.cards:
         return
     card = state.catalogue[state.cards[uid].key]
     discard_card(state, uid)
+    rest = [u for u in top4 if u != uid]
+    frame.deck = frame.deck[len(top4):] + rest
     res = state.resolution
     if res is not None:
         res.effect_state["combo_uid"] = uid
-    state.note(f"Combo strike readies {card.key}'s attack to follow")
+    state.note(f"Combo strike readies {card.key}'s attack to follow; rest put on bottom of deck")
 
 
 def _effect_snipers_aim(state: GameState, frame: FrameState, uid: str):
-    """"Until the end of next turn: ranged attacks ignore obstacles, get +N
-    range and deal M extra damage."
-
-    Nothing is stored. The card itself is the state: it stays in front of the
-    frame this turn and, with persistence 1, in the `aside` pile the next, so
-    `fx.card_active` answers "is it still in force?" for both -- which is what
-    "until the end of next turn" means. The two numbers are read off the
-    printed text at the point of use (`snipers_range_bonus`, the damage bonus
-    in `attack_damage_bonus`), so a balance pass needs no engine change.
+    """"Next turn: Ranged attacks ignore obstacles, get + 4 range and deal 1 extra damage."
     """
     card = state.card(uid)
     state.note(
-        f"{frame.id} takes aim: ranged attacks this turn and next ignore "
+        f"{frame.id} takes aim: ranged attacks next turn ignore "
         f"obstacles, reach {_extra_range(card)} further and deal "
         f"{_extra_damage(card)} extra damage"
     )
@@ -2110,12 +2111,14 @@ def snipers_range_bonus(state: GameState, frame: FrameState, card: Card) -> int:
 
     Asked for by `keywords.range_bonus`, which owns the sum of every source.
     """
-    if not card.is_ranged or not fx.card_active(state, frame, SNIPERS_AIM):
+    if not card.is_ranged or not fx.card_active(state, frame, SNIPERS_AIM, this_turn=False):
         return 0
     return _extra_range(state.catalogue.get(SNIPERS_AIM))
 
 
 def _effect_master_duelist(state: GameState, frame: FrameState, uid: str):
+    card = state.card(uid)
+    _apply_statuses(state, frame, _parse_statuses(card.text))
     state.note(
         f"{frame.id} duels: for the next 3 turns its melee targets are "
         f"revealed and it picks their blocks"
@@ -2229,15 +2232,13 @@ def rebound_sight(
 
 
 def _effect_cage_fight(state: GameState, frame: FrameState, uid: str):
-    """"Choose an enemy frame within 2. Create a 5x5 box of impassible terrain
-    that surrounds this frame and that frame."
-
-    The box is not chosen: both fighters have to end up inside the 3x3 the
-    walls enclose, and with them at most two apart the centre is their
-    midpoint. So the only question the card asks is who is being locked in
-    with -- the walls follow.
+    """"Surround this frame and an adjacent enemy with a 4x4 box of impassible
+    terrain, pushing units aside. This box is removed if either frame leaves it
+    or is destroyed."
     """
-    reach = _reach_from_text(state.card(uid).text, 2)
+    card = state.card(uid)
+    text = (card.text or "").lower()
+    reach = 1 if "adjacent" in text else _reach_from_text(card.text, 1)
     victims = fx.frames_within(state, frame, reach, side="enemy")
     if not victims:
         state.note(f"{frame.id} finds nobody to lock in with")
@@ -2264,22 +2265,46 @@ def _choice_cage_fight(
         _raise_cage(state, frame, target)
 
 
-def _cage_walls(state: GameState, centre: Pos) -> list[Pos]:
-    """The ring of the 5x5 box: everything exactly `CAGE_RADIUS` from centre."""
+def _cage_bounds(
+    state: GameState, f_pos: Pos, t_pos: Pos
+) -> tuple[tuple[int, int], tuple[int, int], tuple[int, int], tuple[int, int]]:
+    min_x, max_x = min(f_pos.x, t_pos.x), max(f_pos.x, t_pos.x)
+    min_y, max_y = min(f_pos.y, t_pos.y), max(f_pos.y, t_pos.y)
+    b_width = state.board.width if state.board else 20
+    b_height = state.board.height if state.board else 20
+
+    if min_x == max_x:
+        int_x = (min_x - 1, min_x) if min_x + 1 >= b_width - 1 else (min_x, min_x + 1)
+    else:
+        int_x = (min_x, max_x)
+
+    if min_y == max_y:
+        int_y = (min_y - 1, min_y) if min_y + 1 >= b_height - 1 else (min_y, min_y + 1)
+    else:
+        int_y = (min_y, max_y)
+
+    wall_x = (int_x[0] - 1, int_x[1] + 1)
+    wall_y = (int_y[0] - 1, int_y[1] + 1)
+    return int_x, int_y, wall_x, wall_y
+
+
+def _cage_walls(state: GameState, wall_x: tuple[int, int], wall_y: tuple[int, int]) -> list[Pos]:
+    """The ring of the 4x4 box: perimeter tiles of [wall_x, wall_y]."""
     out: list[Pos] = []
     if state.board is None:
         return out
-    for dy in range(-CAGE_RADIUS, CAGE_RADIUS + 1):
-        for dx in range(-CAGE_RADIUS, CAGE_RADIUS + 1):
-            if max(abs(dx), abs(dy)) != CAGE_RADIUS:
-                continue
-            pos = Pos(centre.x + dx, centre.y + dy)
-            if state.board.in_bounds(pos):
-                out.append(pos)
+    for y in range(wall_y[0], wall_y[1] + 1):
+        for x in range(wall_x[0], wall_x[1] + 1):
+            if x in (wall_x[0], wall_x[1]) or y in (wall_y[0], wall_y[1]):
+                pos = Pos(x, y)
+                if state.board.in_bounds(pos):
+                    out.append(pos)
     return out
 
 
-def _push_out(state: GameState, centre: Pos, pos: Pos) -> Optional[Pos]:
+def _push_out(
+    state: GameState, wall_x: tuple[int, int], wall_y: tuple[int, int], pos: Pos
+) -> Optional[Pos]:
     """The nearest free tile outside the box, for whatever the wall lands on."""
     if state.board is None:
         return None
@@ -2290,9 +2315,9 @@ def _push_out(state: GameState, centre: Pos, pos: Pos) -> Optional[Pos]:
     best_key = (10 ** 6, 0, 0)
     for y in range(state.board.height):
         for x in range(state.board.width):
-            candidate = Pos(x, y)
-            if state.board.distance(centre, candidate) <= CAGE_RADIUS:
+            if wall_x[0] <= x <= wall_x[1] and wall_y[0] <= y <= wall_y[1]:
                 continue
+            candidate = Pos(x, y)
             tile = state.board.tile(candidate)
             if tile.impassable or tile.obstacle or candidate in taken:
                 continue
@@ -2305,21 +2330,19 @@ def _push_out(state: GameState, centre: Pos, pos: Pos) -> Optional[Pos]:
 def _raise_cage(state: GameState, frame: FrameState, target: FrameState) -> None:
     if frame.pos is None or target.pos is None or state.board is None:
         return
-    centre = Pos((frame.pos.x + target.pos.x) // 2, (frame.pos.y + target.pos.y) // 2)
+    int_x, int_y, wall_x, wall_y = _cage_bounds(state, frame.pos, target.pos)
     walls: list[str] = []
-    for pos in _cage_walls(state, centre):
-        # "Units in tiles that this places are pushed outside" -- and so is
-        # anything else standing there, since the wall goes up regardless.
+    for pos in _cage_walls(state, wall_x, wall_y):
         standing = state.frame_at(pos)
         if standing is not None:
-            spot = _push_out(state, centre, pos)
+            spot = _push_out(state, wall_x, wall_y, pos)
             if spot is not None:
                 _move_frame(state, standing, spot)
             else:
-                continue                       # nowhere to put it: no wall here
+                continue
         for token in state.tokens.values():
             if token.alive and token.pos == pos:
-                spot = _push_out(state, centre, pos)
+                spot = _push_out(state, wall_x, wall_y, pos)
                 if spot is None:
                     break
                 token.pos = spot
@@ -2329,13 +2352,16 @@ def _raise_cage(state: GameState, frame: FrameState, target: FrameState) -> None
             continue
         walls.append(fx.spawn_token(state, fx.CAGE, pos, owner=frame.seat).id)
     fx.slot(state, "cages")[frame.id] = {
-        "centre": [centre.x, centre.y],
+        "int_x": list(int_x),
+        "int_y": list(int_y),
+        "wall_x": list(wall_x),
+        "wall_y": list(wall_y),
         "fighters": [frame.id, target.id],
         "walls": walls,
     }
     state.note(
-        f"{frame.id} cages {target.id}: a 5x5 box around "
-        f"({centre.x},{centre.y})"
+        f"{frame.id} cages {target.id}: a 4x4 box around "
+        f"{frame.id} and {target.id}"
     )
 
 
@@ -2343,9 +2369,14 @@ def _in_cage(state: GameState, record: Mapping, frame_id: str) -> bool:
     frame = state.frames.get(frame_id)
     if frame is None or not frame.alive or frame.pos is None:
         return False
+    int_x = record.get("int_x")
+    int_y = record.get("int_y")
+    if int_x and int_y:
+        return int_x[0] <= frame.pos.x <= int_x[1] and int_y[0] <= frame.pos.y <= int_y[1]
+    # Fallback for old centre-based records
     centre = Pos(int(record["centre"][0]), int(record["centre"][1]))
     gap = fx.distance(state, centre, frame.pos)
-    return gap is not None and gap < CAGE_RADIUS
+    return gap is not None and gap < 2
 
 
 def sync_cages(state: GameState) -> None:
@@ -3101,8 +3132,8 @@ def grants_guard_break(
 
 
 def ignores_obstacles(state: GameState, attacker: FrameState) -> bool:
-    """Snipers aim: "until the end of next turn: ranged attacks ignore obstacles"."""
-    return fx.card_active(state, attacker, SNIPERS_AIM)
+    """Snipers aim: "next turn: ranged attacks ignore obstacles"."""
+    return fx.card_active(state, attacker, SNIPERS_AIM, this_turn=False)
 
 
 def is_untargetable(
@@ -3873,8 +3904,9 @@ def _choice_drone_block(
     zones = [str(z) for z in ctx.get("zones", [])]
     block_card = state.card(uid)
     combat.apply_block(state, frame, attack, uid, zones)
+    attack_card = state.card(attack.uid) if attack and attack.uid else None
     on_block(state, frame, block_card, state.frames.get(attack.attacker_id),
-             via_token=attack.via_token)
+             via_token=attack.via_token, attack_card=attack_card)
     _drone_resolve(state, token_id, attack)
 
 
@@ -3914,8 +3946,10 @@ def on_block(
     attacker: Optional[FrameState],
     *,
     via_token: str = "",
+    attack_card: Optional[Card] = None,
+    is_melee: Optional[bool] = None,
 ) -> None:
-    """`On Block:` -- fires when this card is spent blocking.
+    """`On Block:` / `On Melee Block:` -- fires when this card is spent blocking.
 
     Whatever the rider does, it does to *the thing that swung*. When a drone
     made the attack that is the drone, not the frame that summoned it: a Chain
@@ -3928,10 +3962,15 @@ def on_block(
     match = _ON_BLOCK_RE.search(block_card.text or "")
     if not match:
         return
+    melee_only = bool(match.group(1))
+    if attack_card is not None and is_melee is None:
+        is_melee = not attack_card.is_ranged
+    if melee_only and is_melee is False:
+        return
     token = state.tokens.get(via_token) if via_token else None
     if token is None and attacker is None:
         return
-    body = match.group(1)
+    body = match.group(2)
     what = drone_name(state, token.id) if token is not None else ""
     for kind, count in _parse_statuses(body):
         if token is not None:
@@ -3980,7 +4019,7 @@ def attack_damage_bonus(
             spread += int(match.group(1))
             state.note(f"{card.key}: target has not moved, +{match.group(1)} damage")
 
-    if card.is_ranged and fx.card_active(state, attacker, SNIPERS_AIM):
+    if card.is_ranged and fx.card_active(state, attacker, SNIPERS_AIM, this_turn=False):
         extra = _extra_damage(state.catalogue.get(SNIPERS_AIM))
         spread += extra
         state.note(f"Snipers aim adds {extra} damage")

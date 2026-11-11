@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pytest
 
-from playtest.engine import combat
+from playtest.engine import combat, keywords as kw
 from playtest.engine.combat import (
     attack_zones_against,
     block_options,
@@ -137,13 +137,16 @@ def test_only_zones_actually_in_range_count_on_a_multi_range_attack():
     moved before, and what is being tested is that the shorter zone drops out
     on its own rather than the attack landing whole or not at all.
     """
-    card = CATALOGUE["Stun Bow_Rapid fire"]
-    high, mid = card.ranges["High"], card.ranges["Mid"]
-    assert 1 < high < mid, "the card has to have two different reaches"
-    state, atk, dfn = _duel(a=Pos(0, 0), b=Pos(mid - 1, 0))
-    assert zones_in_range(state, atk, card, dfn.pos, dfn) == {"Mid": 1}
-    dfn.pos = Pos(high - 1, 0)
-    assert zones_in_range(state, atk, card, dfn.pos, dfn) == {"High": 1, "Mid": 1}
+    card = CATALOGUE["Railgun_Snipe"]
+    mid, high = card.ranges["Mid"], card.ranges["High"]
+    assert 1 < mid < high, "the card has to have two different reaches"
+    state, atk, dfn = _duel(a=Pos(0, 0), b=Pos(high - 1, 0))
+    assert zones_in_range(state, atk, card, dfn.pos, dfn) == {"High": card.attacks["High"]}
+    dfn.pos = Pos(mid - 1, 0)
+    assert zones_in_range(state, atk, card, dfn.pos, dfn) == {
+        "High": card.attacks["High"],
+        "Mid": card.attacks["Mid"],
+    }
 
 
 def test_line_of_sight_is_asked_of_the_board_and_respected():
@@ -471,13 +474,21 @@ def test_guard_break_is_the_only_difference_from_an_ordinary_attack():
 
     # Guard Break attack on High and Mid.
     state2, atk2, dfn2 = _gunner_duel()
-    breaker = CATALOGUE["Missile Rack_Missile Rack 1"]   # High 2, Mid 2
+    breaker = CATALOGUE["Plasma Rifle_Charged Shot"]   # High 2, Mid 1
     assert "guardbreak" in breaker.keywords
     give(state2, dfn2, blocker_key)
-    run_attack(state2, atk2, give(state2, atk2, "Missile Rack_Missile Rack 1"),
+    run_attack(state2, atk2, give(state2, atk2, "Plasma Rifle_Charged Shot"),
                dfn2)
     assert dfn2.damage["High"] == 0, "the card's High block still covers High"
-    assert dfn2.damage["Mid"] == 2, "Mid is not covered, so it lands"
+    assert dfn2.damage["Mid"] == breaker.attacks["Mid"], "Mid is not covered, so it lands"
+
+
+def test_ignores_line_of_sight_attacks_through_blocked_vision():
+    state, atk, dfn = _gunner_duel()
+    state.board.los = False
+    card = CATALOGUE["Missile Rack_Missile Rack 1"]
+    assert kw.ignores_line_of_sight(card)
+    assert can_target(state, atk, card, dfn.pos, dfn)
 
 
 def test_a_feint_deals_no_damage_but_still_forces_a_block():
@@ -662,13 +673,14 @@ def test_hits_all_targets_in_range_catches_everything_it_could_have_declared():
     from playtest.engine.state import TokenState
 
     tangle = CATALOGUE["Chain_Tangle"]
-    assert tangle.ranges["Low"] == 3 and tangle.is_ranged
+    reach = tangle.ranges["Low"]
+    assert reach > 1 and tangle.is_ranged
 
-    state, atk, dfn = _duel(a=Pos(1, 1), b=Pos(4, 1))    # three apart
-    near = add_frame(state, 1, "Kuwagata", Pos(1, 4))    # also three
+    state, atk, dfn = _duel(a=Pos(1, 1), b=Pos(1 + reach, 1))
+    near = add_frame(state, 1, "Kuwagata", Pos(1, 1 + reach))
     far = add_frame(state, 1, "Kuwagata", Pos(9, 9))     # out of range
     state.tokens["t0"] = TokenState(
-        id="t0", kind="tower", pos=Pos(3, 3), hp=4, max_hp=4, owner=1
+        id="t0", kind="tower", pos=Pos(1 + reach, 2), hp=4, max_hp=4, owner=1
     )
 
     uid = give(state, atk, "Chain_Tangle")
@@ -684,9 +696,11 @@ def test_hits_all_targets_in_range_does_not_double_up_on_the_declared_target():
     """Whichever of them was named, the card hits each of them once."""
     from playtest.engine.state import TokenState
 
-    state, atk, dfn = _duel(a=Pos(1, 1), b=Pos(4, 1))
+    tangle = CATALOGUE["Chain_Tangle"]
+    reach = tangle.ranges["Low"]
+    state, atk, dfn = _duel(a=Pos(1, 1), b=Pos(1 + reach, 1))
     state.tokens["t0"] = TokenState(
-        id="t0", kind="tower", pos=Pos(3, 3), hp=4, max_hp=4, owner=1
+        id="t0", kind="tower", pos=Pos(1 + reach, 2), hp=4, max_hp=4, owner=1
     )
     uid = give(state, atk, "Chain_Tangle")
     attack = combat.declare_attack(
