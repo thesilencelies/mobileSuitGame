@@ -196,6 +196,12 @@ def enumerate_all_cards() -> list[tuple[str, str]]:
             tex = f"terrain/{row['Name']}.tex"
             pairs.append((tex, card_image_name(tex)))
 
+    for help_tex, help_png in [
+        ("card/Helpcard_Symbols.tex", "Helpcard_Symbols.png"),
+        ("card/Helpcard_Keywords.tex", "Helpcard_Keywords.png"),
+    ]:
+        pairs.append((help_tex, help_png))
+
     if not pairs:
         sys.exit("Error: no printable rows found across the action/frame/terrain CSVs.")
 

@@ -726,6 +726,37 @@ def enumerate_cards() -> list[dict]:
             "_local_image": IMAGE_DIR / image_name,
         })
 
+    # 4. Rules reference helpcards
+    helpcard_entries = [
+        {
+            "name": "Helpcard - Symbols & Combat",
+            "description": "Rules reference: common symbols, stats, damage types, status effects",
+            "gm_notes": "Reference helpcard: common symbols, stats, damage types, status effects",
+            "face": "Helpcard_Symbols.png",
+            "back": "Helpcard_Keywords.png",
+        },
+        {
+            "name": "Helpcard - Keywords Glossary",
+            "description": "Rules reference: keyword definitions and simplified summaries",
+            "gm_notes": "Reference helpcard: keyword definitions and simplified summaries",
+            "face": "Helpcard_Keywords.png",
+            "back": "Helpcard_Symbols.png",
+        },
+    ]
+    for hc in helpcard_entries:
+        entries.append({
+            "name": hc["name"],
+            "description": hc["description"],
+            "gm_notes": hc["gm_notes"],
+            "tags": build_tags("Card", "HELPCARD"),
+            "lua_script": "",
+            "face": ALL_CARD_IMAGES_URL + quote(hc["face"]),
+            "back": ALL_CARD_IMAGES_URL + quote(hc["back"]),
+            "type": "0",
+            "sideways": "false",
+            "_local_image": IMAGE_DIR / hc["face"],
+        })
+
     if not entries:
         sys.exit("Error: no printable rows found across action, frame, and terrain CSVs.")
     return entries
