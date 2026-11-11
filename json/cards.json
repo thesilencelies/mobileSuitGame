@@ -114,8 +114,8 @@
     },
     "8": {
       "name": "Sword Parry",
-      "description": "On Block: the text after the colon only applies if this card blocks an attack\nSuper block: a block value above 1; a zone blocked by a super block is not discarded, the card stays on the field revealed",
-      "gm_notes": "3init\n0mv\nBlk:1H,2M\nOn Block: deals mid cut",
+      "description": "Super block: a block value above 1; a zone blocked by a super block is not discarded, the card stays on the field revealed",
+      "gm_notes": "3init\n0mv\nBlk:1H,2M\nOn Melee Block: deals mid cut",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -307,7 +307,7 @@
     "20": {
       "name": "Assault Rifle Covering Fire",
       "description": "Feint: if this attack is not blocked it deals no damage (blocks are compulsory)",
-      "gm_notes": "6init\n-2mv\natk:1H@6,1M@6,1L@6 projectile\nBlk:1M\nFeint (This attack deals no damage)",
+      "gm_notes": "6init\n-2mv\natk:1H@5,1M@5,1L@5 projectile\nBlk:1M\nFeint (This attack deals no damage)",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -323,7 +323,7 @@
     "21": {
       "name": "Stun Bow Rapid fire",
       "description": "On Hit: the text after the colon only applies if the attack hits (that is, is not blocked)\nStunned: while stunned a frame gets -2 init\nGuard Break: this attack consumes one block per zone; zones that are not blocked still deal damage",
-      "gm_notes": "3init\n-3mv\natk:1H@6,1M@8 pierce\nBlk:1M\nOn Hit: target gets 2 Stunned (-2 init)\nGuard Break",
+      "gm_notes": "3init\n-3mv\natk:1H@5,1M@5 pierce\nBlk:1M\nOn Hit: target gets 2 Stunned (-2 init)\nGuard Break",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -339,7 +339,7 @@
     "22": {
       "name": "Stun Bow Arc shot",
       "description": "On Hit: the text after the colon only applies if the attack hits (that is, is not blocked)\nStunned: while stunned a frame gets -2 init",
-      "gm_notes": "3init\n-2mv\natk:2H@8 pierce\nBlk:1M\nOn Hit: target gets 2 Stunned (-2 init)",
+      "gm_notes": "3init\n-2mv\natk:2H@6 pierce\nBlk:1M\nOn Hit: target gets 2 Stunned (-2 init)",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -355,7 +355,7 @@
     "23": {
       "name": "Stun Bow Straight shot",
       "description": "On Hit: the text after the colon only applies if the attack hits (that is, is not blocked)\nStunned: while stunned a frame gets -2 init",
-      "gm_notes": "5init\n-1mv\natk:1M@8 pierce\nBlk:1M\nOn Hit: target gets 2 Stunned (-2 init)",
+      "gm_notes": "5init\n-1mv\natk:1M@6 pierce\nBlk:1M\nOn Hit: target gets 2 Stunned (-2 init)",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -371,7 +371,7 @@
     "24": {
       "name": "Stun Bow Low blow",
       "description": "On Hit: the text after the colon only applies if the attack hits (that is, is not blocked)\nStunned: while stunned a frame gets -2 init",
-      "gm_notes": "5init\n-1mv\natk:1L@8 pierce\nBlk:1M\nOn Hit: target gets 2 Stunned (-2 init)",
+      "gm_notes": "5init\n-1mv\natk:1L@6 pierce\nBlk:1M\nOn Hit: target gets 2 Stunned (-2 init)",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -387,7 +387,7 @@
     "25": {
       "name": "Cannon Fullbore",
       "description": "Reload: this card persists until this frame next resolves an attack from this weapon; that card deals no damage and triggers no abilities, then both are discarded",
-      "gm_notes": "2init\n-3mv\natk:3M@12 projectile\nBlk:1M\npersist:permanent\nReload (This frames next action from this weapon has no effect or attack.)",
+      "gm_notes": "2init\n-3mv\natk:3M@10 projectile\nBlk:1M\npersist:permanent\nReload (This frames next action from this weapon has no effect or attack.)",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -403,7 +403,7 @@
     "26": {
       "name": "Cannon Airburst",
       "description": "Guard Break: this attack consumes one block per zone; zones that are not blocked still deal damage\nReload: this card persists until this frame next resolves an attack from this weapon; that card deals no damage and triggers no abilities, then both are discarded",
-      "gm_notes": "2init\n-2mv\natk:1H@12,1M@12,2L@6 projectile\nBlk:1M\npersist:permanent\nGuard Break (This attack consumes one block per zone)\nReload (This frames next action from this weapon has no effect or attack.)",
+      "gm_notes": "2init\n-2mv\natk:1H@10,1M@10,2L@6 projectile\nBlk:1M\npersist:permanent\nGuard Break (This attack consumes one block per zone)\nReload (This frames next action from this weapon has no effect or attack.)",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -419,7 +419,7 @@
     "27": {
       "name": "Cannon Cannon",
       "description": "Guard Break: this attack consumes one block per zone; zones that are not blocked still deal damage\nReload: this card persists until this frame next resolves an attack from this weapon; that card deals no damage and triggers no abilities, then both are discarded",
-      "gm_notes": "2init\n-3mv\natk:1H@6,2M@12,2L@12 projectile\nBlk:1M\npersist:permanent\nGuard Break (This attack consumes one block per zone)\nReload (This frames next action from this weapon has no effect or attack.)",
+      "gm_notes": "2init\n-3mv\natk:1H@6,2M@10,2L@10 projectile\nBlk:1M\npersist:permanent\nGuard Break (This attack consumes one block per zone)\nReload (This frames next action from this weapon has no effect or attack.)",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -435,7 +435,7 @@
     "28": {
       "name": "Cannon Pummel",
       "description": "Reload: this card persists until this frame next resolves an attack from this weapon; that card deals no damage and triggers no abilities, then both are discarded",
-      "gm_notes": "2init\n-3mv\natk:3L@12 projectile\nBlk:1M\npersist:permanent\nReload (This frames next action from this weapon has no effect or attack.)",
+      "gm_notes": "2init\n-3mv\natk:3L@10 projectile\nBlk:1M\npersist:permanent\nReload (This frames next action from this weapon has no effect or attack.)",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -579,7 +579,7 @@
     "37": {
       "name": "Chain Whip",
       "description": "On Hit: the text after the colon only applies if the attack hits (that is, is not blocked)\nSlowed: while slowed a frame gets -2 mv",
-      "gm_notes": "6init\n-1mv\natk:1M@3 impact\nBlk:1M\nOn Hit: target gets 2 Slowed (-2 mv)",
+      "gm_notes": "6init\n-1mv\natk:1M@2 impact\nBlk:1M\nOn Hit: target gets 2 Slowed (-2 mv)",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -595,7 +595,7 @@
     "38": {
       "name": "Chain Tangle",
       "description": "",
-      "gm_notes": "6init\n0mv\natk:1L@3 impact\nBlk:1M\nHits all targets in range",
+      "gm_notes": "6init\n0mv\natk:1L@2 impact\nBlk:1M\nHits all targets in range",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -610,8 +610,8 @@
     },
     "39": {
       "name": "Chain Throttle",
-      "description": "On Hit: the text after the colon only applies if the attack hits (that is, is not blocked)\nDazed: while dazed a frame gets -2 cards",
-      "gm_notes": "4init\n-1mv\natk:2H impact\nBlk:1H\nOn Hit: target gets 2 Dazed (-2 card)",
+      "description": "On Hit: the text after the colon only applies if the attack hits (that is, is not blocked)\nStunned: while stunned a frame gets -2 init",
+      "gm_notes": "4init\n-1mv\natk:2H impact\nBlk:1H\nOn Hit: target gets 2 Stunned (-2 init)",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -626,8 +626,8 @@
     },
     "40": {
       "name": "Chain Catch",
-      "description": "On Block: the text after the colon only applies if this card blocks an attack\nDazed: while dazed a frame gets -2 cards\nSuper block: a block value above 1; a zone blocked by a super block is not discarded, the card stays on the field revealed",
-      "gm_notes": "6init\n0mv\nBlk:1H,2M\nOn Block: attacker gets Dazed (-2 card)",
+      "description": "Dazed: while dazed a frame gets -2 cards\nSuper block: a block value above 1; a zone blocked by a super block is not discarded, the card stays on the field revealed",
+      "gm_notes": "6init\n0mv\nBlk:1H,2M\nOn Melee Block: attacker gets Dazed (-2 card)",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -706,8 +706,8 @@
     },
     "45": {
       "name": "Missile Rack 1",
-      "description": "Guard Break: this attack consumes one block per zone; zones that are not blocked still deal damage",
-      "gm_notes": "2init\n-3mv\natk:2H@8,2M@8 projectile\nBlk:1M\nfaction:Guild\nGuard Break (This attack consumes one block per zone)\nCan only be used by J7R-Salryman",
+      "description": "",
+      "gm_notes": "1init\n-3mv\natk:2H@6,2M@6 projectile\nBlk:1M\nfaction:Guild\ndoesnt need line of sight\nCan only be used by J7R-Salryman",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -722,8 +722,8 @@
     },
     "46": {
       "name": "Missile Rack 2",
-      "description": "Guard Break: this attack consumes one block per zone; zones that are not blocked still deal damage",
-      "gm_notes": "2init\n-3mv\natk:2M@8,2L@8 projectile\nBlk:1M\nfaction:Guild\nGuard Break (This attack consumes one block per zone)\nCan only be used by J7R-Salryman",
+      "description": "",
+      "gm_notes": "1init\n-3mv\natk:2M@6,2L@6 projectile\nBlk:1M\nfaction:Guild\ndoesnt need line of sight\nCan only be used by J7R-Salryman",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -738,8 +738,8 @@
     },
     "47": {
       "name": "Missile Rack 3",
-      "description": "Guard Break: this attack consumes one block per zone; zones that are not blocked still deal damage",
-      "gm_notes": "2init\n-3mv\natk:2H@8,2L@8 projectile\nBlk:1M\nfaction:Guild\nGuard Break (This attack consumes one block per zone)\nCan only be used by J7R-Salryman",
+      "description": "",
+      "gm_notes": "1init\n-3mv\natk:2H@6,2L@6 projectile\nBlk:1M\nfaction:Guild\ndoesnt need line of sight\nCan only be used by J7R-Salryman",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -770,8 +770,8 @@
     },
     "49": {
       "name": "Greatsword Parry",
-      "description": "On Block: the text after the colon only applies if this card blocks an attack\nSuper block: a block value above 1; a zone blocked by a super block is not discarded, the card stays on the field revealed",
-      "gm_notes": "3init\n0mv\nBlk:1M,2L\nOn Block: deals mid cut",
+      "description": "Super block: a block value above 1; a zone blocked by a super block is not discarded, the card stays on the field revealed",
+      "gm_notes": "3init\n0mv\nBlk:1M,2L\nOn Melee Block: deals mid cut",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -883,7 +883,7 @@
     "56": {
       "name": "Plasma Rifle Charged Shot",
       "description": "Guard Break: this attack consumes one block per zone; zones that are not blocked still deal damage\nReload: this card persists until this frame next resolves an attack from this weapon; that card deals no damage and triggers no abilities, then both are discarded",
-      "gm_notes": "3init\n-3mv\natk:2H@7,1M@7 energy\nBlk:1M\npersist:permanent\nGuard Break (This attack consumes one block per zone)\nReload (This frames next action from this weapon has no effect or attack.)",
+      "gm_notes": "3init\n-3mv\natk:2H@6,1M@6 energy\nBlk:1M\npersist:permanent\nGuard Break (This attack consumes one block per zone)\nReload (This frames next action from this weapon has no effect or attack.)",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -899,7 +899,7 @@
     "57": {
       "name": "Plasma Rifle Single Shot",
       "description": "",
-      "gm_notes": "3init\n-2mv\natk:2M@7 energy\nBlk:1M",
+      "gm_notes": "3init\n-2mv\natk:2M@6 energy\nBlk:1M",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -915,7 +915,7 @@
     "58": {
       "name": "Plasma Rifle Plasma Stream",
       "description": "Guard Break: this attack consumes one block per zone; zones that are not blocked still deal damage",
-      "gm_notes": "4init\n-2mv\natk:1M@7,1L@7 energy\nBlk:1M\nGuard Break (This attack consumes one block per zone)",
+      "gm_notes": "4init\n-2mv\natk:1M@5,1L@5 energy\nBlk:1M\nGuard Break (This attack consumes one block per zone)",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -947,7 +947,7 @@
     "60": {
       "name": "Railgun Hypervelocity Shot",
       "description": "Knockback X: move the target frame X steps in any direction away from the source (it cannot move up elevation)",
-      "gm_notes": "2init\n-3mv\natk:2M@10,2L@10 projectile\nBlk:1M\nKnockback 2 (Move the target frame 2 steps in any direction away from the source)",
+      "gm_notes": "2init\n-3mv\natk:2M@9,2L@9 projectile\nBlk:1M\nKnockback 2 (Move the target frame 2 steps in any direction away from the source)",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -979,7 +979,7 @@
     "62": {
       "name": "Railgun Snipe",
       "description": "Knockback X: move the target frame X steps in any direction away from the source (it cannot move up elevation)",
-      "gm_notes": "1init\n-3mv\natk:2H@14,2M@10 projectile\nBlk:1M\nKnockback 2 (Move the target frame 2 steps in any direction away from the source)",
+      "gm_notes": "1init\n-3mv\natk:2H@12,2M@9 projectile\nBlk:1M\nKnockback 2 (Move the target frame 2 steps in any direction away from the source)",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -1123,7 +1123,7 @@
     "71": {
       "name": "Axe Throw",
       "description": "Committed: this attack is discarded after it resolves",
-      "gm_notes": "5init\n0mv\natk:2M@8 cut\nBlk:1M\nCommitted (this attack is discarded after resolving)",
+      "gm_notes": "5init\n0mv\natk:2M@5 cut\nBlk:1M\nCommitted (this attack is discarded after resolving)",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -1139,7 +1139,7 @@
     "72": {
       "name": "Great Axe Cleave",
       "description": "Guard Break: this attack consumes one block per zone; zones that are not blocked still deal damage",
-      "gm_notes": "3init\n-3mv\natk:3M,2L cut\nBlk:1L\nGuard Break (This attack consumes one block per zone)",
+      "gm_notes": "2init\n-3mv\natk:3M,2L cut\nBlk:1L\nGuard Break (This attack consumes one block per zone)",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -1458,8 +1458,8 @@
     },
     "92": {
       "name": "Booster Accelerate",
-      "description": "",
-      "gm_notes": "9init\n0mv\nBlk:1L\nOther actions this turn get +2 mv",
+      "description": "Boosted: while boosted a frame gets +2 mv",
+      "gm_notes": "9init\n0mv\nBlk:1L\nthis frame gets Boosted (+2 mv) 2",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -1555,7 +1555,7 @@
     "98": {
       "name": "Bruiser Intimidate",
       "description": "Committed: this attack is discarded after it resolves",
-      "gm_notes": "8init\n0mv\nBlk:1H\nAll enemies within 3 must consume one block\nCommitted (this attack is discarded after resolving)",
+      "gm_notes": "8init\n0mv\nBlk:1H\nAll enemies within 2 must consume one block\nCommitted (this attack is discarded after resolving)",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -1619,7 +1619,7 @@
     "102": {
       "name": "Bruiser Suplex",
       "description": "Stunned: while stunned a frame gets -2 init\nDazed: while dazed a frame gets -2 cards",
-      "gm_notes": "4init\n-1mv\nBlk:1H\nMove Target frame within 3 to a position within 3 the other side of this frame. That target gets 2 Stunned and 2 Dazed",
+      "gm_notes": "4init\n-1mv\nBlk:1H\nMove Target frame within 3 to the other side of this frame. That target gets 2 Stunned and 2 Dazed",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -1699,7 +1699,7 @@
     "107": {
       "name": "Mystic Psychic Storm",
       "description": "",
-      "gm_notes": "1init\n-2mv\nBlk:1H\npersist:permanent\nCreate storm token within 5. At the end of each turn, every unit within 3 of that storm token takes energy high",
+      "gm_notes": "1init\n-2mv\nBlk:1H\npersist:permanent\nCreate storm token within 4. At the end of each turn, every unit within 2 of that storm token takes energy high",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -1778,8 +1778,8 @@
     },
     "112": {
       "name": "Tactician Outfox",
-      "description": "Revealed: while revealed a frame's chosen actions are turned face up\nDazed: while dazed a frame gets -2 cards",
-      "gm_notes": "4init\n-1mv\nBlk:1H\nTarget frame within 4 gets 3 Revealed (chosen actions are turned face up) and 2 Dazed (-2 card)",
+      "description": "Revealed: while revealed a frame's chosen actions are turned face up\nDazed: while dazed a frame gets -2 cards\nSlowed: while slowed a frame gets -2 mv",
+      "gm_notes": "4init\n-1mv\nBlk:1H\nTarget frame within 4 gets 3 Revealed (chosen actions are turned face up) and 2 Dazed (-2 card) and 2 Slowed (-2 mv)",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -1795,7 +1795,7 @@
     "113": {
       "name": "Tactician Displace",
       "description": "",
-      "gm_notes": "1init\n-2mv\nBlk:1H\nMove another target frame within 5 to a new position within 8 of this frame",
+      "gm_notes": "1init\n-2mv\nBlk:1H\nMove another target frame within 4 to a new position within 6 of this frame",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -2019,7 +2019,7 @@
     "127": {
       "name": "Specialist Combo strike",
       "description": "",
-      "gm_notes": "8init\n-2mv\nBlk:1H\npersist:1 turn\nUntil the end of next turn: When this frame takes a weapon action, reveal the top 4 cards of its deck and choose up to 1 card from the same weapon: the attack from that card resolves after the current attack finishes",
+      "gm_notes": "4init\n-2mv\nBlk:1H\npersist:1 turn\nNext turn: On a weapon attack, draw 4 cards, choose up to 1 from the same weapon and put the rest to the bottom: resolve that attack after the current attack",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -2034,8 +2034,8 @@
     },
     "128": {
       "name": "Specialist Snipers aim",
-      "description": "Committed: this attack is discarded after it resolves",
-      "gm_notes": "7init\n-3mv\nBlk:1H\npersist:1 turn\nUntil the end of next turn: Ranged attacks ignore obstacles, get + 4 range and deal 1 extra damage\nCommitted (this attack is discarded after resolving)",
+      "description": "",
+      "gm_notes": "4init\n-3mv\nBlk:1H\npersist:1 turn\nNext turn: Ranged attacks ignore obstacles, get + 4 range and deal 1 extra damage",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -2050,8 +2050,8 @@
     },
     "129": {
       "name": "Specialist Master duelist",
-      "description": "Revealed: while revealed a frame's chosen actions are turned face up",
-      "gm_notes": "3init\n-2mv\nBlk:1H\npersist:3 turns\nFor the next 3 turns: Enemies targeted by this frame's melee attacks get Revealed and you choose which card blocks",
+      "description": "Stimmed: while stimmed a frame gets +2 init\nRevealed: while revealed a frame's chosen actions are turned face up",
+      "gm_notes": "3init\n-2mv\nBlk:1H\npersist:3 turns\nThis frame gets 3 Stimmed (+2 init)\nFor the next 3 turns: Enemies targeted by this frame's melee attacks get Revealed and you choose which card blocks",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -2066,8 +2066,8 @@
     },
     "130": {
       "name": "Specialist Practiced Technique",
-      "description": "Lucid: while lucid a frame gets +2 cards\nRevealed: while revealed a frame's chosen actions are turned face up\nStimmed: while stimmed a frame gets +2 init\nGuard Break: this attack consumes one block per zone; zones that are not blocked still deal damage",
-      "gm_notes": "5init\n-1mv\nBlk:1H\npersist:1 turn\nThis frame gets 1 Lucid (+2 cards) , 1 Revealed (chosen actions are turned face up) and 2 Stimmed (+2 init)\nNext turn: If every action chosen this turn was from the same weapon, those attacks deal 1 extra damage and gain Guard Break",
+      "description": "Lucid: while lucid a frame gets +2 cards\nRevealed: while revealed a frame's chosen actions are turned face up\nGuard Break: this attack consumes one block per zone; zones that are not blocked still deal damage",
+      "gm_notes": "5init\n-1mv\nBlk:1H\npersist:1 turn\nThis frame gets 1 Lucid and 2 Revealed\nNext turn: If every action chosen this turn was from the same weapon, those attacks deal 1 extra damage, get +2 init and gain Guard Break",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -2099,7 +2099,7 @@
     "132": {
       "name": "Specialist Cage Fight",
       "description": "",
-      "gm_notes": "3init\n-2mv\nBlk:1H\npersist:permanent\nSurround this frame and an enemy within 2 with a 5x5 box of impassible terrain, pushing units aside. This box is removed if either frame leaves it or is destroyed.",
+      "gm_notes": "3init\n-2mv\nBlk:1H\npersist:permanent\nSurround this frame and an adjacent enemy with a 4x4 box of impassible terrain, pushing units aside. This box is removed if either frame leaves it or is destroyed.",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -2256,7 +2256,7 @@
     "142": {
       "name": "Adam",
       "description": "",
-      "gm_notes": "5mv\narmour:4H/3M/3L\nweapons:2\nboosters:0\ndeck:14\nfaction:Collective\npierce Attacks get +2 initiative",
+      "gm_notes": "5mv\narmour:4H/3M/3L\nweapons:2\nboosters:0\ndeck:14\nfaction:Collective\nActions get +1 initiative",
       "tags": {
         "1": "Card",
         "2": "Frame",
@@ -2270,8 +2270,8 @@
     },
     "143": {
       "name": "RipperSmasher",
-      "description": "Deathstrike: when this frame would be destroyed it fights on until the end of the next turn, and is only removed if it is still dead",
-      "gm_notes": "3mv\narmour:4H/3M/4L\nweapons:3\nboosters:2\ndeck:21\nfaction:Revolution\nDeathstrike\nactions reduce movement by a maximum of -1",
+      "description": "Deathstrike: when this frame would be destroyed it fights on until the end of the turn, after which it is removed from play",
+      "gm_notes": "3mv\narmour:4H/3M/4L\nweapons:3\nboosters:2\ndeck:21\nfaction:Revolution\nDeathstrike\nActions reduce movement by a maximum of -1",
       "tags": {
         "1": "Card",
         "2": "Frame",
@@ -2316,7 +2316,7 @@
     "146": {
       "name": "J7R-Salaryman",
       "description": "",
-      "gm_notes": "4mv\narmour:3H/3M/4L\nweapons:5\nboosters:1\ndeck:25\nfaction:Guild\nRanged attacks get +4 range",
+      "gm_notes": "4mv\narmour:3H/3M/4L\nweapons:5\nboosters:1\ndeck:25\nfaction:Guild\nRanged attacks get +2 range",
       "tags": {
         "1": "Card",
         "2": "Frame",
@@ -2330,7 +2330,7 @@
     },
     "147": {
       "name": "Flamekin",
-      "description": "Deathstrike: when this frame would be destroyed it fights on until the end of the next turn, and is only removed if it is still dead",
+      "description": "Deathstrike: when this frame would be destroyed it fights on until the end of the turn, after which it is removed from play",
       "gm_notes": "4mv\narmour:2H/2M/2L\nweapons:3\nboosters:3\ndeck:21\nfaction:Revolution\nDeathstrike\nAt the start of each turn, repair 2",
       "tags": {
         "1": "Card",
@@ -2361,7 +2361,7 @@
     "149": {
       "name": "Hector MkI",
       "description": "",
-      "gm_notes": "3mv\narmour:5H/4M/4L\nweapons:3\nboosters:2\ndeck:21\nfaction:Aegis\nThe first time you block each turn that block is not discarded",
+      "gm_notes": "3mv\narmour:5H/4M/4L\nweapons:3\nboosters:2\ndeck:21\nfaction:Aegis\nThe first block each turn is not discarded",
       "tags": {
         "1": "Card",
         "2": "Frame",
@@ -3345,7 +3345,7 @@
     "4": {
       "name": "Adam",
       "description": "",
-      "gm_notes": "5mv\narmour:4H/3M/3L\nweapons:2\nboosters:0\ndeck:14\nfaction:Collective\npierce Attacks get +2 initiative",
+      "gm_notes": "5mv\narmour:4H/3M/3L\nweapons:2\nboosters:0\ndeck:14\nfaction:Collective\nActions get +1 initiative",
       "tags": {
         "1": "Figurine",
         "2": "Frame",
@@ -3357,8 +3357,8 @@
     },
     "5": {
       "name": "RipperSmasher",
-      "description": "Deathstrike: when this frame would be destroyed it fights on until the end of the next turn, and is only removed if it is still dead",
-      "gm_notes": "3mv\narmour:4H/3M/4L\nweapons:3\nboosters:2\ndeck:21\nfaction:Revolution\nDeathstrike\nactions reduce movement by a maximum of -1",
+      "description": "Deathstrike: when this frame would be destroyed it fights on until the end of the turn, after which it is removed from play",
+      "gm_notes": "3mv\narmour:4H/3M/4L\nweapons:3\nboosters:2\ndeck:21\nfaction:Revolution\nDeathstrike\nActions reduce movement by a maximum of -1",
       "tags": {
         "1": "Figurine",
         "2": "Frame",
@@ -3397,7 +3397,7 @@
     "8": {
       "name": "J7R-Salaryman",
       "description": "",
-      "gm_notes": "4mv\narmour:3H/3M/4L\nweapons:5\nboosters:1\ndeck:25\nfaction:Guild\nRanged attacks get +4 range",
+      "gm_notes": "4mv\narmour:3H/3M/4L\nweapons:5\nboosters:1\ndeck:25\nfaction:Guild\nRanged attacks get +2 range",
       "tags": {
         "1": "Figurine",
         "2": "Frame",
@@ -3409,7 +3409,7 @@
     },
     "9": {
       "name": "Flamekin",
-      "description": "Deathstrike: when this frame would be destroyed it fights on until the end of the next turn, and is only removed if it is still dead",
+      "description": "Deathstrike: when this frame would be destroyed it fights on until the end of the turn, after which it is removed from play",
       "gm_notes": "4mv\narmour:2H/2M/2L\nweapons:3\nboosters:3\ndeck:21\nfaction:Revolution\nDeathstrike\nAt the start of each turn, repair 2",
       "tags": {
         "1": "Figurine",
@@ -3436,7 +3436,7 @@
     "11": {
       "name": "Hector MkI",
       "description": "",
-      "gm_notes": "3mv\narmour:5H/4M/4L\nweapons:3\nboosters:2\ndeck:21\nfaction:Aegis\nThe first time you block each turn that block is not discarded",
+      "gm_notes": "3mv\narmour:5H/4M/4L\nweapons:3\nboosters:2\ndeck:21\nfaction:Aegis\nThe first block each turn is not discarded",
       "tags": {
         "1": "Figurine",
         "2": "Frame",

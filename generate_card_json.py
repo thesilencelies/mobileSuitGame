@@ -394,7 +394,7 @@ GLOSSARY: dict[str, tuple[tuple[str, ...], str]] = {
                "landed in"),
     "Deathstrike": (("deathstrike",),
                     "Deathstrike: when this frame would be destroyed it fights on until the end "
-                    "of the next turn, and is only removed if it is still dead"),
+                    "of the turn, after which it is removed from play"),
     "Drone": (("drone", "summon"),
               "Drone: a token that takes this card's action every turn, using the movement and "
               "health printed beside it, until it is destroyed"),

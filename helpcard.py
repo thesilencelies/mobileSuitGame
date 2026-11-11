@@ -120,7 +120,7 @@ def build_keywords_card() -> str:
     {\fontsize{4.8pt}{5.8pt}\selectfont\cardtextfont
     \kw{Flying:}\ Spends no extra movement to cross obstacles or change elevation; obstacles do not block line of sight.\par\vspace{1.2pt}
     \kw{Shield (X):}\ Put X shield counters on the frame. One counter absorbs an entire attack (all zones), then is removed.\par\vspace{1.2pt}
-    \kw{Deathstrike:}\ Continues fighting until end of the turn when destroyed; survives if healed before turn cleanup.\par
+    \kw{Deathstrike:}\ Continues fighting until end of the turn when destroyed, then is removed from play.\par
     }
   };
 
