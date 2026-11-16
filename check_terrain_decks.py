@@ -18,7 +18,7 @@ from pathlib import Path
 ROOT = Path(__file__).parent
 
 TERRAIN_DECK_SIZE = 10
-OBJECTIVE_DECK_SIZE = 5
+OBJECTIVE_DECK_SIZE = 4
 
 
 def load_terrain_cards():
@@ -80,9 +80,13 @@ def report_deck(path, kind, cards):
     ]
     duplicates = sorted({n for n in names if names.count(n) > 1})
 
+    if kind == "terrain":
+        size_note = "" if len(names) == wanted else f"  (expected {wanted})"
+    else:
+        size_note = "" if len(names) >= wanted else f"  (expected at least {wanted})"
+
     print(f"\n{path.stem}")
-    print(f"  Cards         : {len(names)}"
-          + ("" if len(names) == wanted else f"  (expected {wanted})"))
+    print(f"  Cards         : {len(names)}{size_note}")
     if unknown:
         print(f"  Not in the CSV ({len(unknown)}):")
         for name in unknown:

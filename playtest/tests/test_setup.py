@@ -20,6 +20,8 @@ from playtest.engine.setup import (
     load_deck_pair,
     load_objective_deck_file,
     load_terrain_deck_file,
+    objectives_per_row,
+    objectives_per_seat,
     seat_card_rows,
     split_objectives,
     validate_deck_pair,
@@ -55,26 +57,34 @@ def field(cards) -> Battlefield:
     return deal_battlefield(
         decks,
         rng=random.Random(7),
-        objective_slots={0: [1, 3], 1: [0, 4]},
+        objective_slots={0: [1, 3], 1: [0, 2]},
     )
 
 
 # --------------------------------------------------------------------------
-# Grid shape (rules.tex:338)
+# Grid shape (rules.tex:424)
 # --------------------------------------------------------------------------
 
 
-def test_three_versus_three_is_fifteen_by_sixteen(field):
-    assert cards_per_row(3) == 5
-    assert (field.board.width, field.board.height) == (15, 16)
-    assert len(field.placements) == 20
+def test_three_versus_three_is_twelve_by_sixteen(field):
+    assert cards_per_row(3) == 4
+    assert (field.board.width, field.board.height) == (12, 16)
+    assert len(field.placements) == 16
 
 
-def test_two_versus_two_is_twelve_by_sixteen(cards):
+def test_two_versus_two_is_nine_by_sixteen(cards):
     decks = {0: deck(cards, ["The Tower", "The Egg"]), 1: deck(cards, ["Church", "Triangle"])}
     field = deal_battlefield(decks, rng=random.Random(1), frames_per_side=2)
-    assert cards_per_row(2) == 4
-    assert (field.board.width, field.board.height) == (12, 16)
+    assert cards_per_row(2) == 3
+    assert (field.board.width, field.board.height) == (9, 16)
+    assert len(field.placements) == 12
+
+
+def test_objectives_per_row_scaling():
+    assert [objectives_per_row(n) for n in range(1, 10)] == [1, 1, 1, 2, 2, 2, 2, 3, 3]
+    assert objectives_per_seat(3) == 2
+    assert objectives_per_seat(4) == 4
+    assert objectives_per_seat(8) == 6
 
 
 def test_seats_own_two_rows_each_with_seat_zero_at_the_bottom():
@@ -144,7 +154,7 @@ def test_objective_slots_are_honoured(field):
         if p.card.name in {o.name for o in field.objectives}
     }
     assert slots[(0, 2)] == 1 and slots[(0, 3)] == 3
-    assert slots[(1, 0)] == 0 and slots[(1, 1)] == 4
+    assert slots[(1, 0)] == 0 and slots[(1, 1)] == 2
 
 
 def test_defender_is_whoever_brought_the_card(field):
@@ -200,21 +210,47 @@ def test_split_objectives_still_splits_a_mixed_list(cards):
     assert pair.objectives == tuple(objectives) and pair.terrain == tuple(plain)
 
 
-def test_too_few_objectives_is_an_error(cards):
-    with pytest.raises(ValueError):
-        deal_battlefield({0: deck(cards, ["The Tower"]), 1: deck(cards, ["Church", "Triangle"])},
-                         rng=random.Random(0))
+def test_empty_objective_deck_is_an_error(cards):
+    with pytest.raises(ValueError, match="no objective cards"):
+        deal_battlefield(
+            {0: SeatDecks(terrain=(cards["Warehouse"],), objectives=()), 1: load_deck_pair("siege", cards)},
+            rng=random.Random(0),
+        )
 
 
-def test_too_few_terrain_cards_is_an_error(cards):
-    short = deck(cards, ["The Tower", "The Egg"], terrain=["Warehouse", "Box", "Park"])
-    with pytest.raises(ValueError):
-        deal_battlefield({0: short, 1: deck(cards, ["Church", "Triangle"])},
-                         rng=random.Random(0))
+def test_empty_terrain_deck_is_an_error(cards):
+    with pytest.raises(ValueError, match="no terrain cards"):
+        deal_battlefield(
+            {0: SeatDecks(terrain=(), objectives=(cards["The Tower"],)), 1: load_deck_pair("siege", cards)},
+            rng=random.Random(0),
+        )
+
+
+def test_short_decks_loop_to_fill_grid(cards):
+    """Decks smaller than required loop to fill the grid (3v3 needs 2 obj, 6 terrain)."""
+    short = deck(cards, ["The Tower"], terrain=["Warehouse", "Box"])
+    field = deal_battlefield({0: short, 1: load_deck_pair("siege", cards)}, rng=random.Random(0))
+    mine = [p.card.name for p in field.placements if p.seat == 0]
+    assert mine.count("The Tower") == 2
+    assert mine.count("Warehouse") + mine.count("Box") == 6
+
+
+def test_large_frame_count_deals_and_loops(cards):
+    """A 6v6 requires cards_per_row=7 -> 14 slots/seat, 2 obj/row -> 4 obj, 10 terrain."""
+    field = deal_battlefield(
+        {0: load_deck_pair("assault", cards), 1: load_deck_pair("siege", cards)},
+        frames_per_side=6,
+        rng=random.Random(42),
+    )
+    assert field.board.width == 21  # 7 cards * 3 tiles
+    assert field.board.height == 16  # 4 cards * 4 tiles
+    assert len(field.placements) == 28  # 4 rows * 7 cards
+    # 2 objectives per row * 2 rows * 2 seats = 8 objectives
+    assert len(field.objectives) == 8
 
 
 # --------------------------------------------------------------------------
-# The two-deck format (rules.tex:253)
+# The two-deck format (rules.tex:339)
 # --------------------------------------------------------------------------
 
 
@@ -222,7 +258,7 @@ def test_too_few_terrain_cards_is_an_error(cards):
 def test_shipped_deck_pairs_are_legal(cards, name):
     pair = load_deck_pair(name, cards)
     assert len(pair.terrain) == TERRAIN_DECK_SIZE == 10
-    assert len(pair.objectives) == OBJECTIVE_DECK_SIZE == 5
+    assert len(pair.objectives) >= OBJECTIVE_DECK_SIZE == 4
     assert validate_deck_pair(pair, strict_size=True) == []
     # the file split and the points columns agree
     assert not any(c.is_objective for c in pair.terrain)
@@ -302,23 +338,23 @@ def test_dealing_is_deterministic_given_a_seed(cards):
 
 @pytest.mark.parametrize("name", ["assault", "control", "siege", "strike"])
 def test_shipped_deck_pairs_deal_a_three_versus_three(cards, name):
-    """10 terrain + 5 objectives per player; a 3v3 draws 8 and 2 of them."""
+    """10 terrain + 5 objectives per player; a 3v3 draws 6 and 2 of them."""
     own = load_deck_pair(name, cards)
     field = deal_battlefield(
         {0: own, 1: load_deck_pair("strike", cards)}, rng=random.Random(5)
     )
-    assert (field.board.width, field.board.height) == (15, 16)
-    assert len(field.placements) == 20
+    assert (field.board.width, field.board.height) == (12, 16)
+    assert len(field.placements) == 16
     assert len(field.objectives) == 4
 
     mine = [p for p in field.placements if p.seat == 0]
     drawn_objectives = [o.name for o in field.objectives if o.owner == 0]
     assert len(drawn_objectives) == 2
     assert set(drawn_objectives) <= {c.name for c in own.objectives}
-    # the decks are drawn from, not exhausted: 8 of 10 terrain, 2 of 5 objectives
+    # the decks are drawn from, not exhausted: 6 of 10 terrain, 2 of 5 objectives
     filler = [p.card.name for p in mine if p.card.name not in drawn_objectives]
-    assert len(filler) == 8
-    assert len(set(filler)) == 8
+    assert len(filler) == 6
+    assert len(set(filler)) == 6
     assert set(filler) < {c.name for c in own.terrain}
 
 
@@ -332,12 +368,12 @@ def test_the_fill_is_a_shuffled_draw_not_the_whole_deck(cards):
             p.card.name for p in field.placements
             if p.seat == 0 and not p.card.is_objective
         )
-        assert len(names) == 8
+        assert len(names) == 6
         drawn.add(names)
     assert len(drawn) > 1
 
 
 def test_every_slot_is_filled_exactly_once(field):
     slots = [(p.card_row, p.card_col) for p in field.placements]
-    assert len(set(slots)) == len(slots) == 20
+    assert len(set(slots)) == len(slots) == 16
     assert all(field.board.tile(p) is not None for p in field.board.positions())

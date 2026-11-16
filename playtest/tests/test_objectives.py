@@ -67,7 +67,7 @@ def test_both_players_bringing_the_same_battlefield_finishes_setup():
                       "deck_collective_adam"],
         ai_decks=["deck_guild_nautilus", "deck_ouwa_kamikiri",
                   "deck_church_elemiah"],
-        seed=5, frames_per_side=3,
+        seed=3, frames_per_side=3,
         terrain_decks={0: "assault", 1: "assault"},
     ))
     names = [o.name for o in state.objectives]

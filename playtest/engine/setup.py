@@ -1,26 +1,26 @@
 """Battlefield setup: dealing terrain, placing objectives, deployment (B1).
 
-Implements rules.tex:337 "Setup":
+Implements rules.tex:424 "Setup":
 
-    Each player builds a grid of 2 rows of (number of frames + 2) from their
-    terrain deck. First, each player takes one objective card for each of their
-    rows and chooses where to place it within that row -- one objective per row.
-    The remaining slots in the grid are then filled by dealing out the rest of
-    the terrain cards. [...] Each player takes it in turns to put one of their
-    frames on nearest edge of their terrain cards.
+    Each player builds a grid of 2 rows of (number of frames + 1) from their
+    terrain deck. First, each player places objectives in each of their rows --
+    one for every 4 frames a side plus one (nframes // 4 + 1). The remaining slots
+    in the grid are then filled by dealing out the rest of the terrain cards.
+    [...] Each player takes it in turns to put one of their frames on nearest edge
+    of their terrain cards.
 
-For 3v3 that is 5 cards wide by 4 cards tall, and since a terrain card is 3x4
-tiles the board is **15 x 16 tiles**.
+For 3v3 that is 4 cards wide by 4 cards tall, and since a terrain card is 3x4
+tiles the board is **12 x 16 tiles**.
 
-Each player brings two decks (rules.tex:253): ``decks/deck_terrain_<name>.csv``
-with 10 plain terrain cards and ``decks/deck_objective_<name>.csv`` with 5
-objectives. A 3v3 places 2 of those objectives, one per row, and draws the
-other 8 slots from the shuffled terrain deck -- both decks are drawn from, not
-exhausted.
+Each player brings two decks (rules.tex:339): ``decks/deck_terrain_<name>.csv``
+and ``decks/deck_objective_<name>.csv``. Terrain decks should have 4 more terrain
+cards than used, and objective decks 2 more objectives than used (for 3v3, 10
+terrain and 4 objectives). If a deck is smaller than required for larger battles,
+the dealer loops it.
 
 Seat 0 owns the bottom half (largest y) and its cards are unrotated; seat 1 owns
 the top half and its two rows are dealt rotated 180 degrees, which is what makes
-the opponent's terrain read upside-down in the setup figure at rules.tex:412.
+the opponent's terrain read upside-down in the setup figure at rules.tex:460.
 
 Imports only ``types``, ``terrain`` and ``board`` -- no game state, no cards.
 """
@@ -38,22 +38,32 @@ from .types import Pos, Team
 
 DECKS_DIR = REPO_ROOT / "decks"
 
-#: Card rows each player lays out (rules.tex:338).
+#: Card rows each player lays out (rules.tex:424).
 ROWS_PER_SEAT = 2
 
-#: One objective per row (rules.tex:340).
+#: Objectives per row for 3v3 (legacy constant, rules.tex:426).
 OBJECTIVES_PER_SEAT = ROWS_PER_SEAT
 
-#: Deck sizes each player brings (rules.tex:253). Both are larger than one
-#: battle uses -- a 3v3 places 2 of the 5 objectives and draws 8 of the 10
-#: terrain cards -- so dealing is a shuffled draw.
+#: Standard deck sizes each player brings for 3v3 (rules.tex:339).
+#: 4 more terrain cards than used (6 + 4 = 10) and 2 more objectives than
+#: used (2 + 2 = 4).
 TERRAIN_DECK_SIZE = 10
-OBJECTIVE_DECK_SIZE = 5
+OBJECTIVE_DECK_SIZE = 4
 
 
 def cards_per_row(frames_per_side: int) -> int:
-    """Cards in one row: number of frames + 2 (rules.tex:338)."""
-    return frames_per_side + 2
+    """Cards in one row: number of frames + 1 (rules.tex:424)."""
+    return frames_per_side + 1
+
+
+def objectives_per_row(frames_per_side: int) -> int:
+    """Objectives in one row: one for every 4 frames a side plus one (rules.tex:426)."""
+    return (frames_per_side // 4) + 1
+
+
+def objectives_per_seat(frames_per_side: int) -> int:
+    """Total objectives placed for one seat across all its rows."""
+    return ROWS_PER_SEAT * objectives_per_row(frames_per_side)
 
 
 def seat_card_rows(seat: Team, *, seats: int = 2) -> tuple[int, ...]:
@@ -185,12 +195,18 @@ def split_objectives(
     return objectives, plain
 
 
-def validate_deck_pair(decks: SeatDecks, *, strict_size: bool = False) -> list[str]:
-    """Problems with a deck pair, empty if it is legal (rules.tex:253).
+def validate_deck_pair(
+    decks: SeatDecks,
+    *,
+    strict_size: bool = False,
+    frames_per_side: int = 3,
+) -> list[str]:
+    """Problems with a deck pair, empty if it is legal (rules.tex:339).
 
     Always checks that no scoring card sits in the terrain deck and that every
     objective-deck card scores. ``strict_size`` additionally demands the
-    rulebook's 10 and 5.
+    rulebook's deck sizes for the given number of frames: 4 more terrain cards
+    than used and 2 more objectives than used.
     """
     problems = []
     for card in decks.terrain:
@@ -200,16 +216,37 @@ def validate_deck_pair(decks: SeatDecks, *, strict_size: bool = False) -> list[s
         if not card.is_objective:
             problems.append(f"{card.name} scores nothing but is in the objective deck")
     if strict_size:
-        if len(decks.terrain) != TERRAIN_DECK_SIZE:
+        expected_obj = objectives_per_seat(frames_per_side) + 2
+        expected_terrain = (
+            ROWS_PER_SEAT
+            * (cards_per_row(frames_per_side) - objectives_per_row(frames_per_side))
+        ) + 4
+        if len(decks.terrain) != expected_terrain:
             problems.append(
-                f"terrain deck has {len(decks.terrain)} cards, expected {TERRAIN_DECK_SIZE}"
+                f"terrain deck has {len(decks.terrain)} cards, expected {expected_terrain}"
             )
-        if len(decks.objectives) != OBJECTIVE_DECK_SIZE:
+        if len(decks.objectives) < expected_obj:
             problems.append(
                 f"objective deck has {len(decks.objectives)} cards, "
-                f"expected {OBJECTIVE_DECK_SIZE}"
+                f"expected at least {expected_obj}"
             )
     return problems
+
+
+def _loop_pool(
+    cards: Sequence[TerrainCard], needed: int, rng: random.Random
+) -> list[TerrainCard]:
+    """Draw `needed` cards from `cards`, looping and reshuffling if needed."""
+    if not cards:
+        raise ValueError("cannot deal from an empty deck")
+    pool = list(cards)
+    rng.shuffle(pool)
+    result: list[TerrainCard] = []
+    while len(result) < needed:
+        result.extend(pool)
+        pool = list(cards)
+        rng.shuffle(pool)
+    return result[:needed]
 
 
 def _deck_path(name: str, kind: str) -> Path:
@@ -318,38 +355,52 @@ def deal_battlefield(
         problems = validate_deck_pair(seat_decks)
         if problems:
             raise ValueError(f"seat {seat}: {'; '.join(problems)}")
-        objectives, plain = list(seat_decks.objectives), list(seat_decks.terrain)
-        if len(objectives) < OBJECTIVES_PER_SEAT:
-            raise ValueError(
-                f"seat {seat} needs {OBJECTIVES_PER_SEAT} objective cards, "
-                f"deck has {len(objectives)}"
-            )
-        rng.shuffle(objectives)
-        rng.shuffle(plain)
+        if not seat_decks.objectives:
+            raise ValueError(f"seat {seat} has no objective cards")
+        if not seat_decks.terrain:
+            raise ValueError(f"seat {seat} has no terrain cards")
+
         rows = seat_card_rows(seat, seats=len(seats))
+        obj_count = objectives_per_row(frames_per_side)
+        obj_needed = len(rows) * obj_count
+        plain_needed = len(rows) * width - obj_needed
 
-        chosen = list(objective_slots[seat]) if objective_slots and seat in objective_slots else []
-        if len(chosen) < len(rows):
-            chosen += [rng.randrange(width) for _ in range(len(rows) - len(chosen))]
-        for col in chosen[: len(rows)]:
-            if not 0 <= col < width:
-                raise ValueError(f"objective slot {col} outside a row of {width}")
+        seat_objectives = _loop_pool(seat_decks.objectives, obj_needed, rng)
+        seat_plain = _loop_pool(seat_decks.terrain, plain_needed, rng)
 
-        needed = len(rows) * width - len(rows)
-        if len(plain) < needed:
-            raise ValueError(
-                f"seat {seat} needs {needed} terrain cards to fill its grid, "
-                f"terrain deck has {len(plain)}"
-            )
+        chosen_slots = objective_slots.get(seat) if objective_slots else None
 
-        for i, row in enumerate(rows):
-            obj_col = chosen[i]
-            layout[(row, obj_col)] = (seat, objectives[i])
-            objective_cards[(row, obj_col)] = (seat, objectives[i])
+        for row_idx, row in enumerate(rows):
+            row_specified: list[int] = []
+            if chosen_slots is not None and row_idx < len(chosen_slots):
+                item = chosen_slots[row_idx]
+                if isinstance(item, (list, tuple, set)):
+                    row_specified = [int(c) for c in item]
+                else:
+                    row_specified = [int(item)]
+
+            for col in row_specified:
+                if not 0 <= col < width:
+                    raise ValueError(f"objective slot {col} outside a row of {width}")
+            if len(set(row_specified)) != len(row_specified):
+                raise ValueError(f"duplicate objective slots in row: {row_specified}")
+
+            if len(row_specified) > obj_count:
+                row_specified = row_specified[:obj_count]
+            needed_cols = obj_count - len(row_specified)
+            if needed_cols > 0:
+                available_cols = [c for c in range(width) if c not in row_specified]
+                row_specified.extend(rng.sample(available_cols, needed_cols))
+
+            for col in row_specified:
+                card = seat_objectives.pop(0)
+                layout[(row, col)] = (seat, card)
+                objective_cards[(row, col)] = (seat, card)
+
         for row in rows:
             for col in range(width):
                 if (row, col) not in layout:
-                    layout[(row, col)] = (seat, plain.pop())
+                    layout[(row, col)] = (seat, seat_plain.pop(0))
 
     rows_total = len(seats) * ROWS_PER_SEAT
     placements: list[Placement] = []

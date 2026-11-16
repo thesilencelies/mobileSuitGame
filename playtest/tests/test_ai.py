@@ -199,7 +199,7 @@ def test_a_turret_is_not_built_in_the_enemys_face(catalogue):
     """
     from playtest.engine.types import Pos as EnginePos
 
-    state = deployed(make_game(seed=11), seed=11)
+    state = deployed(make_game(seed=1), seed=1)
     view = json.loads(json.dumps(view_for(state, 0)))
     agent = Agent(seat=0, catalogue=catalogue, seed=2)
     snap = agent._snapshot(view)

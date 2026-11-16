@@ -310,9 +310,15 @@ function buildSetupScreen() {
   syncDeckChips();
 
   $('randomise-ai').addEventListener('click', () => {
-    const pool = names.filter((n) => !app.selection.player.includes(n));
-    const shuffled = pool.sort(() => Math.random() - 0.5);
-    app.selection.ai = shuffled.slice(0, Number($('frames-per-side').value) || 3);
+    const limit = Number($('frames-per-side').value) || 3;
+    let pool = names.filter((n) => !app.selection.player.includes(n));
+    if (pool.length === 0) pool = names.slice();
+    const picked = [];
+    while (picked.length < limit) {
+      const shuffled = pool.slice().sort(() => Math.random() - 0.5);
+      picked.push(...shuffled);
+    }
+    app.selection.ai = picked.slice(0, limit);
     syncDeckChips();
   });
   $('frames-per-side').addEventListener('change', syncDeckChips);

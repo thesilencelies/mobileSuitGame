@@ -365,8 +365,8 @@ def test_card_image_key_matches_the_catalogue_key() -> None:
 def test_new_game_returns_a_playable_view(client: Client) -> None:
     game_id, view = start(client)
     assert view["gameId"] == game_id
-    assert view["board"]["width"] == 15 and view["board"]["height"] == 16
-    assert len(view["board"]["tiles"]) == 15 * 16
+    assert view["board"]["width"] == 12 and view["board"]["height"] == 16
+    assert len(view["board"]["tiles"]) == 12 * 16
     assert len(view["frames"]) == 6
     assert view["pending"]["seat"] == 0
     assert view["pending"]["kind"] == "commit_actions"
