@@ -1234,8 +1234,8 @@
     },
     "78": {
       "name": "Mace Break",
-      "description": "",
-      "gm_notes": "6init\n-1mv\natk:1H,1M impact\nBlk:1M",
+      "description": "Exhaust: when an action exhausts a player, that player turns one of their unresolved actions face up and sideways; it does not resolve this turn but may block",
+      "gm_notes": "6init\n-1mv\natk:1H,1M impact\nBlk:1M\nExhaust the target",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -1554,8 +1554,8 @@
     },
     "98": {
       "name": "Bruiser Intimidate",
-      "description": "Committed: this attack is discarded after it resolves",
-      "gm_notes": "8init\n0mv\nBlk:1H\nAll enemies within 2 must consume one block\nCommitted (this attack is discarded after resolving)",
+      "description": "Exhaust: when an action exhausts a player, that player turns one of their unresolved actions face up and sideways; it does not resolve this turn but may block\nCommitted: this attack is discarded after it resolves",
+      "gm_notes": "8init\n0mv\nBlk:1H\nExhaust all enemies within 2\nCommitted (this attack is discarded after resolving)",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -1618,8 +1618,8 @@
     },
     "102": {
       "name": "Bruiser Suplex",
-      "description": "Stunned: while stunned a frame gets -2 init\nDazed: while dazed a frame gets -2 cards",
-      "gm_notes": "4init\n-1mv\nBlk:1H\nMove Target frame within 3 to the other side of this frame. That target gets 2 Stunned and 2 Dazed",
+      "description": "Stunned: while stunned a frame gets -2 init\nDazed: while dazed a frame gets -2 cards\nExhaust: when an action exhausts a player, that player turns one of their unresolved actions face up and sideways; it does not resolve this turn but may block",
+      "gm_notes": "4init\n-1mv\nBlk:1H\nMove Target frame within 3 to the other side of this frame. That target gets 2 Stunned and 2 Dazed and is exhausted",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -1683,7 +1683,7 @@
     "106": {
       "name": "Mystic Encode the future",
       "description": "",
-      "gm_notes": "1init\n-3mv\nBlk:1H\npersist:1 turn\nNext turn: allied frames choose cards from their deck",
+      "gm_notes": "1init\n-3mv\nBlk:1H\npersist:1 turn\nNext turn: allied frames choose cards from their deck and discard pile",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -1778,8 +1778,8 @@
     },
     "112": {
       "name": "Tactician Outfox",
-      "description": "Revealed: while revealed a frame's chosen actions are turned face up\nDazed: while dazed a frame gets -2 cards\nSlowed: while slowed a frame gets -2 mv",
-      "gm_notes": "4init\n-1mv\nBlk:1H\nTarget frame within 4 gets 3 Revealed (chosen actions are turned face up) and 2 Dazed (-2 card) and 2 Slowed (-2 mv)",
+      "description": "Revealed: while revealed a frame's chosen actions are turned face up\nDazed: while dazed a frame gets -2 cards\nExhaust: when an action exhausts a player, that player turns one of their unresolved actions face up and sideways; it does not resolve this turn but may block",
+      "gm_notes": "6init\n-1mv\nBlk:1H\nTarget frame within 4 gets 3 Revealed (chosen actions are turned face up) and 2 Dazed (-2 card) and exhausted",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -1795,7 +1795,7 @@
     "113": {
       "name": "Tactician Displace",
       "description": "",
-      "gm_notes": "1init\n-2mv\nBlk:1H\nMove another target frame within 4 to a new position within 6 of this frame",
+      "gm_notes": "5init\n-2mv\nBlk:1H\nMove another target frame within 4 to a new position within 4 of this frame",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -1907,7 +1907,7 @@
     "120": {
       "name": "Wunderkid Showboating",
       "description": "",
-      "gm_notes": "7init\n0mv\nBlk:1H\nFor the rest of this turn, any frame that is able to must attack this frame and this frame's blocks are not discarded.",
+      "gm_notes": "7init\n0mv\nBlk:1H\nFor the rest of this turn, any frame that is able to must attack this frame and this frame takes 1 less damage from attacks.",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -1923,7 +1923,7 @@
     "121": {
       "name": "Engineer Battlefield Repairs",
       "description": "",
-      "gm_notes": "4init\n-2mv\nBlk:1H\nRepair 3 damage from an allied frame within 3",
+      "gm_notes": "4init\n-2mv\nBlk:1H\nRepair 5 damage from an allied frame within 3",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -1970,8 +1970,8 @@
     },
     "124": {
       "name": "Engineer Precision Tuning",
-      "description": "Boosted: while boosted a frame gets +2 mv\nLucid: while lucid a frame gets +2 cards",
-      "gm_notes": "4init\n-3mv\nBlk:1H\nThis frame gets 4 Boosted (+2 mv) and 2 Lucid (+2 cards)",
+      "description": "Stimmed: while stimmed a frame gets +2 init\nBoosted: while boosted a frame gets +2 mv\nLucid: while lucid a frame gets +2 cards",
+      "gm_notes": "4init\n-3mv\nBlk:1H\nThis frame gets 3 Stimmed (+2 init) 3 Boosted (+2 mv) and 2 Lucid (+2 cards)",
       "tags": {
         "1": "Card",
         "2": "Action",
@@ -2050,8 +2050,8 @@
     },
     "129": {
       "name": "Specialist Master duelist",
-      "description": "Stimmed: while stimmed a frame gets +2 init\nRevealed: while revealed a frame's chosen actions are turned face up",
-      "gm_notes": "3init\n-2mv\nBlk:1H\npersist:3 turns\nThis frame gets 3 Stimmed (+2 init)\nFor the next 3 turns: Enemies targeted by this frame's melee attacks get Revealed and you choose which card blocks",
+      "description": "Stimmed: while stimmed a frame gets +2 init\nExhaust: when an action exhausts a player, that player turns one of their unresolved actions face up and sideways; it does not resolve this turn but may block",
+      "gm_notes": "3init\n-2mv\nBlk:1H\npersist:3 turns\nThis frame gets 3 Stimmed (+2 init)\nFor the next 3 turns: Enemies targeted by this frame's melee attacks get exhausted",
       "tags": {
         "1": "Card",
         "2": "Action",

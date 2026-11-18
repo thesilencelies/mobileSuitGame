@@ -63,6 +63,7 @@ _KEYWORD_MARKERS: Mapping[str, tuple[str, ...]] = {
     "flying": ("flying",),
     "shield": ("shield",),
     "deathstrike": ("deathstrike",),
+    "exhaust": ("exhaust", "exhausted"),
 }
 
 _KNOCKBACK_RE = re.compile(r"knockback[^{(\d]*[{(]?\s*(\d+)")

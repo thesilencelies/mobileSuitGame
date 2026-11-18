@@ -95,6 +95,7 @@ _COUNT_WORDS = {"one": 1, "two": 2, "three": 3}
 _KEYWORD_WORDS = (
     "feint", "guardbreak", "guard break", "committed", "closequarters",
     "close quarters", "knockback", "reload", "dronetext",
+    "exhaust", "exhausted",
 )
 
 #: Whole phrases handled elsewhere in the engine rather than at the effect
@@ -107,6 +108,8 @@ _HANDLED_PHRASES = (
     re.compile(r"acts twice[^\\]*", re.I),
     re.compile(r"can only be used by[^\\]*", re.I),
     re.compile(r"ignores line of sight", re.I),
+    re.compile(r"exhaust\s+the\s+target", re.I),
+    re.compile(r"exhaust\s+all\s+enemies\s+within\s+\d+", re.I),
 )
 
 
@@ -526,6 +529,85 @@ def _refresh_revealed(state: GameState) -> None:
 
 
 # --------------------------------------------------------------------------
+# Exhaust (rules.tex: "turn one unresolved action face up and sideways")
+# --------------------------------------------------------------------------
+
+
+def apply_exhaust(state: GameState, frame: FrameState, uid: str) -> None:
+    """Exhaust a card: turn it face up and sideways; it will not resolve."""
+    inst = state.cards.get(uid)
+    if inst is None:
+        return
+    inst.face_down = False
+    inst.exhausted = True
+    card = state.catalogue[inst.key]
+    state.note(
+        f"{frame.id}'s {card.name} is exhausted: turned face up and will not resolve"
+    )
+
+
+def _unresolved_actions(state: GameState, frame: FrameState) -> list[str]:
+    return [
+        uid for uid in frame.committed
+        if state.cards[uid].location == "committed"
+        and not state.cards[uid].resolved
+        and not state.cards[uid].is_echo
+        and not getattr(state.cards[uid], "exhausted", False)
+    ]
+
+
+def exhaust_step(
+    state: GameState, queue: list[str]
+) -> Optional[PendingDecision]:
+    """Walk the victim list until an exhaust choice is offered or queue is drained."""
+    queue = list(queue)
+    while queue:
+        victim_id = queue.pop(0)
+        victim = state.frames.get(victim_id)
+        if victim is None or not victim.alive:
+            continue
+        unresolved = _unresolved_actions(state, victim)
+        if not unresolved:
+            state.note(f"{victim.id} has no unresolved actions to exhaust")
+            continue
+        if len(unresolved) == 1:
+            apply_exhaust(state, victim, unresolved[0])
+            continue
+        options = [
+            {"uid": u, "key": state.cards[u].key, "exhaust": True}
+            for u in unresolved
+        ]
+        return _ask(
+            state,
+            "exhaust",
+            seat=victim.seat,
+            frame_id=victim.id,
+            prompt=f"{victim.id} is exhausted: choose an unresolved action to turn sideways",
+            options=options,
+            ctx={"queue": queue, "frame_id": victim.id},
+        )
+    return None
+
+
+def exhaust_frame(state: GameState, target: FrameState) -> Optional[PendingDecision]:
+    """Exhaust a single frame."""
+    return exhaust_step(state, [target.id])
+
+
+def _choice_exhaust(
+    state: GameState, frame: FrameState, choice: Mapping, ctx: Mapping
+) -> None:
+    target_id = ctx.get("frame_id") or frame.id
+    target = state.frames.get(str(target_id), frame)
+    apply_exhaust(state, target, str(choice.get("uid", "")))
+    queue = list(ctx.get("queue") or [])
+    if queue:
+        nxt = exhaust_step(state, queue)
+        if nxt is not None:
+            state.pending = nxt
+
+
+# --------------------------------------------------------------------------
 # Implemented effect steps -- weapons, basics, boosters, frames
 # --------------------------------------------------------------------------
 
@@ -940,10 +1022,13 @@ def _choice_shove_to(
         ):
             _apply_statuses(state, enemy, [("revealed", 1)])
     elif ctx.get("after") == "suplex":
-        # "That target gets 2 stunned and 2 dazed" -- after the throw, so a
+        # "That target gets 2 stunned and 2 dazed and is exhausted" -- after the throw, so a
         # frame thrown onto the rails takes the fall and the jolt both.
         _apply_statuses(state, target, _parse_statuses(
             state.catalogue[SUPLEX].text))
+        decision = exhaust_frame(state, target)
+        if decision is not None:
+            state.pending = decision
 
 
 def _move_frame(
@@ -1038,21 +1123,18 @@ def _intimidate_step(
 
 
 def _effect_intimidate(state: GameState, frame: FrameState, uid: str):
-    reach = _reach_from_text(state.card(uid).text, 5)
+    reach = _reach_from_text(state.card(uid).text, 2)
     victims = [f.id for f in fx.frames_within(state, frame, reach, side="enemy")]
     if not victims:
         return None
     state.note(f"{frame.id} intimidates {len(victims)} enemy frame(s)")
-    return _intimidate_step(state, frame.id, victims)
+    return exhaust_step(state, victims)
 
 
 def _choice_intimidate(
     state: GameState, frame: FrameState, choice: Mapping, ctx: Mapping
 ) -> None:
-    _consume_block(state, frame, str(choice["uid"]))
-    nxt = _intimidate_step(state, str(ctx.get("source", "")), list(ctx.get("queue", [])))
-    if nxt is not None:
-        state.pending = nxt
+    _choice_exhaust(state, frame, choice, ctx)
 
 
 def _effect_net_strength(state: GameState, frame: FrameState, uid: str):
@@ -1084,8 +1166,7 @@ def _target_effect_step(
     if not targets:
         return None
     if len(targets) == 1:
-        _apply_target_effect(state, targets[0], card)
-        return None
+        return _apply_target_effect(state, targets[0], card)
     within = f" within {reach}" if reach < 10 ** 6 else ""
     return _ask(
         state,
@@ -1101,11 +1182,14 @@ def _target_effect_step(
 
 def _apply_target_effect(
     state: GameState, target: FrameState, card: Card
-) -> None:
+) -> Optional[PendingDecision]:
     """The statuses the card prints, plus anything else it does to one frame."""
     _apply_statuses(state, target, _parse_statuses(card.text))
     if card.key == SENSORY_OVERLOAD:
         _range_cap(state, target, OVERLOAD_RANGE_CAP)
+    if "exhaust" in (card.text or "").lower():
+        return exhaust_frame(state, target)
+    return None
 
 
 def _choice_target_status(
@@ -1115,7 +1199,9 @@ def _choice_target_status(
     if target is None:
         return
     card = state.catalogue[state.cards[str(ctx["uid"])].key]
-    _apply_target_effect(state, target, card)
+    nxt = _apply_target_effect(state, target, card)
+    if nxt is not None:
+        state.pending = nxt
 
 
 def _effect_bind(state: GameState, frame: FrameState, uid: str):
@@ -1786,14 +1872,11 @@ def _parallel_fire(state: GameState, frame: FrameState) -> bool:
 
 def _effect_showboating(state: GameState, frame: FrameState, uid: str):
     """"For the rest of this turn, any frame that is able to must attack this
-    frame and this frame's blocks are not discarded."
-
-    Both halves are asked for rather than pushed: `forced_target` filters the
-    attacker's option list and `blocks_are_kept` answers `keywords.block_is_kept`.
+    frame and this frame takes 1 less damage from attacks."
     """
     state.note(
         f"{frame.id} showboats: everything that can reach it must swing at it, "
-        f"and its blocks are not discarded"
+        f"and it takes 1 less damage from attacks"
     )
     return None
 
@@ -2120,8 +2203,7 @@ def _effect_master_duelist(state: GameState, frame: FrameState, uid: str):
     card = state.card(uid)
     _apply_statuses(state, frame, _parse_statuses(card.text))
     state.note(
-        f"{frame.id} duels: for the next 3 turns its melee targets are "
-        f"revealed and it picks their blocks"
+        f"{frame.id} duels: for the next 3 turns its melee targets are exhausted"
     )
     return None
 
@@ -3056,6 +3138,7 @@ EFFECT_CHOICES: Mapping[str, Callable[[GameState, FrameState, Mapping], None]] =
 
 #: Handlers for the decisions `_ask` raises, keyed by the name given there.
 CHOICE_HANDLERS: Mapping[str, ChoiceFn] = {
+    "exhaust": _choice_exhaust,
     "intimidate": _choice_intimidate,
     "target_status": _choice_target_status,
     "bind": _choice_bind,
@@ -3186,25 +3269,23 @@ def on_attack_declared(
         elif practiced_technique_active(state, attacker, card):
             attack.guard_break = True
             state.note(f"Practiced Technique gives {card.key} Guard Break")
-    if not card.is_ranged and fx.card_active(state, attacker, MASTER_DUELIST):
+    card_exhausts = bool(re.search(r"exhaust\s+the\s+target", card.text or "", re.I))
+    md_active = not card.is_ranged and fx.card_active(state, attacker, MASTER_DUELIST)
+    if card_exhausts or md_active:
         for target in attack.targets:
             if target.kind != "frame":
                 continue
             defender = state.frames.get(target.id)
             if defender is not None and defender.seat != attacker.seat:
-                _apply_statuses(state, defender, [("revealed", 1)])
+                target.exhaust_pending = True
+                reason = "Master Duelist" if md_active else card.key
+                state.note(f"{reason} marks {defender.id} to be exhausted")
 
 
 def block_chooser(
     state: GameState, defender: FrameState, attack: AttackInProgress
 ) -> Team:
     """Which seat picks the blocking card. Normally the defender's."""
-    attacker = state.frames.get(attack.attacker_id)
-    if attacker is None or attacker.seat == defender.seat:
-        return defender.seat
-    card = state.catalogue[state.cards[attack.uid].key]
-    if not card.is_ranged and fx.card_active(state, attacker, MASTER_DUELIST):
-        return attacker.seat
     return defender.seat
 
 
@@ -3254,9 +3335,14 @@ def forced_targets(
     return forced or [dict(o) for o in options]
 
 
-def blocks_are_kept(state: GameState, defender: FrameState) -> bool:
-    """Showboating: "this frame's blocks are not discarded"."""
-    return fx.card_active(state, defender, SHOWBOATING, later_turns=False)
+def damage_reduction_against_attacks(state: GameState, defender: FrameState) -> int:
+    """Damage reduction against attack zones (rules.tex:1135).
+
+    Showboating: "this frame takes 1 less damage from attacks".
+    """
+    if fx.card_active(state, defender, SHOWBOATING, later_turns=False):
+        return 1
+    return 0
 
 
 def range_cap(state: GameState, attacker: FrameState) -> Optional[int]:
@@ -3273,7 +3359,7 @@ def range_cap(state: GameState, attacker: FrameState) -> Optional[int]:
 def commit_pool(state: GameState, frame: FrameState) -> list[str]:
     """Which cards this frame may commit from. Normally just its hand."""
     if fx.slot(state, "encode").get(frame.id) == state.turn:
-        return list(frame.hand) + list(frame.deck)
+        return list(frame.hand) + list(frame.deck) + list(frame.discard)
     return list(frame.hand)
 
 

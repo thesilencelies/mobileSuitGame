@@ -373,6 +373,9 @@ GLOSSARY: dict[str, tuple[tuple[str, ...], str]] = {
                     "blocked still deal damage"),
     "Committed": (("committed",),
                   "Committed: this attack is discarded after it resolves"),
+    "Exhaust": (("exhaust", "exhausted"),
+                "Exhaust: when an action exhausts a player, that player turns one of their "
+                "unresolved actions face up and sideways; it does not resolve this turn but may block"),
     "Feint": (("feint",),
               "Feint: if this attack is not blocked it deals no damage (blocks are compulsory)"),
     "Close Quarters": (("close quarters", "closequarters"),

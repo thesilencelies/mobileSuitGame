@@ -968,10 +968,12 @@ function renderFramePanel() {
 function cardRow(frame, { showAside = true } = {}) {
   const rows = [];
   for (const card of frame.committed || []) {
-    rows.push([card, card.echo ? 'echo — blocks only' : 'face down']);
+    const tag = card.echo ? 'echo — blocks only' : (card.exhausted ? 'exhausted — blocks only' : 'face down');
+    rows.push([card, tag]);
   }
   for (const card of frame.onField || []) {
-    rows.push([card, card.echo ? 'echo — blocks only' : 'on field']);
+    const tag = card.echo ? 'echo — blocks only' : (card.exhausted ? 'exhausted — blocks only' : 'on field');
+    rows.push([card, tag]);
   }
   if (showAside) for (const card of frame.aside || []) rows.push([card, 'persisting']);
   if (!rows.length) return null;
@@ -1885,10 +1887,12 @@ function renderPlan() {
   const rows = [];
   if (frame) {
     for (const card of frame.committed || []) {
-      rows.push([card, card.echo ? 'echo — blocks only' : 'committed']);
+      const tag = card.echo ? 'echo — blocks only' : (card.exhausted ? 'exhausted — blocks only' : 'committed');
+      rows.push([card, tag]);
     }
     for (const card of frame.onField || []) {
-      rows.push([card, card.echo ? 'echo — blocks only' : 'resolved']);
+      const tag = card.echo ? 'echo — blocks only' : (card.exhausted ? 'exhausted — blocks only' : 'resolved');
+      rows.push([card, tag]);
     }
     // Persisting, not echoing: set aside for its duration, and while it is
     // there it neither resolves again nor blocks.
@@ -2066,6 +2070,7 @@ function renderLadder() {
     const sub = document.createElement('small');
     const tags = [C.frameLabel(entry.frame.id, entry.frame.name)];
     if (entry.card.echo) tags.push('echo — can only block');
+    if (entry.card.exhausted) tags.push('exhausted — can only block');
     if (entry.state === 'resolved') tags.push('resolved · can still block');
     if (entry.state === 'hidden') {
       tags.push(entry.seat === 'mine'

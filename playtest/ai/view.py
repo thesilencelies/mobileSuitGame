@@ -199,6 +199,7 @@ class CardRef:
     resolved: bool
     face_down: bool
     echo: bool = False
+    exhausted: bool = False
 
     @property
     def known(self) -> bool:
@@ -281,6 +282,7 @@ def _card_refs(entries: Iterable[Mapping[str, Any]]) -> list[CardRef]:
             resolved=bool(e.get("resolved")),
             face_down=bool(e.get("faceDown")),
             echo=bool(e.get("echo")),
+            exhausted=bool(e.get("exhausted")),
         )
         for e in entries
     ]

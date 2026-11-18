@@ -298,11 +298,6 @@ def block_is_kept(state: GameState, defender: FrameState, block_card: Card,
     """
     if any(block_card.blocks[z] >= 2 for z in zones if z in block_card.blocks):
         return True
-    from . import effects
-
-    if effects.blocks_are_kept(state, defender):
-        state.note(f"{defender.id} is showboating: the block is not discarded")
-        return True
     if defender.spec.name == "Hector MkI" and not defender.turn_flags.get(
         "hector_block_used"
     ):

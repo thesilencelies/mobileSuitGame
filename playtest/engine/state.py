@@ -83,6 +83,8 @@ class CardInstance:
     is_echo: bool = False
     #: When this card is a Reload marker, the weapon group awaiting reload.
     reload_for: str = ""
+    #: Turned face up and sideways by an exhaust effect: does not resolve, but may block.
+    exhausted: bool = False
 
 
 # --------------------------------------------------------------------------
@@ -285,6 +287,7 @@ class AttackTarget:
     #: Uids already spent blocking this attack (a card blocks once per attack).
     used_blockers: list[str] = field(default_factory=list)
     done: bool = False
+    exhaust_pending: bool = False
 
 
 @dataclass
@@ -660,6 +663,7 @@ def draw(state: GameState, frame: FrameState, count: int) -> list[str]:
         inst.face_down = True
         inst.resolved = False
         inst.init_index = 0
+        inst.exhausted = False
         frame.hand.append(uid)
         drawn.append(uid)
     return drawn
@@ -680,6 +684,8 @@ def move_card(state: GameState, uid: str, dest: Location) -> None:
             if uid in pile:
                 pile.remove(uid)
     inst.location = dest
+    if dest != "committed":
+        inst.exhausted = False
     if dest == "deck":
         frame.deck.insert(0, uid)
     elif dest == "hand":

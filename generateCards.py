@@ -212,6 +212,7 @@ ability_dict = {
     "Feint": "This attack deals no damage",
     "Close Quarters": "Cannot be blocked by higher initiative attacks",
     "Committed": "this attack is discarded after resolving",
+    "Exhaust": "Turn one unresolved action face up and sideways; it does not resolve this turn but may block",
 }
 
 numbered_ability_dict = {

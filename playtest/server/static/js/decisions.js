@@ -727,6 +727,9 @@ function effectChoice(host, ctx, pending) {
   if (ctx.effectTileOptions(pending).length) {
     return effectTiles(host, ctx, pending);
   }
+  if (options.some((o) => 'exhaust' in o)) {
+    return exhaustChoice(host, ctx, pending);
+  }
   if (every((o) => 'uid' in o && 'key' in o) && !options.some((o) => 'swap' in o)) {
     return blockChoices(host, ctx, pending, 'effect_choice');
   }
@@ -869,6 +872,32 @@ function effectCards(host, ctx, pending) {
       sub: 'Change nothing',
       go: 'skip',
       onTap: () => ctx.send('effect_choice', { ...out }),
+    });
+  }
+}
+
+/** Choose which unresolved action to turn sideways. */
+function exhaustChoice(host, ctx, pending) {
+  banner(host, pending.prompt || 'Choose an unresolved action to exhaust', 'warn');
+  const note = document.createElement('p');
+  note.className = 'sheet-sub';
+  note.textContent = 'Exhausted actions do not resolve this turn, but may still be used to block.';
+  host.appendChild(note);
+  const el = list(host);
+  for (const option of pending.options) {
+    const info = C.card(option.key);
+    const bits = [];
+    if (info && info.initiative && info.initiative.length) {
+      bits.push(`initiative ${info.initiative.join('/')}`);
+    }
+    const line = C.summaryLine(option.key);
+    if (line) bits.push(line);
+    optionRow(el, {
+      thumbKey: option.key,
+      main: C.displayName(option.key),
+      sub: bits.join(' · '),
+      go: 'exhaust',
+      onTap: () => ctx.send('effect_choice', { ...option }),
     });
   }
 }

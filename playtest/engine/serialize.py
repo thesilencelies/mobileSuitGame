@@ -52,6 +52,8 @@ def _card_json(
     }
     if inst.is_echo:
         out["echo"] = True
+    if getattr(inst, "exhausted", False):
+        out["exhausted"] = True
     if visible:
         out["key"] = inst.key
     return out

@@ -606,7 +606,7 @@ def _actors(state: GameState) -> list[tuple[int, FrameState, str]]:
             continue
         for uid in list(frame.committed):
             inst = state.cards[uid]
-            if inst.location != "committed" or inst.is_echo:
+            if inst.location != "committed" or inst.is_echo or getattr(inst, "exhausted", False):
                 continue
             card = state.catalogue[inst.key]
             if inst.init_index >= len(card.initiative):
@@ -994,6 +994,14 @@ def _block_loop(state: GameState) -> bool:
     attack = res.attack
     while attack.current is not None:
         target = attack.current
+        if getattr(target, "exhaust_pending", False):
+            target.exhaust_pending = False
+            defender = state.frames.get(target.id)
+            if defender is not None:
+                dec = effects.exhaust_frame(state, defender)
+                if dec is not None:
+                    state.pending = dec
+                    return True
         decision = combat.next_block_decision(state, attack)
         if decision is not None:
             zones, candidates = decision

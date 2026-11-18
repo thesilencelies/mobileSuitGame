@@ -706,6 +706,9 @@ def finish_target(state: GameState, attack: AttackInProgress) -> None:
     defender = state.frames.get(target.id)
     if defender is None:
         return
+    frame_red = _effects.damage_reduction_against_attacks(state, defender)
+    if frame_red:
+        landed = {z: max(0, d - frame_red) for z, d in landed.items()}
     # One shield counter absorbs the whole attack, every zone of it. The
     # damage is the attacker's -- it takes the kill -- but it comes from
     # wherever the swing did, which for a drone is the drone.

@@ -308,12 +308,16 @@ def test_intimidate_makes_every_enemy_within_five_consume_a_block():
     assert decision is not None and decision.seat == near.seat
     assert {o["uid"] for o in decision.options} == {a, b}
     assert answer(state, decision, {"uid": b}) is None
-    assert state.cards[b].location == "discard"
-    assert state.cards[only].location == "discard", (
-        "a frame with one possible block loses it without being asked"
+    assert state.cards[b].exhausted is True
+    assert state.cards[b].face_down is False
+    assert state.cards[b].location == "committed"
+    assert state.cards[only].exhausted is True, (
+        "a frame with one unresolved action exhausts it automatically"
     )
-    assert state.cards[a].location == "committed", "only one block is consumed"
-    assert state.cards[safe].location == "committed", "out of range, untouched"
+    assert state.cards[only].face_down is False
+    assert state.cards[only].location == "committed"
+    assert state.cards[a].exhausted is False, "only one action is exhausted"
+    assert state.cards[safe].exhausted is False, "out of range, untouched"
 
 
 def test_intimidate_resolved_persistent_card_moves_to_aside():
@@ -325,11 +329,9 @@ def test_intimidate_resolved_persistent_card_moves_to_aside():
     state.cards[b].resolved_turn = state.turn
 
     _uid, decision = play(state, bruiser, effects.INTIMIDATE)
-    assert decision is None, "only one blocker available, chosen automatically"
-    assert state.cards[b].location == "aside"
-    assert b in near.aside
-    assert b not in near.committed
-    assert b not in near.discard
+    assert decision is None, "only resolved cards, none unresolved to exhaust"
+    assert not state.cards[b].exhausted
+    assert state.cards[b].location == "committed"
 
 
 def test_net_strength_gives_guard_break_and_a_daze_this_turn_and_next():
@@ -1615,13 +1617,13 @@ def test_showboating_forces_the_enemy_to_swing_at_it_and_keeps_its_blocks():
     after = combat.legal_targets(state, foe, card)
     assert [o["id"] for o in after] == [kid.id], "it must be attacked"
 
-    block = give(state, kid, "Spear_Thrust")
+    # Damage reduction against attacks: Halberd Crush does 3 High, reduced to 2.
     attack = combat.declare_attack(
-        state, foe, give(state, foe, "Spear_Thrust"),
+        state, foe, give(state, foe, "Halberd_Crush"),
         target_kind="frame", target_id=kid.id,
     )
-    combat.apply_block(state, kid, attack, block, ["Mid"])
-    assert state.cards[block].location == "committed", "the block is kept"
+    combat.finish_target(state, attack)
+    assert kid.damage["High"] == 2, "damage reduced by 1 from 3 to 2"
 
 
 # --------------------------------------------------------------------------
@@ -1705,7 +1707,9 @@ def test_precision_tuning_boosts_this_frame():
     state, frame, _ = duel()
     before = frame.base_movement
     play(state, frame, effects.PRECISION_TUNING)
-    assert frame.statuses["boosted"] == 4
+    assert frame.statuses["stimmed"] == 3
+    assert frame.statuses["boosted"] == 3
+    assert frame.statuses["lucid"] == 2
     assert frame.base_movement > before
 
 
@@ -1876,22 +1880,22 @@ def test_snipers_aim_committed_with_persistence_moves_to_aside_and_persists():
 def test_master_duelist_reveals_melee_targets_and_takes_over_their_blocks():
     state, attacker, defender = duel()
     uid, _ = play(state, attacker, effects.MASTER_DUELIST)
+    assert attacker.statuses["stimmed"] == 3
     hidden = give(state, defender, "Spear_Thrust")
 
     spear = give(state, attacker, "Spear_Thrust")
     attack = combat.declare_attack(
         state, attacker, spear, target_kind="frame", target_id=defender.id
     )
-    assert defender.statuses["revealed"] > 0
-    assert state.cards[hidden].face_down is False
-    assert effects.block_chooser(state, defender, attack) == attacker.seat
+    assert attack.current.exhaust_pending is True
+    assert effects.block_chooser(state, defender, attack) == defender.seat
 
     ranged = give(state, attacker, "Assault Rifle_From the hip")
     far = add_frame(state, 1, "Adam", Pos(6, 2))
     shot = combat.declare_attack(
         state, attacker, ranged, target_kind="frame", target_id=far.id
     )
-    assert effects.block_chooser(state, far, shot) == far.seat, "melee only"
+    assert not shot.current.exhaust_pending, "melee only"
 
     carry_over(state, uid)
     assert fx.card_active(state, attacker, effects.MASTER_DUELIST), "3 turns"
@@ -2611,3 +2615,70 @@ def test_encode_the_futures_deck_wide_commit_pool_stays_with_its_own_seat():
     assert deck not in leaked
     assert "Halberd_Crush" not in leaked
     assert deck in _strings_in(view_for(state, 0))
+
+
+def test_encode_the_future_includes_discard_pile():
+    state = make_state()
+    mystic = add_frame(state, 0, "Hannael", Pos(2, 2))
+    add_frame(state, 1, "Fenrir", Pos(8, 8))
+    deck_card = give(state, mystic, "Halberd_Crush", location="deck")
+    disc_card = give(state, mystic, "Halberd_Eviscerate", location="discard")
+
+    uid, decision = play(state, mystic, effects.ENCODE)
+    carry_over(state, uid)
+    pool = effects.commit_pool(state, mystic)
+    assert deck_card in pool, "cards from deck are offered"
+    assert disc_card in pool, "cards from discard are offered"
+
+
+def test_mace_break_exhausts_target_which_can_still_block():
+    from playtest.engine import resolve as R
+    from playtest.engine.types import Command
+
+    state, attacker, defender = duel()
+    break_card = give(state, attacker, "Mace_Break")
+    block_card = give(state, defender, "Shield_Full Guard")
+    other_card = give(state, defender, "Spear_Thrust")
+
+    attack = combat.declare_attack(
+        state, attacker, break_card, target_kind="frame", target_id=defender.id
+    )
+    assert attack.current.exhaust_pending is True
+
+    # Simulate resolution in block loop
+    res = R.Resolution(frame_id=attacker.id, uid=break_card, steps=["attack"])
+    res.attack = attack
+    state.resolution = res
+
+    # Running block loop should prompt exhaust choice because defender has 2 unresolved actions
+    blocked = R._block_loop(state)
+    assert blocked is True
+    assert state.pending is not None
+    assert state.pending.kind == "effect_choice"
+    assert {o["uid"] for o in state.pending.options} == {block_card, other_card}
+
+    # Defender chooses to exhaust block_card
+    R.handle_command(state, Command("effect_choice", defender.seat, {"uid": block_card}))
+    assert state.cards[block_card].exhausted is True
+    assert state.cards[block_card].face_down is False
+
+    # Block loop now prompts defender for compulsory block
+    blocked = R._block_loop(state)
+    assert blocked is True
+    assert state.pending is not None
+    assert state.pending.kind == "choose_block"
+    # The exhausted card IS allowed to block!
+    assert block_card in {o["uid"] for o in state.pending.options}
+
+
+def test_exhausted_cards_do_not_resolve_in_actors():
+    from playtest.engine import resolve as R
+
+    state, f1, f2 = duel()
+    c1 = give(state, f1, "Spear_Thrust")
+    c2 = give(state, f2, "Spear_Thrust")
+    assert any(uid == c2 for _, _, uid in R._actors(state))
+
+    state.cards[c2].exhausted = True
+    assert not any(uid == c2 for _, _, uid in R._actors(state)), "exhausted card does not resolve"
+

@@ -1372,7 +1372,38 @@ class Agent:
             return Command(
                 "effect_choice", self.seat, dict(self._pick_swap(snap, pending, options))
             )
+        if any("exhaust" in o for o in options):
+            return Command(
+                "effect_choice", self.seat, dict(self._pick_exhaust(snap, pending, options))
+            )
         return Command("effect_choice", self.seat, dict(options[0]))
+
+    def _pick_exhaust(
+        self,
+        snap: Snapshot,
+        pending: Mapping[str, Any],
+        options: Sequence[Mapping[str, Any]],
+    ) -> Mapping[str, Any]:
+        """Choose which card to exhaust: rate cards and exhaust the lowest-value one."""
+        frame = snap.frame(pending.get("frameId"))
+        prof = self.opponent_profile(snap)
+        health = frame.health if frame is not None else {z: 3 for z in ZONES}
+        rated: list[tuple[float, Mapping[str, Any]]] = []
+        for option in options:
+            card = self.card(str(option.get("key")))
+            if card is None:
+                continue
+            rated.append(
+                (
+                    S.score_hand(
+                        [card], prof, self.params, health, turn=snap.turn
+                    ),
+                    option,
+                )
+            )
+        if not rated:
+            return options[0]
+        return min(rated, key=lambda pair: pair[0])[1]
 
     def _pick_swap(
         self,
