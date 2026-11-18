@@ -76,5 +76,5 @@ Whirl,,Great Axe,4,-2,0,0,1,cut,cut,cut,0,0,0,0,2,0,Hits all adjacent enemies,0,
 Eviscerate,,Great Axe,3,-3,0,0,1,cut,cut,cut,0,0,2,0,2,0,\fullclosequarters,0,weapon_pictures/Great_Axe_Eviscerate_t.png,backgrounds/Great_Axe_bg.png,,,1,Stephen Lilico
 Crush,,Mace,3,-2,0,0,1,impact,impact,impact,3,0,0,0,0,0,,0,weapon_pictures/Mace_Crush_t.png,backgrounds/Mace_bg.png,,,1,Stephen Lilico
 Beat,,Mace,7,0,0,1,0,impact,impact,impact,0,0,1,0,0,0,\fullknockback{2},0,weapon_pictures/Mace_Beat_t.png,backgrounds/Mace_bg.png,,,1,Stephen Lilico
-Break,,Mace,6,-1,0,1,0,impact,impact,impact,1,0,1,0,0,0,,0,weapon_pictures/Mace_Break_t.png,backgrounds/Mace_bg.png,,,1,Stephen Lilico
+Break,,Mace,6,-1,0,1,0,impact,impact,impact,1,0,1,0,0,0,Exhaust the target,0,weapon_pictures/Mace_Break_t.png,backgrounds/Mace_bg.png,,,1,Stephen Lilico
 Batter,,Mace,3,-2,0,0,1,impact,impact,impact,2,0,2,0,0,0,\fullguardbreak,0,weapon_pictures/Mace_Batter_t.png,backgrounds/Mace_bg.png,,,1,Stephen Lilico
